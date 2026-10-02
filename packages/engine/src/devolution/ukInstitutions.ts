@@ -7,6 +7,7 @@
  */
 export const UK_EXECUTIVE_REGIONS = ["SCO", "WAL", "NIR", "LON"] as const;
 export type UKExecutiveRegion = (typeof UK_EXECUTIVE_REGIONS)[number];
+export type NorthernIrelandPosture = "unsettled" | "power_sharing" | "suspended";
 
 export interface RegionalExecutiveInstitution {
   active: boolean;
@@ -20,7 +21,7 @@ export interface UKDevolutionState {
   lastPolicyBillId?: string;
   /** Optional source-owned peace-process posture; absence keeps legacy saves intact. */
   northernIrelandPeace?: {
-    posture: "unsettled" | "power_sharing" | "suspended";
+    posture: NorthernIrelandPosture;
     changedTurn: number;
     assemblyFirstCycle?: number;
     assemblyFirstElectionEndTurn?: number;

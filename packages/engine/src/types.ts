@@ -214,6 +214,8 @@ export interface WorldState {
   demographicCategories: Record<string, import("./demographics/categories.js").DemographicCategory[]>;
   /** Census reapportionment state. Ports src/lib/turn/census.ts GameState.lastCensusYear/lastCensus. Schema v14. */
   census: { lastCensusYear?: number; lastCensus?: { year: number; deltas: import("./demographics/census.js").SeatDelta[] } };
+  /** Annual statehood-admission evaluation guard, mirroring GameState.lastStatehoodYear. */
+  statehood?: { lastEvaluatedYear?: number; startingPreset?: string };
   /** Per-region labor force headcount (civilian). Computed from workingAge + conscription + participation. Schema v14. */
   laborForces: Record<string, number>;
   /** National budgets per country (fiscal system). Ports FederalBudget shape. Schema v15. */
@@ -755,6 +757,15 @@ export interface Campaign {
   createdAtTurn: number;
 }
 
+/** Native projection of a source CharacterStateOrg row for presidential primaries. */
+export interface PrimaryStateOrganization {
+  level: number;
+  totalInvested: number;
+  updatedAtTurn: number;
+  lastBuildTurn: number;
+  lastBuildFunds: number;
+}
+
 export interface Politician {
   /** Deterministic id sequential per country, e.g. "US-1" */
   id: string;
@@ -1026,6 +1037,8 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** Source CharacterStateOrg rows keyed by US state. */
+  primaryStateOrganizations?: Record<string, PrimaryStateOrganization>;
   /** One normalized UK office constituency selection, valid only in its saved region. */
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
@@ -1041,6 +1054,8 @@ export interface PlayerCharacter {
    * ACTION_HOARD_PENALTY=4, threshold 100, cap 200 at PORT-STUB neutral.
    */
   actions: number;
+  /** Turn of the player's last illicit union drive, enforcing one drive across cells per turn. */
+  lastUndergroundDriveTurn?: number | null;
   /** Campaign funds (local) for player. */
   funds: number;
   donorBaseLevel: number;
@@ -1635,6 +1650,8 @@ export interface Region {
   /** Migration provenance: this HQ-only row was absent from the legacy save. */
   legacyProjectionDefault?: true;
   /** Optional enriched state metadata for US states (W38+). Mirrors StateSeed fields. */
+  /** In-game admission year for a territory admitted after its starting pack. */
+  admittedYear?: number;
   population?: number;
   houseSeats?: number;
   senateSeats?: number;
@@ -1820,6 +1837,8 @@ export interface CrisisRecord {
   effects: Array<{ type: string; value: number; effectType: "flat" | "tick" | "decay" }>;
   status: "active" | "resolved";
   endTurn?: number;
+  /** Source union-ban general strike's once-per-turn underground extension guard. */
+  lastUndergroundExtensionTurn?: number;
   wireMessageOnStart: string;
   wireMessageOnEnd: string;
   playerResponse?: string | null;

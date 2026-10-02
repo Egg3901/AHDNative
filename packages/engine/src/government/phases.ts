@@ -114,9 +114,8 @@ function createGovernment(countryId: string, chamberKey: string, chamber: Chambe
     formedTurn: null,
     snapElectionsUsed: 0,
     lastSnapElectionTurn: null,
-    // Source ensureParliamentaryGovernmentFormation creates first-run pending
-    // records without an orphaned-PM deadline. The 96-turn clock is armed only
-    // after a formed government loses its PM/seat or a snap resets parliament.
+    // Game's first pending formation has no vacancy clock. Only an actual
+    // lost office or a snap/reset rearms the separate +96-turn watcher.
     pmVacancyDeadlineTurn: null,
     confidence: 0,
   };

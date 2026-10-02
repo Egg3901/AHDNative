@@ -63,6 +63,9 @@ export interface UnionOrganizer {
   organizeCount: number;
   createdAtTurn: number;
   updatedAtTurn: number;
+  /** Optional shadow pool accumulated through underground drives during a ban. */
+  undergroundStrength?: number;
+  lastUndergroundDriveTurn?: number | null;
 }
 
 /** Deterministic organizer id. The id IS the (union, organizer) identity invariant. */
@@ -143,6 +146,15 @@ export function validateUnionOrganizer(world: WorldState, organizer: UnionOrgani
     organizeCount < 0
   ) {
     throw new Error(`Invalid union organizer organize count for ${row["id"]}`);
+  }
+  const undergroundStrength = row["undergroundStrength"];
+  if (undergroundStrength !== undefined && (typeof undergroundStrength !== "number" || !Number.isFinite(undergroundStrength) || undergroundStrength < 0)) {
+    throw new Error(`Invalid underground organizer strength for ${row["id"]}`);
+  }
+  const lastUndergroundDriveTurn = row["lastUndergroundDriveTurn"];
+  if (lastUndergroundDriveTurn !== undefined && lastUndergroundDriveTurn !== null &&
+    (typeof lastUndergroundDriveTurn !== "number" || !Number.isSafeInteger(lastUndergroundDriveTurn) || lastUndergroundDriveTurn < 0)) {
+    throw new Error(`Invalid underground organizer turn for ${row["id"]}`);
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWorld } from "./world.js";
+import { createWorld, SCHEMA_VERSION } from "./world.js";
 import { deserializeSave, serializeSave } from "./save.js";
 
 const OPTIONS = { seed: "labour-residual-save-v54", playerName: "Tester", countryId: "US", era: "1953" } as const;
@@ -13,12 +13,12 @@ describe("labour political residual save contract", () => {
       "society.civicLife": -0.324,
     };
     const parsed = JSON.parse(serializeSave(world, SAVED_AT));
-    expect(parsed.schemaVersion).toBe(54);
+    expect(parsed.schemaVersion).toBe(SCHEMA_VERSION);
     parsed.schemaVersion = 53;
     parsed.world.meta.schemaVersion = 53;
 
     const loaded = deserializeSave(JSON.stringify(parsed));
-    expect(loaded.meta.schemaVersion).toBe(54);
+    expect(loaded.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(loaded.regionalPoliticalMetrics?.CA?.labourResiduals).toEqual({
       "economy.workerSecurity": -0.6075,
       "society.civicLife": -0.324,

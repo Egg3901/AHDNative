@@ -64,7 +64,7 @@ describe("signed customs tariff trade effect (#77)", () => {
     session.create({ era: "2019", countryId: "CN", seed: "cn-tariff-authority-gate", playerName: "Player" });
     const result = session.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 10 });
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("Must hold a legislative seat");
+    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Must hold a legislative seat") });
   });
 
   it("does not treat HoS mode alone as the source sovereign-decree authority", () => {
@@ -77,7 +77,7 @@ describe("signed customs tariff trade effect (#77)", () => {
 
     const result = altered.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 10 });
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("Must hold a legislative seat in the player's country");
+    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Must hold a legislative seat in the player's country") });
   });
 
   it("blocks another tariff at the same scope while the first bill is nonterminal", () => {
@@ -107,7 +107,7 @@ describe("signed customs tariff trade effect (#77)", () => {
     enrolled.load(JSON.stringify(enrolledSave));
     const duplicate = enrolled.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 12 });
     expect(duplicate.ok).toBe(false);
-    expect(duplicate.error).toContain("Another active bill already proposes a tariff at this scope");
+    expect(duplicate).toMatchObject({ ok: false, error: expect.stringContaining("Another active bill already proposes a tariff at this scope") });
   });
 
   it("leaves the CN customs tax law on the ordinary one-point fiscal phase-in path", () => {

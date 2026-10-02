@@ -28,7 +28,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, nationalizationTargets, nationalizationUnavailableReason,
+  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -37,6 +37,7 @@ import {
   openBargainingCampaignAction,
   organizeSectorAction,
   organizeUnionAction,
+  organizeUnionUndergroundAction,
   type BargainingTerms,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, BankOption, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -210,6 +211,19 @@ export class GameSession {
     // input). Refuse before cloning so the simulation is untouched.
     if (isWorldsimMode(this.requireWorld().player.mode)) {
       return { ok: false as const, error: "This spectator world has no player character. Advance the turn to run the simulation." };
+    }
+    if (actionId === "setAutoRunForReelection") {
+      if (typeof params.enabled !== "boolean") return { ok: false as const, error: "Choose whether to automatically re-enter your most recent state race." };
+      const source = this.requireWorld();
+      const actionBefore = snapshotActionFields(source);
+      const candidate = structuredClone(source);
+      candidate.player.autoRunForReelection = params.enabled;
+      this.commit(candidate, this.notifications);
+      return {
+        ok: true as const,
+        message: params.enabled ? "Automatic state-race re-entry enabled." : "Automatic state-race re-entry disabled.",
+        outcome: buildActionOutcome(actionId, params, actionBefore, candidate),
+      };
     }
     // #273: nomination commands call the engine functions directly on a
     // cloned world. actions/catalog.ts and actions/execute.ts are untouched
@@ -550,6 +564,13 @@ export class GameSession {
     return result;
   }
 
+  organizeUnionUnderground(unionId: string, mode: "quiet" | "mass") {
+    const candidate = structuredClone(this.requireWorld());
+    const result = organizeUnionUndergroundAction(candidate, unionId, mode);
+    this.commit(candidate);
+    return result;
+  }
+
   castUnionLeadershipVote(unionId: string) {
     const candidate = structuredClone(this.requireWorld());
     const result = castUnionLeadershipVote(candidate, unionId);
@@ -574,6 +595,13 @@ export class GameSession {
   setUnionDues(unionId: string, duesPerWorkerAnnual: number) {
     const candidate = structuredClone(this.requireWorld());
     const result = setUnionDuesAction(candidate, unionId, duesPerWorkerAnnual);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  setUnionPoliticalContributions(unionId: string, politicalContributionPct: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = setUnionPoliticalContributionsAction(candidate, unionId, politicalContributionPct);
     if (result.ok) this.commit(candidate);
     return result;
   }
@@ -953,7 +981,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
       mode: player.mode, hosPartyId: player.hosPartyId, homeRegionId: player.homeRegionId ?? null,
       permanentHeadOfState: player.permanentHeadOfState === true,
-      currentOffice: player.currentOffice?.type ?? null },
+      currentOffice: player.currentOffice?.type ?? null,
+      autoRunForReelection: player.autoRunForReelection === true },
     legislature: projectLegislature(world),
     finance: projectFinance(world),
     resources: projectResources(world),
@@ -1261,16 +1290,20 @@ function projectLegislature(world: WorldState): LegislatureView {
   const government = world.governments[player.countryId];
   const pmVotes = world.pmAppointmentVotes.filter((vote) => vote.countryId === player.countryId);
   const appointmentEligibility = getPmAppointmentEligibility(world);
+  const executiveTitle = pmAppointmentExecutiveTitle(player.countryId);
+  const formationChamberName = player.countryId === "IE" ? "Dáil" : world.legislatures[player.countryId]?.chambers.find(chamber => chamber.key === government?.chamberKey)?.name ?? "Parliament";
   const activePartyVote = pmVotes.some((vote) => vote.status === "active" && vote.partyId === player.partyId);
   const nominationReason = activePartyVote ? "Your party already has an active PM appointment vote" : appointmentEligibility.reason;
   return {
     office: seat ? `${chamberName(seat.countryId, seat.chamberKey)} · ${world.countries[seat.countryId]?.name ?? seat.countryId}`
       : player.mode === "hos" ? "Head of state" : null,
     countryId: player.countryId,
-    ...(player.countryId === "IE" && government ? {
+    unionLawBanned: world.budgets[player.countryId]?.unionsBanned === true,
+    ...(executiveTitle && government ? {
       governmentFormation: {
         status: government.status,
-        executiveTitle: "Taoiseach",
+        executiveTitle,
+        chamberName: formationChamberName,
         officeholderName: government.pmPoliticianId === "player"
           ? player.name
           : world.politicians.find((politician) => politician.id === government.pmPoliticianId)?.name ?? null,
@@ -1278,8 +1311,8 @@ function projectLegislature(world: WorldState): LegislatureView {
         ...(nominationReason ? { nomineeDisabledReason: nominationReason } : {}),
         nomination: {
           id: "proposePmAppointment",
-          name: "Nominate Taoiseach",
-          description: "Party-chair nomination followed by a Dáil appointment vote.",
+          name: `Nominate ${executiveTitle}`,
+          description: `Party-chair nomination followed by a ${formationChamberName} appointment vote.`,
           cost: 0,
           available: government.status === "pending" && !nominationReason,
           ...(nominationReason ? { disabledReason: nominationReason } : {}),
@@ -1287,7 +1320,7 @@ function projectLegislature(world: WorldState): LegislatureView {
         votes: pmVotes.map((vote) => {
           const seat = player.legislativeSeat;
           const voteReason = !seat || seat.countryId !== vote.countryId || seat.chamberKey !== vote.chamberKey
-            ? "You must be an elected Dáil member to vote on a Taoiseach appointment"
+            ? `You must be an elected ${formationChamberName} member to vote on a ${executiveTitle} appointment`
             : vote.status !== "active"
               ? "This vote has already closed"
               : world.meta.turn >= vote.closesTurn
@@ -1304,8 +1337,8 @@ function projectLegislature(world: WorldState): LegislatureView {
             playerVote: vote.votes.player ?? null,
             voting: {
               id: "votePmAppointment",
-              name: "Vote on Taoiseach Appointment",
-              description: "Dáil members vote aye or nay.",
+              name: `Vote on ${executiveTitle} Appointment`,
+              description: `${formationChamberName} members vote aye or nay.`,
               cost: 0,
               available: !voteReason,
               ...(voteReason ? { disabledReason: voteReason } : {}),

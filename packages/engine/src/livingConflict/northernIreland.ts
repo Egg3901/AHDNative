@@ -218,7 +218,8 @@ export function chooseNorthernIrelandLivingConflictOption(world: WorldState, act
   if (!current) return { ok: false, error: "The Northern Ireland decision is invalid." };
   const actor = actorId === "player" ? world.player : world.politicians.find((p) => p.id === actorId);
   if (!actor || actor.countryId !== current.countryId) return { ok: false, error: `This decision requires an authorized ${current.countryId} participant.` };
-  const party = "partyId" in actor ? world.parties[actor.partyId] : undefined;
+  const actorPartyId = "partyId" in actor ? actor.partyId : undefined;
+  const party = typeof actorPartyId === "string" ? world.parties[actorPartyId] : undefined;
   const isPartyLeader = party?.chairId === actorId;
   const partyAbbreviation = party?.abbreviation;
   const authorized = current.role === "government" ? actorId === "player" && world.player.mode === "hos" : current.role === "governor" ? world.governors.NIR?.governorId === actorId : current.role === "unionist" ? isPartyLeader && (partyAbbreviation === "DUP" || partyAbbreviation === "UUP") : isPartyLeader && (partyAbbreviation === "SF" || partyAbbreviation === "SDLP");

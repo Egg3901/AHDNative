@@ -752,6 +752,18 @@ describe("GameScreen", () => {
     expect(within(card).getByRole("button", { name: /run for office/i })).toBeDisabled();
   });
 
+  it("offers the persistent automatic state-race re-entry setting from Elections", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld({ player: { ...makeWorld().player, autoRunForReelection: false } });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={onAction} />);
+    await navigate(user, "Elections");
+    const reentry = screen.getByRole("checkbox", { name: "Automatically re-enter my most recent state race" });
+    expect(reentry).not.toBeChecked();
+    await user.click(reentry);
+    expect(onAction).toHaveBeenCalledWith("setAutoRunForReelection", { enabled: true });
+  });
+
   it("paginates elections 20 per page so every election stays reachable", async () => {
     const user = userEvent.setup();
     const elections = Array.from({ length: 25 }, (_, i) =>

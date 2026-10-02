@@ -3,7 +3,7 @@ import { anchorToLocal, rateForLocalBalance } from "../forex/conversion.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnionId, validateCorporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import type { CorporateSectorAsset } from "../corporation/corporateSectorAssets.js";
-import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "../corporation/plantCapacity.js";
+import { capacityEraPriceIndex, capacityPricePerUnitAnchor, corporateSectorBasePrices } from "../corporation/plantCapacity.js";
 
 /** Mainline AHDGame corporations.ts SECTOR_EXPANSION_BASE_COST. */
 export const SECTOR_EXPANSION_BASE_COST_ANCHOR = 100_000;
@@ -53,13 +53,12 @@ export function expandRegionalExtraction(
   if (existing) return { ok: false, error: `An extraction operation already exists in ${regionId}` };
 
   const expansionCostAnchor = Math.round(SECTOR_EXPANSION_BASE_COST_ANCHOR * getEraNominalScale(world.meta.era));
-  const capacityPrice = capacityPricePerUnitAnchor("extraction", corporateSectorBasePrices(world));
   const year = Number(world.meta.date.slice(0, 4));
   // Current commodity base prices already carry Native's source era nominal
   // conversion. Game's capacity list adds its independently authored price
   // column (capacityEconomy.capacityEraPriceIndex) on top of that unit basis.
   const starterBuildAnchor = Math.round(
-    EXTRACTION_STARTER_UNITS * capacityPrice * sourceCapacityEraPriceIndex(year) * sourceFoundingCostModifiers(world, corporationId, regionId, existingAssets) * EXTRACTION_FOUNDING_BUILD_DISCOUNT,
+    EXTRACTION_STARTER_UNITS * capacityPricePerUnitAnchor("extraction", corporateSectorBasePrices(world), undefined, year) * sourceFoundingCostModifiers(world, corporationId, regionId, existingAssets) * EXTRACTION_FOUNDING_BUILD_DISCOUNT,
   );
   const starterOnlineTurn = world.meta.turn + EXTRACTION_STARTER_BUILD_TURNS;
   const totalCostAnchor = expansionCostAnchor + starterBuildAnchor;
@@ -113,12 +112,7 @@ export function expandRegionalExtraction(
 
 /** Source Game capacityEconomy.ts capacityEraPriceIndex, including its modern row. */
 export function sourceCapacityEraPriceIndex(year: number): number {
-  if (!Number.isFinite(year)) return 5;
-  if (year < 1971) return 1;
-  if (year < 1979) return 1.4;
-  if (year < 1991) return 2.6;
-  if (year < 1999) return 3.6;
-  return 5;
+  return capacityEraPriceIndex(year);
 }
 
 /** Game capacityEconomy.computeBuildCost modifiers available in Native state. */

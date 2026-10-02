@@ -32,6 +32,8 @@ import * as CampaignManager from "./campaignManager.js";
 import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as CampaignContribute from "./campaignContribute.js";
+import { buildStatePresence } from "./campaignPresence.js";
+import { setPrimaryCampaignState, usePrimaryHomeStateSurge } from "./primaryCampaign.js";
 import * as Referendum from "../referendum/request.js";
 import * as ReferendumCampaign from "../referendum/campaign.js";
 import * as ReferendumGroundGame from "../referendum/groundGame.js";
@@ -58,6 +60,7 @@ import { rollDebatePrep } from "../stats/debatePrep.js";
 import { isCorpStateOwned, issueCorporateBond, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { quoteCorporateBondIssuance } from "../bonds/corporateBondQuote.js";
 import { buybackCorporateBondUnits } from "../bonds/corporateBondServicing.js";
+import { setCorporateSectorStrategy } from "../corporation/strategyRetooling.js";
 import { BOND_UNIT_FACE_VALUE } from "../bonds/constants.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
@@ -65,18 +68,22 @@ import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
+import { splitNationalCorporation, mergeNationalCorporation } from "../corporation/nationalReorganization.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
-import { castPmAppointmentVote, proposePmAppointment } from "../government/pmAppointment.js";
+import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
+import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
 import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeacePoll } from "../livingConflict/northernIreland.js";
 import { resignUkCommonsSeat } from "../elections/ukCommonsVacancies.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 
 export type ExecuteActionParams = {
+  /** Player preference for automatic re-entry in the most recent state race. */
+  enabled?: boolean;
   regionId?: string;
   contractId?: string;
   issuerLevel?: "national" | "state";
@@ -109,6 +116,10 @@ export type ExecuteActionParams = {
   originChamber?: string;
   /** Rate for the source-authored economy-wide trade tariff provision. */
   tariffRate?: number;
+  /** Source labour/unionLaws.ts provision selector. */
+  banAction?: "ban" | "repeal_ban";
+  /** Source union-law bias, clamped to the national -50..50 band. */
+  bias?: number;
   // Intra-party ballots
   intrapartyElectionId?: string;
   candidateId?: string;
@@ -132,7 +143,11 @@ export type ExecuteActionParams = {
   // W10 markets
   corpId?: string;
   corporationId?: string;
-  tier?: "seizure";
+  sectorId?: string;
+  strategyId?: string;
+  tier?: "fair" | "discounted" | "seizure";
+  newCorpName?: string;
+  intoCorpId?: string;
   shares?: number;
   // W13 bonds
   bondId?: string;
@@ -412,17 +427,17 @@ function executeActionInner(
   // These source commands are recorded in parliamentary state, not charged
   // through generic action points or action counters.
   if (actionId === "proposePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a Taoiseach." };
+    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a head of government." };
     const result = proposePmAppointment(world);
     return result.ok
-      ? { ok: true, message: `Opened Taoiseach appointment vote ${result.vote.id}.` }
+      ? { ok: true, message: `Opened ${pmAppointmentExecutiveTitle(result.vote.countryId)} appointment vote ${result.vote.id}.` }
       : { ok: false, error: result.error };
   }
   if (actionId === "votePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a Taoiseach appointment." };
+    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a government appointment." };
     const result = castPmAppointmentVote(world, params.pmAppointmentVoteId ?? "", params.pmVote ?? "aye");
     return result.ok
-      ? { ok: true, message: `Recorded ${params.pmVote} on Taoiseach appointment ${params.pmAppointmentVoteId}.` }
+      ? { ok: true, message: `Recorded ${params.pmVote} on ${pmAppointmentExecutiveTitle(result.vote.countryId)} appointment ${params.pmAppointmentVoteId}.` }
       : { ok: false, error: result.error };
   }
   // A pending parliamentary government freezes bill proposals before any
@@ -439,6 +454,36 @@ function executeActionInner(
     if (world.northernIrelandConflict?.phase !== "agreement") return { ok: false, error: "Northern Ireland settlement bills may be sponsored only during the authored agreement phase." };
     if (params.policyOptionId !== "l1") return { ok: false, error: "The source peace-ratification path requires the ratify option." };
   }
+
+  // Campaign presence is charged to the active campaign's own source pools,
+  // not to the character. Resolve it before generic player AP/accounting.
+  if (actionId === "buildStatePresence") {
+    const result = buildStatePresence(world, actorId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "setPrimaryCampaignState") {
+    const result = setPrimaryCampaignState(world, actorId, params.electionId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "usePrimaryHomeStateSurge") {
+    const result = usePrimaryHomeStateSurge(world, actorId, params.electionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "governorEndorsePresidentialCandidate") {
+    if (actorId !== "player") return { ok: false, error: "Only the player governor may use this action." };
+    const result = endorsePresidentialCandidate(world, params.regionId!, params.electionId!, params.candidateId!);
+    return result.ok
+      ? { ok: true, message: `Endorsed candidate in ${params.regionId}.` }
+      : { ok: false, error: result.error ?? "Governor endorsement failed." };
+  }
+  if (actionId === "withdrawGovernorEndorsement") {
+    if (actorId !== "player") return { ok: false, error: "Only the player governor may use this action." };
+    const result = withdrawPresidentialGovernorEndorsement(world, params.electionId!, params.endorsementId!);
+    return result.ok ? { ok: true, message: "Governor endorsement withdrawn." } : result;
+  }
+
+  if (actionId === "splitNationalCorporation") return splitNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.newCorpName!);
+  if (actionId === "mergeNationalCorporation") return mergeNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.intoCorpId);
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
@@ -1011,6 +1056,87 @@ function executeActionInner(
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Must hold a legislative seat to sponsor bills (career mode); HoS mode grants government sponsorship" };
+    }
+    if (catalogId === "labour.union_law") {
+      const reject = (error: string): ExecuteActionResult => {
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error };
+      };
+      if (params.sponsorCountryId && params.sponsorCountryId !== world.player.countryId) {
+        return reject("Cannot sponsor a union law outside the player's country");
+      }
+      const countryId = world.player.countryId;
+      const budget = world.budgets[countryId];
+      if (!budget) return reject(`No national budget exists for ${countryId}`);
+      const requestedAction = params.banAction;
+      const banAction = requestedAction === "ban" || requestedAction === "repeal_ban" ? requestedAction : undefined;
+      const bias = params.bias;
+      if (requestedAction !== undefined && banAction === undefined) return reject("Union-law ban action must be ban or repeal_ban");
+      if (banAction === undefined && (typeof bias !== "number" || !Number.isFinite(bias))) {
+        return reject("Union-law bias must be a finite number or specify a ban action");
+      }
+      if (banAction === "ban" && budget.unionsBanned === true) return reject("Unions are already banned in this country");
+      if (banAction === "repeal_ban" && budget.unionsBanned !== true) return reject("There is no union ban to repeal in this country");
+      if (world.bills.some((bill) => bill.countryId === countryId &&
+        !["failed", "withdrawn", "signed", "override_failed"].includes(bill.status) &&
+        bill.provisions.some((provision) => provision.type === "union_law"))) {
+        return reject("Another active union-law bill is already at this scope");
+      }
+
+      const seat = player.legislativeSeat;
+      const sovereignDecree = player.mode === "hos" && player.permanentHeadOfState === true;
+      const legislature = world.legislatures[countryId];
+      if (!sovereignDecree) {
+        if (!seat || seat.countryId !== countryId) return reject("Must hold a legislative seat in the player's country to sponsor a union law");
+        const chamber = legislature?.chambers.find((row) => row.key === seat.chamberKey && row.elected);
+        if (!chamber) return reject("The player's union-law bill must originate in an elected chamber");
+        if (params.originChamber && params.originChamber !== seat.chamberKey) return reject("A union-law bill must originate in the player's seated chamber");
+      }
+      const originChamber = sovereignDecree
+        ? legislature?.chambers.find((row) => row.elected)?.key ?? legislature?.chambers[0]?.key ?? "house"
+        : seat!.chamberKey;
+      const normalizedBias = typeof bias === "number" && Number.isFinite(bias) ? Math.max(-50, Math.min(50, bias)) : 0;
+      const id = `bill-${world.meta.turn}-${world.bills.length + 1}-labour.union_law`;
+      const bill: import("../legislation/types.js").Bill = {
+        id,
+        title: banAction === "ban" ? "National Union Ban" : banAction === "repeal_ban" ? "Repeal National Union Ban" : "National Union Law",
+        summary: banAction === "ban" ? "Suspend unions and block strike action nationwide." : banAction === "repeal_ban" ? "Restore legal union activity nationwide." : `Set national union-law bias to ${normalizedBias}.`,
+        countryId,
+        category: "subsidy",
+        legislationTypeId: "labour.union_law",
+        effectDirection: normalizedBias === 0 ? 0 : Math.sign(normalizedBias),
+        provisions: [{
+          type: "union_law",
+          legislationTypeId: "labour.union_law",
+          effectDirection: normalizedBias === 0 ? 0 : Math.sign(normalizedBias),
+          bias: normalizedBias,
+          ...(banAction ? { banAction } : {}),
+        }],
+        originChamber,
+        currentChamber: originChamber,
+        status: sovereignDecree ? "signed" : "active",
+        sponsorId: "player",
+        sponsorName: world.player.name,
+        sponsorPartyId: world.player.partyId,
+        votes: {},
+        votesFor: 0,
+        votesAgainst: 0,
+        votesAbstain: 0,
+        proposedAtTurn: world.meta.turn,
+        ...(sovereignDecree ? { enactedAtTurn: world.meta.turn } : { votingEndsOnTurn: world.meta.turn + 2 }),
+        proposalActionCost: BILL_PROPOSE_ACTION_COST,
+        filibusterInvocations: [],
+        updatedAtTurn: world.meta.turn,
+        committeeId: null,
+      };
+      world.bills.push(bill);
+      if (sovereignDecree) {
+        applyBillEffects(world, bill);
+        delete actor.actionCooldowns[actionId];
+        return { ok: true, message: `Enacted union-law bill ${id} by head-of-state authority` };
+      }
+      return { ok: true, message: `Sponsored union-law bill ${id}` };
     }
     // Source category="trade" bills carry tariff provisions, independently
     // of national tax-law bills such as CN's customs tariff rate. Game's
@@ -1956,6 +2082,19 @@ function executeActionInner(
     return { ok: true, message: `Sold ${shares} shares of ${corp.tickerSymbol} for ${notional}` };
   }
 
+  if (actionId === "setCorporateSectorStrategy") {
+    const result = setCorporateSectorStrategy(
+      world,
+      actorId,
+      params.corpId!,
+      params.sectorId!,
+      params.strategyId!,
+    );
+    return result.ok
+      ? { ok: true, message: `Retooling started; ${result.transitionTurns}-turn transition began at source retool cost ${result.feeLocal}` }
+      : result;
+  }
+
   // W13 bonds — player buy/sell sovereign bond units at mainline pricing.
   // #307 extends the same seam to corporate issues with issuer/owner invariant
   // enforcement below (corporate servicing itself is #308).
@@ -2456,11 +2595,11 @@ function executeActionInner(
       actor.actions += cost;
       return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
     }
-    if (params.tier !== "seizure") {
+    if (params.tier !== "seizure" && params.tier !== "discounted" && params.tier !== "fair") {
       actor.actions += cost;
-      return { ok: false, error: "Executive nationalization currently supports only the source seizure tier." };
+      return { ok: false, error: "Choose a valid nationalization compensation tier." };
     }
-    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId);
+    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId, params.tier);
     if (!result.ok) {
       actor.actions += cost;
       return result;
@@ -2479,6 +2618,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.regionId ? null : `Action ${actionId} requires a regionId`;
     case "requestReferendum":
       return params.regionId ? null : "requestReferendum requires regionId";
+    case "governorEndorsePresidentialCandidate":
+      return params.regionId && params.electionId && params.candidateId
+        ? null : "governorEndorsePresidentialCandidate requires regionId, electionId, and candidateId";
+    case "withdrawGovernorEndorsement":
+      return params.electionId && params.endorsementId
+        ? null : "withdrawGovernorEndorsement requires electionId and endorsementId";
     case "chooseNorthernIrelandConflictOption":
       return params.niOptionId ? null : "chooseNorthernIrelandConflictOption requires niOptionId";
     case "campaignNorthernIrelandPeacePoll":
@@ -2532,6 +2677,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.electionId && Object.prototype.hasOwnProperty.call(params, "managerId")
         ? null
         : "campaignManager requires electionId and managerId";
+    case "buildStatePresence":
+      return params.regionId ? null : `${actionId} requires regionId`;
+    case "setPrimaryCampaignState":
+      return params.electionId && params.regionId ? null : `${actionId} requires electionId and regionId`;
+    case "usePrimaryHomeStateSurge":
+      return params.electionId ? null : `${actionId} requires electionId`;
     case "campaignCanvass":
       return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
         ? null
@@ -2583,10 +2734,14 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.corpId && params.shares !== undefined && Number.isInteger(params.shares) && params.shares > 0
         ? null
         : `${actionId} requires corpId and a positive integer shares amount`;
+    case "splitNationalCorporation":
+      return typeof params.sectorType === "string" && typeof params.newCorpName === "string" && (params.countryId === undefined || typeof params.countryId === "string") ? null : "splitNationalCorporation requires sectorType and newCorpName";
+    case "mergeNationalCorporation":
+      return typeof params.sectorType === "string" && (params.intoCorpId === undefined || typeof params.intoCorpId === "string") && (params.countryId === undefined || typeof params.countryId === "string") ? null : "mergeNationalCorporation requires sectorType and an optional target issuer";
     case "nationalizeCorporation":
-      return params.corporationId && params.tier === "seizure"
+      return params.corporationId && (params.tier === "seizure" || params.tier === "discounted" || params.tier === "fair")
         ? null
-        : "nationalizeCorporation requires corporationId and tier 'seizure'";
+        : "nationalizeCorporation requires corporationId and a valid compensation tier";
     case "voteCeo":
       return params.corpId && params.candidateId ? null : "voteCeo requires corpId and candidateId";
     case "acceptCeoAppointment":
@@ -2597,6 +2752,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         (params.rdBudgetPerTurn === undefined || Number.isFinite(params.rdBudgetPerTurn))
         ? null
         : "setCorporationCompensation requires corpId, salaryPerTurn, dividendRate, and optional rdBudgetPerTurn";
+    case "setCorporateSectorStrategy":
+      return params.corpId && params.sectorId && params.strategyId
+        ? null
+        : "setCorporateSectorStrategy requires corpId, sectorId, and strategyId";
     case "buyBond":
     case "sellBond":
       return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0

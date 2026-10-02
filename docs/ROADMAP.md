@@ -1,3 +1,61 @@
+## Pending National Corporation reorganization (#75)
+
+The official company overview now offers the source treasury-authorized split
+and merge commands. A complete industry can move into a fresh state issuer,
+including an empty claim that routes future takings. A split-off can merge into
+the primary company or another domestic state company. Existing assets retain
+their plant, workers, strategy and production state; no treasury payment or
+unowned-sector abandonment occurs. A command-economy overlay starts from actual
+sector output and capacity, using the current source adoption kernel.
+
+Two public action/save journeys and an integrated company UI journey pass.
+Actual source adoption vectors match. The published schema63 reader can load
+both split and merged saves and produce an identical complete world, including
+RNG state, after an ordinary turn and reload. Reorganization therefore retains
+schema63. The combined full gate remains pending, and #75 stays partial.
+The source contract was checked at
+[AHDGame e6803596](https://github.com/Egg3901/AHDGame/blob/e6803596013fc6302b254f29cd283aae7cf798d7/src/lib/nationalization/restructure.ts).
+
+## Pending primary National Corporation routing (#75)
+
+The first executive taking now creates the source financial holding company:
+state-owned, vacant CEO, zero own cash and shares, and no bank charter. Different
+industries route to that primary issuer; historical split-off assignments take
+precedence for individual assets while whole-company debt and the ownership
+register retain the primary identity. An existing unflagged national issuer is
+preserved without inventing a primary flag. Ownership queries remain read-only.
+
+Public action, ordinary-turn and reload checks pass, with compensation,
+head-of-government authority, register/UI and historical routing regressions.
+The actual schema62 reader accepted the unfamiliar primary flag but routed the
+next energy taking into another issuer. Schema63 now refuses that continuation;
+the current reader keeps both industries in one primary through a turn and reload.
+The branch includes the preceding union62 grammar. Its full combined gate remains
+pending; this adds no accepted closure. Current source was checked at
+[AHDGame 7ab3cc75](https://github.com/Egg3901/AHDGame/blob/7ab3cc75ace65062449867a2f55971c34b64c903/src/lib/nationalization/nationalCorporation.ts).
+
+All four original #75 acceptance groups remain unchecked. The no-issuer country
+entry still needs the source nationalization hub with real pending takings and
+auctions; strategic/monopoly and legislative takings,
+notice/cure, national planning, state operations and special courts remain active.
+
+## Pending election, career government and paid-taking integration
+
+Original #97 and #98 remain open until the combined full gate and original
+criterion review pass. Primary waves, delegates and convention resolution are
+integrated with source DC/ME/NE Electoral College paths, VP home-state and actual
+governor endorsement producers. German and Chinese career players now have a
+party-chair nomination and parliamentary appointment path; formation freeze
+remains in force before the appointment. Focused appointment/save and legislature
+UI checks pass; the complete earned-seat career journeys are still being checked.
+
+Paid executive taking has source fair/discounted/seizure payouts, treasury and
+political consequences, actual output-based ownership concentration and two
+phone worker/save/resume evidence. See
+[the paid-taking checkpoint](STATE-OWNERSHIP-COMPENSATION-75.md).
+#75, #107, #114, #284, #96 and #101 remain partial. This pending integration
+adds no issue closure to the accepted count below.
+
 ## Current parity count and ownership correction, 2026-10-02
 
 Current GitHub state: **51 open from 63: 38 partial, 8 not started, 3 deferred, 2 blocked**.

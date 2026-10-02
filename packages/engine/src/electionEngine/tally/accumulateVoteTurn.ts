@@ -39,10 +39,7 @@
  * No WorldState import, no Mongo, no I/O. Synchronous, pure.
  */
 
-import type {
-  AccumulateVoteTurnInput,
-  AccumulateVoteTurnResult,
-} from "./types.js";
+import type { AccumulateVoteTurnInput, AccumulateVoteTurnResult } from "./types.js";
 import { resolveTurnWindow, turnVoteWeight } from "./voteCalculations.js";
 import {
   capTurnSliceToElectorate,
@@ -54,13 +51,7 @@ import { estimateSeats } from "./seatEstimation.js";
 // Minimal country config for pure layer — byte-identical to mainline's
 // COUNTRY_CONFIGS for fields tally reads.
 const PARTY_STRENGTH_BY_OFFICE: Record<string, Record<string, number>> = {
-  US: {
-    governor: 1.0,
-    house: 0.9,
-    senate: 0.8,
-    stateSenate: 0.85,
-    president: 1.0,
-  },
+  US: { governor: 1.0, house: 0.9, senate: 0.8, stateSenate: 0.85, president: 1.0 },
   UK: { commons: 0.85, primeMinister: 1.0, regionalCouncil: 0.8 },
   RU: { president: 1.0, republicSupremeSoviet: 0.85 },
   DD: { volkskammerDeputy: 0.85, landAssembly: 0.8 },
@@ -87,20 +78,14 @@ function getRegionalExecutiveOfficeKey(countryId: string): string | null {
   return REGIONAL_EXEC_BY_COUNTRY[countryId] ?? null;
 }
 
-function officeKeyForElectionType(
-  electionType: string,
-  countryId: string,
-): string {
+function officeKeyForElectionType(electionType: string, countryId: string): string {
   if (electionType === "snap_commons") return "commons";
   if (electionType.startsWith("snap_")) return electionType.slice(5);
   void countryId;
   return electionType;
 }
 
-function isHeadOfGovernmentRace(
-  electionType: string,
-  countryId: string,
-): boolean {
+function isHeadOfGovernmentRace(electionType: string, countryId: string): boolean {
   return HEAD_OF_GOVERNMENT_BY_COUNTRY[countryId] === electionType;
 }
 
@@ -112,10 +97,7 @@ function isCoattailEligibleRace(args: {
 }): boolean {
   if (!args.isGeneralElection) return false;
   if (args.isOwnHeadOfGovernmentRace) return false;
-  if (
-    args.regionalExecOfficeType &&
-    args.electionType === args.regionalExecOfficeType
-  )
+  if (args.regionalExecOfficeType && args.electionType === args.regionalExecOfficeType)
     return false;
   return true;
 }
@@ -134,22 +116,16 @@ function isOwnRegionalExecutiveRace(args: {
   );
 }
 
-function isSingleSeatLegislativeRace(election: {
-  electionType: string;
-}): boolean {
+function isSingleSeatLegislativeRace(election: { electionType: string }): boolean {
   return election.electionType === "senate";
 }
 
 function isPrimaryEnded(
-  election: {
-    primaryEndTurn?: number | null;
-    primaryEndTime?: Date | string | null;
-  },
+  election: { primaryEndTurn?: number | null; primaryEndTime?: Date | string | null },
   currentTurn: number,
   now: Date,
 ): boolean {
-  if (typeof election.primaryEndTurn === "number")
-    return currentTurn >= election.primaryEndTurn;
+  if (typeof election.primaryEndTurn === "number") return currentTurn >= election.primaryEndTurn;
   if (election.primaryEndTime) return now >= new Date(election.primaryEndTime);
   return true;
 }
@@ -180,13 +156,7 @@ export function accumulateVoteTurn(
 
   if (!tally || candidates.length === 0) return null;
   if (tally.turnSnapshots.some((s) => s.turn === turnNumber)) {
-    return {
-      tally,
-      snapshot: tally.turnSnapshots.find((s) => s.turn === turnNumber)!,
-      newTotals: tally.totalVotes,
-      sharesPct: {},
-      alreadyCounted: true,
-    };
+    return { tally, snapshot: tally.turnSnapshots.find((s) => s.turn === turnNumber)!, newTotals: tally.totalVotes, sharesPct: {}, alreadyCounted: true };
   }
   if (!election.endTime) return null;
   if (!state) return null;
@@ -239,8 +209,7 @@ export function accumulateVoteTurn(
     effLiveTurnouts = s.liveTurnouts;
     effTotalPool = s.totalPool;
     effEnriched = s.enriched as typeof enriched;
-    effPartyGroupFavorabilityByKey =
-      s.partyGroupFavorabilityByKey ?? effPartyGroupFavorabilityByKey;
+    effPartyGroupFavorabilityByKey = s.partyGroupFavorabilityByKey ?? effPartyGroupFavorabilityByKey;
   }
 
   // Strength multiplier
@@ -249,30 +218,16 @@ export function accumulateVoteTurn(
     election.countryId,
     officeKeyForElectionType(election.electionType, election.countryId),
   );
-  const strengthMultiplier =
-    (1 + (approvalDecimal - 0.5) * 0.2) * officeStrength;
+  const strengthMultiplier = (1 + (approvalDecimal - 0.5) * 0.2) * officeStrength;
 
-  let effectiveTurnPool =
-    turnVoteWeight(totalTurns, turnIndex, effTotalPool) * strengthMultiplier;
+  let effectiveTurnPool = turnVoteWeight(totalTurns, turnIndex, effTotalPool) * strengthMultiplier;
   if (derived.granularSubstrate) {
-    effectiveTurnPool =
-      turnVoteWeight(
-        totalTurns,
-        turnIndex,
-        derived.granularSubstrate.totalPool,
-      ) * strengthMultiplier;
+    effectiveTurnPool = turnVoteWeight(totalTurns, turnIndex, derived.granularSubstrate.totalPool) * strengthMultiplier;
   }
 
   // Caps — byte-identical algebra (scale slice only, leave totalPool untouched)
-  effectiveTurnPool = capTurnSliceToElectorate(
-    effectiveTurnPool,
-    effTotalPool,
-    electorate,
-  );
-  effectiveTurnPool = scalePoolToRegistered(
-    effectiveTurnPool,
-    input.registrationPool?.unregistered ?? null,
-  );
+  effectiveTurnPool = capTurnSliceToElectorate(effectiveTurnPool, effTotalPool, electorate);
+  effectiveTurnPool = scalePoolToRegistered(effectiveTurnPool, input.registrationPool?.unregistered ?? null);
   const alreadyCast = candidates.reduce(
     (sum, c) => sum + (tally.totalVotes[c._id] ?? 0),
     0,
@@ -280,10 +235,7 @@ export function accumulateVoteTurn(
   effectiveTurnPool = capTurnSliceToRemainingElectorate(
     effectiveTurnPool,
     alreadyCast,
-    scalePoolToRegistered(
-      electorate,
-      input.registrationPool?.unregistered ?? null,
-    ),
+    scalePoolToRegistered(electorate, input.registrationPool?.unregistered ?? null),
   );
 
   // General vs primary
@@ -295,22 +247,18 @@ export function accumulateVoteTurn(
   // Distribute
   const hasPlayerInRace = isGeneral && effEnriched.some((c) => !c.isNPP);
   const partyIdsInRace = new Set(effEnriched.map((ec) => ec.party));
-  const regionalExecOfficeType = getRegionalExecutiveOfficeKey(
-    election.countryId,
-  );
-  const isOwnHeadGov = isHeadOfGovernmentRace(
-    election.electionType,
-    election.countryId,
-  );
+  const regionalExecOfficeType = getRegionalExecutiveOfficeKey(election.countryId);
+  const isOwnHeadGov = isHeadOfGovernmentRace(election.electionType, election.countryId);
 
-  const govModifierByParty = isCoattailEligibleRace({
-    isGeneralElection: isGeneral,
-    electionType: election.electionType,
-    regionalExecOfficeType,
-    isOwnHeadOfGovernmentRace: isOwnHeadGov,
-  })
-    ? buildModifierByParty(derived.govExecutive ?? null, partyIdsInRace)
-    : undefined;
+  const govModifierByParty =
+    isCoattailEligibleRace({
+      isGeneralElection: isGeneral,
+      electionType: election.electionType,
+      regionalExecOfficeType,
+      isOwnHeadOfGovernmentRace: isOwnHeadGov,
+    })
+      ? buildModifierByParty(derived.govExecutive ?? null, partyIdsInRace)
+      : undefined;
 
   const presidentialModifierByParty =
     isGeneral && !isOwnHeadGov
@@ -326,13 +274,9 @@ export function accumulateVoteTurn(
       hasState: Boolean(election.state),
     });
   const incumbentPartyId =
-    wantsOwnExecIncumbency && derived.govExecutive
-      ? derived.govExecutive.partyId
-      : undefined;
+    wantsOwnExecIncumbency && derived.govExecutive ? derived.govExecutive.partyId : undefined;
   const incumbentApproval =
-    wantsOwnExecIncumbency && derived.govExecutive
-      ? derived.govExecutive.approval
-      : undefined;
+    wantsOwnExecIncumbency && derived.govExecutive ? derived.govExecutive.approval : undefined;
 
   const legislativeIncumbency = !isSingleSeatLegislativeRace(election)
     ? undefined
@@ -351,53 +295,35 @@ export function accumulateVoteTurn(
       for (const group of cat.groups) {
         const sg = effDemographics.groups[group.id];
         const popPct = sg?.population;
-        if (
-          typeof popPct !== "number" ||
-          !Number.isFinite(popPct) ||
-          popPct <= 0
-        )
-          continue;
+        if (typeof popPct !== "number" || !Number.isFinite(popPct) || popPct <= 0) continue;
         const turnoutPct =
           effLiveTurnouts?.[group.id] ??
-          (typeof sg?.turnout === "number"
-            ? sg.turnout
-            : group.defaultTurnout) ??
+          (typeof sg?.turnout === "number" ? sg.turnout : group.defaultTurnout) ??
           55;
         if (!Number.isFinite(turnoutPct) || turnoutPct <= 0) continue;
-        const ep =
-          typeof sg?.economicLean === "number"
-            ? sg.economicLean
-            : group.defaultEconomicLean;
-        const sp =
-          typeof sg?.socialLean === "number"
-            ? sg.socialLean
-            : group.defaultSocialLean;
+        const ep = typeof sg?.economicLean === "number" ? sg.economicLean : group.defaultEconomicLean;
+        const sp = typeof sg?.socialLean === "number" ? sg.socialLean : group.defaultSocialLean;
         const w = catWeight * popPct * turnoutPct;
         weightSum += w;
         epWeighted += w * ep;
         spWeighted += w * sp;
       }
     }
-    medianVoter =
-      weightSum > 0
-        ? { ep: epWeighted / weightSum, sp: spWeighted / weightSum }
-        : { ep: 0, sp: 0 };
+    medianVoter = weightSum > 0 ? { ep: epWeighted / weightSum, sp: spWeighted / weightSum } : { ep: 0, sp: 0 };
   }
 
   const regByParty = new Map<string, number>();
   const regShareByParty = new Map<string, number>();
   for (const po of input.statePartyOrgs) {
-    if (typeof po.registration === "number")
-      regByParty.set(po.partyId, po.registration);
-    if (typeof po.registrationShare === "number")
-      regShareByParty.set(po.partyId, po.registrationShare);
+    if (typeof po.registration === "number") regByParty.set(po.partyId, po.registration);
+    if (typeof po.registrationShare === "number") regShareByParty.set(po.partyId, po.registrationShare);
   }
 
   const distributeFn = input.distributeFn;
   let votesPerCandidate: Record<string, number> = {};
   let sharesPct: Record<string, number> = {};
   if (distributeFn) {
-    const distributionOptions: Record<string, unknown> = {
+    const distributionOptions = {
       useAveragedPositions: election.electionType === "president" && isGeneral,
       partyPositionWeight:
         election.electionType === "president" && isGeneral ? 1 / 3 : undefined,
@@ -424,14 +350,14 @@ export function accumulateVoteTurn(
       incumbentApproval,
       legislativeIncumbentPartyId: legislativeIncumbency?.incumbentPartyId,
       legislativeIncumbentTenureTerms: legislativeIncumbency?.tenureTerms,
-      houseIncumbentTenureTermsByCandidateId:
-        derived.houseIncumbentTenureTermsByCandidateId,
+      houseIncumbentTenureTermsByCandidateId: derived.houseIncumbentTenureTermsByCandidateId,
       fundsByParty: derived.fundsByParty,
       presidentialModifierByParty,
       medianVoter,
       spoilerRate:
         election.electionType === "president" && isGeneral ? 0.02 : undefined,
-      useOrgAwareSpoiler: election.electionType === "president" && isGeneral,
+      useOrgAwareSpoiler:
+        election.electionType === "president" && isGeneral,
       useSwingFlowModel: true,
     };
     const result = distributeFn(
@@ -452,10 +378,8 @@ export function accumulateVoteTurn(
       effectiveTurnPool,
       totalPool: effTotalPool,
       electorate,
-      demographics:
-        effDemographics as unknown as import("../types.js").StateDemographics,
-      categories:
-        effCategories as unknown as import("../types.js").DemographicCategory[],
+      demographics: effDemographics as unknown as import("../types.js").StateDemographics,
+      categories: effCategories as unknown as import("../types.js").DemographicCategory[],
       partyOrgByParty: [...partyOrgByParty],
       options: distributionOptions,
       turnNumber,
@@ -465,8 +389,7 @@ export function accumulateVoteTurn(
     });
   } else {
     // Fallback: even split when no distributor supplied (tests that pin caps)
-    const per =
-      effEnriched.length > 0 ? effectiveTurnPool / effEnriched.length : 0;
+    const per = effEnriched.length > 0 ? effectiveTurnPool / effEnriched.length : 0;
     for (const ec of effEnriched) {
       votesPerCandidate[ec.candidateId] = per;
       sharesPct[ec.candidateId] = 100 / effEnriched.length;
@@ -474,30 +397,30 @@ export function accumulateVoteTurn(
   }
 
   // Executive endorsement bonus
-  const endorsedIds =
-    derived.executiveEndorsedCandidateIds ?? new Set<string>();
+  const endorsedIds = derived.executiveEndorsedCandidateIds ?? new Set<string>();
 
   const activeCandidateIds = new Set(effEnriched.map((ec) => ec.candidateId));
   const voteMultiplierByCandidateId = input.voteMultiplierByCandidateId;
   const newTotals: Record<string, number> = {};
   for (const ec of effEnriched) {
     const raw = votesPerCandidate[ec.candidateId] ?? 0;
-    const endorsementMultiplier = endorsedIds.has(ec.candidateId)
-      ? EXECUTIVE_ENDORSEMENT_VOTE_BONUS
-      : 1.0;
+    const endorsementMultiplier = endorsedIds.has(ec.candidateId) ? EXECUTIVE_ENDORSEMENT_VOTE_BONUS : 1.0;
     let turnVotes = Math.round(raw * endorsementMultiplier);
+    // Presidential unit-local source modifiers (legacy lean, VP home state,
+    // governor endorsement) precede campaign strength in AHDGame's ordered
+    // integer pipeline. Sequential rounding
     // #68: campaign-strength vote multiplier (AHDGame presidentialElectionEngine
     // applies it here, on the current unit's per-turn votes, after the other
     // passive multipliers and before the cumulative write). Sequential rounding
     // matches the reference's per-stage `Math.round`; a multiplier of exactly 1
     // (every non-presidential race and every zero-strength campaign) leaves
     // `turnVotes` untouched, so this is a strict no-op for existing saves.
-    const strengthMultiplier =
-      voteMultiplierByCandidateId?.[ec.candidateId] ?? 1;
-    if (strengthMultiplier !== 1)
-      turnVotes = Math.round(turnVotes * strengthMultiplier);
-    newTotals[ec.candidateId] =
-      (tally.totalVotes[ec.candidateId] ?? 0) + turnVotes;
+    for (const multiplier of input.additionalVoteMultipliersByCandidateId?.[ec.candidateId] ?? []) {
+      if (multiplier !== 1) turnVotes = Math.round(turnVotes * multiplier);
+    }
+    const strengthMultiplier = voteMultiplierByCandidateId?.[ec.candidateId] ?? 1;
+    if (strengthMultiplier !== 1) turnVotes = Math.round(turnVotes * strengthMultiplier);
+    newTotals[ec.candidateId] = (tally.totalVotes[ec.candidateId] ?? 0) + turnVotes;
   }
 
   // Seat estimation (Hamilton)
@@ -544,11 +467,5 @@ export function accumulateVoteTurn(
     turnSnapshots: [...tally.turnSnapshots, snapshot],
   };
 
-  return {
-    tally: newTally,
-    snapshot,
-    newTotals,
-    sharesPct,
-    seatsEstimate: seatsEstimate ?? undefined,
-  };
+  return { tally: newTally, snapshot, newTotals, sharesPct, seatsEstimate: seatsEstimate ?? undefined };
 }

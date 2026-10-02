@@ -1,6 +1,7 @@
 import type { WorldState } from "@ahdclient/engine";
 import { isCorpStateOwned } from "../../packages/engine/src/bonds/corporateBonds";
 import { anchorToLocal, getRateForCountry } from "../../packages/engine/src/forex/conversion";
+import { primaryNationalCorporation } from "../../packages/engine/src/corporation/nationalCorporation";
 
 /** Country-wide register, matching Game's state-ownership redirect and ledger read. */
 export function projectStateOwnership(world: WorldState, countryId = world.player.countryId) {
@@ -14,7 +15,7 @@ export function projectStateOwnership(world: WorldState, countryId = world.playe
       ...entry,
       firm: entry.formerCorpName,
       pathLabel: "Executive",
-      tierLabel: "Seizure",
+      tierLabel: entry.tier === "fair" ? "Fair value" : entry.tier === "discounted" ? "Discounted" : "Seizure",
       triggerLabel: entry.triggers[0] === "npc" ? "NPC-owned" : "Financial distress",
       // Source registerView renders a zero seizure payout as missing, while
       // the summary correctly includes a zero compensation total.
@@ -35,9 +36,7 @@ export function projectStateOwnership(world: WorldState, countryId = world.playe
     }));
   return {
     countryId, countryName: world.countries[countryId]?.name ?? countryId, currency,
-    // Native represents national issuers per sector. Preserve source's
-    // country-wide register and its first recorded issuer fallback.
-    nationalCorporationId: holdings[0]?.corporationId,
+    nationalCorporationId: primaryNationalCorporation(world, countryId)?.id,
     historyRecorded: world.stateOwnershipLedger !== undefined,
     rows, holdings,
     totals: {

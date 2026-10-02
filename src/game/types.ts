@@ -172,9 +172,12 @@ export interface LegislatureView {
   office: string | null;
   /** Playable country the legislature belongs to; keys persisted nav context. */
   countryId?: string;
+  /** Source-backed national ban state from the player's country budget. */
+  unionLawBanned?: boolean;
   governmentFormation?: {
     status: "pending" | "formed";
     executiveTitle: string;
+    chamberName?: string;
     officeholderName: string | null;
     nomineeAvailable: boolean;
     nomineeDisabledReason?: string;
@@ -301,7 +304,7 @@ export interface GameView {
    * the Profile card lists every owned corporation.
    */
   myCorporation?: MyCorporationLink;
-  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
+  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; autoRunForReelection?: boolean; };
   legislature: LegislatureView;
   finance: FinanceView;
   resources: ResourceDetailsView;

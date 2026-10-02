@@ -63,6 +63,8 @@ export type ActionId =
   | "influenceNpp"
   | "recruitCaucusNpp"
   | "endorse"
+  | "governorEndorsePresidentialCandidate"
+  | "withdrawGovernorEndorsement"
   | "sponsorBill"
   | "voteOnBill"
   | "proposePmAppointment"
@@ -87,7 +89,10 @@ export type ActionId =
   | "acceptCeoAppointment"
   | "resignCeo"
   | "setCorporationCompensation"
+  | "setCorporateSectorStrategy"
   | "nationalizeCorporation"
+  | "splitNationalCorporation"
+  | "mergeNationalCorporation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
@@ -119,6 +124,9 @@ export type ActionId =
   | "campaignRallyTour"
   | "campaignRetarget"
   | "campaignManager"
+  | "buildStatePresence"
+  | "setPrimaryCampaignState"
+  | "usePrimaryHomeStateSurge"
   | "campaignCanvass"
   | "campaignTargetedAd"
   | "campaignContribute"
@@ -463,6 +471,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["endorsement/support"],
     status: "available",
   },
+  governorEndorsePresidentialCandidate: {
+    id: "governorEndorsePresidentialCandidate",
+    name: "Governor Endorsement",
+    description: "As the sitting governor, endorse a same-party candidate in an active presidential race. Costs one gubernatorial office action point.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
+    status: "available",
+  },
+  withdrawGovernorEndorsement: {
+    id: "withdrawGovernorEndorsement",
+    name: "Withdraw Governor Endorsement",
+    description: "Withdraw your active presidential endorsement as its sitting governor.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
+    status: "available",
+  },
   sponsorBill: {
     id: "sponsorBill" as ActionId,
     name: "Sponsor Bill",
@@ -485,8 +513,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   proposePmAppointment: {
     id: "proposePmAppointment",
-    name: "Nominate Taoiseach",
-    description: "A Dáil member who chairs a party with enough seats may nominate themselves for a source 24-turn appointment vote.",
+    name: "Nominate Head of Government",
+    description: "An elected member who chairs a party with enough seats may nominate themselves for a 24-turn appointment vote.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,
@@ -495,8 +523,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   votePmAppointment: {
     id: "votePmAppointment",
-    name: "Vote on Taoiseach Appointment",
-    description: "Cast an aye or nay in an active Dáil Taoiseach appointment vote.",
+    name: "Vote on Government Appointment",
+    description: "Cast an aye or nay in an active parliamentary appointment vote.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,
@@ -723,6 +751,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["corporation/governance", "corporation/dividends"],
     status: "available",
   },
+  setCorporateSectorStrategy: {
+    id: "setCorporateSectorStrategy",
+    name: "Retool Corporate Sector",
+    description: "As the seated CEO, change a source-supported sector's operating strategy. Era and tech availability, retooling fees, capacity conversion, transition and cooldown apply.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "corporation/plants", "commodity-markets"],
+    status: "available",
+  },
   nationalizeCorporation: {
     id: "nationalizeCorporation",
     name: "Nationalize Corporation",
@@ -732,6 +770,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: 0,
     systems: ["nationalization/state-ownership"],
     status: "available",
+  },
+  splitNationalCorporation: {
+    id: "splitNationalCorporation", name: "Split National Corporation",
+    description: "As the authorized treasury official, move a complete industry into a new state corporation or claim its future routing.",
+    baseCost: 0, cooldown: 0, fundCost: 0, systems: ["nationalization/state-ownership"], status: "available",
+  },
+  mergeNationalCorporation: {
+    id: "mergeNationalCorporation", name: "Merge National Corporation",
+    description: "As the authorized treasury official, merge a split-off's assets into another domestic National Corporation.",
+    baseCost: 0, cooldown: 0, fundCost: 0, systems: ["nationalization/state-ownership"], status: "available",
   },
   // ── W31 crisis action hooks ─────────────────────────────────────
   // Crisis responses where mainline gives players crisis interaction decision
@@ -1012,6 +1060,36 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign/management"],
+    status: "available",
+  },
+  buildStatePresence: {
+    id: "buildStatePresence",
+    name: "Build campaign presence",
+    description: "Spend campaign actions and funds to build a source-priced presence level in a US state.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-presence"],
+    status: "available",
+  },
+  setPrimaryCampaignState: {
+    id: "setPrimaryCampaignState",
+    name: "Campaign in a primary state",
+    description: "Move your primary campaign to a US state; the action cost follows that state's source electoral-vote tier.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
+    status: "available",
+  },
+  usePrimaryHomeStateSurge: {
+    id: "usePrimaryHomeStateSurge",
+    name: "Use home-state primary surge",
+    description: "Spend 3 actions and $25,000 for the source 15% vote boost in your home state for this primary.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
     status: "available",
   },
   campaignCanvass: {

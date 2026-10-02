@@ -3,10 +3,12 @@ import { createWorld } from "../world.js";
 import {
   allocateElectoralVotes,
   electoralMajorityFor,
+  electoralVoteUnitsForWorld,
   electoralVotesByState,
 } from "./presidentialElectoralCollege.js";
 import { electoralVotesFromSeats } from "../electionEngine/resolution/apportionment.js";
 import { eraToPreset } from "../electionEngine/resolution/constants.js";
+import { serializeSave, deserializeSave } from "../save.js";
 import type { WorldState } from "../types.js";
 import type { ElectionRecord } from "./types.js";
 
@@ -60,6 +62,18 @@ describe("electoralVotesByState — EV apportionment (1953)", () => {
     expect(total).toBe(531);
     const houseSeatSum = Object.values(HOUSE_SEATS_1953).reduce((a, b) => a + b, 0);
     expect(houseSeatSum).toBe(435);
+  });
+});
+
+describe("electoralVotesByState — 1979 supported pack", () => {
+  it("uses the source 1970-census 50-state map, DC, and then-current district law", () => {
+    const world = createWorld({ ...OPTS, era: "1979" });
+    const ev = electoralVotesByState(world, "US");
+    expect(Object.keys(ev)).toHaveLength(51);
+    expect(Object.values(ev).reduce((sum, value) => sum + value, 0)).toBe(538);
+    expect(ev).toMatchObject({ AK: 3, HI: 4, CA: 45, NY: 41, ME: 4, NE: 5, DC: 3 });
+    expect(electoralVoteUnitsForWorld(world, "US").some((unit) => unit.unitId === "ME_CD1")).toBe(true);
+    expect(electoralVoteUnitsForWorld(world, "US").some((unit) => unit.unitId === "NE_CD1")).toBe(false);
   });
 });
 
@@ -143,6 +157,72 @@ describe("allocateElectoralVotes — winner-take-all goldens", () => {
     expect(result!.stateWinners).toEqual({ CA: "A" });
     expect(result!.totalEv).toBe(32);
   });
+
+  it("uses the source Maine at-large and district winners in the 1991/2019-era live college", () => {
+    const world = createWorld({ ...OPTS, era: "2019" });
+    const rec = baseRecord({
+      stateTallyStates: {
+        ME: { totalVotes: { A: 60, B: 40 } },
+        ME_CD1: { totalVotes: { A: 40, B: 60 } },
+        ME_CD2: { totalVotes: { A: 20, B: 10 } },
+        NE: { totalVotes: { A: 40, B: 60 } },
+        NE_CD1: { totalVotes: { A: 60, B: 40 } },
+        NE_CD2: { totalVotes: { A: 40, B: 60 } },
+        NE_CD3: { totalVotes: { A: 60, B: 40 } },
+      },
+    });
+
+    const result = allocateElectoralVotes(world, rec);
+    expect(result).not.toBeNull();
+    expect(result!.stateWinners).toEqual({
+      ME: "A", ME_CD1: "B", ME_CD2: "A",
+      NE: "B", NE_CD1: "A", NE_CD2: "B", NE_CD3: "A",
+    });
+    expect(result!.evByCandidate).toEqual({ A: 5, B: 4 });
+    expect(result!.totalEv).toBe(9);
+  });
+
+  it("keeps the 1991 live year at Maine district-split rules and Nebraska winner-take-all", () => {
+    const world = createWorld({ ...OPTS, era: "1991" });
+    const rec = baseRecord({
+      stateTallyStates: {
+        ME: { totalVotes: { A: 60, B: 40 } },
+        ME_CD1: { totalVotes: { A: 40, B: 60 } },
+        ME_CD2: { totalVotes: { A: 20, B: 10 } },
+        NE: { totalVotes: { A: 40, B: 60 } },
+        NE_CD1: { totalVotes: { A: 60, B: 40 } },
+        NE_CD2: { totalVotes: { A: 40, B: 60 } },
+        NE_CD3: { totalVotes: { A: 60, B: 40 } },
+      },
+    });
+
+    const result = allocateElectoralVotes(world, rec);
+    expect(result).not.toBeNull();
+    expect(result!.stateWinners).toEqual({ ME: "A", ME_CD1: "B", ME_CD2: "A", NE: "B" });
+    expect(result!.evByCandidate).toEqual({ A: 3, B: 6 });
+    expect(result!.totalEv).toBe(9);
+  });
+
+  it("preserves unit ballots and resolved EV totals through a real save/reload", () => {
+    const world = createWorld({ ...OPTS, era: "2019" });
+    const rec = baseRecord({
+      stateTallyStates: {
+        ME: { totalVotes: { A: 60, B: 40 } },
+        ME_CD1: { totalVotes: { A: 40, B: 60 } },
+        ME_CD2: { totalVotes: { A: 20, B: 10 } },
+        NE: { totalVotes: { A: 40, B: 60 } },
+        NE_CD1: { totalVotes: { A: 60, B: 40 } },
+        NE_CD2: { totalVotes: { A: 40, B: 60 } },
+        NE_CD3: { totalVotes: { A: 60, B: 40 } },
+      },
+    });
+    world.elections = [rec];
+    const before = allocateElectoralVotes(world, rec);
+    const resumed = deserializeSave(serializeSave(world, new Date(0).toISOString()));
+    const resumedRace = resumed.elections[0]!;
+
+    expect(allocateElectoralVotes(resumed, resumedRace)).toEqual(before);
+  });
 });
 
 /** Live seats map backing `electoralVotesByState`, for helper-equivalence checks. */
@@ -150,7 +230,7 @@ function liveSeats(world: WorldState, countryId = "US"): Record<string, number> 
   const seats: Record<string, number> = {};
   for (const region of Object.values(world.regions)) {
     if (region.countryId !== countryId || region.corporationHeadquartersOnly === true) continue;
-    seats[region.id] = region.houseSeats ?? 0;
+    if (typeof region.houseSeats === "number" && region.houseSeats > 0) seats[region.id] = region.houseSeats;
   }
   return seats;
 }
@@ -167,26 +247,26 @@ describe("electoralVotesByState — live apportionment-helper wiring (#98)", () 
     expect(electoralVotesByState(world, "US")).toEqual(liveOnly);
   });
 
-  it("2019: models AK/HI, never invents DC, total = house seats + 2 per state", () => {
+  it("2019: includes source DC electors without adding it to regional House-seat apportionment", () => {
     const world = createWorld({ ...OPTS, era: "2019" });
     const ev = electoralVotesByState(world, "US");
     expect(ev["AK"]).toBe(3); // 1 house seat + 2 senators
     expect(ev["HI"]).toBe(4); // 2 house seats + 2 senators
     expect(ev["CA"]).toBe(54);
     expect(ev["TX"]).toBe(40);
-    expect(ev["DC"]).toBeUndefined();
+    expect(ev["DC"]).toBe(3);
     const seats = liveSeats(world);
     expect(Object.keys(seats)).toHaveLength(50);
-    expect(Object.keys(ev).sort()).toEqual(Object.keys(seats).sort());
+    expect(Object.keys(ev).sort()).toEqual([...Object.keys(seats), "DC"].sort());
     const total = Object.values(ev).reduce((a, b) => a + b, 0);
     const houseSum = Object.values(seats).reduce((a, b) => a + b, 0);
     expect(houseSum).toBe(435);
-    expect(total).toBe(535);
-    expect(total).toBe(houseSum + 2 * Object.keys(seats).length);
-    expect(electoralMajorityFor(total)).toBe(268);
+    expect(total).toBe(538);
+    expect(total).toBe(houseSum + 2 * Object.keys(seats).length + 3);
+    expect(electoralMajorityFor(total)).toBe(270);
   });
 
-  it("does not invent DC once the live year passes the 1961 gate (helper adds DC, live path drops it)", () => {
+  it("adds the source DC unit once the live year passes the 1961 gate", () => {
     const world = createWorld(OPTS);
     world.meta.date = "1970-01-06";
     const raw = electoralVotesFromSeats(liveSeats(world), {
@@ -194,14 +274,15 @@ describe("electoralVotesByState — live apportionment-helper wiring (#98)", () 
       year: 1970,
     });
     expect(raw["DC"]).toBe(3); // the 23rd-Amendment gate itself fires...
-    expect(electoralVotesByState(world, "US")["DC"]).toBeUndefined(); // ...but no DC region exists to carry it
+    expect(electoralVotesByState(world, "US")["DC"]).toBe(3);
+    expect(electoralVoteUnitsForWorld(world, "US").some((unit) => unit.unitId === "DC")).toBe(true);
   });
 
   it("survives a JSON save/reload round trip with identical totals", () => {
-    const world = createWorld(OPTS);
+    const world = createWorld({ ...OPTS, era: "2019" });
     const ev = electoralVotesByState(world, "US");
     const reloaded: Record<string, number> = JSON.parse(JSON.stringify(ev));
     expect(reloaded).toEqual(ev);
-    expect(Object.values(reloaded).reduce((a, b) => a + b, 0)).toBe(531);
+    expect(Object.values(reloaded).reduce((a, b) => a + b, 0)).toBe(538);
   });
 });

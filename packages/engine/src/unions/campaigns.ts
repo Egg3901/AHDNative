@@ -20,9 +20,7 @@
  * present. Same additive pattern as the #320 organizer / #321 ledger
  * backfills.
  *
- * Out of scope: government mediation intervention (#127 crisis path) and
- * organic grievance strikes from the corporation turn — both documented
- * residuals, not silent coverage.
+ * Out of scope: government mediation intervention (#127 crisis path).
  */
 
 import type { WorldState } from "../types.js";

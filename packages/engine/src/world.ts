@@ -4,6 +4,7 @@ import { assignSourceHomeStates } from "./elections/sourceHomeState.js";
 import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
+import { eraToPreset } from "./electionEngine/resolution/constants.js";
 import { createPoliticiansForWorld } from "./politician.js";
 import { CATEGORIES_BY_COUNTRY_1953 } from "./demographics/categories.js";
 import { US_STATE_DEMOGRAPHICS_1953, type StateDemographicsSeed } from "./demographics/usStateDemographics1953.js";
@@ -185,7 +186,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v63: source primary National Corporation identity and cross-sector routing.
 // v64: allocated seatsHeld weights must survive winner, ballot and government
 // continuation; older readers count one vote per office and must refuse them.
-// v65: source UK devolution institution and Northern Ireland conflict state.
+// v65: annual source statehood-admission continuation and admittedYear region
+// stamps, plus source UK devolution institutions and Northern Ireland conflict
+// state. Older readers must refuse these continuations.
 export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
@@ -805,6 +808,42 @@ export function createWorld(options: NewWorldOptions): WorldState {
 
   const { regions, electoratePools, regionTurnouts, partyRegions, partyPressures, candidateSupports } =
     seedSupport(pack, parties, politicians);
+  // Mainline's 1953 state collection contains Alaska and Hawaii as territories
+  // with real 1950 population/GSP, but they are absent from the House map until
+  // the statehood turn phase stamps admittedYear. Keep the source geography in
+  // the world from creation so admission changes status, not identity.
+  if (pack.era.id === "1953" && pack.countries.some((country) => country.id === "US" && country.playable)) {
+    const territories = [
+      { id: "AK", name: "Alaska", population: 128643, gdp: 450 },
+      { id: "HI", name: "Hawaii", population: 499794, gdp: 1100 },
+    ] as const;
+    const usParties = Object.values(parties).filter((party) => party.countryId === "US");
+    for (const territory of territories) {
+      regions[territory.id] = {
+        id: territory.id,
+        countryId: "US",
+        name: territory.name,
+        population: territory.population,
+        gdp: territory.gdp,
+        houseSeats: 0,
+        senateSeats: 0,
+        censusRegion: "West",
+      };
+      electoratePools[territory.id] = seedPool("US", territory.id);
+      regionTurnouts[territory.id] = {
+        regionId: territory.id,
+        countryId: "US",
+        modifiers: seedTurnoutModifiers("US"),
+        lastDecayAppliedTurn: 0,
+      };
+      for (const party of usParties) {
+        const key = `${territory.id}:${party.id}`;
+        const { organization, registration } = seedPartyRegion(party, territory.id);
+        partyRegions[key] = { regionId: territory.id, partyId: party.id, countryId: "US", organization, registration };
+        partyPressures[`${party.id}:${territory.id}`] = { partyId: party.id, regionId: territory.id, countryId: "US", value: 0 };
+      }
+    }
+  }
   for (const location of pack.corporationHeadquartersRegions ?? []) {
     if (regions[location.id]) continue;
     regions[location.id] = {
@@ -1106,6 +1145,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     baselineDemographics,
     demographicCategories,
     census,
+    statehood: { startingPreset: eraToPreset(pack.era.id) },
     laborForces,
     budgets,
     regionalBudgets,

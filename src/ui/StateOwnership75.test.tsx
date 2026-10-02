@@ -41,7 +41,7 @@ describe("State ownership country entry (#75)", () => {
     expect(screen.getByText("NPC-owned")).toBeInTheDocument();
     expect(screen.getByText("Executive")).toBeInTheDocument();
     expect(screen.getByText("Seizure")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /United States National Corporation.*media/i }));
+    await user.click(screen.getByRole("button", { name: /United States National Corporation/i }));
     expect(await screen.findByRole("heading", { name: "Company" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Back to state ownership" }));
     expect(await screen.findByRole("heading", { name: "State ownership register" })).toBeInTheDocument();

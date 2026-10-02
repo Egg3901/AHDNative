@@ -4,6 +4,8 @@ import type { Bill, ElectionRecord } from "@ahdclient/engine";
 import { buildLegislationDetails } from "./legislationDetails";
 import { GameSession } from "./session";
 
+const SAVED_AT = "2026-10-02T00:00:00.000Z";
+
 function sourceWeightedWinners() {
     const world = createWorld({ seed: "source-weighted-winners", playerName: "TD", countryId: "IE", era: "1991" });
     world.nppAutonomyLevel = "off";
@@ -41,14 +43,14 @@ describe("source multi-seat winner continuation", () => {
     expect(race.status).toBe("resolved");
     expect(world.player.legislativeSeat).toMatchObject({ countryId: "IE", chamberKey: "dail", regionId: "COR", seatsHeld: 6 });
     expect(world.politicians.find(p => p.id === opponent.id)).toMatchObject({ chamberKey: "dail", electedState: "COR", seatsHeld: 4 });
-    const saved = deserializeSave(serializeSave(world));
+    const saved = deserializeSave(serializeSave(world, SAVED_AT));
     expect(saved.player.legislativeSeat).toEqual(world.player.legislativeSeat);
     expect(saved.politicians.find(p => p.id === opponent.id)).toMatchObject({ seatsHeld: 4 });
     const composition = saved.legislatures.IE!.chambers.find(c => c.key === "dail")!.composition;
     expect(composition).toEqual(world.legislatures.IE!.chambers.find(c => c.key === "dail")!.composition);
     advanceTurn(world);
     advanceTurn(saved);
-    expect(JSON.parse(serializeSave(saved)).world).toEqual(JSON.parse(serializeSave(world)).world);
+    expect(JSON.parse(serializeSave(saved, SAVED_AT)).world).toEqual(JSON.parse(serializeSave(world, SAVED_AT)).world);
     expect(saved.player.legislativeSeat).toMatchObject({ seatsHeld: 6 });
     expect(saved.politicians.find(p => p.id === opponent.id)).toMatchObject({ seatsHeld: 4 });
   });
@@ -60,7 +62,7 @@ describe("source multi-seat winner continuation", () => {
     const appointment = world.pmAppointmentVotes.at(-1)!;
     expect(executeAction(world, "player", "votePmAppointment", { pmAppointmentVoteId: appointment.id, pmVote: "aye" }).ok).toBe(true);
     expect(appointment.votesFor).toBe(6);
-    const resumed = deserializeSave(serializeSave(world));
+    const resumed = deserializeSave(serializeSave(world, SAVED_AT));
     expect(resumed.pmAppointmentVotes.at(-1)!.votesFor).toBe(6);
   });
 
@@ -78,7 +80,7 @@ describe("source multi-seat winner continuation", () => {
     expect(executeAction(world, "player", "voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(true);
     const card = buildLegislationDetails(world).chambers.flatMap(c => c.active).find(b => b.id === bill.id)!;
     expect(card).toMatchObject({ votesFor: 6, votesAgainst: 4, votesAbstain: 0, playerVote: "for" });
-    const resumed = deserializeSave(serializeSave(world));
+    const resumed = deserializeSave(serializeSave(world, SAVED_AT));
     const savedCard = buildLegislationDetails(resumed).chambers.flatMap(c => c.active).find(b => b.id === bill.id)!;
     expect(savedCard).toEqual(card);
   });
@@ -100,12 +102,12 @@ describe("source multi-seat winner continuation", () => {
     };
     world.bills.push(bill);
     expect(executeAction(world, "player", "voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(true);
-    const resumed = deserializeSave(serializeSave(world));
+    const resumed = deserializeSave(serializeSave(world, SAVED_AT));
     advanceTurn(resumed);
     const resolved = resumed.bills.find(b => b.id === bill.id)!;
     expect(resolved).toMatchObject({ status: "enrolled", votesFor: 6, votesAgainst: 4 });
     expect(resolved.voteSnapshot).toMatchObject({ for: 6, against: 4 });
-    const continued = deserializeSave(serializeSave(resumed));
+    const continued = deserializeSave(serializeSave(resumed, SAVED_AT));
     advanceTurn(continued);
     const card = buildLegislationDetails(continued).chambers.flatMap(c => [...c.active, ...c.completed]).find(b => b.id === bill.id)!;
     expect(card).toMatchObject({ votesFor: 6, votesAgainst: 4 });
@@ -128,20 +130,26 @@ describe("source multi-seat winner continuation", () => {
     world.player.legislativeSeat = { countryId: "US", chamberKey: "senate", seatsHeld: 6 };
     const nominee = world.politicians.find(p => p.countryId === "US")!;
     const session = new GameSession();
-    session.load(serializeSave(world));
+    session.load(serializeSave(world, SAVED_AT));
     expect(session.act("sponsorCabinetNomination", { countryId: "US", positionId: "secretary_of_state", nomineeId: nominee.id }).ok).toBe(true);
     const id = session.view().legislature.nominations![0]!.id;
     expect(session.act("voteCabinetNomination", { nominationId: id, vote: "for" }).ok).toBe(true);
     expect(session.nomination(id)!.tally).toEqual({ for: 6, against: 0, abstain: 0 });
     const resumed = new GameSession();
-    resumed.load(session.serialize());
+    resumed.load(session.serialize(SAVED_AT));
     expect(resumed.nomination(id)!.tally).toEqual({ for: 6, against: 0, abstain: 0 });
   });
 
   it("refuses schema 42 export when the real resolved winners carry weighted seats", () => {
     const { world } = sourceWeightedWinners();
-    const projection = projectSaveToV42(serializeSave(world));
+    const projection = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projection).toMatchObject({ ok: false, error: expect.stringMatching(/weighted.*seat/i) });
+  });
+
+  it("keeps the first UK formation pending without manufacturing a PM-vacancy snap deadline", () => {
+    const world = createWorld({ seed: "source-uk-first-formation", playerName: "Alex", countryId: "UK", era: "2019" });
+    advanceTurn(world);
+    expect(world.governments.UK).toMatchObject({ status: "pending", pmVacancyDeadlineTurn: null });
   });
 
 });
