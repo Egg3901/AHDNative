@@ -148,6 +148,41 @@ describe("ActionsHub", () => {
     ).toBeEnabled();
   });
 
+  it("submits the selected corporation and source-projected headquarters destination", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    render(
+      <ActionsHub
+        actions={[{
+          id: "relocateCorporateHeadquarters", name: "Relocate headquarters", description: "Move a corporation.", cost: 0,
+          available: true, requires: "corporationRegion", choices: [{ id: "corp-a", label: "A Corp" }],
+          destinations: [{ id: "LON", corporationId: "corp-a", label: "London (UK)" }],
+        }]}
+        {...props} onAction={onAction} category="all" onCategoryChange={() => {}}
+      />,
+    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "Headquarters destination for Relocate headquarters" }), "LON");
+    await user.click(screen.getByRole("button", { name: "Take action: Relocate headquarters" }));
+    expect(onAction).toHaveBeenCalledWith("relocateCorporateHeadquarters", { corporationId: "corp-a", regionId: "LON" });
+  });
+
+  it("submits the current shareholder vote choice through the corporation action", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    render(
+      <ActionsHub
+        actions={[{
+          id: "voteCorporateRelocation", name: "Vote on relocation", description: "Cast a ballot.", cost: 0,
+          available: true, requires: "corporationVote", choices: [{ id: "corp-a", label: "A Corp" }],
+        }]}
+        {...props} onAction={onAction} category="all" onCategoryChange={() => {}}
+      />,
+    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "Shareholder vote for Vote on relocation" }), "no");
+    await user.click(screen.getByRole("button", { name: "Take action: Vote on relocation" }));
+    expect(onAction).toHaveBeenCalledWith("voteCorporateRelocation", { corporationId: "corp-a", relocationChoice: "no" });
+  });
+
   it("shows cooldown, prerequisite and funds cost from the projection", () => {
     const cooling: ActionView[] = [
       {

@@ -97,13 +97,22 @@ export function advanceNppStrategy(args: {
   const allowed = situation.isCaretaker ? CARETAKER_STRATEGIES : new Set(NPP_CORP_STRATEGIES);
   if (!prior || !allowed.has(prior.id)) {
     const id: NppCorpStrategy = prior && !allowed.has(prior.id) ? "harvest" : "expand";
-    return { state: { id, adoptedTurn: turn, baselineScore: situation.score, scores: prior?.scores }, changed: !!prior };
+    return { state: { id, adoptedTurn: turn, baselineScore: situation.score, ...(prior?.scores ? { scores: prior.scores } : {}) }, changed: !!prior };
   }
 
   const scores = { ...(prior.scores ?? {}) };
   const best = scores[prior.id];
   if (best === undefined || situation.score > best) scores[prior.id] = situation.score;
-  const held: NppStrategyState = { ...prior, lastScore: situation.score, scores };
+  // Construct the saved row in stable schema order. Spreading `prior` kept
+  // historical insertion order, so ordinary and restored turns emitted the
+  // same strategy state with different JSON bytes.
+  const held: NppStrategyState = {
+    id: prior.id,
+    adoptedTurn: prior.adoptedTurn,
+    baselineScore: prior.baselineScore,
+    lastScore: situation.score,
+    scores,
+  };
   if (!eligible || !tenureSatisfied(prior, turn)) return { state: held, changed: false };
   if (situation.score >= prior.baselineScore + STRATEGY_IMPROVEMENT_EPSILON) {
     return { state: { ...held, adoptedTurn: turn }, changed: false };

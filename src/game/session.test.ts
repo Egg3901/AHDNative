@@ -174,6 +174,31 @@ describe("actions hub projection", () => {
     expect(actions.find((a) => a.id === "fundraise")).toMatchObject({ available: true });
     expect(session.act("fundraise").ok).toBe(true);
   });
+  it("projects only source-eligible corporation relocation actions and real destinations", () => {
+    const session = new GameSession(); session.create(options);
+    const saved = JSON.parse(session.serialize("2026-09-10T00:00:00.000Z")) as {
+      world: { corporations: Record<string, Record<string, unknown>>; player: Record<string, unknown> };
+    };
+    const corporation = saved.world.corporations["US-manufacturing"]!;
+    corporation["ceoId"] = "player";
+    corporation["ceoType"] = "player";
+    corporation["ceoVacant"] = false;
+    corporation["isPrivate"] = true;
+    corporation["headquartersRegionId"] = "DC";
+    saved.world.player["homeRegionId"] = "DC";
+    session.load(JSON.stringify(saved));
+
+    const actions = session.view().actions;
+    expect(actions.find((action) => action.id === "openCorporateRelocationVote")).toMatchObject({ available: false });
+    expect(actions.find((action) => action.id === "relocatePlayerWithCorporation")).toMatchObject({
+      available: true,
+      requires: "corporationRegion",
+      choices: [{ id: "US-manufacturing", label: "US.MANU" }],
+    });
+    expect(actions.find((action) => action.id === "relocatePlayerWithCorporation")?.destinations).toContainEqual({
+      id: "LON", corporationId: "US-manufacturing", label: expect.stringContaining("UK"),
+    });
+  });
   it("offers real intelligence polls whose results project into the view and survive reload", () => {
     const session = new GameSession(); session.create(options);
     session.allocateStats({ charisma: 3, debate: 3, energy: 3, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 10 });

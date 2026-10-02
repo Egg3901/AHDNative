@@ -21,6 +21,7 @@ import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
 import { CORPORATION_TYPES, type CorporationType, type ShareholderEntry } from "./corporation/types.js";
+import { CURRENCY_CODE_BY_COUNTRY } from "./forex/constants.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -465,6 +466,16 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     if (value["isPrivate"] === true || value["relocationVote"] !== undefined) {
       return { ok: false, error: `Corporation ${corpId} has private-company or relocation-vote state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
     }
+    const liquidCurrencyCode = value["liquidCurrencyCode"];
+    if (liquidCurrencyCode !== undefined) {
+      const countryId = String(value["countryId"] ?? "");
+      const expectedCurrency = CURRENCY_CODE_BY_COUNTRY[countryId] ??
+        (isRecord(world["budgets"]) && isRecord(world["budgets"][countryId]) && typeof world["budgets"][countryId]!["currencyCode"] === "string"
+          ? world["budgets"][countryId]!["currencyCode"] as string : "USD");
+      if (typeof liquidCurrencyCode !== "string" || !/^[A-Z]{3}$/.test(liquidCurrencyCode) || liquidCurrencyCode !== expectedCurrency) {
+        return { ok: false, error: `Corporation ${corpId} has a liquid currency that schema 42 cannot infer from its country. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
     // Schema 42 readers preserve unknown save keys, but their corporation
     // turn has no CEO ballot, appointment, compensation, or dividend phase.
     // Only neutral default values are reversible; an active lifecycle must
@@ -680,6 +691,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     delete corp["orderFlowWindowBuyValue"];
     delete corp["orderFlowWindowSellValue"];
     delete corp["priceHistory"];
+    delete corp["liquidCurrencyCode"];
     delete corp["rdBudgetPerTurn"];
     delete corp["rdScore"];
     delete corp["lastRdSpendPerTurn"];
@@ -3777,6 +3789,14 @@ export function deserializeSave(raw: string): WorldState {
   for (const corporation of Object.values(save.world.corporations)) validateNppStrategyState(corporation.nppStrategy);
   for (const [corporationId, corporation] of Object.entries(save.world.corporations)) {
     if (corporation.isPrivate !== undefined && typeof corporation.isPrivate !== "boolean") throw new Error(`Corporation ${corporationId} has invalid private-company state`);
+    if (corporation.liquidCurrencyCode !== undefined && (typeof corporation.liquidCurrencyCode !== "string" || !/^[A-Z]{3}$/.test(corporation.liquidCurrencyCode))) {
+      throw new Error(`Corporation ${corporationId} has invalid liquid currency`);
+    }
+    for (const point of corporation.priceHistory ?? []) {
+      if (point.currencyCode !== undefined && !/^[A-Z]{3}$/.test(point.currencyCode)) {
+        throw new Error(`Corporation ${corporationId} has invalid price-history currency`);
+      }
+    }
     validateCorporateRelocationVote(corporation.relocationVote, corporationId);
   }
   // #295: persisted sector-owner default. Saves written before the

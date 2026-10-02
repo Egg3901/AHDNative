@@ -76,8 +76,9 @@ function ActionCard({
 }) {
   const [amount, setAmount] = useState("10");
   const [partyId, setPartyId] = useState(parties[0]?.id ?? "");
-  const [regionId, setRegionId] = useState(regions[0]?.id ?? "");
+  const [regionId, setRegionId] = useState(action.destinations?.[0]?.id ?? regions[0]?.id ?? "");
   const [corporationId, setCorporationId] = useState(action.choices?.[0]?.id ?? "");
+  const [relocationChoice, setRelocationChoice] = useState<"yes" | "no">("yes");
   const [budgetCategory, setBudgetCategory] = useState("defense");
   const [taxField, setTaxField] = useState("incomeTax");
 
@@ -86,6 +87,7 @@ function ActionCard({
   const disabled = busy || !action.available;
   const hint = !action.available ? action.disabledReason ?? "Unavailable" : `Cost ${action.cost} actions`;
   const selectedRegion = regions.find((rr) => rr.id === regionId) ?? null;
+  const corporateDestinations = action.destinations?.filter((destination) => destination.corporationId === corporationId) ?? [];
 
   const handle = () => {
     if (disabled) return;
@@ -122,6 +124,22 @@ function ActionCard({
       if (!corporation) return;
       params.corporationId = corporation.id;
       params.tier = "seizure";
+    }
+    if (action.requires === "corporationRegion") {
+      const corporation = action.choices?.find((choice) => choice.id === corporationId) ?? action.choices?.[0];
+      if (!corporation || !corporateDestinations.some((destination) => destination.id === regionId)) {
+        setRegionError("Choose a listed headquarters destination.");
+        return;
+      }
+      setRegionError(null);
+      params.corporationId = corporation.id;
+      params.regionId = regionId;
+    }
+    if (action.requires === "corporationVote") {
+      const corporation = action.choices?.find((choice) => choice.id === corporationId) ?? action.choices?.[0];
+      if (!corporation) return;
+      params.corporationId = corporation.id;
+      params.relocationChoice = relocationChoice;
     }
     if (action.requires === "budgetSpending") {
       const value = Number(amount);
@@ -232,6 +250,36 @@ function ActionCard({
           <select className="ahd-select" value={action.choices?.some((choice) => choice.id === corporationId) ? corporationId : action.choices?.[0]?.id ?? ""} onChange={(event) => setCorporationId(event.target.value)} disabled={busy || !action.available || !action.choices?.length} aria-label={`Corporation for ${action.name}`}>
             {action.choices?.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
             {!action.choices?.length ? <option value="">No eligible corporations</option> : null}
+          </select>
+        </label>
+      ) : null}
+      {action.requires === "corporationRegion" || action.requires === "corporationVote" ? (
+        <label className="ahd-field" style={{ maxWidth: "20rem" }}>
+          <span className="ahd-label">Corporation</span>
+          <select className="ahd-select" value={action.choices?.some((choice) => choice.id === corporationId) ? corporationId : action.choices?.[0]?.id ?? ""} onChange={(event) => { setCorporationId(event.target.value); setRegionError(null); }} disabled={busy || !action.available || !action.choices?.length} aria-label={`Corporation for ${action.name}`}>
+            {action.choices?.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
+            {!action.choices?.length ? <option value="">No eligible corporations</option> : null}
+          </select>
+        </label>
+      ) : null}
+      {action.requires === "corporationRegion" ? (
+        <div>
+          <label className="ahd-field" style={{ maxWidth: "20rem" }}>
+            <span className="ahd-label">Headquarters destination</span>
+            <select className="ahd-select" value={corporateDestinations.some((destination) => destination.id === regionId) ? regionId : corporateDestinations[0]?.id ?? ""} onChange={(event) => { setRegionId(event.target.value); if (regionError) setRegionError(null); }} disabled={busy || !action.available || !corporateDestinations.length} aria-label={`Headquarters destination for ${action.name}`} aria-invalid={!!regionError} aria-describedby={regionError ? `region-error-${action.id}` : undefined}>
+              {corporateDestinations.map((destination) => <option key={`${destination.corporationId}:${destination.id}`} value={destination.id}>{destination.label}</option>)}
+              {!corporateDestinations.length ? <option value="">No eligible destinations</option> : null}
+            </select>
+          </label>
+          {regionError ? <span id={`region-error-${action.id}`} className="ahd-error-text" role="alert">{regionError}</span> : null}
+        </div>
+      ) : null}
+      {action.requires === "corporationVote" ? (
+        <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+          <span className="ahd-label">Shareholder vote</span>
+          <select className="ahd-select" value={relocationChoice} onChange={(event) => setRelocationChoice(event.target.value as "yes" | "no")} disabled={busy || !action.available} aria-label={`Shareholder vote for ${action.name}`}>
+            <option value="yes">Approve relocation</option>
+            <option value="no">Reject relocation</option>
           </select>
         </label>
       ) : null}

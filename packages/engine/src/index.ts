@@ -161,6 +161,8 @@ export * from "./commandEconomy/authority.js";
 export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
+export { isCorpStateOwned } from "./bonds/corporateBonds.js";
+export { privateEnterprisePermittedInCountry } from "./corporation/privateEnterpriseGate.js";
 export * from "./corporation/nationalization.js";
 export * from "./bonds/corporateBondQuote.js";
 export * from "./bonds/corporateBondServicing.js";

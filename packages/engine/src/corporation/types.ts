@@ -71,6 +71,8 @@ export interface SoeState {
 export interface CorporationPricePoint {
   turn: number;
   price: number;
+  /** Historical price denomination across issuer currency changes. */
+  currencyCode?: string;
 }
 
 /**
@@ -101,6 +103,8 @@ export interface Corporation {
   name?: string;
   brandColor?: string;
   countryId: string;
+  /** Source Corporation.liquidCurrencyCode; absent legacy issuers use their country's denomination. */
+  liquidCurrencyCode?: string;
   /** Authored seed HQ region; absent when the source capital region is not in the loaded era. */
   headquartersRegionId?: string;
   /** Source Corporation.secondaryType; absent on legacy issuers and single-type foundings. */

@@ -319,6 +319,15 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/market pressure/);
   });
 
+  it("refuses a corporate currency that schema 42 would infer differently from the issuing country", () => {
+    const world = loadHistoricalFresh();
+    world.corporations["US-manufacturing"]!.liquidCurrencyCode = "GBP";
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("liquid currency"),
+    });
+  });
+
   it("refuses a Native world with live prop-book state that schema 42 cannot carry (#328)", () => {
     const world = loadHistoricalFresh();
     const doc = JSON.parse(serializeSave(world, SAVED_AT)) as {

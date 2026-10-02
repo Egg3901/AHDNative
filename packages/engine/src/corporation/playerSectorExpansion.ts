@@ -143,7 +143,7 @@ export function expandPlayerCorporationSector(
   return { ok: true, assetId, entryFeeAnchor, starterBuildAnchor, fxSpreadAnchor, onlineTurn };
 }
 
-function resolveSectorSpreadRoute(
+export function resolveSectorSpreadRoute(
   world: WorldState,
   fromCurrency: string,
   toCurrency: string,
