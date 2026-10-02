@@ -34,6 +34,28 @@ function savedRaceDoc() {
 }
 
 describe("presidential primary ledger save validation", () => {
+  it("advances the preceding schema without inventing primary history", () => {
+    const world = createWorld({ era: "2019", countryId: "US", seed: "primary-ledger-legacy", playerName: "Alex" });
+    world.elections = [];
+    const doc = JSON.parse(serializeSave(world, SAVED_AT)) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; elections: unknown[] };
+    };
+    doc.schemaVersion = 53;
+    doc.world.meta.schemaVersion = 53;
+
+    const loaded = deserializeSave(JSON.stringify(doc));
+
+    expect(loaded.meta.schemaVersion).toBe(54);
+    expect(loaded.elections).toEqual([]);
+  });
+
+  it("refuses a primary save from a newer ruleset", () => {
+    const doc = savedRaceDoc() as { schemaVersion: number; world: { meta: { schemaVersion: number } } };
+    doc.schemaVersion = 55;
+    doc.world.meta.schemaVersion = 55;
+    expect(() => deserializeSave(JSON.stringify(doc))).toThrow(/newer version/i);
+  });
   it("round-trips a source-scheduled wave and its candidate/state ledgers", () => {
     const doc = savedRaceDoc();
     const loaded = deserializeSave(JSON.stringify(doc));

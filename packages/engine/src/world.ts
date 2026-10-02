@@ -165,7 +165,10 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
 // v52: durable state-ownership action history; older readers cannot record continuation.
-export const SCHEMA_VERSION = 52;
+// v53: assigned by the political-board eligibility migration in the root integration line.
+// v54: persisted US primary wave, delegate and campaign history; older readers cannot
+// continue a resolved/active primary without discarding its source ledger.
+export const SCHEMA_VERSION = 54;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

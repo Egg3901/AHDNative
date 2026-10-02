@@ -277,6 +277,9 @@ function makeChallenger(world: WorldState, rng: WorldRng, rec: ElectionRecord, p
     partyId,
     chamberKey: "",
     electedState: undefined,
+    // Game src/lib/npp/generator.ts stores config.state as NPP.homeState;
+    // state-specific election generation passes its stateId, national races do not.
+    ...(rec.state && world.regions[rec.state]?.countryId === rec.countryId ? { homeState: rec.state } : {}),
     senateClass: undefined,
     ideology: {
       economic: clamp5((party?.economicPosition ?? 0) + jitter()),

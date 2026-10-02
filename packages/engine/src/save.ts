@@ -3446,6 +3446,11 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Historical actions have no reconstructable history. Preserve absence.
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
+  // v53 is the political-board eligibility slot from the root integration line.
+  // v54 adds optional primary wave/delegate/campaign records on election rows.
+  // Do not synthesize history for old saves; the first due primary wave records
+  // the new ledger from its actual turn state.
+  if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
