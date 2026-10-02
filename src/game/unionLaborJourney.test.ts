@@ -111,7 +111,6 @@ describe("union labor journey through the public session", () => {
     session.advance();
     const control = new GameSession();
     control.load(session.serialize(STAMP));
-    control.advance();
     const selective = session.moveUnionBargaining(disputed.id, "escalate");
     expect(selective.kind).toBe("moved");
     if (selective.kind !== "moved") throw new Error("expected selective-strike move");
@@ -122,6 +121,7 @@ describe("union labor journey through the public session", () => {
     control.advance();
     const treatedWorld = savedWorld(session);
     const controlWorld = savedWorld(control);
+    expect(treatedWorld.meta.turn).toBe(controlWorld.meta.turn);
     const treatedAsset = corporateSectorAssets(treatedWorld)[targetId!]!;
     const controlAsset = corporateSectorAssets(controlWorld)[targetId!]!;
     expect(treatedAsset.strikeStartedAtTurn).not.toBeNull();
