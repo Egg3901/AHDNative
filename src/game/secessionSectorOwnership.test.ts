@@ -22,6 +22,11 @@ function savedWorld(session: GameSession) {
         } | null;
       };
       regions: Record<string, { countryId: string; independenceDesire?: number }>;
+      regionalPoliticalMetrics: Record<string, {
+        countryId: string;
+        values: Record<string, number>;
+        residuals?: Record<string, number>;
+      }>;
       corporateSectors: Record<
         string,
         {
@@ -186,6 +191,16 @@ describe("#298 saved secession ownership through GameSession", () => {
       (asset) => asset.countryId === "SCO" && asset.stateId !== null,
     );
     const controlWorld = savedWorld(control).world;
+    // Game transfers the political board as an intensive score, clones it to
+    // all seven Scottish leaves and clears the former country's equilibrium.
+    expect(completed.world.regionalPoliticalMetrics.SCO).toBeUndefined();
+    for (const regionId of ["CSC", "GLA", "GRA", "HIG", "LOT", "STH", "TAY"]) {
+      expect(completed.world.regionalPoliticalMetrics[regionId]).toMatchObject({
+        countryId: "SCO",
+        values: controlWorld.regionalPoliticalMetrics.SCO!.values,
+      });
+      expect(completed.world.regionalPoliticalMetrics[regionId]?.residuals).toBeUndefined();
+    }
     const controlParentAssets = Object.values(
       controlWorld.corporateSectors,
     ).filter((asset) => asset.countryId === "UK" && asset.stateId === "SCO");
@@ -274,6 +289,7 @@ describe("#298 saved secession ownership through GameSession", () => {
     restored.load(afterVote.serialize(SAVED_AT));
     const reload = savedWorld(restored);
     expect(reload.world.referendums[0]?.status).toBe("completed");
+    expect(reload.world.regionalPoliticalMetrics).toEqual(completed.world.regionalPoliticalMetrics);
     const reloadedAssets = Object.values(reload.world.corporateSectors).filter(
       (asset) => asset.countryId === "SCO" && asset.stateId !== null,
     );

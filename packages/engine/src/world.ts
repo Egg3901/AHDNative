@@ -45,6 +45,7 @@ import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
 import { seedTfpLeaves } from "./metrics/tfpSeed.js";
 import { seedMinisterialTargets } from "./metrics/ministerialTargetSeed.js";
+import { seedPoliticalBoards } from "./metrics/politicalBoardSeed.js";
 import { computeNationalMetrics } from "./metrics/nationalMetrics.js";
 
 // v29: W30 governors (governors/governorAddresses/governorOrders). This wave
@@ -157,11 +158,12 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v48: interbank loan book (world.interbankLoans); see save.ts.
 // v49: source-authored corporation HQ region identity; see save.ts.
 // v50: deterministic local corporation name and brand identity; see save.ts.
+// v51: source political boards and lagged cabinet driver state; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 50;
+export const SCHEMA_VERSION = 51;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1211,6 +1213,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // nationalMetrics (prev-turn to the first macro read) is the seed basket.
   seedTfpLeaves(world);
   seedMinisterialTargets(world);
+  seedPoliticalBoards(world);
   computeNationalMetrics(world);
   return world;
 }

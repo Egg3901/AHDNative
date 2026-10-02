@@ -1,4 +1,6 @@
 export { advanceTurn } from "./engine.js";
+export { politicalMetricsForCountry } from "./politicalMetrics/registry.js";
+export type { PoliticalRegistryView, PoliticalCategoryView, PoliticalMetricView, PoliticalMetricRegionView } from "./politicalMetrics/registry.js";
 export type { AdvanceTurnOptions } from "./engine.js";
 export { clearCommodity, TRADE_IPF_ITERATIONS } from "./trade/clearing.js";
 export type { CommodityClearingInput, CommodityClearingResult, CountryCommodityClearing } from "./trade/clearing.js";

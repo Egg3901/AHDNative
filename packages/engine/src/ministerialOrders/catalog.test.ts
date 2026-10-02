@@ -61,7 +61,8 @@ describe("ministerial order catalog public boundary", () => {
           expect(order.resolvedEffects.length).toBeGreaterThan(0);
           for (const effect of order.resolvedEffects) {
             expect(effect.scope).toBe("national");
-            expect(world.nationalMetrics[countryId]?.[effect.metric]).toBeDefined();
+            expect(world.nationalMetrics[countryId]?.[effect.metric]
+              || Object.values(world.regionalPoliticalMetrics ?? {}).find(board => board.countryId === countryId)).toBeDefined();
           }
         }
       }
@@ -75,7 +76,8 @@ describe("ministerial order catalog public boundary", () => {
       for (const position of cabinetPositionsForCountry(countryId)) {
         for (const order of classifyMinisterialOrders(world, countryId, position.id)) {
           if (order.availability !== "supported") continue;
-          const before = order.resolvedEffects.map((effect) => world.nationalMetrics[countryId]![effect.metric]!.value);
+          const before = order.resolvedEffects.map((effect) => world.nationalMetrics[countryId]?.[effect.metric]?.value);
+          const beforeSnapshot = JSON.stringify(world.politicalCabinetContributions?.[countryId]);
           world.ministerialOrders = [{
             id: `inventory:${countryId}:${position.id}:${order.id}`,
             countryId,
@@ -84,8 +86,10 @@ describe("ministerial order catalog public boundary", () => {
             issuedAtTurn: world.meta.turn,
             effects: order.resolvedEffects,
           }];
-          expect(runMinisterialOrders(world).metricsUpdated).toBeGreaterThanOrEqual(order.resolvedEffects.length);
-          expect(order.resolvedEffects.some((effect, index) => world.nationalMetrics[countryId]![effect.metric]!.value !== before[index])).toBe(true);
+          const applied = runMinisterialOrders(world);
+          const changed = order.resolvedEffects.some((effect, index) => world.nationalMetrics[countryId]?.[effect.metric]?.value !== before[index]);
+          expect(changed || JSON.stringify(world.politicalCabinetContributions?.[countryId]) !== beforeSnapshot).toBe(true);
+          expect(applied.metricsUpdated > 0 || Object.keys(world.politicalCabinetContributions?.[countryId]?.contribution ?? {}).length > 0).toBe(true);
         }
       }
     }

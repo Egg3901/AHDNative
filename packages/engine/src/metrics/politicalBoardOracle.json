@@ -1,0 +1,14 @@
+{
+  "contribution": {
+    "economy.workerSecurity": 0.944
+  },
+  "first": {
+    "economy.workerSecurity": 0.9422
+  },
+  "second": {
+    "economy.workerSecurity": 1.7768
+  },
+  "faded": {
+    "economy.workerSecurity": 1.6026
+  }
+}

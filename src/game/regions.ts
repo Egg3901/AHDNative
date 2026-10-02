@@ -224,6 +224,9 @@ export interface RegionDetailView {
   senateClasses: [1 | 2 | 3, 1 | 2 | 3] | null;
   /** Detached values from the authoritative regional metric store. */
   metrics: Record<string, number>;
+  /** Detached source family board and its persisted cabinet driver. */
+  politicalMetrics?: Record<string, { value: number; cabinetResidual: number }>;
+
   economy: RegionEconomyView;
   extraction?: RegionExtractionView;
   demographics: RegionDemographicsView;
@@ -616,6 +619,14 @@ function projectDetail(
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([id, metric]) => [id, metric.value]),
     ),
+    ...(world.regionalPoliticalMetrics?.[region.id] ? {
+      politicalMetrics: Object.fromEntries(
+        Object.entries(world.regionalPoliticalMetrics[region.id]!.values)
+          .filter(([, value]) => Number.isFinite(value))
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([id, value]) => [id, { value, cabinetResidual: world.regionalPoliticalMetrics?.[region.id]?.cabinetResiduals?.[id] ?? 0 }]),
+      ),
+    } : {}),
     economy: {
       gdpMillions: finiteOrNull(region.gdp),
       currency,

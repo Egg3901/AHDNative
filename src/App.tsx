@@ -110,6 +110,10 @@ export function App() {
     if (!client.current) return Promise.reject(new Error('Start or load a game first.'));
     return client.current.politics();
   }, []);
+  const loadPoliticalMetrics = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error('Start or load a game first.'));
+    return client.current.politicalMetrics();
+  }, []);
 
   useEffect(() => {
     let worker: GameClient;
@@ -290,7 +294,7 @@ export function App() {
     setWorld(await client.current!.updateWorldFeatureFlags(flags));
     await save();
     setMessage("World settings saved.");
-  })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadCabinetOffice={loadCabinetOffice} onIssueCabinetOrder={(input) => void run(async () => {
+  })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} loadPoliticalMetrics={loadPoliticalMetrics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadCabinetOffice={loadCabinetOffice} onIssueCabinetOrder={(input) => void run(async () => {
       const response = await client.current!.issueCabinetOrder(input); setWorld(response.view);
       if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
     })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadUnionManagement={loadUnionManagement} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} loadHallOfFame={loadHallOfFame} world={world} busy={busy} error={error} message={message}

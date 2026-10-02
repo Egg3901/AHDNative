@@ -47,6 +47,7 @@ import { validatePlayerLineOfCredit, validatePlayerLineOfCreditWallet } from "./
 import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
+import { validatePoliticalState } from "./politicalMetrics/validate.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -197,6 +198,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const metaSchema = meta["schemaVersion"];
 
   if (envelopeSchema === V42_SCHEMA && metaSchema === V42_SCHEMA) {
+    if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
+      isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
+      return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
+    }
     if (hasOwn(world, "countryPolitics")) {
       return {
         ok: false,
@@ -533,6 +538,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         value["countryOwnerId"] !== value["countryId"] || value["ownershipState"] !== "stateOwned") {
       return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
     }
+  }
+  // A v42 reader retains unfamiliar JSON but cannot advance these boards.
+  // Refuse their state rather than export a frozen extension.
+  if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
+    isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
+    return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
   }
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
@@ -3223,6 +3234,11 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 50;
   }
+  // v50 -> v51: source political dynamics. Existing saves retain the recorded
+  // absence of boards and cabinet snapshots. Seeding a progressed game here
+  // would invent scores and history. The new version keeps older readers
+  // from accepting and freezing the new turn-dependent records.
+  if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3266,6 +3282,7 @@ export function deserializeSave(raw: string): WorldState {
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);
   validateBankingState(save.world);
+  validatePoliticalState(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
