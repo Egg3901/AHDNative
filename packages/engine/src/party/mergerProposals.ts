@@ -2,6 +2,7 @@ import type { PartyMergerProposal, WorldState } from "../types.js";
 import { calculateRecruitmentSlots } from "../npp/recruitment.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 import { isElectionCandidateActive } from "../elections/types.js";
+import { majorityThreshold } from "../government/constants.js";
 
 export type PartyMergeVote = "yes" | "no";
 export type PartyMergeSide = "proposing" | "target";
@@ -274,6 +275,19 @@ function applyPartyMerge(world: WorldState, proposal: PartyMergerProposal): void
   absorbed.treasurerId = null;
   absorbed.committeeIds = [];
   for (const chamber of world.legislatures[countryId]?.chambers ?? []) recomputeComposition(world, countryId, chamber.key);
+  const governmentChamber = government && world.legislatures[countryId]?.chambers.find((chamber) => chamber.key === government.chamberKey);
+  if (government && governmentChamber) {
+    const seatsByParty = { ...governmentChamber.composition.seatsByParty };
+    government.seatsByParty = seatsByParty;
+    government.totalSeats = governmentChamber.seats;
+    government.majorityThreshold = majorityThreshold(governmentChamber.seats);
+    government.totalSeatsSupporting = government.formationType === "coalition"
+      ? (government.coalitionPartyIds ?? []).reduce((sum, partyId) => sum + (seatsByParty[partyId] ?? 0), 0)
+      : seatsByParty[government.governingPartyId ?? ""] ?? 0;
+    if (government.status === "formed" && government.formationType !== "minority") {
+      government.lostMajority = government.totalSeatsSupporting < government.majorityThreshold;
+    }
+  }
   world.news.push({
     id: `${proposal.id}:completed`,
     turn: world.meta.turn,
