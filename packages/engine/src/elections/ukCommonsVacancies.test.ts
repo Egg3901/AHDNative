@@ -344,7 +344,7 @@ describe("UK Commons vacancy plumbing", () => {
       campaignIfAvailable();
     }
     expect(regular!.status).toBe("resolved");
-    const diagnosticPath = "/tmp/ahdnative96-commons-source-inputs-328ff6.json";
+    const diagnosticPath = process.env.AHD_ELECTION_TALLY_TRACE_PATH;
     const jsonReplacer = (_key: string, value: unknown) => {
       if (value instanceof Map)
         return { __type: "Map", entries: [...value.entries()] };
@@ -352,36 +352,39 @@ describe("UK Commons vacancy plumbing", () => {
         return { __type: "Set", values: [...value.values()] };
       return value;
     };
-    writeFileSync(
-      diagnosticPath,
-      JSON.stringify(
-        {
-          provenance: {
-            sourceCommit: "0a68fee4c03f2c48692661501d539ac05f338571",
-            baselineNativeCommit: "328ff6bae8ad82a39314211113dd31aee777c6ec",
-            seed: "commons-public-player-office-probe",
-            regionId: "LON",
-            electionId: regular!.id,
-            finalTurn: world.meta.turn,
+    if (diagnosticPath) {
+      writeFileSync(
+        diagnosticPath,
+        JSON.stringify(
+          {
+            provenance: {
+              sourceCommit: "0a68fee4c03f2c48692661501d539ac05f338571",
+              baselineNativeCommit:
+                "328ff6bae8ad82a39314211113dd31aee777c6ec",
+              seed: "commons-public-player-office-probe",
+              regionId: "LON",
+              electionId: regular!.id,
+              finalTurn: world.meta.turn,
+            },
+            tallyInputTrace,
+            finalElection: {
+              totalSeats: regular!.totalSeats,
+              countryId: regular!.countryId,
+              electionType: regular!.electionType,
+              winners: regular!.winners,
+              tally: regular!.tally,
+              candidateIds: regular!.candidates.map((candidate) => ({
+                id: candidate.id,
+                partyId: candidate.partyId,
+                isNPP: candidate.isNPP,
+                name: candidate.name,
+              })),
+            },
           },
-          tallyInputTrace,
-          finalElection: {
-            totalSeats: regular!.totalSeats,
-            countryId: regular!.countryId,
-            electionType: regular!.electionType,
-            winners: regular!.winners,
-            tally: regular!.tally,
-            candidateIds: regular!.candidates.map((candidate) => ({
-              id: candidate.id,
-              partyId: candidate.partyId,
-              isNPP: candidate.isNPP,
-              name: candidate.name,
-            })),
-          },
-        },
-        jsonReplacer,
-      ),
-    );
+          jsonReplacer,
+        ),
+      );
+    }
     // This must replay the previously observed legal public-action journey
     // exactly before its input trace is accepted as source-comparison data.
     expect({
