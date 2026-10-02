@@ -113,11 +113,11 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
       </div>
 
       {legislature.governmentFormation ? (
-        <section className="ahd-card ahd-card-pad" aria-label="Dáil government formation">
-          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Dáil government formation</h3>
+        <section className="ahd-card ahd-card-pad" aria-label={`${legislature.governmentFormation.chamberName ?? "Dáil"} government formation`}>
+          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>{legislature.governmentFormation.chamberName ?? "Dáil"} government formation</h3>
           {legislature.governmentFormation.status === "formed" ? (
             <p style={{ fontSize: "0.8rem", margin: "0.4rem 0 0" }}>
-              Taoiseach: {legislature.governmentFormation.officeholderName ?? "Vacant"}
+              {legislature.governmentFormation.executiveTitle}: {legislature.governmentFormation.officeholderName ?? "Vacant"}
             </p>
           ) : (
             <>
@@ -125,21 +125,21 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
                 Government is in formation; legislation is frozen until a PM is seated.
                 {legislature.governmentFormation.nomineeDisabledReason
                   ? ` ${legislature.governmentFormation.nomineeDisabledReason}`
-                  : " Your party chair may nominate a Taoiseach candidate."}
+                  : ` Your party chair may nominate a ${legislature.governmentFormation.executiveTitle} candidate.`}
               </p>
               <button
                 type="button"
                 className="ahd-btn ahd-btn-primary ahd-btn-sm"
                 onClick={() => onAction("proposePmAppointment")}
                 disabled={busy || !legislature.governmentFormation.nomineeAvailable}
-                aria-label="Nominate yourself as Taoiseach"
+                aria-label={`Nominate yourself as ${legislature.governmentFormation.executiveTitle}`}
               >
-                Nominate yourself as Taoiseach
+                Nominate yourself as {legislature.governmentFormation.executiveTitle}
               </button>
             </>
           )}
           {legislature.governmentFormation.votes.map((vote) => (
-            <article key={vote.id} className="ahd-card ahd-card-pad" aria-label={`Taoiseach appointment vote for ${vote.nomineeName}`} style={{ marginTop: "0.5rem" }}>
+            <article key={vote.id} className="ahd-card ahd-card-pad" aria-label={`${legislature.governmentFormation!.executiveTitle} appointment vote for ${vote.nomineeName}`} style={{ marginTop: "0.5rem" }}>
               <div style={{ fontSize: "0.8rem", fontWeight: 700 }}>{vote.nomineeName} · {vote.partyName}</div>
               <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
                 {vote.status} · {vote.votesFor} ayes · {vote.votesAgainst} nays · closes turn {vote.closesTurn}
@@ -153,7 +153,7 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
                       className="ahd-btn ahd-btn-sm"
                       onClick={() => onAction("votePmAppointment", { pmAppointmentVoteId: vote.id, pmVote: choice })}
                       disabled={busy || !vote.voting.available}
-                      aria-label={`${choice === "aye" ? "Aye" : "Nay"} on Taoiseach appointment for ${vote.nomineeName}`}
+                      aria-label={`${choice === "aye" ? "Aye" : "Nay"} on ${legislature.governmentFormation!.executiveTitle} appointment for ${vote.nomineeName}`}
                     >
                       {choice === "aye" ? "Aye" : "Nay"}{vote.playerVote === choice ? " · voted" : ""}
                     </button>

@@ -486,8 +486,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   proposePmAppointment: {
     id: "proposePmAppointment",
-    name: "Nominate Taoiseach",
-    description: "A Dáil member who chairs a party with enough seats may nominate themselves for a source 24-turn appointment vote.",
+    name: "Nominate Head of Government",
+    description: "An elected member who chairs a party with enough seats may nominate themselves for a 24-turn appointment vote.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,
@@ -496,8 +496,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   votePmAppointment: {
     id: "votePmAppointment",
-    name: "Vote on Taoiseach Appointment",
-    description: "Cast an aye or nay in an active Dáil Taoiseach appointment vote.",
+    name: "Vote on Government Appointment",
+    description: "Cast an aye or nay in an active parliamentary appointment vote.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,
