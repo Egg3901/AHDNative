@@ -37,12 +37,13 @@ describe("actual corporate ownership at the public turn/save boundary (#75)", ()
     expect(JSON.parse(resumed.serialize(SAVED_AT)).world.budgets.US.stateOwnershipConcentration).toBeCloseTo(16.666666666666668, 10);
   });
 
-  it("records zero when no state owns an asset, including command economies", () => {
+  it("measures recorded command-economy SOEs independently of the planning fraction", () => {
     const session = new GameSession();
     session.create({ era: "1953", countryId: "RU", seed: "source-no-state-assets", playerName: "Alex", mode: "hos" });
     session.advance();
     const saved = JSON.parse(session.serialize(SAVED_AT));
-    expect(saved.world.budgets.RU.stateOwnershipConcentration).toBe(0);
-    expect(saved.world.budgets.DD.stateOwnershipConcentration).toBe(0);
+    expect(Object.values(saved.world.corporations).filter((corp: any) => corp.countryId === "RU").every((corp: any) => corp.countryOwnerId === "RU")).toBe(true);
+    expect(saved.world.budgets.RU.stateOwnershipConcentration).toBe(100);
+    expect(saved.world.budgets.DD.stateOwnershipConcentration).toBe(100);
   });
 });

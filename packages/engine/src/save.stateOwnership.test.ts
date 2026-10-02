@@ -38,6 +38,10 @@ describe("state ownership at the public save boundary (#75)", () => {
       [{ ...recordedEntry, tier: "free" }], [{ ...recordedEntry, compensationAnchor: 1 }],
       [{ ...recordedEntry, tier: "fair", compensationAnchor: -1 }],
       [{ ...recordedEntry, tier: "discounted", compensationAnchor: null }],
+      [{ ...recordedEntry, confidenceBefore: 70 }],
+      [{ ...recordedEntry, confidenceBefore: 70, confidenceAfter: null }],
+      [{ ...recordedEntry, confidenceBefore: 101, confidenceAfter: 70 }],
+      [{ ...recordedEntry, confidenceBefore: 70, confidenceAfter: -1 }],
       [{ ...recordedEntry, triggers: [] }], [{ ...recordedEntry, sectorTypes: [] }],
     ]) {
       saved.world.stateOwnershipLedger = ledger;

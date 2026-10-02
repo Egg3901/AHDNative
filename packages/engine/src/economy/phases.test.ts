@@ -54,13 +54,13 @@ describe("unownedSectorGrowthPhase", () => {
 });
 
 describe("commandEconomyPhase + stateOwnershipConcentrationPhase", () => {
-  it("RU/DD drift a nonzero SOCI from the live marketization dial; US/UK stay at 0", () => {
+  it("measures actual seeded SOE ownership independently of the planning dial", () => {
     const world = createWorld({ seed: "soci-phase-seed", playerName: "P", countryId: "RU", era: "1953" });
     const rng = rngFromSeed("soci-phase-rng");
     commandEconomyPhase.run(world, rng);
     stateOwnershipConcentrationPhase.run(world, rng);
-    expect(world.budgets["RU"]!.stateOwnershipConcentration).toBeGreaterThan(0);
-    expect(world.budgets["DD"]!.stateOwnershipConcentration).toBeGreaterThan(0);
+    expect(world.budgets["RU"]!.stateOwnershipConcentration).toBe(100);
+    expect(world.budgets["DD"]!.stateOwnershipConcentration).toBe(100);
     expect(world.budgets["US"]!.stateOwnershipConcentration).toBe(0);
     expect(world.budgets["UK"]!.stateOwnershipConcentration).toBe(0);
   });

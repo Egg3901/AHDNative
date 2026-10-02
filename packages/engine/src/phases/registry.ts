@@ -490,7 +490,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   //     world.governments[countryId].governingPartyId, settled by
   //     governmentFormationPhase above) →
   //   stateOwnershipConcentration (reads the marketizationLevel
-  //     commandEconomyPhase JUST drifted, not last turn's — must run after it).
+  //     current corporate assets and their actual state-owner identities).
   advanceCapitalStockPhase,
   unownedSectorGrowthPhase,
   commandEconomyPhase,
