@@ -24,12 +24,7 @@ import { eraToPreset } from "../electionEngine/resolution/constants.js";
  * DC's Game fallback state and source-generated presidential demographics are
  * applied only to this Electoral College path. The native headquarters-only
  * region stays out of every other regional mechanic. ME/NE use source
- * congressional-district units when their year gates are active. Likewise ME/NE stay
- * winner-take-all: AHDClient has no congressional-district entities at all
- * (house races are single per-state multi-seat contests — see
- * `tallyAdapter.ts` `stateSliceFor` / orchestration.ts's `state: r.id`
- * house spec), so the district split has no structural home here even
- * where the era gate would allow it. For the 1953 pack (48 states,
+ * congressional-district units when their year gates are active. For the 1953 pack (48 states,
  * sourced from mainline's `HOUSE_SEATS_1953` / `ELECTORAL_VOTES_1953` —
  * see `packages/engine/src/electionEngine/resolution/constants.ts`, which
  * holds that table byte-for-byte for golden tests) the gates are inert:
