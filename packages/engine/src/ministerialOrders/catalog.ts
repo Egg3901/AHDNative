@@ -2,6 +2,14 @@ import type { WorldState } from "../types.js";
 import { cabinetPositionsForCountry } from "../cabinet/constants.js";
 import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { AUTHORED_MINISTERIAL_ORDERS } from "./catalogData.js";
+import { mapCabinetDeltasToPolitical } from "../politicalMetrics/cabinetResidual.js";
+
+/** An order needs every mapped family on a recorded regional board. */
+function hasPoliticalConsumer(world: WorldState, countryId: string, sourceMetric: string): boolean {
+  const families = Object.keys(mapCabinetDeltasToPolitical({ [sourceMetric]: 1 }));
+  return families.length > 0 && Object.values(world.regionalPoliticalMetrics ?? {}).some(board =>
+    board.countryId === countryId && families.every(id => Number.isFinite(board.values[id])));
+}
 
 export interface MinisterialOrderEffectDefinition {
   metric: string;
@@ -59,12 +67,14 @@ export function unavailableDefenseOrderEffects(
   countryId: string,
   positionId: string,
   orderId: string,
+  world?: WorldState,
 ): UnavailableMinisterialOrderEffect[] | null {
   if (!isDefensePosition(positionId)) return null;
   const order = getMinisterialOrders(countryId, positionId).find((candidate) => candidate.id === orderId);
   if (!order) return null;
   const unavailable = order.effects
     .filter((effect) => effect.scope === "national")
+    .filter((effect) => !world || !hasPoliticalConsumer(world, countryId, effect.metric))
     .map((effect) => ({ metric: effect.metric, missingConsumer: missingDefenseConsumer(effect.metric) }));
   return unavailable.length > 0 ? unavailable : null;
 }
@@ -77,7 +87,8 @@ const NATIVE_NATIONAL_METRIC_PATHS = new Set([
   ...Object.values(TFP_METRIC_PATHS),
 ]);
 
-function resolveNationalMetric(world: WorldState, countryId: string, sourceMetric: string): string | null {
+function resolveNationalMetric(world: WorldState, countryId: string, sourceMetric: string, political = false): string | null {
+  if (political && hasPoliticalConsumer(world, countryId, sourceMetric)) return sourceMetric;
   const metrics = world.nationalMetrics[countryId] ?? {};
   const hasTarget = (path: string) => Number.isFinite(metrics[path]?.value)
     && (!Object.values(TFP_METRIC_PATHS).includes(path)
@@ -115,7 +126,7 @@ export function classifyMinisterialOrders(world: WorldState, countryId: string, 
   return getMinisterialOrders(countryId, positionId).map((order) => {
     const regional = order.effects.find((effect) => effect.scope === "regional");
     if (regional) return { ...order, availability: "blocked", blocker: `regionalTargetRequired:${regional.metric}` };
-    const unavailableEffects = unavailableDefenseOrderEffects(countryId, positionId, order.id);
+    const unavailableEffects = unavailableDefenseOrderEffects(countryId, positionId, order.id, world);
     if (unavailableEffects) {
       return {
         ...order,
@@ -126,7 +137,7 @@ export function classifyMinisterialOrders(world: WorldState, countryId: string, 
     }
     const resolvedEffects: MinisterialOrderEffectDefinition[] = [];
     for (const effect of order.effects) {
-      const metric = resolveNationalMetric(world, countryId, effect.metric);
+      const metric = resolveNationalMetric(world, countryId, effect.metric, isDefensePosition(positionId));
       if (!metric) return { ...order, availability: "blocked", blocker: `unsupportedMetric:${effect.metric}` };
       resolvedEffects.push({ ...effect, metric });
     }

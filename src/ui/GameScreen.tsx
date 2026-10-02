@@ -19,6 +19,7 @@ import { NationPanel, SubsidyLegislationControls } from "./NationPanel";
 import { EMPTY_SEARCH_SNAPSHOT, SearchPanel, type SearchPanelSnapshot } from "./SearchPanel";
 import type { SearchResult } from "../game/search";
 import { MarketsRoute } from "./MarketsRoute";
+import { StateOwnershipRoute } from "./StateOwnershipRoute";
 import { SectorsRoute } from "./SectorsRoute";
 import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
@@ -83,6 +84,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy", commandEconomy: "Command economy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
+  stateOwnership: "State ownership",
   sectors: "Sectors",
   bonds: "Bond market",
   search: "Search",
@@ -147,7 +149,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadUnionManagement, loadLegislation, loadPolitics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadStateOwnership, loadUnionManagement, loadLegislation, loadPolitics, loadPoliticalMetrics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // #510 bounded return stack: detail routes remember the chain of browse
@@ -532,6 +534,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     if (route === "electionDetails") return restore("elections", "Back to elections", false);
     if (route === "campaignDetails") return restore("electionDetails", "Back to race", true);
     if (route === "presidentialDetails") return restore("elections", "Back to elections", false);
+    if (route === "stateOwnership" && live) return restore("budget", "Back to budget", false);
     if (route === "politicians" && live) {
       return restore("politicians", "Back to politicians", false);
     }
@@ -819,7 +822,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               section={route}
               clock={clock}
               era={world.era}
-              onNavigate={navigate}
+              onNavigate={(next, id) => next === "stateOwnership" ? drillViewer({ route, detailId }, next, id) : navigate(next, id)}
               onAction={onAction}
               busy={busy}
             />
@@ -884,7 +887,9 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
-          {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} loadUnions={loadUnionManagement} revision={world} busy={busy} onAction={onAction} onSectorSale={onSectorSale} onUnionCommand={onUnionCommand} onNavigate={navigate} onDrill={drillViewer} />}
+          {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} loadStateOwnership={loadStateOwnership} loadUnions={loadUnionManagement} revision={world} busy={busy} onAction={onAction} onSectorSale={onSectorSale} onUnionCommand={onUnionCommand} onNavigate={navigate} onDrill={drillViewer} />}
+          {route === "stateOwnership" && loadStateOwnership && <StateOwnershipRoute load={loadStateOwnership} loadMarkets={loadMarkets} revision={world} contextKey={contextKey}
+            busy={busy} onAction={onAction} onSectorSale={onSectorSale} onOpenCompany={id => drillViewer({ route: "stateOwnership" }, "markets", id)} />}
           {route === "sectors" && <SectorsRoute load={loadMarkets} revision={world} busy={busy} onSectorSale={onSectorSale} onOpenCompany={(id) => drill("markets", id)} onOpenRegion={(id) => drill("regions", id)} />}
           {route === "legislationDetails" && <LegislationRoute initialId={detailId} countryId={world.countryId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
           {route === "help" && <HelpPanel />}
@@ -910,7 +915,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             navigate(next, id);
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} onOpenCompany={(id) => drill("markets", id)} /> : null}
-          {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums" || route === "profile" || route === "policy") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
+          {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "stateOwnership" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums" || route === "profile" || route === "policy") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
           {route === "politicalMetrics" && world.capabilityNav?.metricsAvailable !== false && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} onOpenPresidential={openPresidential} busy={busy} onAction={onAction} clock={clock} />}
@@ -918,7 +923,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "politicalMetrics" && (world.capabilityNav?.metricsAvailable === false ? (
             <MetricsUnavailable title="Political metrics" secondaryLabel="Go to elections" onWorldSettings={() => go("worldSettings")} onSecondary={() => go("elections")} />
           ) : (
-            <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />
+            <PoliticsRoute load={loadPolitics} loadMetrics={loadPoliticalMetrics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />
           ))}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} contextKey={newsStorageKey} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}

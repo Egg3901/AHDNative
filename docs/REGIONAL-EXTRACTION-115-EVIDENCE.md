@@ -38,7 +38,19 @@ These gaps are separate from the four original #115 acceptance rows and should
 remain visible in the final issue disposition if the broader pricing contract
 is included in the closure review.
 
-## Verification record
+## Final integrated verification
+
+PR #719 merged as `7661304` after exact `985b2dd` passed the full hosted
+[gate 36905468118](https://github.com/Egg3901/AHDNative/actions/runs/36905468118):
+application/build, engine/content, integrated browser smoke and Rust. The final
+targeted integrated run passed 33 engine tests including the real 48-turn
+production/royalty/save lifecycle, plus 31 region/sector UI tests. All four
+original #115 criteria were checked before merge; GitHub closure and removal of
+`status: partial` are confirmed. The standard extraction mix independently
+matches current source weights (.25 iron, .22 coal, .14 oil, .14 rare earth,
+.14 natural gas, .12 timber). Wider strategy/technology pricing remains #107.
+
+## Earlier verification record
 
 - Focused engine run covering extraction lifecycle, regional operation,
   capacity, production, and corporate-sector assets: 41 passed, 1 failed on a

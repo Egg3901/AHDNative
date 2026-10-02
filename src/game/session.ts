@@ -20,9 +20,10 @@ import { projectCabinetSponsor, projectNominationDetail, projectNominationList, 
 import { projectHallOfFame, type HallOfFameQuery } from "./hallOfFame";
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
+import { projectStateOwnership } from "./stateOwnership";
 import { projectCapabilityNav } from "./capabilityNav";
 import { projectMyCorporation } from "./identityOrg";
-import { projectPolitics, projectPartyMembership } from "./politics";
+import { projectPolitics, projectPoliticalMetrics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
@@ -73,6 +74,7 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
 const HOS_ACTIONS: typeof ACTIONS = [
   { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
   { id: "adjustTaxRate", requires: "taxRate", category: "executive", prerequisite: "Phases in from the next turn boundary, like enacted tax law." },
+  { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting head of government and a distressed domestic issuer." },
 ];
 
 /**
@@ -538,6 +540,7 @@ export class GameSession {
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 
   markets() { return projectMarkets(this.requireWorld()); }
+  stateOwnership(countryId?: string) { return projectStateOwnership(this.requireWorld(), countryId); }
   unionManagement() { return projectUnionManagement(this.requireWorld()); }
 
   organizeUnion(unionId: string) {
@@ -687,6 +690,7 @@ export class GameSession {
   }
 
   politics() { return projectPolitics(this.requireWorld()); }
+  politicalMetrics() { return projectPoliticalMetrics(this.requireWorld()); }
 
   /**
    * Hall of Fame board (#73). The projector reads the live WorldState

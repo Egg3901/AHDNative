@@ -1,5 +1,78 @@
 # AHDNative roadmap
 
+## State ownership register and seized cash, 2026-10-02 (#75 partial)
+
+The National Budget ownership entry opens the actual National Corporation with
+Register selected. Real executive-taking history, current holdings, assumed
+unmatured debt and shareholder totals survive ordinary turns and normal reload.
+Company links and Back restore Register, then Budget. Seized donor cash goes
+once to treasury; new state issuers start at zero while existing issuers keep
+their cash. Schema 52 preserves absent historical ledgers and refuses malformed
+records or unsupported older-reader exports.
+
+[Source vectors, player checks and remaining acceptance](STATE-OWNERSHIP-REGISTER-75.md)
+record two public action/save cases, four engine save cases, seven UI cases and
+the actual 320px/390px worker action/two-resume browser flow. Full nationalization
+eligibility, notice, compensation, auctions, political consequences, national
+planning and special-court journeys remain #75. No full #75 acceptance group
+is checked by this register slice. #298/#211/#510/#122 are reference only.
+
+## Qualified ownership and political consumers, 2026-10-02
+
+Current verified count: **54 open, down from 63**, with 40 partial, 9 not started,
+3 deferred and 2 blocked. Nine confirmed night closures: #308, #297, #51,
+#110, #111, #299, #115, #298 and #211. The corporate-sector program is 7/7
+complete; selected country-law parent #101 remains 2/7.
+
+[PR #717](https://github.com/Egg3901/AHDNative/pull/717) merged `5272adf`
+after exact `bca894a` passed the [full gate](https://github.com/Egg3901/AHDNative/actions/runs/36940398495).
+Canonical source SP government records now authorize distressed domestic taking;
+foreign targets refuse atomically. All original #298 criteria are checked and
+closed, as are all seven #211 children. [Source authority](SINGLEPLAYER-HOS-AUTHORITY.md)
+and [ownership conservation](SECESSION-NATIONALIZATION-OWNERSHIP-298.md)
+retain public action/ordinary-turn/save/reload and independent source evidence.
+Full auction/notice/compensation/register, command-planning and special-court
+surfaces remain #75. Germany/China SP tax proposals immediately enact by source
+decree; exact source career ballot producers and final qualification remain
+before #286/#287 closure.
+
+[PR #722](https://github.com/Egg3901/AHDNative/pull/722) merged `4811964`
+after exact `1fe8098` passed the [full gate](https://github.com/Egg3901/AHDNative/actions/runs/36940543025).
+The [political board consumers](POLITICAL-BOARD-CONSUMERS.md) now persist source
+snapshots/residuals, real regional boards and actual earned US order effects.
+Independent London 53.6 to 53.858844 and source contribution/residual vectors match;
+actual 320px/390px order/normalturn/save/relaunch/category/metric/region/Back flows
+pass. #105/#263/#510 remain partial for full country/role journeys, unmapped
+providers and history/driver/comparison/governance depth. Source main is cb66acdf;
+Client main is 799a9920. TFP fiscal/law consumers and full primary resolution remain
+active. No physical-device, whole-game, MP gameplay or current Client interchange
+completion claim.
+
+Earlier dated checkpoints below are historical; this checkpoint owns current
+counts and dispositions.
+
+## Current tariff and commodity flow checkpoint, 2026-10-01 (#77 partial)
+
+[PR #720](https://github.com/Egg3901/AHDNative/pull/720) merged at `ce6f4a9`
+after exact head `5345f96` passed the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36932586276).
+The Legislature authors source trade-category economy-wide tariffs with actual
+country/chamber or explicit sovereign authority, source proposal cost/refund and
+nonterminal duplicate-scope refusal. Saved signed tariff rows apply importer
+flow affinity and FTA exemptions. Markets shows feasible represented commodity
+receipts, quantities, values, partners and tariff context after ordinary turns
+and save/reload. [Source comparisons and remaining acceptance](COMMODITY-COUNTRY-TRADE-77-EVIDENCE.md)
+record the global-price valuation boundary. Source country pricing, complete
+supply, cash/tariff settlement, other scopes/restrictions, FX market depth and
+corporate issuance/default controls remain open. All four original #77
+acceptance groups remain unchecked; no issue closes through this batch.
+
+Current verified count: 56 open from 63, with 40 partial, 10 not started,
+3 deferred, 2 blocked and 1 tracking. Seven confirmed night closures:
+#308, #297, #51, #110, #111, #299 and #115. Parent #211 is 6/7 pending #298.
+Canonical SP authority and DE/CN decree PR #717 passes application/engine/content
+checks; final browser/Rust checks remain in progress at exact `addc691`.
+Political board PR #722 and source NPC work remain separate unfinished gates.
+
 ## Regional ministerial target checkpoint, 2026-10-01 (#263 / #105 partial)
 
 Fresh UK/DE regional unemployment rows now come from the actual immutable
@@ -23,25 +96,34 @@ ledger tests and actual 320px/390px issuance, purchase and normal reload journey
 support the [finance evidence](CORPORATE-FINANCE-BOND-PARITY.md) and
 [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
 
-There are 57 open issues, down from 63: 41 partial, 10 not started, 3 deferred,
+There are 56 open issues, down from 63: 40 partial, 10 not started, 3 deferred,
 2 blocked and 1 tracking. Parent #211 has 6 of 7 original children complete.
-#298 remains partial because Native still rejects directly seated SP heads of
-government whom current Game recognizes through canonical office/government
-records. Its full source authority criterion remains unchecked pending that
-correction; career ownership/conservation and secession fan-out are delivered.
+#298 remains partial while the canonical source SP authority correction in
+PR #717 awaits its final exact-head gate. Public US/UK authority, normal turn
+and save continuation checks pass; its full source authority criterion remains
+unchecked until integration is qualified. Career ownership/conservation and
+secession fan-out are delivered.
 #107 retains wider corporate management and strategy/technology price inputs.
 Current sampled Game is `cb66acdf`; Client is `799a9920`.
 
-## Regional extraction lifecycle checkpoint, 2026-10-01 (#115)
+## Regional extraction verified and closed, 2026-10-01 (#115)
 
-Regional prospecting, source-resource-backed starter capacity, CEO-approved
-expansion, extraction contracts, royalties and regional budget settlement now
-run through public player/session actions. The saved Texas journey reaches
-production, settles royalties and resumes with the recorded regional balances;
-actual Chromium flows passed at 390px and 320px. [Original acceptance mapping
-and source-pricing limits](REGIONAL-EXTRACTION-115-EVIDENCE.md) record the
-independent vectors and remaining generic strategy/technology pricing gap.
-The full hosted integration gate remains pending.
+[PR #719](https://github.com/Egg3901/AHDNative/pull/719) merged `7661304`
+after exact `985b2dd` passed the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36905468118).
+All four original criteria are checked and #115 is closed: recorded regional
+resource/capacity and government/CEO eligibility, contract offer/accept/decline/
+revoke, source production/royalty settlement, and normal save/reload with regional
+budget receipts. Final integrated checks passed 33 engine tests, including the
+48-turn production and royalty lifecycle, and 31 UI tests. The actual saved Texas
+journey passed 48 visible turns and resume at 390px and 320px. Its governor is a
+recorded holder; its CEO is earned through public shares/vote/accept actions.
+[Per-row source and player evidence](REGIONAL-EXTRACTION-115-EVIDENCE.md) records
+current Game `cb66acdf` and the wider generic strategy/technology pricing gap
+that remains open under #107.
+
+GitHub has 56 open issues: 40 partial, 10 not started, 3 deferred, 2 blocked and
+1 tracking. Seven original issues are closed this night: #308, #297, #51, #110,
+#111, #299 and #115. #298 remains open for the canonical SP authority correction.
 
 ## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
 
@@ -2655,3 +2737,16 @@ another branch is untouched; no physical-device run.
   complete source-backed player journey are still required. See
   [banking lifecycle evidence](BANKING-LIFECYCLE.md). The five closed child slices
   do not close the parent. No paid build or device-validation claim.
+
+## Source political board consumer checkpoint, 2026-10-01 (#263/#105/#510 partial)
+
+Actual Game seeds, law/macro drift, previous-turn order residuals and secession
+score fan-out now run through Native's public turn/save contract. Source London
+worker security53.858844 and cabinet residual0.9422 match independently executed
+Game results. The national Political metrics destination follows source
+category/metric/regional drilldown; actual weighted scores and order effects
+remain visible after reload. Schema51 preserves historical absence and refuses
+older-reader exports that would freeze political state. [Evidence](POLITICAL-BOARD-CONSUMERS.md)
+records targeted passing checks and the remaining original scope. These issues
+remain open pending complete supported order/defense consumers and navigation
+acceptance; no physical-device or whole-game completion is claimed.

@@ -161,3 +161,17 @@ on success. Historical projection fails closed for unsupported banking state.
 [Evidence and remaining parent scope](BANKING-LIFECYCLE.md) includes the actual
 reference-rule execution harness and its immutable output. There is no complete
 banking, player-console, four-asset-book or physical-device parity claim.
+
+## Source political board continuation (schema51)
+
+Native now records actual Game political seeder output and advances its63-family
+boards through the source law, macro and per-source cabinet residual functions.
+The generated pure runtime has reproducible input/output hashes and preserved
+Game license notices. Previous-turn ministerial snapshots, political secession
+score fan-out and jurisdictional residual reset retain source phase order.
+Historical saves preserve recorded absence; earlier readers reject schema51,
+and the immutable v42 projection refuses active political state. The existing
+Political metrics destination now uses source overview/category/metric labels,
+population-weighted scores and actual region/cabinet rows. [Evidence and remaining
+scope](POLITICAL-BOARD-CONSUMERS.md) keeps #105/#263/#510 partial; this does not
+claim full approval, military, history or current-SP interchange parity.

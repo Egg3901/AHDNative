@@ -25,11 +25,27 @@ describe("ported legislation catalogs (JP/DE/IE/CN/BR)", () => {
   });
 
   it("keeps generated rows unavailable except for reviewed executable slices", () => {
-    // Hand-ported US/UK/RU/DD entries may be available with no decay targets
-    // (they act through taxPolicy / immediate effect); the generator's rule is
-    // stricter and applies to the five generated catalogs only.
+    // Reviewed national tax entries may be available with no decay targets
+    // (they act through taxPolicy / enactment); every other generated row
+    // remains unavailable until its exact consumer is implemented.
     for (const e of CATALOG.filter((x) => ["JP", "DE", "IE", "CN", "BR"].includes(x.countryId))) {
-      if (e.id === "jp_consumption_tax" || e.id === "br_income_tax_rate" || e.id === "ie_vat_rate" || ["cn_value_added_tax", "cn_enterprise_income_tax", "cn_individual_income_tax", "cn_social_insurance_contribution", "cn_customs_tariff"].includes(e.id)) {
+      if ([
+        "jp_consumption_tax",
+        "de_income_tax_rate",
+        "de_solidarity_surcharge",
+        "de_vat_rate",
+        "de_domestic_corporate_tax_rate",
+        "de_foreign_corporate_tax_rate",
+        "de_payroll_social_insurance",
+        "de_customs_tariff_rate",
+        "br_income_tax_rate",
+        "ie_vat_rate",
+        "cn_value_added_tax",
+        "cn_enterprise_income_tax",
+        "cn_individual_income_tax",
+        "cn_social_insurance_contribution",
+        "cn_customs_tariff",
+      ].includes(e.id)) {
         expect(e.status).toBe("available");
         expect(e.blockingSystem).toBeUndefined();
         continue;

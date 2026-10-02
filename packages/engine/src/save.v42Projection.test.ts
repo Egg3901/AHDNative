@@ -108,7 +108,6 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("returns the authentic v42 fixture unchanged", () => {
-    expect(SCHEMA_VERSION).toBe(50);
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });

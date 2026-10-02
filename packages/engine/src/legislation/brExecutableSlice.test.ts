@@ -8,6 +8,15 @@ import type { Bill } from "./types.js";
 const LAW_ID = "br_income_tax_rate";
 
 describe("Brazil executable legislation slice", () => {
+  function giveCareerSeat(world: ReturnType<typeof createWorld>): void {
+    const chamber = world.legislatures.BR!.chambers.find((entry) => entry.elected)!;
+    const partyId = Object.entries(chamber.composition.seatsByParty)
+      .filter(([, seats]) => seats > 0)
+      .sort(([leftId, leftSeats], [rightId, rightSeats]) => rightSeats - leftSeats || leftId.localeCompare(rightId))[0]![0];
+    world.player.partyId = partyId;
+    world.player.legislativeSeat = { countryId: "BR", chamberKey: chamber.key };
+  }
+
   function passBill(world: ReturnType<typeof createWorld>, bill: Bill): void {
     processBillLifecycle(world, world.meta.rng);
     world.player.legislativeSeat = { countryId: "BR", chamberKey: bill.currentChamber };
@@ -34,7 +43,7 @@ describe("Brazil executable legislation slice", () => {
     // 22 (taxRateOverrides), above the catalog baseline 18, which is what
     // the enact/replace/repeal step assertions below are written against.
     const world = createWorld({ seed: "br-law", playerName: "P", countryId: "BR", era: "1991" });
-    world.player.mode = "hos";
+    giveCareerSeat(world);
     world.player.actions = 100;
     // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
     world.player.nationalInfluence = 15;
@@ -60,7 +69,7 @@ describe("Brazil executable legislation slice", () => {
     expect(world.enactedLaws.some((law) => law.id === LAW_ID && law.repealedAtTurn === undefined)).toBe(true);
 
     delete world.player.actionCooldowns.sponsorBill;
-    world.player.legislativeSeat = null;
+    giveCareerSeat(world);
     expect(executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, taxRate: 0 }).ok).toBe(true);
     const replacement = world.bills.at(-1)!;
     expect(replacement.effectDirection).toBe(1);
@@ -70,7 +79,7 @@ describe("Brazil executable legislation slice", () => {
     expect(world.enactedLaws.filter((law) => law.id === LAW_ID && law.repealedAtTurn === undefined)).toHaveLength(1);
 
     delete world.player.actionCooldowns.repealLaw;
-    world.player.legislativeSeat = null;
+    giveCareerSeat(world);
     expect(executeAction(world, "player", "repealLaw", { catalogId: LAW_ID }).ok).toBe(true);
     passBill(world, world.bills.at(-1)!);
     // Repeal retargets the catalog baseline (18): one step down from 22.

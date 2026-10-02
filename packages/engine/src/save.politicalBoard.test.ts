@@ -1,0 +1,52 @@
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
+import { describe, expect, it } from "vitest";
+import { advanceTurn, createWorld, SCHEMA_VERSION, deserializeSave, projectSaveToV42, serializeSave } from "./index.js";
+
+const recorded = () => deserializeSave(gunzipSync(readFileSync(new URL("../../../fixtures/native-fresh-pre-ceo-source.save.json.gz", import.meta.url))).toString("utf8"));
+
+describe("source political boards at the public save boundary", () => {
+  it("refuses exporting a saved political board to a reader that cannot advance it", () => {
+    const historical = recorded();
+    expect(projectSaveToV42(serializeSave(historical, "2026-10-01T00:00:00.000Z")).ok).toBe(true);
+    const fresh = createWorld({ era: "1953", countryId: "US", seed: "political-save", playerName: "Alex" });
+    historical.regionalPoliticalMetrics = fresh.regionalPoliticalMetrics;
+    expect(projectSaveToV42(serializeSave(historical, "2026-10-01T00:00:00.000Z"))).toMatchObject({
+      ok: false, error: expect.stringContaining("Political board"),
+    });
+  });
+  it("rejects a political board attached to another country's region on reload", () => {
+    const world = createWorld({ era: "2019", countryId: "UK", seed: "political-save", playerName: "Alex" });
+    const saved = JSON.parse(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    saved.world.regionalPoliticalMetrics.LON.countryId = "US";
+    expect(() => deserializeSave(JSON.stringify(saved))).toThrow(/Political board.*LON.*country/);
+  });
+  it("migrates an older progressed save without inventing political-board history", () => {
+    const saved = JSON.parse(serializeSave(recorded(), "2026-10-01T00:00:00.000Z"));
+    saved.schemaVersion = 50;
+    saved.world.meta.schemaVersion = 50;
+    delete saved.world.regionalPoliticalMetrics;
+    delete saved.world.politicalCabinetContributions;
+    const loaded = deserializeSave(JSON.stringify(saved));
+    advanceTurn(loaded);
+    expect(loaded.regionalPoliticalMetrics).toBeUndefined();
+    expect(loaded.politicalCabinetContributions).toBeUndefined();
+    // Schema51 marks the first reader that can continue the new recorded
+    // dynamics. Older readers reject it instead of freezing unknown state.
+    expect(JSON.parse(serializeSave(loaded, "2026-10-01T00:00:00.000Z")).schemaVersion).toBe(SCHEMA_VERSION);
+  });
+  it("refuses malformed or out-of-scale recorded political scores before continuation", () => {
+    const saved = JSON.parse(serializeSave(createWorld({ era: "2019", countryId: "UK", seed: "political-save", playerName: "Alex" }), "2026-10-01T00:00:00.000Z"));
+    for (const value of [null, "broken", -1, 101]) {
+      saved.world.regionalPoliticalMetrics.LON.values["economy.workerSecurity"] = value;
+      expect(() => deserializeSave(JSON.stringify(saved))).toThrow(/Political board.*LON.*value/);
+    }
+  });
+
+  it("refuses political dynamics hidden under an authentic older schema label", () => {
+    const saved = JSON.parse(gunzipSync(readFileSync(new URL("../../../fixtures/v42-1953-US.save.json.gz", import.meta.url))).toString("utf8"));
+    saved.world.regionalPoliticalMetrics = createWorld({ era: "1953", countryId: "US", seed: "political-save", playerName: "Alex" }).regionalPoliticalMetrics;
+    expect(projectSaveToV42(JSON.stringify(saved))).toMatchObject({ ok: false, error: expect.stringContaining("Political board") });
+  });
+
+});

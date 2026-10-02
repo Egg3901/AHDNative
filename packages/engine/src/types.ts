@@ -30,6 +30,8 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 
 export interface WorldState {
   meta: WorldMeta;
+  /** Source acquisition history. Older worlds preserve the absence of history. */
+  stateOwnershipLedger?: import("./corporation/stateOwnershipLedger.js").StateOwnershipEntry[];
   /**
    * Optional source gameConfig rollout anchor. It is written lazily on the
    * first financial phase so untouched and historical saves retain their
@@ -170,7 +172,6 @@ export interface WorldState {
     byCountry: Record<string, { exports: number; imports: number; net: number; topPartner: string | null }>;
     flow: Record<string, Record<string, number>>;
     byCommodity: Record<string, Record<string, Record<string, { units: number; value: number }>>>;
-    /** Source national price used to value each commodity flow by exporter country. */
     /** Native recorded global unit price applied to this receipt's commodity flows. */
     valuationPriceByCommodity?: Record<string, number>;
   };
@@ -513,6 +514,10 @@ export interface WorldState {
   nationalMetrics: Record<string, import("./metrics/nationalMetrics.js").NationalMetrics>;
   /** Per-region policy metrics, keyed by region id. Schema v45. */
   regionalMetrics: Record<string, import("./metrics/nationalMetrics.js").NationalMetrics>;
+  /** Source political family boards. Absent on older saves with no board state. */
+  regionalPoliticalMetrics?: Record<string, import("./politicalMetrics/types.js").PoliticalBoard>;
+  /** Source cabinet standing effects from the previous ordinary turn. */
+  politicalCabinetContributions?: Record<string, import("./politicalMetrics/types.js").PoliticalCabinetContribution>;
   /** Per-country economic model identity. Schema v33. */
   economicModels: Record<string, import("./metrics/economicModel.js").EconomicModelState>;
   /** Per-commodity price history for annualized commodity pressure (inflationRecalc). Schema v33. */

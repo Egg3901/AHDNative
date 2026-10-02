@@ -45,6 +45,7 @@ import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
 import { seedTfpLeaves } from "./metrics/tfpSeed.js";
 import { seedMinisterialTargets } from "./metrics/ministerialTargetSeed.js";
+import { seedPoliticalBoards } from "./metrics/politicalBoardSeed.js";
 import { computeNationalMetrics } from "./metrics/nationalMetrics.js";
 
 // v29: W30 governors (governors/governorAddresses/governorOrders). This wave
@@ -94,6 +95,7 @@ import {
 // v33->v34->35->36->37 chain depending on merge order, same pattern as every
 // prior multi-wave resolver note in save.ts (see v16->v17, v27->v28, etc.).
 import { computeFormation } from "./government/formation.js";
+import { seatSingleplayerHeadOfGovernment } from "./government/singleplayerHeadOfGovernment.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES } from "./government/constants.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
@@ -156,11 +158,13 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v48: interbank loan book (world.interbankLoans); see save.ts.
 // v49: source-authored corporation HQ region identity; see save.ts.
 // v50: deterministic local corporation name and brand identity; see save.ts.
+// v51: source political boards and lagged cabinet driver state; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 50;
+// v52: durable state-ownership action history; older readers cannot record continuation.
+export const SCHEMA_VERSION = 52;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1190,6 +1194,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       }
     }
   }
+  seatSingleplayerHeadOfGovernment(world);
   assignUsSeatGeography(world);
   assignRegionalSeatGeography(world);
   // W12: charter the financial-sector NPC corp of every playable country as
@@ -1209,6 +1214,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // nationalMetrics (prev-turn to the first macro read) is the seed basket.
   seedTfpLeaves(world);
   seedMinisterialTargets(world);
+  seedPoliticalBoards(world);
   computeNationalMetrics(world);
   return world;
 }

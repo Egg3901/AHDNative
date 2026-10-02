@@ -2,6 +2,10 @@ import type { WorldState } from "../types.js";
 import { isCorpStateOwned } from "../bonds/corporateBonds.js";
 import { corporateSectorAssets, type CorporateSectorAsset } from "./corporateSectorAssets.js";
 import { mergeCorporateSectorPhysicalLedger } from "./physicalAssetMerge.js";
+import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "../government/constants.js";
+import { isRecordedSingleplayerHeadOfGovernment } from "../government/singleplayerHeadOfGovernment.js";
+import { assumedDebtAnchor } from "./stateOwnershipLedger.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
 export const NATIONALIZATION_REVENUE_KEEP = 0.85;
@@ -11,14 +15,18 @@ export type NationalizationResult =
   | { ok: false; error: string };
 
 /**
- * The source route authorizes a sitting human head of government. The Native
- * world has a real, playable presidential election record for the US; a
- * permanent Head-of-State sandbox identity is deliberately not an elected
- * mandate. Parliamentary authority is accepted only when the recorded PM and
- * the player's recorded office agree.
+ * The source route authorizes a sitting human head of government. Presidential
+ * authority resolves through the canonical executive record; parliamentary
+ * authority resolves through the formed government record. HoS mode is valid
+ * only when its permanent player projection agrees with that canonical state.
  */
 export function isRecordedSittingHeadOfGovernment(world: WorldState, countryId: string): boolean {
-  if (world.player.countryId !== countryId || world.player.mode !== "career" || world.player.permanentHeadOfState) return false;
+  if (world.player.countryId !== countryId) return false;
+
+  if (world.player.mode === "hos") {
+    return isRecordedSingleplayerHeadOfGovernment(world, countryId);
+  }
+  if (world.player.mode !== "career" || world.player.permanentHeadOfState) return false;
 
   const executive = world.executives[countryId];
   if (executive?.presidentId === "player") {
@@ -32,10 +40,12 @@ export function isRecordedSittingHeadOfGovernment(world: WorldState, countryId: 
   }
 
   const government = world.governments[countryId];
+  const expectedOfficeType = EXECUTIVE_OFFICE_BY_COUNTRY[countryId];
   return government?.status === "formed" &&
     government.pmPoliticianId === "player" &&
+    government.chamberKey === GOVERNMENT_CHAMBER_BY_COUNTRY[countryId] &&
     world.player.currentOffice?.countryId === countryId &&
-    world.player.currentOffice.type === "primeMinister" &&
+    world.player.currentOffice.type === expectedOfficeType &&
     world.player.legislativeSeat?.countryId === countryId;
 }
 
@@ -85,6 +95,8 @@ export function nationalizeDistressedCorporation(
     return { ok: false, error: "That corporation is not headquartered in your country." };
   }
   if (isCorpStateOwned(donor)) return { ok: false, error: "That corporation is already state-owned." };
+  const treasury = world.budgets[donor.countryId];
+  if (!treasury) return { ok: false, error: "No national treasury is recorded for this country." };
   if (!Number.isInteger(donor.insolventSinceTurn)) {
     return { ok: false, error: "Executive power can only nationalize a distressed corporation." };
   }
@@ -104,6 +116,8 @@ export function nationalizeDistressedCorporation(
   }
 
   const keep = NATIONALIZATION_REVENUE_KEEP;
+  const debtAnchor = assumedDebtAnchor(world, donor.id);
+  const sectorTypes = [...new Set(absorbedAssetIds.map(id => assets[id]!.sectorType))];
   const countryName = world.countries[donor.countryId]?.name ?? donor.countryId;
   const national = existingNational ?? {
     ...donor,
@@ -117,6 +131,9 @@ export function nationalizeDistressedCorporation(
     ceoId: `state-${donor.countryId}`,
     ceoVacant: false,
     ceoVotes: [],
+    // Source dissolved-shell seizure cash goes to the national treasury;
+    // a newly created National Corporation starts with its own zero balance.
+    liquidCapital: 0,
     ceoSalaryPerTurn: 0,
     dividendRate: 0,
     lastCeoSalaryPaid: 0,
@@ -138,6 +155,11 @@ export function nationalizeDistressedCorporation(
   national.countryOwnerId = donor.countryId;
   national.ownershipState = "stateOwned";
   national.assignedSectorTypes = [...new Set([...(national.assignedSectorTypes ?? []), donor.sectorType])];
+  // Both stores use this domestic country's local currency. Source credits
+  // the treasury once, rounded to whole units, and leaves existing SOE cash.
+  if (Number.isFinite(donor.liquidCapital) && donor.liquidCapital > 0) {
+    treasury.treasuryBalance += Math.round(donor.liquidCapital);
+  }
 
   for (const assetId of absorbedAssetIds) {
     const asset = assets[assetId]!;
@@ -173,6 +195,22 @@ export function nationalizeDistressedCorporation(
   national.foundingRevenue += Math.round(donor.foundingRevenue * keep);
   national.currentGrowthCost += Math.round(donor.currentGrowthCost * keep);
   world.corporations[nationalCorporationId] = national;
+  const ledger = world.stateOwnershipLedger ??= [];
+  ledger.push({
+    id: `taking-${donor.countryId}-${world.meta.turn}-${ledger.length}-${donor.id}`,
+    countryId: donor.countryId,
+    nationalCorporationId,
+    kind: "nationalize_whole",
+    method: "executive",
+    triggers: ["distress"],
+    tier: "seizure",
+    formerCorpName: donor.name ?? donor.tickerSymbol ?? donor.id,
+    sectorTypes,
+    compensationAnchor: 0,
+    debtAnchor,
+    shareholdersSettled: donor.shareholders.length,
+    turn: world.meta.turn,
+  });
   return {
     ok: true,
     nationalCorporationId,

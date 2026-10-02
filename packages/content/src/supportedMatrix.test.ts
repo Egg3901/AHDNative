@@ -24,13 +24,13 @@ describe("supported era/country matrix (#118)", () => {
     expect(playables.get("1953")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playables.get("1979")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playables.get("1991")).toEqual(["BR", "CN", "IE", "UK", "US"]);
-    expect(playables.get("2019")).toEqual(["CN", "IE", "UK", "US"]);
+    expect(playables.get("2019")).toEqual(["CN", "DE", "IE", "UK", "US"]);
   });
 
   it("records the 1991/2019 playable deltas against the pinned authority explicitly", () => {
-    // Pinned AHDGame@e364c04 POST_COLD_WAR_PLAYER is US/UK only. The wider
-    // Native sets stay flagged here as unresolved #118 deltas; closing the
-    // issue requires resolving them against the authority, not editing flags.
+    // AHDGame@96831835 POST_COLD_WAR_PLAYER manifest is US/UK only. Source
+    // countryAccess and the 2019 character-creation route also permit DE;
+    // Native's scoped DE entry is recorded as a remaining #118 matrix delta.
     const row1991 = SUPPORTED_MATRIX.find((r) => r.era === "1991")!;
     expect(row1991.authorityPreset).toBe("1991-default");
     expect([...row1991.authorityPlayer].sort()).toEqual(["UK", "US"]);
@@ -38,7 +38,7 @@ describe("supported era/country matrix (#118)", () => {
     const row2019 = SUPPORTED_MATRIX.find((r) => r.era === "2019")!;
     expect(row2019.authorityPreset).toBe("2019-default");
     expect([...row2019.authorityPlayer].sort()).toEqual(["UK", "US"]);
-    expect([...row2019.playableDelta].sort()).toEqual(["CN", "IE"]);
+    expect([...row2019.playableDelta].sort()).toEqual(["CN", "DE", "IE"]);
     // Cold War eras match the authority exactly: no silent widening.
     for (const era of ["1953", "1979"]) {
       expect(SUPPORTED_MATRIX.find((r) => r.era === era)!.playableDelta).toEqual([]);
@@ -82,8 +82,8 @@ describe("supported era/country matrix (#118)", () => {
         accepted++;
       }
     }
-    // 4 + 4 + 5 + 4 supported era/country combinations.
-    expect(accepted).toBe(17);
+    // 4 + 4 + 5 + 5 supported era/country combinations.
+    expect(accepted).toBe(18);
     // Unavailable eras.
     for (const era of ["1960", "1999", "2007", "2023", "1800"]) {
       expect(() => assertSupportedSelection(era, "US")).toThrow(/Unknown era/);
@@ -94,7 +94,6 @@ describe("supported era/country matrix (#118)", () => {
     expect(() => assertSupportedSelection("1991", "JP")).toThrow(/not playable/);
     expect(() => assertSupportedSelection("1991", "DE")).toThrow(/not playable/);
     expect(() => assertSupportedSelection("2019", "JP")).toThrow(/not playable/);
-    expect(() => assertSupportedSelection("2019", "DE")).toThrow(/not playable/);
     expect(() => assertSupportedSelection("2019", "BR")).toThrow(/not playable/);
   });
 });
