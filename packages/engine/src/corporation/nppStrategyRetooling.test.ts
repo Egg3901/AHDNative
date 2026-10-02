@@ -70,6 +70,27 @@ describe("AHDGame NPP strategy retooling", () => {
     expect(second.transitionFromStrategyId).toBe("standard");
   });
 
+  it("does not run private NPP strategy decisions for suspended or state-owned issuers", () => {
+    for (const blockedState of ["suspended", "state-owned"] as const) {
+      const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: `npp-retool-${blockedState}`, playerName: "Alex" });
+      const corp = world.corporations["US-chemical_industries"]!;
+      const asset = Object.values(corporateSectorAssets(world)).find(row => row.corporationId === corp.id)!;
+      corp.ceoType = "npp";
+      corp.effectiveProfitMargin = -10;
+      if (blockedState === "suspended") corp.suspended = true;
+      else corp.countryOwnerId = "US";
+      for (const row of Object.values(world.commodityPrices)) row.globalPrice = row.basePrice;
+      world.commodityPrices.chemicals!.globalPrice = world.commodityPrices.chemicals!.basePrice * 0.8;
+      world.commodityPrices.fertilizers!.globalPrice = world.commodityPrices.fertilizers!.basePrice * 2.3;
+      world.meta.turn = 8;
+
+      applyNppSourceStrategyRetools(world);
+
+      expect(asset.strategyId).toBeUndefined();
+      expect(asset.transitionStartTurn).toBeUndefined();
+    }
+  });
+
   it("retools a distressed private NPP issuer after production and preserves it on save", () => {
     const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: "npp-global-fallback-retool", playerName: "Alex" });
     const corp = world.corporations["US-chemical_industries"]!;
