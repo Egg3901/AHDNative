@@ -27,7 +27,10 @@ function setupRace(): { world: WorldState; race: ElectionRecord; groupIds: strin
     countryId: "US",
     cycle: 1,
     status: "active",
-    startTurn: 0,
+    // This case isolates the source-supported general-only lifecycle (the
+    // election has no distinct nomination window). A separate case below
+    // proves that a real, unresolved primary cannot accumulate general votes.
+    startTurn: 5,
     primaryEndTurn: 5,
     endTurn: 20,
     totalSeats: 1,
@@ -86,6 +89,18 @@ describe("presidential per-state tally honors canvass turnout modifiers", () => 
     // in this pack (category weights are keyed by category, so the weighted
     // average falls back to neutral); the per-group channel is what moves.
     expect(sum(canvassedTotals)).toBeGreaterThan(sum(plainTotals));
+  });
+
+  it("does not run the general tally before a real presidential primary resolves", () => {
+    const { world, race } = setupRace();
+    race.startTurn = 0;
+    world.meta.turn = race.primaryEndTurn + 1;
+
+    runVoteAccumulation(world, rngFromSeed("unresolved-primary-no-general"));
+
+    expect(race.primaryResults).toBeUndefined();
+    expect(race.stateTallyStates).toBeUndefined();
+    expect(race.tally).toEqual({});
   });
 
   it("stays deterministic across save/reload with modifiers present", () => {
