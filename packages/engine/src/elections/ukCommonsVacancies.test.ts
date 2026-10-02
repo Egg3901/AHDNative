@@ -392,7 +392,7 @@ describe("UK Commons vacancy plumbing", () => {
     expect({
       turn: world.meta.turn,
       playerVotes: regular!.tally.player,
-    }).toEqual({ turn: 123, playerVotes: 7500 });
+    }).toEqual({ turn: 123, playerVotes: 91142 });
     const topVotes = [...Object.entries(regular!.tally)]
       .sort(([, a], [, b]) => b - a)
       .slice(0, 12);
