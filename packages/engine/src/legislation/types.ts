@@ -118,6 +118,8 @@ export interface BillProvision {
   economic?: number;
   social?: number;
   proposedRate?: number;
+  /** Source state-ownership bill target; retained through enactment and reload. */
+  targetCorporationId?: string;
   /** Economy-wide customs tariff rate, in percent. */
   tariffScopeType?: "economy_wide";
   tariffRate?: number;

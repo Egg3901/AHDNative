@@ -7,7 +7,7 @@ export interface StateOwnershipEntry {
   countryId: string;
   nationalCorporationId: string;
   kind: "nationalize_whole";
-  method: "executive";
+  method: "executive" | "legislative";
   triggers: ["distress"] | ["npc"];
   tier: "fair" | "discounted" | "seizure";
   formerCorpName: string;
@@ -43,7 +43,7 @@ export function validateStateOwnershipLedger(world: WorldState): void {
     if (typeof row.id !== "string" || !row.id || ids.has(row.id)
       || typeof row.countryId !== "string" || !world.countries[row.countryId]
       || typeof row.nationalCorporationId !== "string" || !row.nationalCorporationId
-      || row.kind !== "nationalize_whole" || row.method !== "executive" || (row.tier !== "seizure" && row.tier !== "discounted" && row.tier !== "fair")
+      || row.kind !== "nationalize_whole" || (row.method !== "executive" && row.method !== "legislative") || (row.tier !== "seizure" && row.tier !== "discounted" && row.tier !== "fair")
       || !Array.isArray(row.triggers) || row.triggers.length !== 1 || (row.triggers[0] !== "distress" && row.triggers[0] !== "npc")
       || typeof row.formerCorpName !== "string" || !row.formerCorpName
       || !Array.isArray(row.sectorTypes) || row.sectorTypes.length === 0 || !row.sectorTypes.every(value => typeof value === "string" && value.length > 0)

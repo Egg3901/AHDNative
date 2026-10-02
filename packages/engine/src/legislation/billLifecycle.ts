@@ -13,6 +13,7 @@
  */
 
 import type { WorldState } from "../types.js";
+import { applyLegislativeWholeTaking } from "../corporation/nationalization.js";
 import type { WorldRng } from "../rng.js";
 import type { Bill } from "./types.js";
 import { didPass, didPassWithFilibusterCheck, resolveCurrentBillVote } from "./billVoteLogic.js";
@@ -334,6 +335,10 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // Source: AHDGame src/lib/subsidies/subsidyEffects.ts; state-scope subsidy
   // budgets remain unavailable in this solo model.
   for (const provision of bill.provisions) {
+    if (provision.type === "nationalize" && provision.targetCorporationId) {
+      applyLegislativeWholeTaking(world, bill.countryId, provision.targetCorporationId);
+      continue;
+    }
     if (provision.type === "union_law") {
       applyUnionLawProvision(world, bill.countryId, {
         type: "union_law",

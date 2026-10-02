@@ -3685,6 +3685,9 @@ export function deserializeSave(raw: string): WorldState {
   // weights cannot be reconstructed from previously redistributed rosters.
   // Earlier readers must refuse weighted offices they cannot continue.
   if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
+  // v65: state-ownership bill targets and legislative ledger authority.
+  // Historical absence remains absent; an older reader cannot enact these bills.
+  if (save.schemaVersion < 65) save.world.meta.schemaVersion = 65;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

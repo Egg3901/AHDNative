@@ -107,10 +107,28 @@ export function nationalizeDistressedCorporation(
     return { ok: false, error: "That corporation is not headquartered in your country." };
   }
   if (isCorpStateOwned(donor)) return { ok: false, error: "That corporation is already state-owned." };
-  const treasury = world.budgets[donor.countryId];
-  if (!treasury) return { ok: false, error: "No national treasury is recorded for this country." };
   const eligibility = executiveTakingEligibility(world, donor);
   if (!eligibility.takeable) return { ok: false, error: eligibility.reason };
+  return takeWholeCorporation(world, donor, tier, "executive", eligibility.triggers);
+}
+
+/** A passed state-ownership bill supplies authority independently of distress. */
+export function applyLegislativeWholeTaking(world: WorldState, countryId: string, corporationId: string): NationalizationResult {
+  const donor = world.corporations[corporationId];
+  if (!donor) return { ok: false, error: "The legislative target no longer exists." };
+  if (donor.countryId !== countryId || isCorpStateOwned(donor)) return { ok: false, error: "The legislative target is outside the bill's jurisdiction or already state-owned." };
+  if (donor.privatizedAtTurn !== undefined && world.meta.turn - donor.privatizedAtTurn < 168) return { ok: false, error: "The corporation is protected by the renationalization cooldown." };
+  return takeWholeCorporation(world, donor, "fair", "legislative", ["npc"]);
+}
+
+function takeWholeCorporation(
+  world: WorldState,
+  donor: import("./types.js").Corporation,
+  tier: CompensationTier,
+  method: "executive" | "legislative",
+  triggers: ["distress"] | ["npc"],
+): NationalizationResult {
+  if (!world.budgets[donor.countryId]) return { ok: false, error: "No national treasury is recorded for this country." };
 
   if (!primaryNationalCorporation(world, donor.countryId) && world.corporations[`NAT-${donor.countryId}`]) {
     return { ok: false, error: "The National Corporation identity is occupied by a private issuer." };
@@ -175,15 +193,15 @@ export function nationalizeDistressedCorporation(
   }
 
   delete world.corporations[donor.id];
-  const consequences = applyExecutiveTakingConsequences(world, donor.countryId, eligibility.triggers, tier, compensation.valuationAnchor, compensation.payoutAnchor);
+  const consequences = applyExecutiveTakingConsequences(world, donor.countryId, triggers, tier, compensation.valuationAnchor, compensation.payoutAnchor);
   const ledger = world.stateOwnershipLedger ??= [];
   ledger.push({
     id: `taking-${donor.countryId}-${world.meta.turn}-${ledger.length}-${donor.id}`,
     countryId: donor.countryId,
     nationalCorporationId,
     kind: "nationalize_whole",
-    method: "executive",
-    triggers: eligibility.triggers,
+    method,
+    triggers,
     tier,
     formerCorpName: donor.name ?? donor.tickerSymbol ?? donor.id,
     sectorTypes,

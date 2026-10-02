@@ -74,6 +74,7 @@ import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
+import { proposeNationalizationBill } from "../legislation/nationalizationBills.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
 import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
@@ -445,6 +446,11 @@ function executeActionInner(
   }
 
   // Campaign presence is charged to the active campaign's own source pools,
+  if (actionId === "sponsorBill" && params.catalogId === "state_ownership.nationalize") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can sponsor a state-ownership bill." };
+    return proposeNationalizationBill(world, params);
+  }
+
   // not to the character. Resolve it before generic player AP/accounting.
   if (actionId === "buildStatePresence") {
     const result = buildStatePresence(world, actorId, params.regionId);
