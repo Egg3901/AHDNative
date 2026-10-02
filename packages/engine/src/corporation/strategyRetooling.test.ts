@@ -161,6 +161,59 @@ describe("corporation strategy transition source vectors", () => {
     expect(resumed.plantMarketDemand).toEqual(world.plantMarketDemand);
   });
 
+  it("finishes the 12-turn transition and clears the source cooldown across save and replay", () => {
+    const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: "corp-source-retool-full-cycle", playerName: "Alex" });
+    const corp = world.corporations["US-extraction"]!;
+    const asset = Object.values(corporateSectorAssets(world)).find(row => row.corporationId === corp.id)!;
+    asset.capitalStock = 10_000;
+    asset.capacityBookAnchor = 50_000_000;
+    world.commodityPrices.iron!.globalSupply = 1_000_000;
+    world.commodityPrices.iron!.globalDemand = 1;
+
+    world.player.cash = Math.max(world.player.cash, corp.sharePrice * 10 + 1);
+    expect(executeAction(world, "player", "buyShares", { corpId: corp.id, shares: 10 }).ok).toBe(true);
+    expect(executeAction(world, "player", "voteCeo", { corpId: corp.id, candidateId: "player" }).ok).toBe(true);
+    expect(executeAction(world, "player", "acceptCeoAppointment", { corpId: corp.id }).ok).toBe(true);
+    corp.liquidCapital = Math.max(corp.liquidCapital, corp.revenue);
+    expect(executeAction(world, "player", "setCorporateSectorStrategy", {
+      corpId: corp.id, sectorId: asset.id, strategyId: "iron_mining",
+    }).ok).toBe(true);
+
+    // Continue from a serialized mid-transition checkpoint. Each side advances
+    // through the same public turn path; the resumed copy must not lose or
+    // restart the strategy's source 12-turn clock.
+    for (let i = 0; i < 6; i++) advanceTurn(world);
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    for (let i = 6; i < 11; i++) {
+      advanceTurn(world);
+      advanceTurn(resumed);
+    }
+    const whileTransitioning = executeAction(world, "player", "setCorporateSectorStrategy", {
+      corpId: corp.id, sectorId: asset.id, strategyId: "oil_gas",
+    });
+    expect(whileTransitioning).toMatchObject({
+      ok: false,
+      error: "Already transitioning to a new strategy. Wait for completion.",
+    });
+    advanceTurn(world);
+    advanceTurn(resumed);
+    const live = world.corporateSectors![asset.id]!;
+    const replayed = resumed.corporateSectors![asset.id]!;
+    expect(replayed).toEqual(live);
+    expect(live.transitionFromStrategyId).toBeUndefined();
+    expect(live.transitionStartTurn).toBeUndefined();
+    // Game sectorTurn cleanup clears this timestamp at the 12-turn transition
+    // boundary despite the initial command recording a +24 turn value.
+    expect(live.transitionCooldownUntilTurn).toBeUndefined();
+    expect(live.strategyId).toBe("iron_mining");
+    const atExpiry = executeAction(world, "player", "setCorporateSectorStrategy", {
+      corpId: corp.id, sectorId: asset.id, strategyId: "oil_gas",
+    });
+    expect(atExpiry.ok).toBe(true);
+    expect(asset.transitionStartTurn).toBe(12);
+    expect(asset.transitionCooldownUntilTurn).toBe(36);
+  });
+
   it("rejects non-CEO, unaffordable, and same-strategy retools without partial writes", () => {
     const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: "corp-source-retool-guards", playerName: "Alex" });
     const corp = world.corporations["US-extraction"]!;
