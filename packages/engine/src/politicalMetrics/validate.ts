@@ -16,5 +16,13 @@ export function validatePoliticalState(world: WorldState): void {
         throw new Error(`Political board ${regionId} value ${metricId} is outside its score scale`);
       }
     }
+    if (board.labourResiduals !== undefined) {
+      if (!record(board.labourResiduals)) throw new Error(`Political board ${regionId} labour residuals are invalid`);
+      for (const [metricId, value] of Object.entries(board.labourResiduals)) {
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+          throw new Error(`Political board ${regionId} labour residual ${metricId} is invalid`);
+        }
+      }
+    }
   }
 }

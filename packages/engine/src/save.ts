@@ -3389,7 +3389,8 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
   // No creator or grace history is invented for earlier Native issuers.
   if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
-  // Reserved union and primary stores keep their recorded absence.
+  // Source labour political snapshots retain historical absence; primary state
+  // remains absent until recorded by its own resolver.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
   if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
   // Source strategy transitions are absent until an actual retool is ordered.

@@ -5,6 +5,8 @@ export interface PoliticalBoard {
   residuals?: Record<string, number>;
   cabinetResiduals?: Record<string, number>;
   cabinetResidualsBySource?: Record<string, Record<string, number>>;
+  /** Current labor-relations snapshot used by political dynamics (source decays in its provider). */
+  labourResiduals?: Record<string, number>;
 }
 
 /** Last ministerial snapshot, consumed by political dynamics next turn. */

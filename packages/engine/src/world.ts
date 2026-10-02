@@ -167,7 +167,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // schema 46 bytes.
 // v52: durable state-ownership action history; older readers cannot record continuation.
 // v53: nationalization origin and grace history.
-// v54-v55: reserved union and primary state writers.
+// v54: persisted labour political snapshots consumed by regional dynamics.
+// v55: reserved primary state writer.
 // v56: corporate strategy-transition state.
 // v57: source paid-taking tiers, confidence history and actual ownership concentration.
 export const SCHEMA_VERSION = 57;
