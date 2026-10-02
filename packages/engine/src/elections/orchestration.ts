@@ -19,7 +19,7 @@ import { ensureCampaignsForElection, archiveCampaignsForElection } from "../camp
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
 import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
-import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS } from "../government/constants.js";
+import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS, UK_DEVOLVED_GOVERNOR_REGIONS } from "../government/constants.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
 import { UK_REGIONAL_COUNCIL_COHORT_BY_REGION } from "../electionEngine/midtermOppositionBoost.js";
 
@@ -86,7 +86,8 @@ export interface SeriesSpec {
 export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   const specs: SeriesSpec[] = [];
   const regions = world.regions ?? {};
-  const cycleAnchors = getCycleAnchors(cycleContextForWorld(world));
+  const cycleContext = cycleContextForWorld(world);
+  const cycleAnchors = getCycleAnchors(cycleContext);
   // US: house per state (apportioned seats), senate per state per class.
   // Governor per state - Source: src/lib/elections/canonicalCycle.ts governor case
   // uses anchors.governorStateSenate (shared with stateSenate). Duration 192
@@ -109,6 +110,15 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   for (const region of Object.values(regions)) {
     const r = region as unknown as { id: string; countryId: string };
     if (!GOVERNOR_COUNTRIES.has(r.countryId)) continue;
+    if (r.countryId === "UK") {
+      // AHDGame's initialUKDevolutionState activates Scotland, Wales and NI
+      // from 1999, and London from 2000. Native has no policy-backed office
+      // reconciliation state yet, so only the source-initialized institutions
+      // are scheduled here.
+      if (!UK_DEVOLVED_GOVERNOR_REGIONS.has(r.id)) continue;
+      const firstYear = r.id === "LON" ? 2000 : 1999;
+      if (cycleContext.startingYear < firstYear) continue;
+    }
     specs.push({ electionType: "governor", countryId: r.countryId, chamberKey: "governor", state: r.id, totalSeats: 1 });
   }
   // W61 post-Cold-War roster (1991: JP/DE/CN/BR/IE; 2019: JP/DE/CN/IE). Every

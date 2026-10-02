@@ -97,7 +97,7 @@ import {
 // prior multi-wave resolver note in save.ts (see v16->v17, v27->v28, etc.).
 import { computeFormation } from "./government/formation.js";
 import { seatSingleplayerHeadOfGovernment } from "./government/singleplayerHeadOfGovernment.js";
-import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES } from "./government/constants.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES, UK_DEVOLVED_GOVERNOR_REGIONS } from "./government/constants.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
 // Pre-allocated v39 for M1 (Lane 12 Head of State mode). This branch point
@@ -1790,6 +1790,7 @@ function seedGovernors(regions: WorldState["regions"]): WorldState["governors"] 
   const governors: WorldState["governors"] = {};
   for (const region of Object.values(regions)) {
     if (!GOVERNOR_COUNTRIES.has(region.countryId)) continue;
+    if (region.countryId === "UK" && !UK_DEVOLVED_GOVERNOR_REGIONS.has(region.id)) continue;
     governors[region.id] = {
       stateId: region.id,
       countryId: region.countryId,

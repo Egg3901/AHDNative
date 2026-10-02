@@ -6,6 +6,33 @@ import { cycleContextForWorld, electionSeriesForWorld } from "./orchestration.js
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
 
 describe("source country governor election families", () => {
+  it("spawns only the source-initialized UK devolved executives and persists their result", () => {
+    const world = createWorld({ seed: "uk-executives", playerName: "Tester", countryId: "UK", era: "2019" });
+    const endTurn = getCycleAnchors(cycleContextForWorld(world)).governorStateSenate;
+
+    advanceTurn(world);
+    const initialRaces = world.elections.filter((election) => election.countryId === "UK" && election.electionType === "governor");
+    expect(initialRaces.map((election) => election.state).sort()).toEqual(["LON", "NIR", "SCO", "WAL"]);
+    for (const race of initialRaces) {
+      expect(race.endTurn).toBe(endTurn);
+      race.tally = Object.fromEntries(race.candidates.map((candidate, index) => [candidate.id, index === 0 ? 100 : 10]));
+    }
+
+    world.meta.turn = endTurn - 1;
+    advanceTurn(world);
+    const resolved = world.elections.filter(
+      (election) => election.countryId === "UK" && election.electionType === "governor" && election.status === "resolved",
+    );
+    expect(resolved.map((election) => election.state).sort()).toEqual(["LON", "NIR", "SCO", "WAL"]);
+    for (const race of resolved) expect(world.governors[race.state!]!.governorId).toBe(race.winners[0]);
+
+    const restored = deserializeSave(serializeSave(world, "uk-executive-parity"));
+    for (const race of resolved) {
+      expect(restored.elections.find((saved) => saved.id === race.id)).toEqual(JSON.parse(JSON.stringify(race)));
+      expect(restored.governors[race.state!]!.governorId).toBe(world.governors[race.state!]!.governorId);
+    }
+  });
+
   it("runs and persists RU and DD First Secretary elections through the normal turn loop", () => {
     const world = createWorld({ seed: "country-governors", playerName: "Tester", countryId: "US", era: "1953" });
     const commonsAnchor = getCycleAnchors(cycleContextForWorld(world)).ukCommons;
@@ -15,6 +42,9 @@ describe("source country governor election families", () => {
     expect(ukCouncilSeries.find((spec) => spec.state === "SCO")?.customCycle1EndTurn).toBe(commonsAnchor + 48);
     expect(ukCouncilSeries.find((spec) => spec.state === "NIR")?.customCycle1EndTurn).toBe(commonsAnchor + 96);
     expect(ukCouncilSeries.find((spec) => spec.state === "EMI")?.customCycle1EndTurn).toBe(commonsAnchor + 240);
+    expect(electionSeriesForWorld({ ...world, meta: { ...world.meta, era: "1953" } }).some(
+      (spec) => spec.countryId === "UK" && spec.electionType === "governor",
+    )).toBe(false);
 
     // The first real turn spawns the cycle-1 races. Jump the deterministic
     // fixture clock to the source end-turn boundary instead of simulating
