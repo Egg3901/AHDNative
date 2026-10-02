@@ -20,6 +20,7 @@ import {
 } from "../game/legislationDetails";
 
 import { snapTaxRate } from "../game/taxRate";
+import { formatFinanceMoney } from "./FinancePanel";
 
 type Vote = "for" | "against" | "abstain";
 
@@ -87,12 +88,13 @@ export function sponsorParamsForProposal(
   proposal: LegislationProposalDetails,
   rate?: number,
   originChamber?: string,
-): { catalogId: string; taxRate?: number; originChamber?: string } {
+  corporationId?: string,
+): { catalogId: string; taxRate?: number; originChamber?: string; corporationId?: string } {
   const chamber = originChamber ? { originChamber } : {};
   if (proposal.taxPolicy) {
     return { catalogId: proposal.id, taxRate: snapTaxRate(proposal.taxPolicy, rate), ...chamber };
   }
-  return { catalogId: proposal.id, ...chamber };
+  return { catalogId: proposal.id, ...chamber, ...(proposal.nationalizationTargets && corporationId ? { corporationId } : {}) };
 }
 
 export interface LegislationDetailsPanelProps {
@@ -185,6 +187,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
     query.selectedProposal?.id ?? query.proposals[0]?.id ?? "",
   );
   const [taxRate, setTaxRate] = useState<string>("");
+  const [corporationId, setCorporationId] = useState("");
 
   const lastSelectedBillId = useRef<string | null>(query.selectedBill?.id ?? null);
   const lastExternalProposalId = useRef<string | null>(query.selectedProposal?.id ?? null);
@@ -234,7 +237,8 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
   const committees = query.committees.filter((committee) => !chamber || committee.chamberKey === chamber.chamberKey);
   const schedule = query.schedule.filter((entry) => !chamber || entry.chamberKey === chamber.chamberKey);
   const proposal = query.proposals.find((p) => p.id === catalogId) ?? query.selectedProposal ?? null;
-  const sponsorDisabled = busy || !proposal || !proposal.sponsorAvailable;
+  const nationalizationTarget = proposal?.nationalizationTargets?.find(target => target.corporationId === corporationId);
+  const sponsorDisabled = busy || !proposal || !proposal.sponsorAvailable || (!!proposal.nationalizationTargets && !nationalizationTarget);
   const selected = query.selectedBill && expandedBillId === query.selectedBill.id ? query.selectedBill : null;
   const baselineName =
     proposal && proposal.baselineLevel !== undefined
@@ -441,7 +445,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
               className="ahd-select"
               aria-label="Available legislation"
               value={proposal?.id ?? ""}
-              onChange={(e) => { setCatalogId(e.target.value); setTaxRate(""); }}
+              onChange={(e) => { setCatalogId(e.target.value); setTaxRate(""); setCorporationId(""); }}
               disabled={busy}
             >
               {query.proposals.map((p) => (
@@ -473,6 +477,20 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
                 </div>
               ) : null}
             </div>
+            {proposal.nationalizationTargets ? <>
+              <label className="ahd-field">
+                <span className="ahd-label">Target corporation</span>
+                <select className="ahd-select" aria-label="Target corporation" value={nationalizationTarget?.corporationId ?? ""} onChange={event => setCorporationId(event.target.value)} disabled={busy}>
+                  <option value="">Select a corporation</option>
+                  {proposal.nationalizationTargets.map(target => <option key={target.corporationId} value={target.corporationId}>{target.name}</option>)}
+                </select>
+              </label>
+              {nationalizationTarget ? <dl className="ahd-kv-grid" aria-label="Nationalization proposal details">
+                <div><dt>Owner</dt><dd>{nationalizationTarget.ownerKind === "player" ? "Player-owned" : "NPC-run"}</dd></div>
+                <div><dt>Fair compensation</dt><dd>{formatFinanceMoney(nationalizationTarget.compensationLocal, nationalizationTarget.currency)}</dd></div>
+                <div><dt>Notice after enactment</dt><dd>{nationalizationTarget.noticeTurns > 0 ? `${nationalizationTarget.noticeTurns} turns` : "Immediate"}</dd></div>
+              </dl> : null}
+            </> : null}
             {proposal.levels && proposal.levels.length > 0 ? (
               <div>
                 <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.3rem" }}>
@@ -536,7 +554,8 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
                     sponsorParamsForProposal(
                       proposal,
                       rate === undefined || Number.isNaN(rate) ? undefined : rate,
-                      chamber?.chamberKey,
+                      proposal.nationalizationTargets ? query.playerChamberKey ?? chamber?.chamberKey : chamber?.chamberKey,
+                      nationalizationTarget?.corporationId,
                     ),
                   );
                 }}
