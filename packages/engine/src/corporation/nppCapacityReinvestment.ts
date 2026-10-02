@@ -10,7 +10,6 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnionId } from "./corporateSectorAssets.js";
 import { SOURCE_STATE_ADJACENCY } from "./sourceStateAdjacency.js";
 import { getEraNominalScale } from "../commodity/constants.js";
-import { getSectorTechEffects } from "./techTree/selectors.js";
 import { NEUTRAL_STAT } from "../stats/characterStats.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
@@ -28,6 +27,9 @@ const FOUNDING_STARTER_UNITS: Record<string, number> = {
   agriculture: 60, real_estate: 5, construction: 3, defense: 8,
   telecommunications: 12, entertainment: 50, logistics: 5, extraction: 250,
 };
+const NPP_FOUNDING_DEPLOY_FRACTION = 0.6;
+const NPP_FOUNDING_HEADROOM_SHARE = 0.5;
+const NPP_MAX_BUILD_UNITS_PER_ORDER = 10_000_000;
 
 /** Source NPP greenfield entry: source candidate → located newborn asset → pool draw and cash witness. */
 export function applyNppSourceFounding(world: WorldState): void {
@@ -49,8 +51,11 @@ export function applyNppSourceFounding(world: WorldState): void {
     const starterUnits = FOUNDING_STARTER_UNITS[candidate.pool.sectorType] ?? 0;
     if (!(starterUnits > 0)) continue;
     const sectorType = candidate.pool.sectorType;
-    const tech = getSectorTechEffects({ type: corp.sectorType, ...corp }, sectorType);
-    const entryFeeAnchor = Math.round(entryFeeBaseAnchor * (1 - tech.expansionDiscount));
+    // Game's autonomous NPP founding calls sectorEntryFeeAnchor without the
+    // CEO-only expansion discount and quotes computeBuildCost with its default
+    // tech multiplier (1). Research affects player-command founding/building,
+    // but does not discount this NPP policy transaction.
+    const entryFeeAnchor = entryFeeBaseAnchor;
     const cashFloorMult = CEO_ARCHETYPE_MODIFIERS[corp.archetype]?.cashFloorMult ?? 1;
     const eraMinimumFloor = Math.max(1, Math.round(125_000 * scale));
     const eraDefaultFloor = Math.max(1, Math.round(250_000 * scale));
@@ -78,16 +83,17 @@ export function applyNppSourceFounding(world: WorldState): void {
     const costOfLiving = world.regionalMetrics[candidate.pool.regionId]?.["economic.costOfLiving"]?.value;
     const hostMultiplier = Number.isFinite(costOfLiving) && (costOfLiving ?? 0) > 0 ? Math.min(1.6, Math.max(0.6, costOfLiving! / 100)) : 1;
     const price = capacityPricePerUnitAnchor(sectorType, corporateSectorBasePrices(world), null, year);
-    const unitCostAnchor = price * dominance * rateMultiplier * acumenMultiplier * tech.growthCostMultiplier * hostMultiplier * 0.9;
-    const maxByMarket = Math.floor(candidate.headroomUnits * 0.5);
+    const unitCostAnchor = price * dominance * rateMultiplier * acumenMultiplier * hostMultiplier * 0.9;
     const rate = getRateForCountry(world, corp.countryId);
     const cashLocal = corp.liquidCapital;
-    const deployableLocal = Math.max(0, (cashLocal - anchorToLocal(cashFloorAnchor + entryFeeAnchor, rate)) * 0.6);
-    const affordableUnits = unitCostAnchor > 0 ? Math.floor((deployableLocal / rate) / unitCostAnchor) : 0;
-    // Source floors at one facility quantum; the separate final cash-floor
-    // check below rejects a forced starter that cannot really be paid for.
-    const units = Math.max(starterUnits, Math.floor(Math.min(maxByMarket, affordableUnits, 10_000_000)));
-    if (units > maxByMarket || !Number.isFinite(units)) continue;
+    const entryFeeLocal = anchorToLocal(entryFeeAnchor, rate);
+    const deployableLocal = Math.max(0, (cashLocal - anchorToLocal(cashFloorAnchor, rate) - entryFeeLocal) * NPP_FOUNDING_DEPLOY_FRACTION);
+    const affordableUnits = unitCostAnchor > 0 ? Math.floor(deployableLocal / (unitCostAnchor * rate)) : 0;
+    const maxByMarket = candidate.headroomUnits * NPP_FOUNDING_HEADROOM_SHARE;
+    // Source floors the affordable size at one facility quantum, then rejects
+    // if that forced starter exceeds market headroom or the source cash floor.
+    const units = Math.max(starterUnits, Math.floor(Math.min(maxByMarket, affordableUnits, NPP_MAX_BUILD_UNITS_PER_ORDER)));
+    if (!(units > 0) || units > maxByMarket || !Number.isFinite(units)) continue;
     const buildAnchor = unitCostAnchor * units;
     const totalAnchor = entryFeeAnchor + buildAnchor;
     const totalLocal = anchorToLocal(totalAnchor, rate);

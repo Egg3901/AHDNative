@@ -4,9 +4,9 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
 import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
-import { getSectorTechEffects } from "./techTree/selectors.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
+import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 describe("source NPP capacity replacement", () => {
   it("founds one located source-sized plant, debits cash and draws only that pool", () => {
@@ -22,6 +22,7 @@ describe("source NPP capacity replacement", () => {
     world.regionalMetrics.VA!["economic.costOfLiving"] = { value: 120 };
     world.unownedSectors["US:VA:manufacturing"] = { countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 50_000_000 };
     const poolBefore = world.unownedSectors["US:VA:manufacturing"]!.revenue;
+    const headroomBefore = sourceUnownedHeadroomUnits(world, world.unownedSectors["US:VA:manufacturing"]!);
     const cashBefore = corp.liquidCapital;
     const pricingAssets = Object.values(corporateSectorAssets(world)).filter((asset) => asset.countryId === "US" && asset.sectorType === "manufacturing" && asset.stateId !== null);
     const nationalOwned = pricingAssets.reduce((sum, asset) => sum + Math.max(0, asset.revenue ?? 0), 0);
@@ -42,10 +43,16 @@ describe("source NPP capacity replacement", () => {
       meta: { ledgerKey: world.corporateCashLedger?.[0]?.id, sectorId: assetId, sectorType: "manufacturing", entryFeeAnchor: expect.any(Number) },
     });
     const row = world.corporateCashLedger?.[0];
-    const tech = getSectorTechEffects({ type: corp.sectorType, ...corp }, "manufacturing");
-    const quoteMultiplier = nationalDominance * 1.2 * 1.4 * tech.growthCostMultiplier * 0.9;
-    expect(row?.meta.costAnchor).toBeCloseTo(row?.meta.units! * capacityPricePerUnitAnchor("manufacturing", corporateSectorBasePrices(world), null, Number(world.meta.date.slice(0, 4))) * quoteMultiplier, 6);
-    expect(row?.meta.entryFeeAnchor).toBe(Math.round(Math.round(100_000 * getEraNominalScale(world.meta.era)) * (1 - tech.expansionDiscount)));
+    const scale = getEraNominalScale(world.meta.era);
+    const feeAnchor = Math.round(100_000 * scale);
+    const unitCost = capacityPricePerUnitAnchor("manufacturing", corporateSectorBasePrices(world), null, Number(world.meta.date.slice(0, 4))) * nationalDominance * 1.4 * 1.2 * 0.9;
+    const cashFloorAnchor = Math.max(Math.max(1, Math.round(125_000 * scale)), Math.round(250_000 * scale * CEO_ARCHETYPE_MODIFIERS[corp.archetype].cashFloorMult));
+    const deployBudget = Math.max(0, (cashBefore - cashFloorAnchor - feeAnchor) * 0.6);
+    const affordableUnits = Math.floor(deployBudget / unitCost);
+    const expectedUnits = Math.max(25, Math.floor(Math.min(headroomBefore * 0.5, affordableUnits, 10_000_000)));
+    expect(row?.meta.units).toBe(expectedUnits);
+    expect(row?.meta.costAnchor).toBeCloseTo(expectedUnits * unitCost, 6);
+    expect(row?.meta.entryFeeAnchor).toBe(feeAnchor);
     validateCorporateCashLedger(world.corporateCashLedger);
     applyNppSourceFounding(world);
     expect(world.corporateCashLedger).toHaveLength(1);
