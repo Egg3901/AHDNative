@@ -11,6 +11,8 @@ export interface ElectionCandidate {
   isNPP: boolean;
   /** True for the seat holder entering the race. */
   incumbent: boolean;
+  /** Source election-candidate eligibility; omitted legacy saves mean active. */
+  status?: "active" | "withdrawn";
   /**
    * Running mate id (politician id or "player"), president races only.
    * Ports `ElectionCandidate.runningMateId` (src/lib/db/types/electionCandidate.ts).
@@ -19,6 +21,11 @@ export interface ElectionCandidate {
    */
   runningMateId?: string | undefined;
   primaryCampaignState?: string | undefined;
+  /** Source primary campaign presence: increments once per campaign turn, capped at five. */
+  primaryCampaignTicks?: number | undefined;
+  /** Source one-per-cycle home-state surge marker and authored vote percentage. */
+  primarySurgeUsed?: boolean | undefined;
+  primarySurgeBoost?: number | undefined;
   travelState?: string | undefined;
   campaignSuspended?: boolean | undefined;
 }
@@ -36,6 +43,26 @@ export interface PrimaryResultEntry {
 export interface PrimaryResults {
   byParty: Record<string, PrimaryResultEntry[]>;
   recordedAt: string;
+}
+
+export interface PrimaryWaveHistoryEntry {
+  wave: number;
+  turnsRemaining: number;
+  statesVoted: string[];
+  turn: number;
+}
+
+export interface PrimaryConventionResult {
+  mode: "delegate_majority" | "convention";
+  winnerCandidateId: string;
+  majorityThreshold: number;
+  firstBallotLeaderId: string;
+  ballots?: Array<{
+    ballot: number;
+    tallies: Record<string, number>;
+    eliminatedCandidateId?: string;
+  }>;
+  resolvedAt: string;
 }
 
 /** Per-turn primary standing, retained separately from the general tally. */
@@ -91,11 +118,25 @@ export interface ElectionRecord {
    * for the full compatibility rationale; no SCHEMA_VERSION bump needed).
    */
   stateTallyStates?: Record<string, unknown>;
+  /** Election-scoped active/withdrawn state-governor endorsements (schema v58). */
+  governorEndorsements?: import("../governor/types.js").GovernorEndorsement[];
+  /** Source presidential ruleset frozen when this race is scheduled; absent legacy races are v1. */
+  presidentialRulesetVersion?: number;
   /** Persisted one-shot nominee transition, recorded before general tallying. */
   primaryResults?: PrimaryResults;
   primaryResolvedTurn?: number;
   /** Cumulative registered-party primary ballots, separate from general votes. */
   primaryVotes?: Record<string, number>;
+  /** Presidential primary inputs and awards, keyed party then state/candidate. */
+  primaryStateVotes?: Record<string, Record<string, Record<string, number>>>;
+  primaryDelegates?: Record<string, Record<string, number>>;
+  primaryDelegatesByState?: Record<string, Record<string, Record<string, number>>>;
+  primaryAllocationByState?: Record<string, Record<string, "PR" | "WTA">>;
+  primaryWaveHistory?: PrimaryWaveHistoryEntry[];
+  primaryStaggerWavesRun?: number;
+  /** Rules are stamped when the presidential race is created; unstamped is v1. */
+  primaryRulesetVersion?: number;
+  primaryConventionResults?: Record<string, PrimaryConventionResult>;
   /** Per-turn primary standings used to render the live primary phase. */
   primarySnapshots?: PrimarySnapshot[];
   winners?: string[];

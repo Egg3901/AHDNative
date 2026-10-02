@@ -38,6 +38,10 @@ export interface LegislaturePanelProps {
 export function LegislaturePanel({ legislature, busy, onAction, clock }: LegislaturePanelProps) {
   const [selectedId, setSelectedId] = useState(legislature.proposals[0]?.id ?? "");
   const [tariffRate, setTariffRate] = useState("10");
+  const [unionLawAction, setUnionLawAction] = useState<"ban" | "repeal_ban" | "bias">(
+    legislature.unionLawBanned ? "repeal_ban" : "ban",
+  );
+  const [unionLawBias, setUnionLawBias] = useState("0");
   const [billPage, setBillPage] = useState(0);
   const [chamberKey, setChamberKey] = useState<string>(() => {
     const chambers = legislature.chambers ?? [];
@@ -45,6 +49,10 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
     const persisted = loadLegislatureNav(legislature.countryId).chamberKey;
     return persisted && chambers.some((c) => c.key === persisted) ? persisted : "";
   });
+
+  useEffect(() => {
+    setUnionLawAction(legislature.unionLawBanned ? "repeal_ban" : "ban");
+  }, [legislature.countryId, legislature.unionLawBanned]);
 
   useEffect(() => {
     if (!legislature.proposals.some((p) => p.id === selectedId)) {
@@ -113,11 +121,11 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
       </div>
 
       {legislature.governmentFormation ? (
-        <section className="ahd-card ahd-card-pad" aria-label="Dáil government formation">
-          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Dáil government formation</h3>
+        <section className="ahd-card ahd-card-pad" aria-label={`${legislature.governmentFormation.chamberName ?? "Dáil"} government formation`}>
+          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>{legislature.governmentFormation.chamberName ?? "Dáil"} government formation</h3>
           {legislature.governmentFormation.status === "formed" ? (
             <p style={{ fontSize: "0.8rem", margin: "0.4rem 0 0" }}>
-              Taoiseach: {legislature.governmentFormation.officeholderName ?? "Vacant"}
+              {legislature.governmentFormation.executiveTitle}: {legislature.governmentFormation.officeholderName ?? "Vacant"}
             </p>
           ) : (
             <>
@@ -125,21 +133,21 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
                 Government is in formation; legislation is frozen until a PM is seated.
                 {legislature.governmentFormation.nomineeDisabledReason
                   ? ` ${legislature.governmentFormation.nomineeDisabledReason}`
-                  : " Your party chair may nominate a Taoiseach candidate."}
+                  : ` Your party chair may nominate a ${legislature.governmentFormation.executiveTitle} candidate.`}
               </p>
               <button
                 type="button"
                 className="ahd-btn ahd-btn-primary ahd-btn-sm"
                 onClick={() => onAction("proposePmAppointment")}
                 disabled={busy || !legislature.governmentFormation.nomineeAvailable}
-                aria-label="Nominate yourself as Taoiseach"
+                aria-label={`Nominate yourself as ${legislature.governmentFormation.executiveTitle}`}
               >
-                Nominate yourself as Taoiseach
+                Nominate yourself as {legislature.governmentFormation.executiveTitle}
               </button>
             </>
           )}
           {legislature.governmentFormation.votes.map((vote) => (
-            <article key={vote.id} className="ahd-card ahd-card-pad" aria-label={`Taoiseach appointment vote for ${vote.nomineeName}`} style={{ marginTop: "0.5rem" }}>
+            <article key={vote.id} className="ahd-card ahd-card-pad" aria-label={`${legislature.governmentFormation!.executiveTitle} appointment vote for ${vote.nomineeName}`} style={{ marginTop: "0.5rem" }}>
               <div style={{ fontSize: "0.8rem", fontWeight: 700 }}>{vote.nomineeName} · {vote.partyName}</div>
               <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
                 {vote.status} · {vote.votesFor} ayes · {vote.votesAgainst} nays · closes turn {vote.closesTurn}
@@ -153,7 +161,7 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
                       className="ahd-btn ahd-btn-sm"
                       onClick={() => onAction("votePmAppointment", { pmAppointmentVoteId: vote.id, pmVote: choice })}
                       disabled={busy || !vote.voting.available}
-                      aria-label={`${choice === "aye" ? "Aye" : "Nay"} on Taoiseach appointment for ${vote.nomineeName}`}
+                      aria-label={`${choice === "aye" ? "Aye" : "Nay"} on ${legislature.governmentFormation!.executiveTitle} appointment for ${vote.nomineeName}`}
                     >
                       {choice === "aye" ? "Aye" : "Nay"}{vote.playerVote === choice ? " · voted" : ""}
                     </button>
@@ -288,6 +296,61 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
             onClick={() => onAction("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: Number(tariffRate) })}
           >
             Sponsor customs tariff
+          </button>
+          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+            {legislature.sponsor.available ? `Cost ${legislature.sponsor.cost} actions` : legislature.sponsor.disabledReason ?? "Unavailable"}
+          </span>
+        </div>
+      </div>
+
+      <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>National union law</h3>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: 0, lineHeight: 1.45 }}>
+          {legislature.unionLawBanned
+            ? "Unions are suspended under national law. Repeal the ban to restore their recorded leadership and treasury."
+            : "Set the national collective-bargaining bias or propose a ban that suspends unions and blocks strikes."}
+        </p>
+        <label className="ahd-field" style={{ maxWidth: "20rem" }}>
+          <span className="ahd-label">Union-law action</span>
+          <select
+            className="ahd-select"
+            aria-label="Union-law action"
+            value={unionLawAction}
+            onChange={(event) => setUnionLawAction(event.target.value as "ban" | "repeal_ban" | "bias")}
+            disabled={busy}
+          >
+            {legislature.unionLawBanned ? <option value="repeal_ban">Repeal national union ban</option> : <option value="ban">Ban unions nationwide</option>}
+            <option value="bias">Set collective-bargaining bias</option>
+          </select>
+        </label>
+        {unionLawAction === "bias" ? (
+          <label className="ahd-field" style={{ maxWidth: "12rem" }}>
+            <span className="ahd-label">Union-law bias (-50 to 50)</span>
+            <input
+              className="ahd-input"
+              type="number"
+              min="-50"
+              max="50"
+              step="1"
+              aria-label="Union-law bias"
+              value={unionLawBias}
+              onChange={(event) => setUnionLawBias(event.target.value)}
+              disabled={busy}
+            />
+          </label>
+        ) : null}
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-primary ahd-btn-sm"
+            aria-label="Sponsor union law"
+            disabled={busy || !legislature.sponsor.available || (unionLawAction === "bias" && (unionLawBias.trim() === "" || !Number.isFinite(Number(unionLawBias))))}
+            onClick={() => onAction("sponsorBill", {
+              catalogId: "labour.union_law",
+              ...(unionLawAction === "bias" ? { bias: Number(unionLawBias) } : { banAction: unionLawAction }),
+            })}
+          >
+            Sponsor union law
           </button>
           <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
             {legislature.sponsor.available ? `Cost ${legislature.sponsor.cost} actions` : legislature.sponsor.disabledReason ?? "Unavailable"}

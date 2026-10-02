@@ -172,9 +172,12 @@ export interface LegislatureView {
   office: string | null;
   /** Playable country the legislature belongs to; keys persisted nav context. */
   countryId?: string;
+  /** Source-backed national ban state from the player's country budget. */
+  unionLawBanned?: boolean;
   governmentFormation?: {
     status: "pending" | "formed";
     executiveTitle: string;
+    chamberName?: string;
     officeholderName: string | null;
     nomineeAvailable: boolean;
     nomineeDisabledReason?: string;

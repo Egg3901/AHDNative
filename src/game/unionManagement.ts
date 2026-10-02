@@ -1,4 +1,4 @@
-import { BARGAINING_ESCALATION_SUPPORT, nextBargainingEscalationLevel, organizeSectorTreasuryCost, seedCorporateSectorAssets, type WorldState } from "@ahdclient/engine";
+import { BARGAINING_ESCALATION_SUPPORT, nextBargainingEscalationLevel, organizeSectorTreasuryCost, seedCorporateSectorAssets, undergroundHeatText, undergroundStatus, undergroundStrength, type WorldState } from "@ahdclient/engine";
 import { averageAnnualWage, duesIncomePerTurn, maxDuesForWage, representedSectorsForUnion, unionMembers } from "@ahdclient/engine";
 
 export interface UnionManagementRow {
@@ -11,6 +11,11 @@ export interface UnionManagementRow {
   treasury: number;
   approval: number;
   duesPerWorkerAnnual: number;
+  politicalContributionPct: number;
+  suspended: boolean;
+  undergroundStrength: number;
+  undergroundHeatText: "cold" | "warm" | "hot";
+  undergroundStatus: "dark" | "suspected" | "exposed";
   maxDuesPerWorkerAnnual: number;
   duesIncomePerTurn: number;
   pendingLeaderCharacterId: string | null;
@@ -62,6 +67,11 @@ export function projectUnionManagement(world: WorldState): UnionManagementView {
         treasury: union.treasury,
         approval: union.approval,
         duesPerWorkerAnnual: union.duesPerWorkerAnnual,
+        politicalContributionPct: union.politicalContributionPct,
+        suspended: union.suspended === true,
+        undergroundStrength: undergroundStrength(union),
+        undergroundHeatText: undergroundHeatText(union),
+        undergroundStatus: undergroundStatus(union, world.meta.turn),
         maxDuesPerWorkerAnnual: annualDuesCap,
         duesIncomePerTurn: duesIncomePerTurn(members, union.duesPerWorkerAnnual),
         pendingLeaderCharacterId: union.pendingLeaderCharacterId ?? null,

@@ -71,6 +71,15 @@ export interface Union {
    * round-trips through saves.
    */
   suspended?: boolean;
+  /** Shadow organizing pool accumulated while the legal union is suspended. */
+  undergroundStrength?: number;
+  /** Enforcement heat and exposure window for underground work. */
+  heat?: number;
+  exposedUntilTurn?: number | null;
+  lastUndergroundDriveTurn?: number | null;
+  recentUndergroundDriveCount?: number;
+  undergroundProcessedTurn?: number;
+  lastUndergroundRaidTurn?: number | null;
   /** Whether this union is NPP-led, player-led, or vacant. */
   ownerType?: "npp" | "player" | null;
   /** NPP politician id, `player` for the local player, or null when vacant. */

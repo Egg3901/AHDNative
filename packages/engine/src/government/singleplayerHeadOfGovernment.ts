@@ -1,4 +1,5 @@
 import type { WorldState } from "../types.js";
+import { liveChamberSeatsByParty } from "./seatWeights.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY, INITIAL_CONFIDENCE, majorityThreshold } from "./constants.js";
 import type { GovernmentState } from "./types.js";
@@ -58,7 +59,7 @@ export function seatSingleplayerHeadOfGovernment(world: WorldState): void {
   const chamber = world.legislatures[countryId]?.chambers.find((candidate) => candidate.key === chamberKey);
   if (!chamber) return;
 
-  const seatsByParty = { ...chamber.composition.seatsByParty };
+  const seatsByParty = liveChamberSeatsByParty(world, countryId, chamberKey);
   const prior = world.governments[countryId];
   const pluralityPartyId = Object.entries(seatsByParty)
     .filter(([, seats]) => seats > 0)

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { earnCareerGovernment } from "../government/earnCareerGovernment.testSupport.js";
 import { executeAction } from "../actions/execute.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
@@ -395,7 +396,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
     );
   });
 
-  it("earns an NPC delegate seat through the public career election path and votes each available tax row into effect", () => {
+  it("resolves a shortened NPC delegate race and votes each available tax row into effect", () => {
     let world = createWorld({ seed: "career-check", playerName: "P", countryId: "CN", era: "2019", mode: "career" });
     expect(executeAction(world, "player", "joinParty", { partyId: "CN_CCP" }).ok).toBe(true);
     advanceTurn(world);
@@ -414,11 +415,15 @@ describe("China's executable national budget-tax slice (#286)", () => {
     for (let i = 0; i < 5 && election!.status !== "resolved"; i++) advanceTurn(world);
     expect(election!.status).toBe("resolved");
     expect(election!.candidates.some((candidate) => candidate.id === "player")).toBe(true);
+    // Actual AHDGame@0a68fee4 allocation of this resolved race's recorded
+    // candidate slate and ballots gives the player 24 of DB's 238 seats.
     expect(world.player.legislativeSeat).toEqual({
       countryId: "CN",
       chamberKey: "npc",
       regionId: world.player.homeRegionId,
+      seatsHeld: 24,
     });
+    world = earnCareerGovernment(world, "cn_value_added_tax");
     // Test a well-resourced legal player; their office still comes solely from
     // the source-generated election and each action uses its authored price.
     world.player.actions = 200;

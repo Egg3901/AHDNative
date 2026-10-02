@@ -742,6 +742,15 @@ export interface Campaign {
   createdAtTurn: number;
 }
 
+/** Native projection of a source CharacterStateOrg row for presidential primaries. */
+export interface PrimaryStateOrganization {
+  level: number;
+  totalInvested: number;
+  updatedAtTurn: number;
+  lastBuildTurn: number;
+  lastBuildFunds: number;
+}
+
 export interface Politician {
   /** Deterministic id sequential per country, e.g. "US-1" */
   id: string;
@@ -751,6 +760,8 @@ export interface Politician {
   partyId: string;
   /** Chamber key this politician holds (e.g. "house", "volkskammer"); "" = unseated. */
   chamberKey: string;
+  /** Source ElectedOfficial.seatsHeld; absent legacy or single-seat offices weigh one. */
+  seatsHeld?: number;
   /** US state whose seat is held (house/senate). */
   electedState?: string | undefined;
   /** Source NPP homeState; independent of electedState when an officeholder moves or loses their seat. */
@@ -1011,6 +1022,8 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** Source CharacterStateOrg rows keyed by US state. */
+  primaryStateOrganizations?: Record<string, PrimaryStateOrganization>;
   /** One normalized UK office constituency selection, valid only in its saved region. */
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
@@ -1026,6 +1039,8 @@ export interface PlayerCharacter {
    * ACTION_HOARD_PENALTY=4, threshold 100, cap 200 at PORT-STUB neutral.
    */
   actions: number;
+  /** Turn of the player's last illicit union drive, enforcing one drive across cells per turn. */
+  lastUndergroundDriveTurn?: number | null;
   /** Campaign funds (local) for player. */
   funds: number;
   donorBaseLevel: number;
@@ -1123,6 +1138,8 @@ export interface PlayerCharacter {
   legislativeSeat: {
     chamberKey: string;
     countryId: string;
+    /** Source ElectedOfficial.seatsHeld; absent legacy or single-seat offices weigh one. */
+    seatsHeld?: number;
     /** Region won in the election. Required for constituency-bound offices. */
     regionId?: string;
   } | null;
@@ -1803,6 +1820,8 @@ export interface CrisisRecord {
   effects: Array<{ type: string; value: number; effectType: "flat" | "tick" | "decay" }>;
   status: "active" | "resolved";
   endTurn?: number;
+  /** Source union-ban general strike's once-per-turn underground extension guard. */
+  lastUndergroundExtensionTurn?: number;
   wireMessageOnStart: string;
   wireMessageOnEnd: string;
   playerResponse?: string | null;
