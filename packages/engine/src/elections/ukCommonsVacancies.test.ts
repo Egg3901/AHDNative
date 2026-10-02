@@ -110,12 +110,41 @@ describe("UK Commons vacancy plumbing", () => {
     expect(executeAction(world, "player", "declareCandidacy", { electionId: regular!.id }).ok).toBe(true);
     expect(executeAction(world, "player", "convertCash", { amount: world.player.cash }).ok).toBe(true);
     let publicCampaignActions = 0;
-    const publicCampaignFailures: Array<{ turn: number; error: string }> = [];
+    let publicFundraiseActions = 0;
+    let publicDonorBaseActions = 0;
+    let publicAdActions = 0;
+    const publicActionFailures: Array<{ turn: number; action: string; error: string }> = [];
+    const recordFailure = (action: string, error: string | undefined) => {
+      if (publicActionFailures.length < 8 && error) publicActionFailures.push({ turn: world.meta.turn, action, error });
+    };
     const campaignIfAvailable = () => {
-      if (world.player.politicalInfluence >= 100 || world.player.actions < 1 || world.player.funds < 20_000) return;
-      const result = executeAction(world, "player", "campaign", {});
-      if (result.ok) publicCampaignActions++;
-      else if (publicCampaignFailures.length < 3) publicCampaignFailures.push({ turn: world.meta.turn, error: result.error });
+      if (world.player.politicalInfluence < 100 && world.player.actions > 0) {
+        let result = executeAction(world, "player", "campaign", {});
+        if (result.ok) publicCampaignActions++;
+        else if (result.error?.startsWith("Not enough funds.")) {
+          if (world.player.donorBaseLevel <= 0 && world.player.actions >= 4) {
+            const built = executeAction(world, "player", "buildDonorBase", {});
+            if (built.ok) publicDonorBaseActions++;
+            else recordFailure("buildDonorBase", built.error);
+          }
+          if (world.player.donorBaseLevel > 0 && world.player.actions >= 3) {
+            const raised = executeAction(world, "player", "fundraise", {});
+            if (raised.ok) {
+              publicFundraiseActions++;
+              if (world.player.actions > 0) {
+                result = executeAction(world, "player", "campaign", {});
+                if (result.ok) publicCampaignActions++;
+                else recordFailure("campaignAfterFundraise", result.error);
+              }
+            } else recordFailure("fundraise", raised.error);
+          } else recordFailure("campaign", result.error);
+        } else recordFailure("campaign", result.error);
+      }
+      if (world.player.favorability < 100 && world.player.actions > 0 && world.meta.turn % 8 === 0) {
+        const advertised = executeAction(world, "player", "advertise", {});
+        if (advertised.ok) publicAdActions++;
+        else recordFailure("advertise", advertised.error);
+      }
     };
     campaignIfAvailable();
     while (regular!.status !== "resolved" && world.meta.turn <= regular!.endTurn) {
@@ -123,16 +152,37 @@ describe("UK Commons vacancy plumbing", () => {
       campaignIfAvailable();
     }
     expect(regular!.status).toBe("resolved");
+    const topVotes = [...Object.entries(regular!.tally)].sort(([, a], [, b]) => b - a).slice(0, 12);
+    const candidateInputs = regular!.candidates
+      .filter((candidate) => candidate.id === "player" || topVotes.some(([id]) => id === candidate.id))
+      .map((candidate) => ({
+        id: candidate.id,
+        name: candidate.name,
+        partyId: candidate.partyId,
+        isNPP: candidate.isNPP,
+        support: world.candidateSupports[candidate.id]?.support ?? 50,
+        favorability: candidate.id === "player" ? world.player.favorability : world.politicians.find((politician) => politician.id === candidate.id)?.favorability,
+        politicalInfluence: candidate.id === "player" ? world.player.politicalInfluence : world.politicians.find((politician) => politician.id === candidate.id)?.politicalInfluence,
+        policies: candidate.id === "player" ? world.player.policies : world.politicians.find((politician) => politician.id === candidate.id)?.ideology,
+      }));
     expect(world.player.legislativeSeat, JSON.stringify({
       turn: world.meta.turn,
       electionId: regular!.id,
       winnerIds: regular!.winners,
       playerVotes: regular!.tally.player,
-      topVotes: [...Object.entries(regular!.tally)].sort(([, a], [, b]) => b - a).slice(0, 12),
+      topVotes,
+      candidateInputs,
+      electorate: { population: world.regions.LON?.population, votingEligiblePopulation: world.regions.LON?.votingEligiblePopulation, stateDemographics: world.stateDemographics.LON, regionTurnout: world.regionTurnouts.LON },
+      partyOrganizations: Object.values(world.partyRegions).filter((row) => row.regionId === "LON"),
       playerFavorability: world.player.favorability,
       politicalInfluence: world.player.politicalInfluence,
+      donorBaseLevel: world.player.donorBaseLevel,
+      finalFunds: world.player.funds,
       publicCampaignActions,
-      publicCampaignFailures,
+      publicFundraiseActions,
+      publicDonorBaseActions,
+      publicAdActions,
+      publicActionFailures,
     })).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
     const heldSeats = world.player.legislativeSeat!.seatsHeld ?? 1;
     expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(true);
