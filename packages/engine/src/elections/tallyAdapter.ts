@@ -167,9 +167,10 @@ function buildPresidentialLocalVoteMultipliers(
       }
     }
     if (!candidate.campaignSuspended && candidate.runningMateId) {
-      const mateHomeState = candidate.runningMateId === "player"
-        ? world.player.homeRegionId
-        : world.politicians.find((politician) => politician.id === candidate.runningMateId)?.homeState;
+      // Game resolves VP home states from characters, not NPPs. Native's
+      // single human character is the player; generated NPC tickets never
+      // acquire a human running-mate bonus from a politician's home state.
+      const mateHomeState = candidate.runningMateId === "player" ? world.player.homeRegionId : undefined;
       if (mateHomeState === stateId) multipliers.push(1.03);
     }
     if (
