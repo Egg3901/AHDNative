@@ -205,6 +205,12 @@ describe("issue 102 leadership acceptance", () => {
     world.player.actions = 100;
     const demPoliticians = world.politicians.filter((politician) => politician.partyId === "US_DEM").slice(0, 3);
     for (const politician of demPoliticians) politician.chamberKey = "house";
+    // Pin all seated voters to an independently source-vectored compliance
+    // input. A hard whip is still compliance-scaled in Game, so default
+    // randomized personalities can legitimately abstain near the threshold.
+    for (const politician of world.politicians.filter((candidate) => candidate.partyId === "US_DEM" && candidate.chamberKey === "house")) {
+      politician.personality = { loyalty: 80, ambition: 50, stubbornness: 20 };
+    }
     world.bills.push(activeBill("bill-hard-whip"));
 
     const issued = executeAction(world, "player", "issuePartyWhip", {
