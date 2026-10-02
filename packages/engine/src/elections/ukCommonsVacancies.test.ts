@@ -70,6 +70,26 @@ describe("UK Commons vacancy plumbing", () => {
     expect(world.elections.some((election) => election.countryId === "UK" && election.electionType === "snap_commons")).toBe(false);
   });
 
+  it("uses the source generic UK campaign action through the public boundary", () => {
+    const world = createWorld({
+      seed: "commons-public-generic-campaign",
+      playerName: "UK MP",
+      countryId: "UK",
+      era: "1953",
+      homeRegionId: "LON",
+      wealth: "high",
+      stats: { charisma: 10, debate: 10, energy: 3, fundraising: 1, businessAcumen: 1, statecraft: 1, intellect: 2 },
+    });
+    advanceTurn(world);
+    expect(executeAction(world, "player", "convertCash", { amount: world.player.cash }).ok).toBe(true);
+    const before = { actions: world.player.actions, funds: world.player.funds, influence: world.player.politicalInfluence };
+    const result = executeAction(world, "player", "campaign", {});
+    expect(result, JSON.stringify({ result, before, after: { actions: world.player.actions, funds: world.player.funds, influence: world.player.politicalInfluence } })).toMatchObject({ ok: true });
+    expect(world.player.politicalInfluence).toBeGreaterThan(before.influence);
+    expect(world.player.actions).toBeLessThan(before.actions);
+    expect(world.player.funds).toBeLessThan(before.funds);
+  });
+
   it("carries a public LON candidate through a source campaign, resignation, special race, and save", () => {
     const world = createWorld({
       seed: "commons-public-player-office-probe",
@@ -90,19 +110,14 @@ describe("UK Commons vacancy plumbing", () => {
     expect(executeAction(world, "player", "declareCandidacy", { electionId: regular!.id }).ok).toBe(true);
     expect(executeAction(world, "player", "convertCash", { amount: world.player.cash }).ok).toBe(true);
     let publicCampaignActions = 0;
+    const publicCampaignFailures: Array<{ turn: number; error: string }> = [];
     const campaignIfAvailable = () => {
       if (world.player.politicalInfluence >= 100 || world.player.actions < 1 || world.player.funds < 20_000) return;
-      if (executeAction(world, "player", "campaign", {}).ok) publicCampaignActions++;
+      const result = executeAction(world, "player", "campaign", {});
+      if (result.ok) publicCampaignActions++;
+      else if (publicCampaignFailures.length < 3) publicCampaignFailures.push({ turn: world.meta.turn, error: result.error });
     };
-    for (let i = 0; i < 3; i++) {
-      expect(executeAction(world, "player", "advertise", {}).ok).toBe(true);
-      if (i < 2) {
-        advanceTurn(world);
-        campaignIfAvailable();
-        advanceTurn(world);
-        campaignIfAvailable();
-      }
-    }
+    campaignIfAvailable();
     while (regular!.status !== "resolved" && world.meta.turn <= regular!.endTurn) {
       advanceTurn(world);
       campaignIfAvailable();
@@ -117,6 +132,7 @@ describe("UK Commons vacancy plumbing", () => {
       playerFavorability: world.player.favorability,
       politicalInfluence: world.player.politicalInfluence,
       publicCampaignActions,
+      publicCampaignFailures,
     })).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
     const heldSeats = world.player.legislativeSeat!.seatsHeld ?? 1;
     expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(true);
