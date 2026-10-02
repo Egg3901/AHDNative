@@ -4,6 +4,9 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
 import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
+import { getSectorTechEffects } from "./techTree/selectors.js";
+import { getEraNominalScale } from "../commodity/constants.js";
+import { corporateSectorAssets } from "./corporateSectorAssets.js";
 
 describe("source NPP capacity replacement", () => {
   it("founds one located source-sized plant, debits cash and draws only that pool", () => {
@@ -14,9 +17,17 @@ describe("source NPP capacity replacement", () => {
     corp.liquidCapital = 100_000_000;
     corp.profitMargin = 35;
     corp.effectiveProfitMargin = 35;
+    world.centralBanks.US!.primeRate = 4;
+    world.regionalMetrics.VA ??= {};
+    world.regionalMetrics.VA!["economic.costOfLiving"] = { value: 120 };
     world.unownedSectors["US:VA:manufacturing"] = { countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 50_000_000 };
     const poolBefore = world.unownedSectors["US:VA:manufacturing"]!.revenue;
     const cashBefore = corp.liquidCapital;
+    const pricingAssets = Object.values(corporateSectorAssets(world)).filter((asset) => asset.countryId === "US" && asset.sectorType === "manufacturing" && asset.stateId !== null);
+    const nationalOwned = pricingAssets.reduce((sum, asset) => sum + Math.max(0, asset.revenue ?? 0), 0);
+    const issuerOwned = pricingAssets.filter((asset) => asset.corporationId === corp.id).reduce((sum, asset) => sum + Math.max(0, asset.revenue ?? 0), 0);
+    const nationalShare = nationalOwned > 0 ? issuerOwned / nationalOwned * 100 : 0;
+    const nationalDominance = nationalShare <= 30 ? 1 : 1 + 2 * ((nationalShare - 30) / 70) ** 2;
     applyNppSourceFounding(world);
     const assetId = `corporate-sector:US:manufacturing:${corp.id}:VA`;
     const asset = world.corporateSectors?.[assetId];
@@ -30,6 +41,11 @@ describe("source NPP capacity replacement", () => {
       amount: corp.liquidCapital - cashBefore,
       meta: { ledgerKey: world.corporateCashLedger?.[0]?.id, sectorId: assetId, sectorType: "manufacturing", entryFeeAnchor: expect.any(Number) },
     });
+    const row = world.corporateCashLedger?.[0];
+    const tech = getSectorTechEffects({ type: corp.sectorType, ...corp }, "manufacturing");
+    const quoteMultiplier = nationalDominance * 1.2 * 1.4 * tech.growthCostMultiplier * 0.9;
+    expect(row?.meta.costAnchor).toBeCloseTo(row?.meta.units! * capacityPricePerUnitAnchor("manufacturing", corporateSectorBasePrices(world), null, Number(world.meta.date.slice(0, 4))) * quoteMultiplier, 6);
+    expect(row?.meta.entryFeeAnchor).toBe(Math.round(Math.round(100_000 * getEraNominalScale(world.meta.era)) * (1 - tech.expansionDiscount)));
     validateCorporateCashLedger(world.corporateCashLedger);
     applyNppSourceFounding(world);
     expect(world.corporateCashLedger).toHaveLength(1);

@@ -10,6 +10,9 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnionId } from "./corporateSectorAssets.js";
 import { SOURCE_STATE_ADJACENCY } from "./sourceStateAdjacency.js";
 import { getEraNominalScale } from "../commodity/constants.js";
+import { getSectorTechEffects } from "./techTree/selectors.js";
+import { NEUTRAL_STAT } from "../stats/characterStats.js";
+import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -30,8 +33,7 @@ const FOUNDING_STARTER_UNITS: Record<string, number> = {
 export function applyNppSourceFounding(world: WorldState): void {
   const ledger = world.corporateCashLedger ?? (world.corporateCashLedger = []);
   const scale = getEraNominalScale(world.meta.era);
-  const entryFeeAnchor = Math.round(100_000 * scale);
-  const cashFloorAnchor = Math.max(Math.round(125_000 * scale), Math.round(250_000 * scale));
+  const entryFeeBaseAnchor = Math.round(100_000 * scale);
   const assets = corporateSectorAssets(world);
   const year = Number(world.meta.date.slice(0, 4));
   for (const corp of Object.values(world.corporations).sort((a, b) => a.id.localeCompare(b.id))) {
@@ -46,10 +48,37 @@ export function applyNppSourceFounding(world: WorldState): void {
     if (candidate.shortageScore <= 0.85 && candidate.peakShortageScore < 1.6) continue;
     const starterUnits = FOUNDING_STARTER_UNITS[candidate.pool.sectorType] ?? 0;
     if (!(starterUnits > 0)) continue;
-    const price = capacityPricePerUnitAnchor(candidate.pool.sectorType, corporateSectorBasePrices(world), null, year);
-    // Source founding's authored 10% first-build discount; Game applies other
-    // market-dominance/prime/host modifiers unavailable in this Native input set.
-    const unitCostAnchor = price * 0.9;
+    const sectorType = candidate.pool.sectorType;
+    const tech = getSectorTechEffects({ type: corp.sectorType, ...corp }, sectorType);
+    const entryFeeAnchor = Math.round(entryFeeBaseAnchor * (1 - tech.expansionDiscount));
+    const cashFloorMult = CEO_ARCHETYPE_MODIFIERS[corp.archetype]?.cashFloorMult ?? 1;
+    const eraMinimumFloor = Math.max(1, Math.round(125_000 * scale));
+    const eraDefaultFloor = Math.max(1, Math.round(250_000 * scale));
+    const cashFloorAnchor = Math.max(eraMinimumFloor, Math.round(eraDefaultFloor * cashFloorMult));
+    const assetsForCost = Object.values(assets);
+    const revenueByIssuer = new Map<string, number>();
+    for (const issuer of Object.values(world.corporations).filter((row) => row.countryId === corp.countryId)) {
+      const issuerAssets = assetsForCost.filter((asset) => asset.corporationId === issuer.id && asset.sectorType === sectorType);
+      const locatedRows = issuerAssets.filter((asset) => asset.stateId !== null);
+      const receipts = locatedRows.reduce((sum, asset) => sum + Math.max(0, asset.revenue ?? asset.realizedRevenue ?? 0), 0);
+      revenueByIssuer.set(issuer.id, receipts);
+    }
+    const nationalOwned = [...revenueByIssuer.values()].reduce((sum, revenue) => sum + revenue, 0);
+    // Source buildNppNationalShareResolver divides its actual regional sector
+    // receipts by all actual owned receipts in that country/type. It excludes
+    // unowned pool and Native's null-state aggregate projection rows.
+    const nationalShare = nationalOwned > 0 ? (revenueByIssuer.get(corp.id) ?? 0) / nationalOwned * 100 : 0;
+    const nationalDominance = nationalShare <= 30 ? 1 : 1 + 2 * ((nationalShare - 30) / 70) ** 2;
+    // Game greenfield quotes explicitly set local share=0 and omit rival count;
+    // computeBuildCost therefore applies the undiluted national dominance toll.
+    const dominance = Math.max(1, nationalDominance);
+    const primeRate = world.centralBanks[corp.countryId]?.primeRate ?? 0;
+    const rateMultiplier = Math.max(0.5, 1 + (primeRate / 10) * Math.max(0, 1 - (NEUTRAL_STAT - 5.5) * 0.06));
+    const acumenMultiplier = Math.max(0.5, 1 - (NEUTRAL_STAT - 5.5) * 0.03);
+    const costOfLiving = world.regionalMetrics[candidate.pool.regionId]?.["economic.costOfLiving"]?.value;
+    const hostMultiplier = Number.isFinite(costOfLiving) && (costOfLiving ?? 0) > 0 ? Math.min(1.6, Math.max(0.6, costOfLiving! / 100)) : 1;
+    const price = capacityPricePerUnitAnchor(sectorType, corporateSectorBasePrices(world), null, year);
+    const unitCostAnchor = price * dominance * rateMultiplier * acumenMultiplier * tech.growthCostMultiplier * hostMultiplier * 0.9;
     const maxByMarket = Math.floor(candidate.headroomUnits * 0.5);
     const rate = getRateForCountry(world, corp.countryId);
     const cashLocal = corp.liquidCapital;
