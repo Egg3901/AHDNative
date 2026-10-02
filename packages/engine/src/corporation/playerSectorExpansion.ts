@@ -77,6 +77,7 @@ export function expandPlayerCorporationSector(
   const fxSpreadAnchor = fromCurrency !== toCurrency ? (entryFeeAnchor + starterBuildAnchor) * 0.005 : 0;
   const totalCostAnchor = entryFeeAnchor + starterBuildAnchor + fxSpreadAnchor;
   const fxRate = getRateForCountry(world, corporation.countryId);
+  const hostFxRate = getRateForCountry(world, region.countryId);
   const totalCostLocal = anchorToLocal(totalCostAnchor, fxRate);
   const cashBefore = corporation.liquidCapital;
   if (!Number.isFinite(totalCostLocal) || !(totalCostLocal > 0) || !Number.isFinite(cashBefore) || cashBefore < totalCostLocal) return { ok: false, error: `The corporation needs ${totalCostLocal} in available capital to expand and build its first facility` };
@@ -92,7 +93,7 @@ export function expandPlayerCorporationSector(
     id: assetId, corporationId: corporation.id, countryId: region.countryId,
     stateId: region.id, sectorType: input.sectorType,
     profitMargin: DEFAULT_PROFIT_MARGIN,
-    revenue: Math.round(anchorToLocal(units * localPerUnitRevenueAnchor, fxRate)),
+    revenue: Math.round(anchorToLocal(units * localPerUnitRevenueAnchor, hostFxRate)),
     workers: 500, capitalStock: 0, capacityBookAnchor: 0,
     buildQueue: [{ unitsOrdered: units, costPaidAnchor: starterBuildAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true }],
     constructionInProgressAnchor: Math.round(starterBuildAnchor), plantsStartTurn: world.meta.turn,
@@ -121,8 +122,10 @@ export function expandPlayerCorporationSector(
 
   // The source writes company cash, a located build order, pool headroom and
   // the realized cash witness as one command result.
-  const unitsPerAnchor = headroomUnits / localToAnchor(pool.revenue, fxRate);
-  const poolRevenueAfter = Math.round((Math.max(0, headroomUnits - units) / unitsPerAnchor) * fxRate);
+  // The unowned market and the new asset are denominated in the operating
+  // region's currency. Issuer FX is used only for the company cash debit.
+  const unitsPerAnchor = headroomUnits / localToAnchor(pool.revenue, hostFxRate);
+  const poolRevenueAfter = Math.round((Math.max(0, headroomUnits - units) / unitsPerAnchor) * hostFxRate);
   const nextAssets = { ...assets, [assetId]: asset };
   const nextLedger = [...(world.corporateCashLedger ?? []), cashRow];
   validateCorporateSectorAssets(world, nextAssets);

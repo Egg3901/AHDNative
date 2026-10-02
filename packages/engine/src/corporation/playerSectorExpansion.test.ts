@@ -8,6 +8,7 @@ import { anchorToLocal, getRateForCountry } from "../forex/conversion.js";
 import { corporateSectorBasePrices, capacityPricePerUnitAnchor, SOURCE_DEFAULT_OPERATING_SUPPLY } from "./plantCapacity.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { NEUTRAL_STAT } from "../stats/characterStats.js";
+import { sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 
 describe("source player greenfield sector expansion", () => {
   it("founding abroad charges and routes the source sector FX spread", () => {
@@ -22,6 +23,9 @@ describe("source player greenfield sector expansion", () => {
     world.unownedSectors[`${host.countryId}:${host.id}:manufacturing`] = {
       countryId: host.countryId, sectorType: "manufacturing", regionId: host.id, revenue: 50_000_000,
     };
+    const pool = world.unownedSectors[`${host.countryId}:${host.id}:manufacturing`]!;
+    const poolBefore = pool.revenue;
+    const headroom = sourceUnownedHeadroomUnits(world, pool);
     const beforeCash = corporation.liquidCapital;
     const beforeUsRevenue = world.centralBanks.US!.forexRevenue ?? 0;
     const beforeUkReserve = world.centralBanks.UK!.spreadFeeReserveBalances?.USD ?? 0;
@@ -37,6 +41,13 @@ describe("source player greenfield sector expansion", () => {
     expect(world.centralBanks.US!.forexRevenue).toBe(beforeUsRevenue + Math.round(spreadLocal * 0.25));
     expect(world.centralBanks.UK!.spreadFeeReserveBalances?.USD).toBe(beforeUkReserve + Math.round(Math.round(spreadLocal) * 0.5));
     expect(world.corporateSectors?.[`corporate-sector:UK:manufacturing:${corporation.id}:${host.id}`]?.countryId).toBe("UK");
+    const asset = world.corporateSectors?.[`corporate-sector:UK:manufacturing:${corporation.id}:${host.id}`]!;
+    expect(pool.revenue).toBe(Math.round(poolBefore * (headroom - 25) / headroom));
+    const unitYield = Object.entries(SOURCE_DEFAULT_OPERATING_SUPPLY.manufacturing).reduce(
+      (sum, [commodity, quantity]) => sum + (quantity ?? 0) / world.commodityPrices[commodity as keyof typeof world.commodityPrices]!.basePrice, 0,
+    );
+    const expectedNameplate = Math.round(anchorToLocal(25 / (unitYield / getEraNominalScale(world.meta.era)), getRateForCountry(world, "UK")));
+    expect(asset.revenue).toBe(expectedNameplate);
     const reloaded = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     expect(reloaded.centralBanks.US?.forexRevenue).toBe(world.centralBanks.US?.forexRevenue);
     expect(reloaded.centralBanks.UK?.spreadFeeReserveBalances).toEqual(world.centralBanks.UK?.spreadFeeReserveBalances);
