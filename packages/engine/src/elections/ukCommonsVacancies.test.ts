@@ -6,6 +6,7 @@ import { createWorld } from "../world.js";
 import { scheduleUkCommonsByElections } from "./ukCommonsVacancies.js";
 import { seatHolders } from "./orchestration.js";
 import { governmentFormationPhase, governmentVacancyWatcherPhase, triggerSnapElection } from "../government/phases.js";
+import { enrichCandidates } from "../electionEngine/candidateEnrichment.js";
 
 describe("UK Commons vacancy plumbing", () => {
   it("does not invent a held regional Commons office for an unelected player", () => {
@@ -161,25 +162,52 @@ describe("UK Commons vacancy plumbing", () => {
     }
     expect(regular!.status).toBe("resolved");
     const topVotes = [...Object.entries(regular!.tally)].sort(([, a], [, b]) => b - a).slice(0, 12);
-    const candidateInputs = regular!.candidates
-      .filter((candidate) => candidate.id === "player" || topVotes.slice(0, 3).some(([id]) => id === candidate.id))
-      .map((candidate) => ({
-        id: candidate.id,
-        name: candidate.name,
-        partyId: candidate.partyId,
-        isNPP: candidate.isNPP,
-        support: world.candidateSupports[candidate.id]?.support ?? 50,
-        favorability: candidate.id === "player" ? world.player.favorability : world.politicians.find((politician) => politician.id === candidate.id)?.favorability,
-        politicalInfluence: candidate.id === "player" ? world.player.politicalInfluence : world.politicians.find((politician) => politician.id === candidate.id)?.politicalInfluence,
-        policies: candidate.id === "player" ? world.player.policies : world.politicians.find((politician) => politician.id === candidate.id)?.ideology,
-      }));
+    const observedIds = new Set(["player", ...topVotes.slice(0, 3).map(([id]) => id)]);
+    const observedCandidates = regular!.candidates.filter((candidate) => observedIds.has(candidate.id));
+    const tallyInputs = enrichCandidates(observedCandidates.map((candidate) => ({
+      _id: candidate.id,
+      electionId: regular!.id,
+      characterId: candidate.id,
+      nppId: candidate.isNPP ? candidate.id : null,
+      characterName: candidate.name,
+      party: candidate.partyId,
+      isNPP: candidate.isNPP,
+      support: world.candidateSupports[candidate.id]?.support ?? 50,
+    })), {
+      parties: Object.values(world.parties).filter((party) => party.countryId === "UK").map((party) => ({
+        sequentialId: party.id,
+        countryId: party.countryId,
+        abbreviation: party.abbreviation,
+        economicPosition: party.economicPosition,
+        socialPosition: party.socialPosition,
+      })),
+      characters: observedCandidates.some((candidate) => candidate.id === "player") ? [{
+        _id: "player",
+        policies: world.player.policies ?? { economic: 0, social: 0 },
+        favorability: world.player.favorability,
+        politicalInfluence: world.player.politicalInfluence,
+        nationalInfluence: world.player.nationalInfluence,
+        partyInfluence: world.player.partyInfluence,
+        infamy: world.player.infamy,
+      }] : [],
+      npps: observedCandidates.flatMap((candidate) => {
+        const politician = world.politicians.find((entry) => entry.id === candidate.id);
+        return candidate.isNPP && politician ? [{
+          _id: candidate.id,
+          policies: politician.ideology,
+          favorability: politician.favorability,
+          politicalInfluence: politician.politicalInfluence,
+        }] : [];
+      }),
+      includePartyPositions: true,
+    });
     expect(world.player.legislativeSeat, JSON.stringify({
       turn: world.meta.turn,
       electionId: regular!.id,
       winnerIds: regular!.winners.slice(0, 5),
       playerVotes: regular!.tally.player,
       topVotes: topVotes.slice(0, 5),
-      candidateInputs,
+      tallyInputs,
       electorate: {
         population: world.regions.LON?.population,
         votingEligiblePopulation: world.regions.LON?.votingEligiblePopulation,
