@@ -71,6 +71,8 @@ export type { FundCostInput } from "./actions/fundCost.js";
 export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
 export * from "./actions/polling.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
+export { proposalNpiCost, BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST } from "./legislation/proposalCosts.js";
+export { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "./legislation/freeze.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
 export * from "./membership.js";
 export * from "./caucus.js";
@@ -281,6 +283,7 @@ export {
   OUTPUT_GAP_BOUND,
 } from "./economy/macroConstants.js";
 export { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
+export * from "./government/pmAppointment.js";
 export { EXTRACTABLE_RESOURCES } from "./commodity/constants.js";
 export type { ExtractableResource } from "./commodity/constants.js";
 // #242 character-creation stats/wealth/alignment. Pure rules shared by the
@@ -380,7 +383,6 @@ export type { OpsTreeState, OpsChannelTotals } from "./campaigns/opsCurrentEffec
 // Authoritative player action refresh projection (#31), shared by the
 // actionRefresh phase and the Profile/footer resource breakdowns.
 export { projectPlayerActionRefresh, resolvePlayerSeat } from "./actions/officeBonus.js";
-export { BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST, proposalNpiCost } from "./legislation/proposalCosts.js";
 export type { PlayerActionProjection, PlayerSeat } from "./actions/officeBonus.js";
 
 // #49: the national-influence per-turn gain is projected from the exact function

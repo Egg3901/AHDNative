@@ -172,6 +172,25 @@ export interface LegislatureView {
   office: string | null;
   /** Playable country the legislature belongs to; keys persisted nav context. */
   countryId?: string;
+  governmentFormation?: {
+    status: "pending" | "formed";
+    executiveTitle: string;
+    officeholderName: string | null;
+    nomineeAvailable: boolean;
+    nomineeDisabledReason?: string;
+    nomination: ActionView;
+    votes: Array<{
+      id: string;
+      nomineeName: string;
+      partyName: string;
+      status: string;
+      votesFor: number;
+      votesAgainst: number;
+      closesTurn: number;
+      playerVote: "aye" | "nay" | null;
+      voting: ActionView;
+    }>;
+  };
   proposals: { id: string; title: string; description: string }[];
   sponsor: ActionView;
   bills: { id: string; title: string; status: string; chamber: string; chamberKey?: string; sponsorName: string;

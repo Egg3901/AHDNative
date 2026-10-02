@@ -370,6 +370,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (Array.isArray(subsidies) && subsidies.length > 0) {
     return { ok: false, error: `Industry subsidy records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  const pmAppointmentVotes = world["pmAppointmentVotes"];
+  if (pmAppointmentVotes !== undefined && (!Array.isArray(pmAppointmentVotes) || pmAppointmentVotes.length > 0)) {
+    return { ok: false, error: `PM appointment vote history cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const regionalMetrics = world["regionalMetrics"];
   if (isRecord(regionalMetrics) && Object.keys(regionalMetrics).length > 0) {
     return { ok: false, error: `Regional metric records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
@@ -577,6 +581,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["countryPolitics"];
   delete candidateWorld["interbankLoans"];
   delete candidateWorld["subsidies"];
+  // PM appointment ballots were introduced after the authentic schema-42
+  // reader. An empty backfill is reconstructable; a live ballot is refused
+  // above because the old reader cannot advance its deadline or tally.
+  delete candidateWorld["pmAppointmentVotes"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
   delete candidateWorld["nppInfluenceAttempts"];
@@ -717,6 +725,111 @@ function assertSaveWorldRoot(value: unknown): asserts value is WorldState {
   }
 }
 
+function validatePmAppointmentVotes(world: WorldState): void {
+  const records = (world as unknown as Record<string, unknown>)["pmAppointmentVotes"];
+  if (!Array.isArray(records)) throw new Error("Not a valid save file: invalid PM appointment votes");
+  const ids = new Set<string>();
+  for (const raw of records) {
+    if (!isRecord(raw)) throw new Error("Not a valid save file: invalid PM appointment vote");
+    const vote = raw;
+    const turnFields = [vote["openedTurn"], vote["closesTurn"]];
+    if (
+      typeof vote["id"] !== "string" || vote["id"].length === 0 || ids.has(vote["id"]) ||
+      vote["countryId"] !== "IE" || vote["chamberKey"] !== "dail" ||
+      typeof vote["partyId"] !== "string" || !world.parties[vote["partyId"]] ||
+      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !world.coalitions.some((coalition) => coalition.id === vote["coalitionId"]))) ||
+      (vote["coalitionPartyIds"] !== null && (!Array.isArray(vote["coalitionPartyIds"]) || vote["coalitionPartyIds"].length < 2 || new Set(vote["coalitionPartyIds"]).size !== vote["coalitionPartyIds"].length || !vote["coalitionPartyIds"].every((partyId) => typeof partyId === "string" && world.parties[partyId]?.countryId === "IE"))) ||
+      vote["nomineeId"] !== "player" || typeof vote["nomineeName"] !== "string" || vote["nomineeName"].length === 0 ||
+      (vote["formationType"] !== "majority" && vote["formationType"] !== "minority" && vote["formationType"] !== "coalition") ||
+      !turnFields.every((turn) => typeof turn === "number" && Number.isSafeInteger(turn) && turn >= 0) ||
+      (vote["closesTurn"] as number) <= (vote["openedTurn"] as number) ||
+      !["active", "passed", "failed", "cancelled"].includes(String(vote["status"])) ||
+      !isRecord(vote["votes"]) ||
+      typeof vote["votesFor"] !== "number" || !Number.isSafeInteger(vote["votesFor"]) || vote["votesFor"] < 0 ||
+      typeof vote["votesAgainst"] !== "number" || !Number.isSafeInteger(vote["votesAgainst"]) || vote["votesAgainst"] < 0 ||
+      (vote["closedTurn"] !== null && (typeof vote["closedTurn"] !== "number" || !Number.isSafeInteger(vote["closedTurn"]) || vote["closedTurn"] < (vote["openedTurn"] as number)))
+    ) throw new Error("Not a valid save file: invalid PM appointment vote");
+    ids.add(vote["id"]);
+    for (const [voterId, choice] of Object.entries(vote["votes"])) {
+      if ((voterId !== "player" && !world.politicians.some((politician) => politician.id === voterId)) || (choice !== "aye" && choice !== "nay")) {
+        throw new Error("Not a valid save file: invalid PM appointment ballot");
+      }
+    }
+    if ((vote["status"] === "active") !== (vote["closedTurn"] === null)) {
+      throw new Error("Not a valid save file: inconsistent PM appointment vote lifecycle");
+    }
+  }
+}
+
+function validateGovernmentDirectives(world: WorldState): void {
+  for (const [countryId, raw] of Object.entries(world.governments)) {
+    if (!isRecord(raw)) throw new Error("Not a valid save file: invalid government state");
+    const hasAgenda = Object.prototype.hasOwnProperty.call(raw, "governingAgenda");
+    const hasStance = Object.prototype.hasOwnProperty.call(raw, "fiscalStance");
+    const hasPm = Object.prototype.hasOwnProperty.call(raw, "directivesForPmId");
+    const hasGoals = Object.prototype.hasOwnProperty.call(raw, "governingGoals");
+    if (!hasAgenda && !hasStance && !hasPm && !hasGoals) continue;
+    if (
+      countryId !== "IE" || raw["countryId"] !== "IE" || raw["status"] !== "formed" ||
+      raw["pmPoliticianId"] === "player" || typeof raw["pmPoliticianId"] !== "string" ||
+      raw["directivesForPmId"] !== raw["pmPoliticianId"] || !hasAgenda || !hasStance || !hasPm
+    ) throw new Error("Not a valid save file: invalid NPC government directive authority");
+    const pm = world.politicians.find((politician) => politician.id === raw["pmPoliticianId"]);
+    if (!pm || pm.countryId !== "IE" || pm.partyId !== raw["governingPartyId"]) {
+      throw new Error("Not a valid save file: invalid NPC government directive PM");
+    }
+    const agenda = raw["governingAgenda"];
+    if (
+      !isRecord(agenda) || !Array.isArray(agenda["items"]) || agenda["items"].length > 6 ||
+      !["reformer", "ideologue", "technocrat", "steward"].includes(String(agenda["archetype"])) ||
+      !Number.isSafeInteger(agenda["computedTurn"]) || (agenda["computedTurn"] as number) < 0 ||
+      (agenda["computedTurn"] as number) > world.meta.turn
+    ) throw new Error("Not a valid save file: invalid governing agenda");
+    for (const item of agenda["items"]) {
+      if (
+        !isRecord(item) || typeof item["domain"] !== "string" || item["domain"].length === 0 ||
+        !Number.isFinite(item["target"]) || (item["target"] as number) < 0 || (item["target"] as number) > 100 ||
+        !["raise", "lower", "hold"].includes(String(item["direction"])) ||
+        !Number.isFinite(item["priority"]) || (item["priority"] as number) < 0 || (item["priority"] as number) > 1 ||
+        (item["crisis"] !== undefined && typeof item["crisis"] !== "boolean")
+      ) throw new Error("Not a valid save file: invalid governing agenda item");
+    }
+    const stance = raw["fiscalStance"];
+    if (
+      !isRecord(stance) || !["expansionary", "neutral", "austere"].includes(String(stance["stance"])) ||
+      ![-1, 0, 1].includes(stance["direction"] as number) || !Number.isFinite(stance["intensity"]) ||
+      (stance["intensity"] as number) < 0 || (stance["intensity"] as number) > 1 ||
+      !Number.isSafeInteger(stance["computedTurn"]) || stance["computedTurn"] !== agenda["computedTurn"] ||
+      (stance["stance"] === "expansionary" && stance["direction"] !== -1) ||
+      (stance["stance"] === "austere" && stance["direction"] !== 1) ||
+      (stance["stance"] === "neutral" && stance["direction"] !== 0)
+    ) throw new Error("Not a valid save file: invalid fiscal stance");
+    if (hasGoals) {
+      const goalState = raw["governingGoals"];
+      if (
+        !isRecord(goalState) || !Array.isArray(goalState["goals"]) || goalState["goals"].length > 5 ||
+        !Number.isSafeInteger(goalState["updatedTurn"]) || (goalState["updatedTurn"] as number) < 0 ||
+        (goalState["updatedTurn"] as number) > world.meta.turn
+      ) throw new Error("Not a valid save file: invalid governing goals");
+      for (const goal of goalState["goals"]) {
+        if (
+          !isRecord(goal) || typeof goal["domain"] !== "string" || goal["domain"].length === 0 ||
+          !["raise", "lower"].includes(String(goal["direction"])) ||
+          !Number.isFinite(goal["target"]) || (goal["target"] as number) < 0 || (goal["target"] as number) > 100 ||
+          !Number.isFinite(goal["priority"]) || (goal["priority"] as number) < 0 || (goal["priority"] as number) > 1 ||
+          !["active", "achieved", "failed", "revised"].includes(String(goal["status"])) ||
+          !["openedTurn", "reviewedTurn", "strikes"].every((key) => Number.isSafeInteger(goal[key]) && (goal[key] as number) >= 0) ||
+          (goal["openedTurn"] as number) > (goalState["updatedTurn"] as number) ||
+          (goal["reviewedTurn"] as number) > (goalState["updatedTurn"] as number) ||
+          !Number.isFinite(goal["openingAttainment"]) || (goal["openingAttainment"] as number) < 0 || (goal["openingAttainment"] as number) > 1 ||
+          !Number.isFinite(goal["attainment"]) || (goal["attainment"] as number) < 0 || (goal["attainment"] as number) > 1 ||
+          (goal["crisis"] !== undefined && typeof goal["crisis"] !== "boolean")
+        ) throw new Error("Not a valid save file: invalid governing goal record");
+      }
+    }
+  }
+}
+
 const REQUIRED_WORLD_ARRAYS = [
   "politicians", "elections", "referendums", "impeachments", "charters", "caucuses",
   "endorsements", "extractionContracts", "prospectingSurveys", "achievementsEarned",
@@ -724,7 +837,7 @@ const REQUIRED_WORLD_ARRAYS = [
   "cabinetMembers", "cabinetNominations", "supremeCourtSeats", "scotusNominations", "docketCases",
   "ukJudicialReviewCases", "activeWorldModifiers", "crises", "playerEventLog", "governorAddresses",
   "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans", "interbankLoans",
-  "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies",
+  "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies", "pmAppointmentVotes",
 ] as const;
 
 const REQUIRED_WORLD_RECORDS = [
@@ -3257,10 +3370,9 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 50;
   }
-  // v50 -> v51: source political dynamics. Existing saves retain the recorded
-  // absence of boards and cabinet snapshots. Seeding a progressed game here
-  // would invent scores and history. The new version keeps older readers
-  // from accepting and freezing the new turn-dependent records.
+  // v50 -> v51: persist source political dynamics, including NPP directives
+  // and political boards. Keep recorded absence on legacy saves; seeding a
+  // progressed game here would invent government posture, scores or history.
   if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Historical actions have no reconstructable history. Preserve absence.
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
@@ -3302,6 +3414,13 @@ export function deserializeSave(raw: string): WorldState {
   // Pre-#48 Native saves always applied recorded stats. Preserve that ruleset
   // when the new key is absent; present malformed values still fail closed.
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
+  // PM appointment ballots are an additive save field; pre-feature and older
+  // current-schema saves have no vote history to recover.
+  if (!Array.isArray((save.world as unknown as Record<string, unknown>)["pmAppointmentVotes"])) {
+    (save.world as unknown as Record<string, unknown>)["pmAppointmentVotes"] = [];
+  }
+  validatePmAppointmentVotes(save.world);
+  validateGovernmentDirectives(save.world);
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
   validateCommandEconomySave(save.world);

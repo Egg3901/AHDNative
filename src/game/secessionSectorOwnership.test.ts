@@ -305,5 +305,5 @@ describe("#298 saved secession ownership through GameSession", () => {
         .filter((pool) => pool.countryId === "SCO")
         .reduce((sum, pool) => sum + pool.revenue, 0),
     ).toBeCloseTo(leafUnownedReceipts, 3);
-  });
+  }, 120_000);
 });

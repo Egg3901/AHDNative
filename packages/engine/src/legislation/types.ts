@@ -51,7 +51,7 @@ export interface Bill {
   sponsorPartyId: string | null;
   adminProposed?: boolean;
   nppSponsored?: boolean;
-  /** Source proposal accounting; refunded exactly once when this bill passes. */
+  /** Source proposal accounting for the public ledger; refunded once if this bill passes. */
   proposalActionCost?: number;
   proposalNpiCost?: number;
   proposalCostsRefunded?: boolean;

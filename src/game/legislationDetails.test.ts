@@ -91,9 +91,43 @@ describe("legislationDetails query (detached, bounded)", () => {
 
   it("exposes Ireland's authored VAT options and sends the chosen 23% rate through the player contract", () => {
     const world = createWorld({ era: "1991", countryId: "IE", seed: "ie-vat-screen", playerName: "P", mode: "hos" });
+    world.governments.IE!.status = "formed";
     const proposal = buildLegislationDetails(world).proposals.find((entry) => entry.id === "ie_vat_rate");
     expect(proposal?.taxPolicy?.options?.find((option) => option.rate === 23)).toMatchObject({ id: "ie_vat_rate_opt_6" });
     expect(sponsorParamsForLegislation("ie_vat_rate", { taxRate: 23 })).toEqual({ catalogId: "ie_vat_rate", taxRate: 23 });
+  });
+
+  it("shows the source formation freeze in the player proposal projection", () => {
+    const world = createWorld({ era: "1991", countryId: "IE", seed: "ie-vat-freeze-screen", playerName: "P", mode: "hos" });
+    world.governments.IE!.status = "pending";
+    const proposal = buildLegislationDetails(world).proposals.find((entry) => entry.id === "ie_vat_rate");
+    expect(proposal).toMatchObject({
+      sponsorAvailable: false,
+      sponsorDisabledReason: "Government is in formation; legislation is frozen until a PM is seated",
+    });
+    world.governments.IE!.status = "formed";
+    expect(buildLegislationDetails(world).proposals.find((entry) => entry.id === "ie_vat_rate")?.sponsorDisabledReason)
+      .not.toBe("Government is in formation; legislation is frozen until a PM is seated");
+  });
+
+  it("projects active VAT law replacement options and source proposal costs", () => {
+    const world = createWorld({ era: "1991", countryId: "IE", seed: "ie-vat-repeal-view", playerName: "P", mode: "hos" });
+    world.governments.IE!.status = "formed";
+    world.enactedLaws.push({
+      id: "ie_vat_rate", countryId: "IE", billId: "bill-vat", enactedAtTurn: 4,
+      level: 0, scope: "national",
+    });
+    const law = buildLegislationDetails(world).enactedLaws?.[0];
+    expect(law).toMatchObject({
+      id: "ie_vat_rate", title: "Statutory Value-Added Tax Act", enactedAtTurn: 4,
+      scope: "national",
+    });
+    const proposal = buildLegislationDetails(world).proposals.find((entry) => entry.id === "ie_vat_rate");
+    expect(proposal).toMatchObject({ sponsorCost: 10, sponsorNpiCost: 5 });
+    expect(proposal?.taxPolicy?.options?.find((option) => option.rate === 0)).toMatchObject({ id: "ie_vat_rate_opt_0" });
+    expect(proposal?.sponsorAvailable).toBe(false);
+    world.player.nationalInfluence = 5;
+    expect(buildLegislationDetails(world).proposals.find((entry) => entry.id === "ie_vat_rate")?.sponsorAvailable).toBe(true);
   });
 
   it("shows a sponsored bill in its origin-chamber active partition with selected-bill details", () => {
