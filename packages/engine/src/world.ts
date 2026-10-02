@@ -181,10 +181,11 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v62: union-law, underground organizing, detection, and ban-strike continuation
 // must not be accepted by the schema-61 reader, which cannot consume that state.
 // v63: source primary National Corporation identity and cross-sector routing.
-// v64 combines source NPP physical replacement orders and cash-write witnesses
-// with allocated seatsHeld weights needed by winner, ballot and government
-// continuation. Older readers cannot consume this combined state.
-export const SCHEMA_VERSION = 64;
+// v64: allocated seatsHeld weights needed by winner, ballot and government
+// continuation. Older readers cannot consume this state.
+// v65: source NPP physical replacement, cash-write and corporate FX-spread
+// witnesses; older readers cannot continue these finance flows.
+export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

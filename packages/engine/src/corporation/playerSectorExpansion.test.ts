@@ -10,6 +10,39 @@ import { getSectorTechEffects } from "./techTree/selectors.js";
 import { NEUTRAL_STAT } from "../stats/characterStats.js";
 
 describe("source player greenfield sector expansion", () => {
+  it("founding abroad charges and routes the source sector FX spread", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "player-sector-fx", playerName: "Alex" });
+    world.player.cash = 1_000_000;
+    const startingCapital = Math.round(20_000_000 * getEraNominalScale(world.meta.era));
+    expect(executeAction(world, "player", "foundCorporation", {
+      corporationName: "Atlantic Industries", tickerSymbol: "ATLN", sectorType: "manufacturing", startingCapital,
+    }).ok).toBe(true);
+    const corporation = Object.values(world.corporations).find((row) => row.tickerSymbol === "ATLN")!;
+    const host = Object.values(world.regions).find((region) => region.countryId === "UK" && !region.corporationHeadquartersOnly)!;
+    world.unownedSectors[`${host.countryId}:${host.id}:manufacturing`] = {
+      countryId: host.countryId, sectorType: "manufacturing", regionId: host.id, revenue: 50_000_000,
+    };
+    const beforeCash = corporation.liquidCapital;
+    const beforeUsRevenue = world.centralBanks.US!.forexRevenue ?? 0;
+    const beforeUkReserve = world.centralBanks.UK!.spreadFeeReserveBalances?.USD ?? 0;
+    const result = executeAction(world, "player", "expandCorporationSector", {
+      corporationId: corporation.id, regionId: host.id, sectorType: "manufacturing",
+    });
+    expect(result.ok).toBe(true);
+    const row = world.corporateCashLedger!.find((item) => item.corporationId === corporation.id)!;
+    const spreadAnchor = ((row.meta.entryFeeAnchor ?? 0) + (row.meta.costAnchor ?? 0)) * 0.005;
+    expect(row.meta.fxSpreadAnchor).toBeCloseTo(spreadAnchor, 6);
+    const spreadLocal = anchorToLocal(spreadAnchor, getRateForCountry(world, "US"));
+    expect(corporation.liquidCapital).toBeCloseTo(beforeCash - anchorToLocal((row.meta.entryFeeAnchor ?? 0) + (row.meta.costAnchor ?? 0) + spreadAnchor, getRateForCountry(world, "US")), 6);
+    expect(world.centralBanks.US!.forexRevenue).toBe(beforeUsRevenue + Math.round(spreadLocal * 0.25));
+    expect(world.centralBanks.UK!.spreadFeeReserveBalances?.USD).toBe(beforeUkReserve + Math.round(Math.round(spreadLocal) * 0.5));
+    expect(world.corporateSectors?.[`corporate-sector:UK:manufacturing:${corporation.id}:${host.id}`]?.countryId).toBe("UK");
+    const reloaded = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    expect(reloaded.centralBanks.US?.forexRevenue).toBe(world.centralBanks.US?.forexRevenue);
+    expect(reloaded.centralBanks.UK?.spreadFeeReserveBalances).toEqual(world.centralBanks.UK?.spreadFeeReserveBalances);
+    expect(reloaded.corporateCashLedger).toEqual(world.corporateCashLedger);
+  });
+
   it("pays fee and priced first facility, writes a regional asset and draws its actual pool", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "player-sector-expansion", playerName: "Alex" });
     world.player.cash = 1_000_000;
@@ -57,9 +90,9 @@ describe("source player greenfield sector expansion", () => {
     });
     validateCorporateCashLedger(world.corporateCashLedger);
     const duplicateRegion = executeAction(world, "player", "expandCorporationSector", {
-      corporationId: corporation.id, regionId: "VA", sectorType: "energy",
+      corporationId: corporation.id, regionId: "VA", sectorType: "manufacturing",
     });
-    expect(duplicateRegion).toMatchObject({ ok: false, error: "This corporation already operates in the selected region" });
+    expect(duplicateRegion).toMatchObject({ ok: false, error: "This corporation already operates in the selected region and sector" });
     const reloaded = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     expect(reloaded.corporateSectors?.[assetId]).toEqual(asset);
     expect(reloaded.unownedSectors["US:VA:manufacturing"]).toEqual(world.unownedSectors["US:VA:manufacturing"]);

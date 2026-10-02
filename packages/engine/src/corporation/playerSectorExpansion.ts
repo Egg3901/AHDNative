@@ -25,10 +25,10 @@ const BUILD_TURNS: Record<CorporationType, number> = {
 };
 
 export type ExpandPlayerCorporationResult =
-  | { ok: true; assetId: string; entryFeeAnchor: number; starterBuildAnchor: number; onlineTurn: number }
+  | { ok: true; assetId: string; entryFeeAnchor: number; starterBuildAnchor: number; fxSpreadAnchor: number; onlineTurn: number }
   | { ok: false; error: string };
 
-/** Game expandSector greenfield first-plant transaction, domestic same-currency path. */
+/** Game expandSector greenfield first-plant transaction. */
 export function expandPlayerCorporationSector(
   world: WorldState,
   input: { corporationId: string; regionId: string; sectorType: CorporationType },
@@ -38,15 +38,11 @@ export function expandPlayerCorporationSector(
   if (corporation.ceoId !== "player" || corporation.ceoType !== "player" || corporation.ceoVacant === true) return { ok: false, error: "Only the corporation's active CEO may expand operations" };
   if (!(CORPORATION_TYPES as readonly string[]).includes(input.sectorType)) return { ok: false, error: "Unknown corporation sector type" };
   const region = world.regions[input.regionId];
-  if (!region || region.countryId !== corporation.countryId || region.corporationHeadquartersOnly) return { ok: false, error: "Choose a source-authored operating region in the corporation's country" };
+  if (!region || region.corporationHeadquartersOnly) return { ok: false, error: "Choose a source-authored operating region" };
   const marketization = world.commandEconomy[region.countryId]?.marketizationLevel ?? scheduledMarketizationLevel(region.countryId, Number(world.meta.date.slice(0, 4)));
   if (marketization < COMMAND_CEILING) return { ok: false, error: "Private sectors cannot be founded in a command economy" };
-  // This slice accepts only same-country cash/host currency. The Game route
-  // adds a routed 0.5% sector FX spread cross-border; Native does not yet have
-  // the source sector-FX conversion-spread ledger/central-bank writer.
-  if (resolveCountryCurrency(world, corporation.countryId) !== resolveCountryCurrency(world, region.countryId)) return { ok: false, error: "Cross-currency sector founding requires the source FX-spread route" };
   const assets = corporateSectorAssets(world);
-  if (Object.values(assets).some((asset) => asset.corporationId === corporation.id && asset.stateId === input.regionId)) return { ok: false, error: "This corporation already operates in the selected region" };
+  if (Object.values(assets).some((asset) => asset.corporationId === corporation.id && asset.stateId === input.regionId && asset.sectorType === input.sectorType)) return { ok: false, error: "This corporation already operates in the selected region and sector" };
   const pool = Object.values(world.unownedSectors).find((candidate) => candidate.countryId === region.countryId && candidate.regionId === input.regionId && candidate.sectorType === input.sectorType && Number.isFinite(candidate.revenue) && candidate.revenue > 0);
   if (!pool) return { ok: false, error: "No positive source unowned-market pool is recorded for this region and sector" };
   if (input.sectorType === "extraction") return { ok: false, error: "Extraction entry requires the source regional deposit-headroom and resource writeback path" };
@@ -75,7 +71,10 @@ export function expandPlayerCorporationSector(
   const hostMultiplier = Number.isFinite(costOfLiving) && (costOfLiving ?? 0) > 0 ? Math.min(1.6, Math.max(0.6, costOfLiving! / 100)) : 1;
   const listPrice = capacityPricePerUnitAnchor(input.sectorType, corporateSectorBasePrices(world), null, year);
   const starterBuildAnchor = units * listPrice * nationalDominance * rateMultiplier * acumenMultiplier * tech.growthCostMultiplier * hostMultiplier * 0.9;
-  const totalCostAnchor = entryFeeAnchor + starterBuildAnchor;
+  const fromCurrency = resolveCountryCurrency(world, corporation.countryId);
+  const toCurrency = resolveCountryCurrency(world, region.countryId);
+  const fxSpreadAnchor = fromCurrency !== toCurrency ? (entryFeeAnchor + starterBuildAnchor) * 0.005 : 0;
+  const totalCostAnchor = entryFeeAnchor + starterBuildAnchor + fxSpreadAnchor;
   const fxRate = getRateForCountry(world, corporation.countryId);
   const totalCostLocal = anchorToLocal(totalCostAnchor, fxRate);
   const cashBefore = corporation.liquidCapital;
@@ -105,9 +104,18 @@ export function expandPlayerCorporationSector(
   const cashRow = makeNppFoundingCashRecord({
     corp: corporation, world, sector: asset, units, costLocal: totalCostLocal,
     cashDeltaLocal: cashAfter - cashBefore, costAnchor: starterBuildAnchor,
-    entryFeeAnchor, onlineTurn,
+    entryFeeAnchor, fxSpreadAnchor, onlineTurn,
   });
   if (!cashRow) return { ok: false, error: "Could not build a valid source founding cash witness" };
+
+  // Game marketMaker.distributeConversionSpread routes a 25% source-CB
+  // forexRevenue leg and 50% destination-CB foreign reserve leg (remaining
+  // 25% is extinguished). In this save family the supported authored currencies
+  // have one explicit Native central-bank anchor each.
+  const spreadRoute = fxSpreadAnchor > 0
+    ? resolveSectorSpreadRoute(world, fromCurrency, toCurrency, Math.round(anchorToLocal(fxSpreadAnchor, fxRate)))
+    : undefined;
+  if (fxSpreadAnchor > 0 && !spreadRoute) return { ok: false, error: "Cross-currency founding requires source central-bank FX anchors" };
 
   // The source writes company cash, a located build order, pool headroom and
   // the realized cash witness as one command result.
@@ -117,11 +125,35 @@ export function expandPlayerCorporationSector(
   const nextLedger = [...(world.corporateCashLedger ?? []), cashRow];
   validateCorporateSectorAssets(world, nextAssets);
   validateCorporateCashLedger(nextLedger);
+  if (spreadRoute) {
+    const source = world.centralBanks[spreadRoute.sourceCountryId]!;
+    const destination = world.centralBanks[spreadRoute.destinationCountryId]!;
+    source.forexRevenue = (source.forexRevenue ?? 0) + spreadRoute.forexRevenue;
+    destination.spreadFeeReserveBalances ??= {};
+    destination.spreadFeeReserveBalances[fromCurrency] = (destination.spreadFeeReserveBalances[fromCurrency] ?? 0) + spreadRoute.reserveAmount;
+  }
   assets[assetId] = asset;
   pool.revenue = poolRevenueAfter;
   corporation.liquidCapital = cashAfter;
   world.corporateCashLedger = nextLedger;
-  return { ok: true, assetId, entryFeeAnchor, starterBuildAnchor, onlineTurn };
+  return { ok: true, assetId, entryFeeAnchor, starterBuildAnchor, fxSpreadAnchor, onlineTurn };
+}
+
+function resolveSectorSpreadRoute(
+  world: WorldState,
+  fromCurrency: string,
+  toCurrency: string,
+  feeLocal: number,
+): { sourceCountryId: string; destinationCountryId: string; forexRevenue: number; reserveAmount: number } | undefined {
+  const anchorCountry: Record<string, string> = { USD: "US", GBP: "UK", SUR: "RU", DDM: "DD" };
+  const sourceCountryId = anchorCountry[fromCurrency];
+  const destinationCountryId = anchorCountry[toCurrency];
+  if (!sourceCountryId || !destinationCountryId || !world.centralBanks[sourceCountryId] || !world.centralBanks[destinationCountryId]) return undefined;
+  return {
+    sourceCountryId, destinationCountryId,
+    forexRevenue: Math.round(feeLocal * 0.25),
+    reserveAmount: Math.round(feeLocal * 0.5),
+  };
 }
 
 function sourcePoolHeadroom(world: WorldState, pool: { countryId: string; sectorType: CorporationType; revenue: number }): number {

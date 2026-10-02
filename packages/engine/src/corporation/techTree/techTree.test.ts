@@ -141,7 +141,7 @@ describe("source corporate technology state", () => {
       delete corp.techDecadeChosenTurn;
     }
     const restored = deserializeSave(JSON.stringify(raw));
-    expect(restored.meta.schemaVersion).toBe(64);
+    expect(restored.meta.schemaVersion).toBe(65);
     expect(restored.corporations["US-energy"]!.unlockedTechNodeIds).toBeUndefined();
     expect(restored.corporations["US-energy"]!.techDecadeLane).toBeUndefined();
     expect(restored.corporateCashLedger).toBeUndefined();

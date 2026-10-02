@@ -25,6 +25,7 @@ export interface CorporateCashLedgerRecord {
     costAnchor?: number;
     onlineTurn?: number;
     entryFeeAnchor?: number;
+    fxSpreadAnchor?: number;
   };
 }
 
@@ -59,6 +60,7 @@ export function makeNppFoundingCashRecord(input: {
   cashDeltaLocal: number;
   costAnchor: number;
   entryFeeAnchor: number;
+  fxSpreadAnchor?: number;
   onlineTurn: number;
 }): CorporateCashLedgerRecord | undefined {
   if (!(input.costLocal > 0 && Number.isFinite(input.costLocal) && input.costAnchor > 0 && Number.isFinite(input.costAnchor) && input.units > 0)) return undefined;
@@ -68,7 +70,7 @@ export function makeNppFoundingCashRecord(input: {
     id, type: "corp_sector_founding", turn, corporationId: input.corp.id,
     corporationName: input.corp.name || "Corporation", amount: input.cashDeltaLocal,
     currencyCode: input.world.budgets?.[input.corp.countryId]?.currencyCode ?? "USD",
-    meta: { ledgerKey: id, sectorId: input.sector.id, sectorType: input.sector.sectorType, units: input.units, costAnchor: input.costAnchor, entryFeeAnchor: input.entryFeeAnchor, onlineTurn: input.onlineTurn },
+    meta: { ledgerKey: id, sectorId: input.sector.id, sectorType: input.sector.sectorType, units: input.units, costAnchor: input.costAnchor, entryFeeAnchor: input.entryFeeAnchor, ...(input.fxSpreadAnchor !== undefined ? { fxSpreadAnchor: input.fxSpreadAnchor } : {}), onlineTurn: input.onlineTurn },
   };
 }
 
@@ -145,6 +147,7 @@ export function validateCorporateCashLedger(value: unknown): void {
       if (typeof details[key] !== "number" || !Number.isFinite(details[key]) || details[key] < 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
     if (isFounding && (typeof details["entryFeeAnchor"] !== "number" || !Number.isFinite(details["entryFeeAnchor"]) || details["entryFeeAnchor"] < 0)) throw new Error(`Invalid corporate cash ledger entryFeeAnchor for ${expectedId}`);
+    if (details["fxSpreadAnchor"] !== undefined && (typeof details["fxSpreadAnchor"] !== "number" || !Number.isFinite(details["fxSpreadAnchor"]) || details["fxSpreadAnchor"] < 0)) throw new Error(`Invalid corporate cash ledger fxSpreadAnchor for ${expectedId}`);
     ids.add(expectedId);
   }
 }

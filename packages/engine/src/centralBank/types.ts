@@ -172,6 +172,10 @@ export interface FomcNomination {
 /** Source: db/types/centralBank.ts CentralBank (ported subset — see file doc). */
 export interface CentralBank {
   countryId: string;
+  /** Source marketMaker.distributeSpreadFee receipt; absent on pre-finance64 saves means 0. */
+  forexRevenue?: number;
+  /** Source marketMaker.distributeSpreadFee reserve by originating currency. */
+  spreadFeeReserveBalances?: Record<string, number>;
   /** Prior-turn aggregate savings pool in this bank's currency jurisdiction; absent means source fallback 0. */
   nationalSavingsBalance?: number;
   /** Facility-interest cash receipts; absent on older saves means zero. */
