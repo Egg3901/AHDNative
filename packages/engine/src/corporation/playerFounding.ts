@@ -1,7 +1,7 @@
 import type { WorldState } from "../types.js";
 import { getRateForCountry } from "../forex/conversion.js";
 import { getEraNominalScale } from "../commodity/constants.js";
-import { COMMAND_CEILING, scheduledMarketizationLevel } from "../commandEconomy/constants.js";
+import { privateEnterprisePermittedInCountry } from "./privateEnterpriseGate.js";
 import { CEO_INITIAL_SHARES, DEFAULT_SHARE_PRICE, MIN_SHARE_PRICE } from "../market/constants.js";
 import { CORPORATION_TYPES, type CorporationType } from "./types.js";
 import { foundingTechState } from "./techTree/nppUnlock.js";
@@ -33,8 +33,7 @@ export function foundPlayerCorporation(world: WorldState, input: FoundPlayerCorp
   const hq = hqRegionId ? world.regions[hqRegionId] : undefined;
   if (!hq || hq.countryId !== world.player.countryId) return { ok: false, error: "Choose a valid home region before founding a corporation" };
   const year = Number(world.meta.date.slice(0, 4));
-  const marketization = world.commandEconomy[world.player.countryId]?.marketizationLevel ?? scheduledMarketizationLevel(world.player.countryId, year);
-  if (marketization < COMMAND_CEILING) return { ok: false, error: "Private corporations cannot be founded in a command economy" };
+  if (!privateEnterprisePermittedInCountry(world, world.player.countryId)) return { ok: false, error: "Private corporations cannot be founded in a command economy" };
   if (Object.values(world.corporations).some((corp) => corp.ceoId === "player" && corp.ceoVacant !== true)) return { ok: false, error: "You already own an active corporation" };
   const lastFounded = world.player.lastCorporationFoundedTurn;
   if (lastFounded !== undefined && lastFounded <= world.meta.turn && lastFounded + 168 > world.meta.turn) return { ok: false, error: `You can found another corporation in ${lastFounded + 168 - world.meta.turn} turns` };

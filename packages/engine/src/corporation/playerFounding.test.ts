@@ -7,7 +7,7 @@ import { getRateForCountry } from "../forex/conversion.js";
 
 describe("source player corporation founding", () => {
   it("debits the founder, seeds the private issuer and persists player origin, CEO, shares, HQ, and cooldown", () => {
-    const world = createWorld({ era: "1953", countryId: "US", seed: "player-corp-founding", playerName: "Alex", startingCash: 1_000_000 });
+    const world = createWorld({ era: "1953", countryId: "US", seed: "player-corp-founding", playerName: "Alex" });
     world.player.cash = 1_000_000;
     const scale = getEraNominalScale(world.meta.era);
     const rate = getRateForCountry(world, "US");
@@ -34,7 +34,7 @@ describe("source player corporation founding", () => {
   });
 
   it("rejects inaccessible home markets and cooldown attempts without debiting cash", () => {
-    const world = createWorld({ era: "1953", countryId: "RU", seed: "player-corp-founding-command", playerName: "Alex", startingCash: 1_000_000 });
+    const world = createWorld({ era: "1953", countryId: "RU", seed: "player-corp-founding-command", playerName: "Alex" });
     const baseline = Math.round(1_000_000 * getEraNominalScale(world.meta.era));
     const cash = world.player.cash;
     const blocked = executeAction(world, "player", "foundCorporation", {
@@ -44,7 +44,7 @@ describe("source player corporation founding", () => {
     expect(world.player.cash).toBe(cash);
     expect(world.player.lastCorporationFoundedTurn).toBeUndefined();
 
-    const market = createWorld({ era: "1953", countryId: "US", seed: "player-corp-founding-cooldown", playerName: "Alex", startingCash: 1_000_000 });
+    const market = createWorld({ era: "1953", countryId: "US", seed: "player-corp-founding-cooldown", playerName: "Alex" });
     market.player.cash = 1_000_000;
     market.player.lastCorporationFoundedTurn = market.meta.turn;
     const heldCash = market.player.cash;

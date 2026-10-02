@@ -1,6 +1,6 @@
 import type { WorldState } from "../types.js";
 import { anchorToLocal, getRateForCountry } from "../forex/conversion.js";
-import { isPlannedEconomy } from "../commandEconomy/constants.js";
+import { privateEnterprisePermittedInCountry } from "./privateEnterpriseGate.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { mergeCorporateSectorPhysicalLedger } from "./physicalAssetMerge.js";
 
@@ -45,8 +45,7 @@ export function buyCorporateSectorForSale(
   if (buyer.ceoId !== "player" || buyer.ceoVacant === true) {
     return { ok: false, error: "You must be the active CEO of the buying corporation." };
   }
-  const economy = world.commandEconomy[asset.countryId];
-  if (economy && isPlannedEconomy(economy.marketizationLevel)) {
+  if (!privateEnterprisePermittedInCountry(world, asset.countryId)) {
     return { ok: false, error: "This market is state-controlled under a command economy and is closed to private sector expansion." };
   }
 

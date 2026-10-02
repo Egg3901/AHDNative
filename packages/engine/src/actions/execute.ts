@@ -71,6 +71,7 @@ import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudge
 import { splitNationalCorporation, mergeNationalCorporation } from "../corporation/nationalReorganization.js";
 import { foundPlayerCorporation } from "../corporation/playerFounding.js";
 import { expandPlayerCorporationSector } from "../corporation/playerSectorExpansion.js";
+import { buyCorporateSectorForSale } from "../corporation/corporateSectorAcquire.js";
 import type { CorporationType } from "../corporation/types.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
@@ -89,7 +90,6 @@ export type ExecuteActionParams = {
   count?: number;
   amount?: number; // for convertCash
   corporationName?: string;
-  corporationId?: string;
   tickerSymbol?: string;
   sectorType?: CorporationType;
   secondarySectorType?: CorporationType;
@@ -167,7 +167,6 @@ export type ExecuteActionParams = {
   subsidyOp?: "enact" | "end";
   subsidyScope?: string;
   subsidyScopeType?: "economy_wide" | "sector";
-  sectorType?: string;
   targetStrategyId?: string;
   domesticOnly?: boolean;
   directiveOp?: "setGosbankPosture";
@@ -507,6 +506,13 @@ function executeActionInner(
     return result.ok
       ? { ok: true, message: `Expanded ${corporation.tickerSymbol} into ${params.regionId}; first capacity comes online on turn ${result.onlineTurn}.` }
       : { ok: false, error: result.error };
+  }
+  if (actionId === "buyCorporateSector") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can buy a corporate sector" };
+    const result = buyCorporateSectorForSale(world, params.sectorId ?? "", params.corporationId ?? "");
+    return result.ok
+      ? { ok: true, message: `Bought the listed sector for ${result.priceAnchor} anchor units.` }
+      : { ok: false, error: result.error ?? "Corporate sector purchase failed." };
   }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
@@ -2624,6 +2630,9 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "expandCorporationSector":
       return params.corporationId && params.regionId
         ? null : "expandCorporationSector requires corporationId and regionId";
+    case "buyCorporateSector":
+      return params.corporationId && params.sectorId
+        ? null : "buyCorporateSector requires corporationId and sectorId";
     case "canvass":
     case "organize":
     case "pressureBoost":

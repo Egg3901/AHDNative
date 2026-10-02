@@ -108,6 +108,7 @@ export type ActionId =
   | "expandRegionalExtraction"
   | "foundCorporation"
   | "expandCorporationSector"
+  | "buyCorporateSector"
   | "issueExtractionContract"
   | "acceptExtractionContract"
   | "declineExtractionContract"
@@ -923,6 +924,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "expandCorporationSector",
     name: "Expand Corporation into a Region",
     description: "Pay the source entry fee and a priced first-facility order to enter a recorded regional market as the active corporation CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "regional-markets"],
+    status: "available",
+  },
+  buyCorporateSector: {
+    id: "buyCorporateSector",
+    name: "Buy Listed Corporate Sector",
+    description: "As an active corporate CEO, buy a listed operating sector from its current issuer. The host market's source command-economy gate and both issuer cash ledgers apply.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,

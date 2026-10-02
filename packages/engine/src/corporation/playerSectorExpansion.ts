@@ -1,7 +1,7 @@
 import type { WorldState } from "../types.js";
 import { anchorToLocal, getRateForCountry, localToAnchor } from "../forex/conversion.js";
 import { getEraNominalScale } from "../commodity/constants.js";
-import { COMMAND_CEILING, scheduledMarketizationLevel } from "../commandEconomy/constants.js";
+import { privateEnterprisePermittedInCountry } from "./privateEnterpriseGate.js";
 import { resolveCountryCurrency } from "../bonds/denomination.js";
 import { CORPORATION_TYPES, type CorporationType } from "./types.js";
 import { corporateSectorAssets, initialRepresentingUnionId, validateCorporateSectorAssets } from "./corporateSectorAssets.js";
@@ -40,8 +40,7 @@ export function expandPlayerCorporationSector(
   if (!(CORPORATION_TYPES as readonly string[]).includes(input.sectorType)) return { ok: false, error: "Unknown corporation sector type" };
   const region = world.regions[input.regionId];
   if (!region || region.corporationHeadquartersOnly) return { ok: false, error: "Choose a source-authored operating region" };
-  const marketization = world.commandEconomy[region.countryId]?.marketizationLevel ?? scheduledMarketizationLevel(region.countryId, Number(world.meta.date.slice(0, 4)));
-  if (marketization < COMMAND_CEILING) return { ok: false, error: "Private sectors cannot be founded in a command economy" };
+  if (!privateEnterprisePermittedInCountry(world, region.countryId)) return { ok: false, error: "Private sectors cannot be founded in a command economy" };
   const assets = corporateSectorAssets(world);
   if (Object.values(assets).some((asset) => asset.corporationId === corporation.id && asset.stateId === input.regionId && asset.sectorType === input.sectorType)) return { ok: false, error: "This corporation already operates in the selected region and sector" };
   const pool = Object.values(world.unownedSectors).find((candidate) => candidate.countryId === region.countryId && candidate.regionId === input.regionId && candidate.sectorType === input.sectorType && Number.isFinite(candidate.revenue) && candidate.revenue > 0);
