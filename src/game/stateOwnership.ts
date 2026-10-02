@@ -14,7 +14,7 @@ export function projectStateOwnership(world: WorldState, countryId = world.playe
       ...entry,
       firm: entry.formerCorpName,
       pathLabel: "Executive",
-      tierLabel: "Seizure",
+      tierLabel: entry.tier === "fair" ? "Fair value" : entry.tier === "discounted" ? "Discounted" : "Seizure",
       triggerLabel: entry.triggers[0] === "npc" ? "NPC-owned" : "Financial distress",
       // Source registerView renders a zero seizure payout as missing, while
       // the summary correctly includes a zero compensation total.

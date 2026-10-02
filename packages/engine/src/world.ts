@@ -166,11 +166,14 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
 // v52: durable state-ownership action history; older readers cannot record continuation.
-// v53: source nationalization eligibility and issuer history; earlier saves
-// retain absent creation/grace history rather than receiving invented clocks.
-// v54: persisted labour political snapshots affect future regional dynamics;
-// older readers retain unknown JSON but cannot consume the consequence.
-export const SCHEMA_VERSION = 54;
+// v53: nationalization origin and grace history.
+// v54: persisted labour political snapshots consumed by regional dynamics.
+// v55: source primary waves, delegates and campaign history.
+// v56: corporate strategy-transition state.
+// v57: source paid-taking tiers, confidence history and actual ownership concentration.
+// v58: presidential unit ruleset and election-scoped governor endorsement ledger.
+// v61: country-scoped parliamentary player appointments beyond the Irish-only reader.
+export const SCHEMA_VERSION = 61;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

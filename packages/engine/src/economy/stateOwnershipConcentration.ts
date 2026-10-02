@@ -1,23 +1,31 @@
 /**
- * State Ownership Concentration Index (SOCI) — solo port of
+ * State Ownership Concentration Index (SOCI), solo port of
  * src/lib/nationalization/concentration.ts's pure math (clampConcentration,
  * sociMultiplier). A per-country 0-100 measure of state-owned corporate
  * revenue ÷ total national corporate revenue.
  *
- * PORT-STUB substitution, cited: mainline's live computation
- * (computeCountryStateOwnershipConcentration) sums every corp's
- * `countryOwnerId === countryId` sector revenue against the national total —
- * a per-corp nationalization/state-ownership flag AHDClient's Corporation type
- * does not carry (see corporation/types.ts; no nationalization action wave
- * has landed). W7's marketization dial already tracks the one form of
- * state-directed economic activity AHDClient models — `plannedShare`, the
- * fraction of a command economy's activity the plan governs — so this wave
- * uses `plannedShare(marketizationLevel) * 100` as the revenue-share proxy: a
- * fully-command country (RU/DD at their 1953 seed) reads a high SOCI, a
- * market country reads 0. The escalation multiplier (`sociMultiplier`) is
- * ported and exposed for a future nationalization-cost wave to consume; it
- * has no cost-channel consumer yet in solo.
+ * Game sums operating-country assets, with only that country's state owners
+ * in the numerator. Game stores asset receipts in the owner's currency;
+ * Native plantProduction records host-local receipts. Normalize each store
+ * in its own denomination before applying the same anchor-revenue ratio.
  */
+import type { WorldState } from "../types.js";
+import { getRateForCountry, localToAnchor } from "../forex/conversion.js";
+
+/** Current source computeCountryStateOwnershipConcentration, Native store adapter. */
+export function computeCountryStateOwnershipConcentration(world: WorldState, countryId: string): number {
+  let totalRevenueAnchor = 0;
+  let stateRevenueAnchor = 0;
+  for (const asset of Object.values(world.corporateSectors ?? {})) {
+    if (asset.countryId !== countryId) continue;
+    const corporation = world.corporations[asset.corporationId];
+    if (!corporation) continue;
+    const revenueAnchor = localToAnchor(asset.revenue ?? corporation.revenue, getRateForCountry(world, asset.countryId));
+    totalRevenueAnchor += revenueAnchor;
+    if (corporation.countryOwnerId === countryId) stateRevenueAnchor += revenueAnchor;
+  }
+  return totalRevenueAnchor > 0 ? clampConcentration(100 * stateRevenueAnchor / totalRevenueAnchor) : 0;
+}
 
 /** SOCI value at/below which the escalation multiplier is exactly 1.0. */
 export const SOCI_DANGER_ZONE = 35;

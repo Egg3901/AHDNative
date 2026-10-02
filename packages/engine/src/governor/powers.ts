@@ -34,7 +34,7 @@
  */
 
 import type { WorldState } from "../types.js";
-import type { GovernorAddress, GovernorOrder } from "./types.js";
+import type { GovernorAddress, GovernorEndorsement, GovernorOrder } from "./types.js";
 import {
   ADDRESS_ACTION_COST,
   ADDRESS_AGENDA_DURATION_TURNS,
@@ -47,6 +47,7 @@ import {
   EXEC_ORDER_DURATION_TURNS,
   EXEC_ORDER_MAX_STEPS,
   EXEC_ORDER_SLOT_CAP,
+  GOVERNOR_ENDORSEMENT_ACTION_COST,
 } from "./constants.js";
 
 // ---------------------------------------------------------------------------
@@ -232,6 +233,64 @@ export function issueGovernorOrder(
 // ---------------------------------------------------------------------------
 // Pure read helpers for tests / UI
 // ---------------------------------------------------------------------------
+export function endorsePresidentialCandidate(
+  world: WorldState,
+  stateId: string,
+  electionId: string,
+  candidateId: string,
+): { ok: true; endorsementId: string } | { ok: false; error: string } {
+  const office = world.governors[stateId];
+  if (!office || office.countryId !== world.player.countryId) return { ok: false, error: "No matching governor office." };
+  if (office.governorId !== "player") return { ok: false, error: "You do not hold this governor's office." };
+  if (office.governorParty == null) return { ok: false, error: "Governor party is unavailable." };
+  const election = world.elections.find((race) => race.id === electionId);
+  if (!election || election.status !== "active") return { ok: false, error: "Election is not active." };
+  if (election.countryId !== office.countryId || election.electionType !== "president") {
+    return { ok: false, error: "This governor action only endorses an active presidential race in the same country." };
+  }
+  const candidate = election.candidates.find((entry) => entry.id === candidateId && (entry.status ?? "active") === "active");
+  if (!candidate) return { ok: false, error: "Candidate is not active." };
+  if (candidate.partyId !== office.governorParty) return { ok: false, error: "Cannot endorse across party lines." };
+  const ledger = election.governorEndorsements ?? [];
+  if (ledger.some((row) => row.isActive && row.stateId === stateId)) {
+    return { ok: false, error: "You already have an active endorsement for this race." };
+  }
+  if (office.gubernatorialActions < GOVERNOR_ENDORSEMENT_ACTION_COST) {
+    return { ok: false, error: "Insufficient office action points." };
+  }
+  const id = `gov-endorsement:${electionId}:${stateId}:player:${world.meta.turn}:${ledger.length}`;
+  const endorsement: GovernorEndorsement = {
+    id,
+    stateId,
+    candidateId,
+    endorsedById: "player",
+    createdAtTurn: world.meta.turn,
+    isActive: true,
+  };
+  office.gubernatorialActions -= GOVERNOR_ENDORSEMENT_ACTION_COST;
+  election.governorEndorsements = [...ledger, endorsement];
+  return { ok: true, endorsementId: id };
+}
+
+export function withdrawPresidentialGovernorEndorsement(
+  world: WorldState,
+  electionId: string,
+  endorsementId: string,
+): { ok: true } | { ok: false; error: string } {
+  const election = world.elections.find((race) => race.id === electionId && race.electionType === "president");
+  const endorsement = election?.governorEndorsements?.find((row) => row.id === endorsementId && row.isActive);
+  if (!election || !endorsement) return { ok: false, error: "Active endorsement not found." };
+  // Game's DELETE route checks both the human office-holder and original
+  // endorser. A still-seated NPC's ledger does not grant the player authority.
+  if (world.governors[endorsement.stateId]?.governorId !== "player" || endorsement.endorsedById !== "player") {
+    return { ok: false, error: "Only the sitting governor may withdraw this endorsement." };
+  }
+  endorsement.isActive = false;
+  endorsement.withdrawnAtTurn = world.meta.turn;
+  endorsement.withdrawnReason = "manual";
+  return { ok: true };
+}
+
 export function activeGovernorOrders(world: WorldState, stateId: string): GovernorOrder[] {
   return world.governorOrders.filter((o) => o.stateId === stateId && o.status === "active");
 }

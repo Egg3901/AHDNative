@@ -1,6 +1,9 @@
 import type { WorldState } from "../types.js";
 import type { ElectionRecord } from "./types.js";
-import { electoralVotesFromSeats } from "../electionEngine/resolution/apportionment.js";
+import {
+  electoralVoteUnitsFromSeats,
+  electoralVotesFromSeats,
+} from "../electionEngine/resolution/apportionment.js";
 import { eraToPreset } from "../electionEngine/resolution/constants.js";
 
 /**
@@ -18,15 +21,10 @@ import { eraToPreset } from "../electionEngine/resolution/constants.js";
  * preset and live year, so the era gates apply structurally here instead
  * of living only in the helper's own tests.
  *
- * NO-INVENTED-GEOGRAPHY GUARANTEE: the helper's DC entry is intersected
- * back to live `world.regions` — the recorded DC headquarters-only row has no political electorate
- * (no House seats, demographics or tally), so emitting DC would invent
- * electors the EC path can never allocate. Likewise ME/NE stay
- * winner-take-all: AHDClient has no congressional-district entities at all
- * (house races are single per-state multi-seat contests — see
- * `tallyAdapter.ts` `stateSliceFor` / orchestration.ts's `state: r.id`
- * house spec), so the district split has no structural home here even
- * where the era gate would allow it. For the 1953 pack (48 states,
+ * DC's Game fallback state and source-generated presidential demographics are
+ * applied only to this Electoral College path. The native headquarters-only
+ * region stays out of every other regional mechanic. ME/NE use source
+ * congressional-district units when their year gates are active. For the 1953 pack (48 states,
  * sourced from mainline's `HOUSE_SEATS_1953` / `ELECTORAL_VOTES_1953` —
  * see `packages/engine/src/electionEngine/resolution/constants.ts`, which
  * holds that table byte-for-byte for golden tests) the gates are inert:
@@ -37,8 +35,8 @@ import { eraToPreset } from "../electionEngine/resolution/constants.js";
 /**
  * Electoral votes per modeled region of `countryId`, via the ported
  * `electoralVotesFromSeats` helper (live `houseSeats`, era preset + live
- * year). Only live regions are returned — never DC or any other
- * non-region geography the helper may add for its own era gates.
+ * year). DC is included only when a headquarters-only DC row exists and its
+ * source year gate is active.
  */
 export function electoralVotesByState(world: WorldState, countryId: string): Record<string, number> {
   const seats: Record<string, number> = {};
@@ -56,7 +54,35 @@ export function electoralVotesByState(world: WorldState, countryId: string): Rec
     const v = evAll[id];
     if (v !== undefined) ev[id] = v;
   }
+  if (countryId === "US" && world.regions.DC?.corporationHeadquartersOnly === true && evAll.DC !== undefined) {
+    ev.DC = evAll.DC;
+  }
   return ev;
+}
+
+/** Source apportionment units intersected with electoral regions in this world. */
+export function electoralVoteUnitsForWorld(
+  world: WorldState,
+  countryId: string,
+): Array<{ unitId: string; ev: number; stateId: string }> {
+  const seats: Record<string, number> = {};
+  for (const region of Object.values(world.regions)) {
+    if (region.countryId !== countryId || region.corporationHeadquartersOnly === true) continue;
+    seats[region.id] = region.houseSeats ?? 0;
+  }
+  const liveYear = Number(world.meta.date.slice(0, 4));
+  const units = electoralVoteUnitsFromSeats(seats, {
+    preset: eraToPreset(world.meta.era),
+    year: Number.isFinite(liveYear) ? liveYear : null,
+  });
+  // Game's fallback DC state supplies the source 689,545 population and its
+  // source-generated demographic table. This synthetic electoral unit is
+  // intentionally local to presidential tallies; the HQ row stays excluded
+  // from regional population and other election mechanics.
+  return units.filter((unit) =>
+    seats[unit.stateId] !== undefined ||
+    (unit.stateId === "DC" && world.regions.DC?.corporationHeadquartersOnly === true),
+  );
 }
 
 export interface ElectoralCollegeResult {
@@ -94,16 +120,20 @@ export function allocateElectoralVotes(world: WorldState, rec: ElectionRecord): 
   const stateTallyStates = rec.stateTallyStates as Record<string, { totalVotes?: Record<string, number> }> | undefined;
   if (!stateTallyStates || Object.keys(stateTallyStates).length === 0) return null;
 
-  const evByState = electoralVotesByState(world, rec.countryId);
+  const stateTallies = stateTallyStates;
+  const units = electoralVoteUnitsForWorld(world, rec.countryId);
   const evByCandidate: Record<string, number> = {};
   const stateWinners: Record<string, string> = {};
   let totalEv = 0;
 
-  for (const stateId of Object.keys(stateTallyStates).sort((a, b) => a.localeCompare(b))) {
-    const ev = evByState[stateId];
-    if (!ev || ev <= 0) continue; // defensive: state has no live EV data (not a real region)
+  for (const unit of units) {
+    const ev = unit.ev;
+    if (!Number.isFinite(ev) || ev <= 0) continue;
 
-    const votes = stateTallyStates[stateId]?.totalVotes ?? {};
+    // Split-state tallies are stored under the source unit id. Legacy saves
+    // have only the statewide row, which remains a deterministic fallback for
+    // each newly introduced district unit until that election is resolved.
+    const votes = stateTallies[unit.unitId]?.totalVotes ?? stateTallies[unit.stateId]?.totalVotes ?? {};
     // Stable votes-descending sort with no secondary key: an exact tie keeps
     // insertion (candidate) order, matching mainline electoralVoteService.ts.
     const entries = Object.entries(votes)
@@ -113,7 +143,7 @@ export function allocateElectoralVotes(world: WorldState, rec: ElectionRecord): 
     if (!top) continue; // no votes cast in this state yet
 
     const winnerId = top[0];
-    stateWinners[stateId] = winnerId;
+    stateWinners[unit.unitId] = winnerId;
     evByCandidate[winnerId] = (evByCandidate[winnerId] ?? 0) + ev;
     totalEv += ev;
   }

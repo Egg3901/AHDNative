@@ -2,6 +2,7 @@ import type { TurnPhase } from "../phases/types.js";
 import { runElectionResolution, runElectionTimers, runVoteAccumulation } from "./orchestration.js";
 import { detectFoundingComplete } from "./founding.js";
 import { resolvePrimaries } from "./primaryResolution.js";
+import { tickPrimaryCampaigns } from "../actions/primaryCampaign.js";
 
 /**
  * Live election phases (W21c). Relative order mirrors mainline turnPhaseNames:
@@ -18,6 +19,9 @@ export const voteAccumulationPhase: TurnPhase = {
 export const primaryResolutionPhase: TurnPhase = {
   name: "primaryResolution",
   run(world) {
+    // In AHDGame, campaignTurn precedes primaryResolution; campaign-state
+    // ticks therefore affect a stagger wave on this same completed turn.
+    tickPrimaryCampaigns(world);
     resolvePrimaries(world);
   },
 };

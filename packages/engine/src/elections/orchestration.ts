@@ -19,6 +19,7 @@ import { ensureCampaignsForElection, archiveCampaignsForElection } from "../camp
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
 import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
+import { processPresidentialPrimaryWave } from "./primaryStaggerPhase.js";
 import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS } from "../government/constants.js";
 
 /**
@@ -276,6 +277,9 @@ function makeChallenger(world: WorldState, rng: WorldRng, rec: ElectionRecord, p
     partyId,
     chamberKey: "",
     electedState: undefined,
+    // Game src/lib/npp/generator.ts stores config.state as NPP.homeState;
+    // state-specific election generation passes its stateId, national races do not.
+    ...(rec.state && world.regions[rec.state]?.countryId === rec.countryId ? { homeState: rec.state } : {}),
     senateClass: undefined,
     ideology: {
       economic: clamp5((party?.economicPosition ?? 0) + jitter()),
@@ -806,6 +810,12 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
       startTurn: plan.startTurn,
       primaryEndTurn: plan.primaryEndTurn,
       endTurn: plan.endTurn,
+      // AHDGame stamps the whole new presidential race at the active source
+      // ruleset; the legacy primary-specific slot remains for its existing
+      // lifecycle consumers until those are unified.
+      ...(plan.countryId === "US" && plan.electionType === "president"
+        ? { primaryRulesetVersion: 3, presidentialRulesetVersion: 3 }
+        : {}),
       totalSeats: spec.totalSeats,
       chamberKey: spec.chamberKey,
       candidates: [],
@@ -911,6 +921,11 @@ export function runVoteAccumulation(world: WorldState, rng: WorldRng): void {
   // gate. Their ledger is deliberately separate from rec.tally, which starts
   // accumulating general votes only after the primary nominee is stamped.
   recordPrimarySnapshots(world);
+  for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
+    // The source scheduler catches up every outstanding wave inside the
+    // eligible window, processing each due wave in calendar order.
+    while (processPresidentialPrimaryWave(world, rec)) { /* next due wave */ }
+  }
   const inWindow = world.elections.filter(
     (rec) => rec.status === "active" && world.meta.turn > rec.primaryEndTurn && world.meta.turn <= rec.endTurn &&
       (!requiresPrimaryResolution(rec) || rec.primaryResults !== undefined),
