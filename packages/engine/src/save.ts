@@ -12,6 +12,7 @@ import { normalizeShares } from "./alignment/alignment.js";
 import { validateAlignmentRecords } from "./alignment/recordValidation.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
 import { assignUsSeatGeography } from "./elections/seatGeography.js";
+import { PRIMARY_WAVES } from "./elections/data/usPrimaryCalendar.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION, corporationIdentity } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
@@ -48,6 +49,7 @@ import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
 import { validatePoliticalState } from "./politicalMetrics/validate.js";
+import { validateNationalizationEligibilityState } from "./corporation/nationalizationEligibility.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
@@ -193,6 +195,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(poolRows) && Object.keys(poolRows).length > 0) {
     return { ok: false, error: "Bond market pool cash cannot be projected to the schema 42 turn reader; keep this Native save." };
   }
+  const ownershipMetadata = world["corporations"];
+  if (isRecord(ownershipMetadata) && Object.values(ownershipMetadata).some(corp => isRecord(corp) &&
+    ["nationalizationOwnerKind", "financialDistressSinceTurn", "ceoVacantSinceTurn", "privatizedAtTurn"].some(key => hasOwn(corp, key)))) {
+    return { ok: false, error: "Nationalization origin and grace clocks cannot be continued by schema 42. Keep this Native save." };
+  }
+
   const budgets = world["budgets"];
   if (isRecord(budgets)) for (const [countryId, row] of Object.entries(budgets)) {
     if (!isRecord(row)) continue;
@@ -204,6 +212,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     ) {
       return { ok: false, error: `Budget ${countryId} solidarity surcharge state cannot be projected to the schema 42 turn reader; keep this Native save.` };
     }
+
   }
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
@@ -1217,6 +1226,187 @@ function validateSoeSave(world: WorldState): void {
       throw new Error(`Not a valid save file: ${corporation.id} SOE directorId must be a character ID or null`);
     }
   }
+}
+
+function validatePresidentialPrimaryLedger(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const race = rawRace;
+    const hasLedger = [
+      "primaryStateVotes", "primaryDelegates", "primaryDelegatesByState",
+      "primaryAllocationByState", "primaryWaveHistory", "primaryStaggerWavesRun",
+      "primaryRulesetVersion", "primaryConventionResults",
+      "primaryCampaignState", "primaryCampaignTicks", "primarySurgeUsed", "primarySurgeBoost",
+    ].some((key) => race[key] !== undefined) ||
+      (Array.isArray(race["candidates"]) && race["candidates"].some((candidate) =>
+        isRecord(candidate) && ["primaryCampaignState", "primaryCampaignTicks", "primarySurgeUsed", "primarySurgeBoost"]
+          .some((key) => candidate[key] !== undefined),
+      ));
+    if (!hasLedger) continue;
+    if (race["countryId"] !== "US" || race["electionType"] !== "president") {
+      throw new Error("Not a valid save file: presidential primary ledger belongs only to a US presidential race");
+    }
+    const version = race["primaryRulesetVersion"];
+    if (version !== undefined && (!Number.isSafeInteger(version) || (version as number) < 1)) {
+      throw new Error("Not a valid save file: invalid presidential primary ruleset version");
+    }
+    if (Array.isArray(race["candidates"])) {
+      for (const rawCandidate of race["candidates"]) {
+        if (!isRecord(rawCandidate)) continue;
+        const stateId = rawCandidate["primaryCampaignState"];
+        const ticks = rawCandidate["primaryCampaignTicks"];
+        const surgeUsed = rawCandidate["primarySurgeUsed"];
+        const surgeBoost = rawCandidate["primarySurgeBoost"];
+        if (
+          (stateId !== undefined && (race["countryId"] !== "US" || race["electionType"] !== "president" ||
+            typeof stateId !== "string" || world.regions[stateId]?.countryId !== "US")) ||
+          (ticks !== undefined && (!Number.isSafeInteger(ticks) || (ticks as number) < 0 || (ticks as number) > 5 ||
+            ((ticks as number) > 0 && typeof stateId !== "string"))) ||
+          (surgeUsed !== undefined && typeof surgeUsed !== "boolean") ||
+          (surgeBoost !== undefined && (typeof surgeBoost !== "number" || !Number.isFinite(surgeBoost) || surgeBoost < 0 || surgeBoost > 100))
+        ) {
+          throw new Error("Not a valid save file: invalid presidential primary candidate campaign state");
+        }
+      }
+    }
+    const stretchedOffsets = [40, 32, 24, 16, 8, 0];
+    const history = race["primaryWaveHistory"];
+    if (history !== undefined) {
+      if (!Array.isArray(history) || history.length > PRIMARY_WAVES.length) {
+        throw new Error("Not a valid save file: invalid presidential primary wave history");
+      }
+      for (let index = 0; index < history.length; index += 1) {
+        const entry = history[index];
+        const sourceWave = PRIMARY_WAVES[index];
+        const turnsRemaining = ((version as number | undefined) ?? 1) >= 3
+          ? stretchedOffsets[index]
+          : sourceWave?.turnsRemaining;
+        if (
+          !isRecord(entry) || !sourceWave || entry["wave"] !== index ||
+          entry["turnsRemaining"] !== turnsRemaining ||
+          !Number.isSafeInteger(entry["turn"]) || (entry["turn"] as number) < 0 ||
+          (entry["turn"] as number) > world.meta.turn ||
+          (index > 0 && (entry["turn"] as number) < ((history[index - 1] as Record<string, unknown>)["turn"] as number)) ||
+          !Array.isArray(entry["statesVoted"]) ||
+          JSON.stringify(entry["statesVoted"]) !== JSON.stringify(sourceWave.states)
+        ) {
+          throw new Error("Not a valid save file: invalid presidential primary wave history entry");
+        }
+      }
+      const wavesRun = race["primaryStaggerWavesRun"];
+      if (wavesRun !== undefined && (!Number.isSafeInteger(wavesRun) || wavesRun !== history.length)) {
+        throw new Error("Not a valid save file: presidential primary wave count disagrees with its history");
+      }
+    }
+    const validateNumberTree = (value: unknown, label: string, depth: number): void => {
+      if (depth === 0 || !isRecord(value)) throw new Error(`Not a valid save file: invalid presidential primary ${label}`);
+      for (const [key, child] of Object.entries(value)) {
+        if (!key.trim()) throw new Error(`Not a valid save file: invalid presidential primary ${label} key`);
+        if (typeof child === "number") {
+          if (!Number.isSafeInteger(child) || child < 0) throw new Error(`Not a valid save file: invalid presidential primary ${label} value`);
+        } else {
+          validateNumberTree(child, label, depth - 1);
+        }
+      }
+    };
+    for (const key of ["primaryStateVotes", "primaryDelegates", "primaryDelegatesByState"] as const) {
+      if (race[key] !== undefined) validateNumberTree(race[key], key, key === "primaryDelegates" ? 2 : 3);
+    }
+    const knownCandidates = new Set(
+      Array.isArray(race["candidates"])
+        ? race["candidates"].flatMap((candidate) =>
+            isRecord(candidate) && typeof candidate["id"] === "string" ? [candidate["id"]] : [],
+          )
+        : [],
+    );
+    for (const key of ["primaryStateVotes", "primaryDelegates", "primaryDelegatesByState"] as const) {
+      const tree = race[key];
+      if (!isRecord(tree)) continue;
+      for (const [partyId, branch] of Object.entries(tree)) {
+        if (!world.parties[partyId] || !isRecord(branch)) {
+          throw new Error(`Not a valid save file: presidential primary ${key} references an unknown party`);
+        }
+        for (const [stateOrCandidateId, values] of Object.entries(branch)) {
+          if (key === "primaryDelegates" && !knownCandidates.has(stateOrCandidateId)) {
+            throw new Error("Not a valid save file: presidential primary delegates reference an unknown candidate");
+          }
+          if (key !== "primaryDelegates" && !world.regions[stateOrCandidateId]) {
+            throw new Error(`Not a valid save file: presidential primary ${key} references an unknown state`);
+          }
+          if (key === "primaryDelegates") continue;
+          if (!isRecord(values)) continue;
+          for (const candidateId of Object.keys(values)) {
+            if (!knownCandidates.has(candidateId)) {
+              throw new Error(`Not a valid save file: presidential primary ${key} references an unknown candidate`);
+            }
+          }
+        }
+      }
+    }
+    const allocation = race["primaryAllocationByState"];
+    if (allocation !== undefined) {
+      if (!isRecord(allocation)) throw new Error("Not a valid save file: invalid presidential primary allocations");
+      for (const byState of Object.values(allocation)) {
+        if (!isRecord(byState) || Object.values(byState).some((method) => method !== "PR" && method !== "WTA")) {
+          throw new Error("Not a valid save file: invalid presidential primary allocation method");
+        }
+      }
+      for (const [partyId, byState] of Object.entries(allocation)) {
+        if (!world.parties[partyId]) throw new Error("Not a valid save file: presidential primary allocation references an unknown party");
+        if (!isRecord(byState)) continue;
+        for (const stateId of Object.keys(byState)) {
+          if (!world.regions[stateId]) throw new Error("Not a valid save file: presidential primary allocation references an unknown state");
+        }
+      }
+    }
+    const wavesRun = race["primaryStaggerWavesRun"];
+    if (wavesRun !== undefined && (!Number.isSafeInteger(wavesRun) || (wavesRun as number) < 0 || (wavesRun as number) > PRIMARY_WAVES.length)) {
+      throw new Error("Not a valid save file: invalid presidential primary wave count");
+    }
+    const conventions = race["primaryConventionResults"];
+    if (conventions !== undefined) {
+      if (!isRecord(conventions)) throw new Error("Not a valid save file: invalid presidential primary convention results");
+      for (const [partyId, result] of Object.entries(conventions)) {
+        if (!partyId.trim() || !isRecord(result) ||
+            (result["mode"] !== "delegate_majority" && result["mode"] !== "convention") ||
+            typeof result["winnerCandidateId"] !== "string" || !result["winnerCandidateId"].trim() ||
+            typeof result["firstBallotLeaderId"] !== "string" || !result["firstBallotLeaderId"].trim() ||
+            !Number.isSafeInteger(result["majorityThreshold"]) || (result["majorityThreshold"] as number) <= 0 ||
+            typeof result["resolvedAt"] !== "string" || !Number.isFinite(Date.parse(result["resolvedAt"]))) {
+          throw new Error("Not a valid save file: invalid presidential primary convention result");
+        }
+      }
+    }
+  }
+}
+
+function validatePrimaryStateOrganizations(world: WorldState): void {
+  const validateOwner = (
+    ownerId: string,
+    ownerCountryId: string,
+    raw: unknown,
+  ): void => {
+    if (raw === undefined) return;
+    if (ownerCountryId !== "US" || !isRecord(raw)) {
+      throw new Error(`Not a valid save file: ${ownerId} has invalid primary state organizations`);
+    }
+    for (const [stateId, value] of Object.entries(raw)) {
+      if (
+        !world.regions[stateId] ||
+        world.regions[stateId]!.countryId !== "US" ||
+        !isRecord(value) ||
+        !Number.isSafeInteger(value["level"]) || (value["level"] as number) < 1 ||
+        !Number.isFinite(value["totalInvested"]) || (value["totalInvested"] as number) < 0 ||
+        !Number.isSafeInteger(value["updatedAtTurn"]) || (value["updatedAtTurn"] as number) < 0 || (value["updatedAtTurn"] as number) > world.meta.turn ||
+        !Number.isSafeInteger(value["lastBuildTurn"]) || (value["lastBuildTurn"] as number) < 0 ||
+        (value["lastBuildTurn"] as number) > (value["updatedAtTurn"] as number) ||
+        !Number.isFinite(value["lastBuildFunds"]) || (value["lastBuildFunds"] as number) < 0
+      ) {
+        throw new Error(`Not a valid save file: ${ownerId} has invalid primary state organization for ${stateId}`);
+      }
+    }
+  };
+  validateOwner("player", world.player.countryId, world.player.primaryStateOrganizations);
 }
 
 export function deserializeSave(raw: string): WorldState {
@@ -3264,6 +3454,11 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Historical actions have no reconstructable history. Preserve absence.
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
+  // Schema 53 preserves absent source nationalization ownership/eligibility history.
+  // The next persisted field family is owned by the political-feedback line (54).
+  // Schema 55 adds optional primary waves, delegates and campaign records. Do not
+  // synthesize primary history: the first due wave records actual turn state.
+  if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3304,11 +3499,14 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
+  validatePresidentialPrimaryLedger(save.world);
+  validatePrimaryStateOrganizations(save.world);
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);
   validateBankingState(save.world);
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
+  validateNationalizationEligibilityState(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing

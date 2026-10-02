@@ -32,6 +32,8 @@ import * as CampaignManager from "./campaignManager.js";
 import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as CampaignContribute from "./campaignContribute.js";
+import { buildStatePresence } from "./campaignPresence.js";
+import { setPrimaryCampaignState, usePrimaryHomeStateSurge } from "./primaryCampaign.js";
 import * as Referendum from "../referendum/request.js";
 import * as ReferendumCampaign from "../referendum/campaign.js";
 import * as ReferendumGroundGame from "../referendum/groundGame.js";
@@ -399,6 +401,21 @@ function executeActionInner(
   // Cooldown check
   const readyAt = actor.actionCooldowns[actionId] ?? 0;
   if (turn < readyAt) return { ok: false, error: `Action ${actionId} on cooldown until turn ${readyAt}` };
+
+  // Campaign presence is charged to the active campaign's own source pools,
+  // not to the character. Resolve it before generic player AP/accounting.
+  if (actionId === "buildStatePresence") {
+    const result = buildStatePresence(world, actorId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "setPrimaryCampaignState") {
+    const result = setPrimaryCampaignState(world, actorId, params.electionId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "usePrimaryHomeStateSurge") {
+    const result = usePrimaryHomeStateSurge(world, actorId, params.electionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
@@ -1706,6 +1723,7 @@ function executeActionInner(
       corp.ceoId = "player";
       corp.ceoType = "player";
       corp.ceoVacant = false;
+      delete corp.ceoVacantSinceTurn;
       delete corp.pendingCeoId;
       return { ok: true, message: `You are now CEO of ${corp.tickerSymbol}` };
     }
@@ -1736,6 +1754,7 @@ function executeActionInner(
 
     if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "You are not the active CEO of this corporation" };
     corp.ceoVacant = true;
+    corp.ceoVacantSinceTurn = world.meta.turn;
     delete corp.pendingCeoId;
     corp.ceoVotes = [];
     return { ok: true, message: `You resigned as CEO of ${corp.tickerSymbol}; the position is vacant` };
@@ -2466,6 +2485,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.electionId && Object.prototype.hasOwnProperty.call(params, "managerId")
         ? null
         : "campaignManager requires electionId and managerId";
+    case "buildStatePresence":
+      return params.regionId ? null : `${actionId} requires regionId`;
+    case "setPrimaryCampaignState":
+      return params.electionId && params.regionId ? null : `${actionId} requires electionId and regionId`;
+    case "usePrimaryHomeStateSurge":
+      return params.electionId ? null : `${actionId} requires electionId`;
     case "campaignCanvass":
       return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
         ? null

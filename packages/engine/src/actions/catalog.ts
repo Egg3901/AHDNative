@@ -114,6 +114,9 @@ export type ActionId =
   | "campaignRallyTour"
   | "campaignRetarget"
   | "campaignManager"
+  | "buildStatePresence"
+  | "setPrimaryCampaignState"
+  | "usePrimaryHomeStateSurge"
   | "campaignCanvass"
   | "campaignTargetedAd"
   | "campaignContribute"
@@ -690,8 +693,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   nationalizeCorporation: {
     id: "nationalizeCorporation",
-    name: "Nationalize Distressed Corporation",
-    description: "As the elected head of government, seize a distressed domestic corporation into state ownership. The emergency seizure tier pays no shareholder compensation and applies the source transition haircut.",
+    name: "Nationalize Corporation",
+    description: "As the sitting head of government, seize an NPC-owned domestic corporation or a player firm past the source distress grace into state ownership. The emergency seizure tier pays no shareholder compensation and applies the source transition haircut.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,
@@ -957,6 +960,36 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign/management"],
+    status: "available",
+  },
+  buildStatePresence: {
+    id: "buildStatePresence",
+    name: "Build campaign presence",
+    description: "Spend campaign actions and funds to build a source-priced presence level in a US state.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-presence"],
+    status: "available",
+  },
+  setPrimaryCampaignState: {
+    id: "setPrimaryCampaignState",
+    name: "Campaign in a primary state",
+    description: "Move your primary campaign to a US state; the action cost follows that state's source electoral-vote tier.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
+    status: "available",
+  },
+  usePrimaryHomeStateSurge: {
+    id: "usePrimaryHomeStateSurge",
+    name: "Use home-state primary surge",
+    description: "Spend 3 actions and $25,000 for the source 15% vote boost in your home state for this primary.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
     status: "available",
   },
   campaignCanvass: {

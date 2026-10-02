@@ -5,6 +5,7 @@ import { mergeCorporateSectorPhysicalLedger } from "./physicalAssetMerge.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "../government/constants.js";
 import { isRecordedSingleplayerHeadOfGovernment } from "../government/singleplayerHeadOfGovernment.js";
+import { executiveTakingEligibility } from "./nationalizationEligibility.js";
 import { assumedDebtAnchor } from "./stateOwnershipLedger.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
@@ -55,7 +56,7 @@ export function nationalizationTargets(world: WorldState): Array<{ id: string; l
   const assets = corporateSectorAssets(world);
   return Object.values(world.corporations)
     .filter((corporation) => corporation.countryId === world.player.countryId)
-    .filter((corporation) => !isCorpStateOwned(corporation) && Number.isInteger(corporation.insolventSinceTurn))
+    .filter((corporation) => !isCorpStateOwned(corporation) && executiveTakingEligibility(world, corporation).takeable)
     .filter((corporation) => !world.corporations[`NAT-${corporation.countryId}-${corporation.sectorType}`] ||
       isCorpStateOwned(world.corporations[`NAT-${corporation.countryId}-${corporation.sectorType}`]!))
     .filter((corporation) => Object.values(assets).some((asset) => asset.corporationId === corporation.id))
@@ -69,7 +70,7 @@ export function nationalizationUnavailableReason(world: WorldState): string | un
   }
   const targets = nationalizationTargets(world);
   if (targets.length > 0) return undefined;
-  return "No distressed domestic corporation with recorded assets is available for nationalization.";
+  return "No eligible domestic corporation with recorded assets is available for nationalization.";
 }
 
 /**
@@ -97,9 +98,8 @@ export function nationalizeDistressedCorporation(
   if (isCorpStateOwned(donor)) return { ok: false, error: "That corporation is already state-owned." };
   const treasury = world.budgets[donor.countryId];
   if (!treasury) return { ok: false, error: "No national treasury is recorded for this country." };
-  if (!Number.isInteger(donor.insolventSinceTurn)) {
-    return { ok: false, error: "Executive power can only nationalize a distressed corporation." };
-  }
+  const eligibility = executiveTakingEligibility(world, donor);
+  if (!eligibility.takeable) return { ok: false, error: eligibility.reason };
 
   const nationalCorporationId = `NAT-${donor.countryId}-${donor.sectorType}`;
   const existingNational = world.corporations[nationalCorporationId];
@@ -164,6 +164,10 @@ export function nationalizeDistressedCorporation(
   for (const assetId of absorbedAssetIds) {
     const asset = assets[assetId]!;
     const absorbedRevenue = Math.round((asset.revenue ?? donor.revenue) * keep);
+    // Source plants absorption haircuts the built capacity and its paid basis.
+    // Already-paid construction and its queue transfer whole.
+    if (asset.capitalStock !== undefined) asset.capitalStock = Math.round(asset.capitalStock * keep * 100) / 100;
+    if (asset.capacityBookAnchor !== undefined) asset.capacityBookAnchor *= keep;
     const collision = Object.values(assets).find((candidate) =>
       candidate.id !== asset.id && candidate.corporationId === nationalCorporationId &&
       candidate.stateId === asset.stateId && candidate.sectorType === asset.sectorType,
@@ -202,7 +206,7 @@ export function nationalizeDistressedCorporation(
     nationalCorporationId,
     kind: "nationalize_whole",
     method: "executive",
-    triggers: ["distress"],
+    triggers: eligibility.triggers,
     tier: "seizure",
     formerCorpName: donor.name ?? donor.tickerSymbol ?? donor.id,
     sectorTypes,

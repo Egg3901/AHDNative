@@ -32,6 +32,7 @@
  * because no intervening phase mutates corporation earnings history.
  */
 
+import { trackPlayerCorporationDistress } from "./nationalizationEligibility.js";
 import type { TurnPhase } from "../phases/types.js";
 import type { Corporation } from "./types.js";
 import type { PlayerCharacter } from "../types.js";
@@ -362,9 +363,12 @@ export const corporationTurnPhase: TurnPhase = {
         softBudget,
         ...(plannedTargetRate !== undefined ? { plannedTargetRate } : {}),
       });
-      checkInsolvency(corp, world.meta.turn);
+      // Source insolvency uses management, separately from creator ownership.
+      // Legacy absent management is the procedural NPP founding contract.
+      if (!corp.countryOwnerId && (corp.ceoType ?? "npp") === "npp") checkInsolvency(corp, world.meta.turn);
       updateNppCorporationFinancialPolicy(corp, world.meta.era, fx);
     }
+    trackPlayerCorporationDistress(world);
     runCorporateRdInnovations(world);
     syncSourceRegionalSectorReceipts(world);
     stepCorporateSectorStrikes(world, world.meta.turn, labour);

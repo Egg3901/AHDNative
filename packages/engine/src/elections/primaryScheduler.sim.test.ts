@@ -54,6 +54,53 @@ function setupRace(): { world: ReturnType<typeof createWorld>; race: ElectionRec
 }
 
 describe("primary ballot scheduler", () => {
+  it("resolves a non-US parliamentary nominee set before general tally and preserves it on resume", () => {
+    const world = createWorld({ seed: "source-ie-primary-advance", playerName: "Player", countryId: "IE", era: "1991" });
+    world.meta.turn = 10;
+    world.meta.date = "1991-06-12";
+    world.player.partyId = "FF";
+    world.player.policies = { economic: 0, social: 0 };
+    const candidates = ["player", "candidate-2", "candidate-3", "candidate-4"].map((id, index) => {
+      if (id !== "player") {
+        world.politicians.push({
+          id, name: id, gender: "male", countryId: "IE", partyId: "FF", chamberKey: "",
+          ideology: { economic: 0, social: 0 }, age: 45, partyInfluence: 0, bonusActions: 0,
+          actions: 4, funds: 0, donorBaseLevel: 0, favorability: 80 - index * 10,
+          politicalInfluence: 40, infamy: 0, actionCooldowns: {},
+          personality: { loyalty: 50, ambition: 50, stubbornness: 50 }, cash: 0,
+        } as Politician);
+      }
+      return { id, name: id, partyId: "FF", isNPP: false, incumbent: false };
+    });
+    const state = Object.values(world.regions).find((region) => region.countryId === "IE")?.id;
+    const race: ElectionRecord = {
+      id: "dail:IE:DN:c-primary-save",
+      electionType: "dail",
+      countryId: "IE",
+      ...(state ? { state } : {}),
+      cycle: 1,
+      status: "active",
+      startTurn: 0,
+      primaryEndTurn: 10,
+      endTurn: 20,
+      totalSeats: 4,
+      chamberKey: "dail",
+      candidates,
+      tally: {},
+    };
+    world.elections = [race];
+
+    advanceTurn(world);
+    expect(race.primaryResults?.byParty.FF?.filter((entry) => entry.won)).toHaveLength(3);
+    expect(race.candidates).toHaveLength(3);
+
+    const resumed = deserializeSave(serializeSave(world, "2026-09-11T00:00:00Z"));
+    const resumedRace = resumed.elections[0]!;
+    advanceTurn(resumed);
+    expect(resumedRace.primaryResults).toEqual(race.primaryResults);
+    expect(resumedRace.candidates.map((candidate) => candidate.id)).toEqual(race.candidates.map((candidate) => candidate.id));
+  });
+
   it("accrues closing-window ballots and preserves snapshots through save reload", () => {
     const { world, race } = setupRace();
 
@@ -83,5 +130,49 @@ describe("primary ballot scheduler", () => {
 
     expect(race.primaryResults?.byParty.US_DEM?.[0]?.candidateId).toBe(opponentId);
     expect(race.candidates.map((candidate) => candidate.id)).toEqual([opponentId]);
+  });
+
+  it("records presidential state votes and delegates by source wave, then resolves after a save continuation", () => {
+    const world = createWorld({ seed: "source-presidential-primary-waves", playerName: "Player", countryId: "US", era: "1953" });
+    world.player.partyId = "US_DEM";
+    world.player.policies = { economic: -1, social: -1 };
+    world.player.favorability = 70;
+    world.player.politicalInfluence = 50;
+    const opponent: Politician = {
+      id: "pres-primary-opponent", name: "Opponent", countryId: "US", partyId: "US_DEM",
+      ideology: { economic: 0, social: 0 }, gender: "male", chamberKey: "", age: 45,
+      partyInfluence: 0, bonusActions: 0, actions: 4, funds: 0, donorBaseLevel: 0,
+      favorability: 30, politicalInfluence: 25, infamy: 0, actionCooldowns: {},
+      personality: { loyalty: 50, ambition: 50, stubbornness: 50 }, cash: 0,
+    };
+    world.politicians.push(opponent);
+    const race: ElectionRecord = {
+      id: "president:US:-:c-presidential-primary-waves", electionType: "president", countryId: "US",
+      cycle: 1, status: "active", startTurn: 0, primaryEndTurn: 6, endTurn: 10,
+      totalSeats: 1, chamberKey: "president", candidates: [
+        { id: "player", name: "Player", partyId: "US_DEM", isNPP: false, incumbent: false },
+        { id: opponent.id, name: opponent.name, partyId: "US_DEM", isNPP: false, incumbent: false },
+      ], tally: {},
+    };
+    world.elections = [race];
+    for (const row of Object.values(world.partyRegions)) {
+      if (row.countryId === "US" && row.partyId === "US_DEM") row.registration = 60;
+    }
+
+    // Resume after two missed turns. Game catches up every outstanding due
+    // wave in source-calendar order instead of requiring exact-turn equality.
+    world.meta.turn = 2;
+    advanceTurn(world);
+    expect(race.primaryWaveHistory?.map((entry) => entry.wave)).toEqual([0, 1, 2]);
+    expect(Object.keys(race.primaryStateVotes?.US_DEM ?? {})).toEqual(["IA", "NH", "NV", "SC"]);
+    expect(Object.values(race.primaryDelegates?.US_DEM ?? {}).reduce((sum, delegates) => sum + delegates, 0)).toBeGreaterThan(0);
+
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00Z"));
+    const resumedRace = resumed.elections[0]!;
+    for (let turn = 3; turn < 7; turn += 1) advanceTurn(resumed);
+    expect(resumedRace.primaryWaveHistory?.map((entry) => entry.wave)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(resumedRace.primaryResults?.byParty.US_DEM).toHaveLength(2);
+    expect(resumedRace.candidates.map((candidate) => candidate.id)).toHaveLength(1);
+    expect(race.primaryResults).toBeUndefined();
   });
 });

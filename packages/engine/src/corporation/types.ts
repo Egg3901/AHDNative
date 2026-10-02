@@ -179,6 +179,14 @@ export interface Corporation {
   soe?: SoeState;
   /** Original legacy ownership before Native reconstructs a neutral SOE seed. */
   legacySoeProjection?: { countryOwnerId?: string; ownershipState?: "private" | "stateOwned" };
+  /** Source creator ownership, independent of CEO; absent legacy Native means NPC-founded. */
+  nationalizationOwnerKind?: "npc" | "player";
+  /** Source insolvency/default grace clock; no reconstruction from older Native insolvency. */
+  financialDistressSinceTurn?: number | null;
+  /** Source continuous CEO vacancy clock, set on resignation and cleared on acceptance. */
+  ceoVacantSinceTurn?: number | null;
+  /** Source spin-out settlement turn, guarding immediate re-nationalization. */
+  privatizedAtTurn?: number | null;
   foundedAtTurn: number;
   /** Turn persistent insolvency began; null when solvent. */
   insolventSinceTurn: number | null;
