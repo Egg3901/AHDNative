@@ -34,7 +34,7 @@ import {
   processFomcMeetings,
   seedFomcBoard,
 } from "./fomcMeeting.js";
-import { proposeFomcNomination } from "./fomcNominationLifecycle.js";
+import { processFomcNominationLifecycle, proposeFomcNomination } from "./fomcNominationLifecycle.js";
 import type { FomcSeat } from "./types.js";
 
 const OPTS = { seed: "fomc-119", playerName: "Tester", countryId: "US", era: "1953" } as const;
@@ -220,6 +220,37 @@ describe("#119 FOMC meeting lifecycle (turn boundary)", () => {
 });
 
 describe("#119 FOMC nomination lifecycle (turn boundary)", () => {
+  it("weights catch-up votes and re-tallies only current Senate seats at expiry", () => {
+    const world = createWorld(OPTS);
+    seedFomcBoard(world, "US", 0);
+    const senators = world.politicians.filter((holder) => holder.countryId === "US" && holder.chamberKey === "senate");
+    expect(senators.length).toBeGreaterThan(1);
+    const nomineeParty = senators[0]!.partyId;
+    for (const senator of senators) senator.partyId = nomineeParty;
+    senators[0]!.seatsHeld = 3;
+    const id = proposeFomcNomination(world, {
+      countryId: "US", seatId: "seat-2", nomineeNppId: "US-weighted-governor",
+      nomineeName: "Weighted Governor", nomineeParty, occupantType: "npp", alignment: "dove",
+      votingEndsOnTurn: world.meta.turn + 2,
+    });
+    const nomination = world.fomcNominations?.find((row) => row.id === id)!;
+    processFomcNominationLifecycle(world);
+    expect(nomination.votesFor).toBe(senators.length + 2);
+    expect(nomination.votesAgainst).toBe(0);
+
+    // A former senator's ballot and an unknown vote key cannot survive the
+    // source's live-holder recount, and stale stored counters are overwritten.
+    senators[0]!.chamberKey = "house";
+    nomination.votes.npp_ghost = "for";
+    nomination.votesFor = 0;
+    nomination.votesAgainst = 10_000;
+    world.meta.turn = nomination.votingEndsOnTurn;
+    processFomcNominationLifecycle(world);
+    expect(nomination.status).toBe("confirmed");
+    expect(nomination.votesFor).toBe(senators.length - 1);
+    expect(nomination.votesAgainst).toBe(0);
+  });
+
   it("takes a nomination through Senate confirmation into the seat", () => {
     const world = createWorld(OPTS);
     seedFomcBoard(world, "US", 0);
