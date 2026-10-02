@@ -60,9 +60,7 @@ import {
 } from "../unions/bargaining.js";
 import { normalizeServiceIds, servicesStrikeSoftening } from "../unions/services.js";
 import { lawAdjustedUnionizationThreshold } from "../unions/unionLaws.js";
-
-/** Source labour/unionization.ts UNIONIZATION_BAN_DECAY_STEP_PER_TURN. */
-const UNIONIZATION_BAN_DECAY_PER_TURN = 3;
+import { undergroundDensityAfterBanTurn, undergroundOutputFactor, undergroundSectorKey, undergroundStrength } from "../unions/underground.js";
 
 /** Turn-start labour snapshot the corp math and the strike step share. */
 export interface CorporationLabourState {
@@ -70,6 +68,8 @@ export interface CorporationLabourState {
   noStrikeProtectedSectorIds: Set<string>;
   /** Overtime-ban output factor per covered sector (min wins on overlap). */
   overtimeBanFactorBySectorId: Map<string, number>;
+  /** Strongest banned cell in each country/industry pair, for labor feedback. */
+  undergroundStrengthByCountrySector?: Map<string, number>;
 }
 
 /**
@@ -101,7 +101,13 @@ export function loadCorporationLabourState(world: WorldState, turn: number): Cor
       overtimeBanFactorBySectorId.set(sectorId, Math.min(prior, OVERTIME_BAN_OUTPUT_FACTOR));
     }
   }
-  return { noStrikeProtectedSectorIds, overtimeBanFactorBySectorId };
+  const undergroundStrengthByCountrySector = new Map<string, number>();
+  for (const union of Object.values(world.unions ?? {})) {
+    if (world.budgets[union.countryId]?.unionsBanned !== true && union.suspended !== true) continue;
+    const key = undergroundSectorKey(union.countryId, union.sectorType);
+    undergroundStrengthByCountrySector.set(key, Math.max(undergroundStrengthByCountrySector.get(key) ?? 0, undergroundStrength(union)));
+  }
+  return { noStrikeProtectedSectorIds, overtimeBanFactorBySectorId, undergroundStrengthByCountrySector };
 }
 
 /** Economic hit for one corporation this turn. Multiplicative, applied once. */
@@ -143,7 +149,10 @@ export function labourFactorsForCorporation(
     if (striking) strikeActive = true;
     const strikeFactor = striking ? 1 - STRIKE_REVENUE_THROTTLE : 1;
     const banFactor = labour.overtimeBanFactorBySectorId.get(asset.id) ?? 1;
-    weighted += strikeFactor * banFactor * weight;
+    const undergroundStrength = banned
+      ? labour.undergroundStrengthByCountrySector?.get(undergroundSectorKey(asset.countryId, asset.sectorType)) ?? 0
+      : 0;
+    weighted += strikeFactor * banFactor * undergroundOutputFactor(undergroundStrength) * weight;
     totalWeight += weight;
   }
   return {
@@ -189,7 +198,8 @@ export function stepCorporateSectorStrikes(
     const budget = world.budgets[asset.countryId];
     const unionsBanned = budget?.unionsBanned === true;
     if (unionsBanned && typeof asset.unionization === "number") {
-      asset.unionization = Math.round(Math.max(0, asset.unionization - UNIONIZATION_BAN_DECAY_PER_TURN) * 10) / 10;
+      const shadowStrength = labour.undergroundStrengthByCountrySector?.get(undergroundSectorKey(asset.countryId, asset.sectorType)) ?? 0;
+      asset.unionization = undergroundDensityAfterBanTurn(asset.unionization, shadowStrength);
     }
     // Idle assets (no strike in flight, no observed expectation) are left
     // untouched: a null expectation initializes AT the real wage on first

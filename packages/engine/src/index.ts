@@ -186,10 +186,12 @@ export type {
 } from "./unions/actions.js";
 export type { BargainingCampaign, CollectiveAgreement } from "./unions/campaigns.js";
 export type { BargainingTerms } from "./unions/bargaining.js";
-export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction } from "./unions/organizingActions.js";
+export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction, organizeUnionUndergroundAction } from "./unions/organizingActions.js";
 export { setUnionDuesAction } from "./unions/duesActions.js";
 export type { SetUnionDuesResult } from "./unions/duesActions.js";
 export { setUnionPoliticalContributionsAction } from "./unions/contributionActions.js";
+export * from "./unions/underground.js";
+export { processUndergroundTurn } from "./unions/undergroundTurn.js";
 export type { SetUnionPoliticalContributionsResult } from "./unions/contributionActions.js";
 export { applyUnionLawProvision, clampUnionLawBias, lawAdjustedUnionizationThreshold, STRIKE_LAW_THRESHOLD_WEIGHT } from "./unions/unionLaws.js";
 export type { UnionLawProvision } from "./unions/unionLaws.js";

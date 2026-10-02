@@ -3546,6 +3546,27 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);
   }
+  for (const [unionId, candidate] of Object.entries(save.world.unions)) {
+    if (!isRecord(candidate)) throw new Error(`Invalid underground union record: ${unionId}`);
+    const row = candidate as unknown as Record<string, unknown>;
+    for (const field of ["undergroundStrength", "heat", "recentUndergroundDriveCount"] as const) {
+      const amount = row[field];
+      if (amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || (field === "heat" && amount > 100))) {
+        throw new Error(`Invalid underground union ${field}: ${unionId}`);
+      }
+    }
+    for (const field of ["exposedUntilTurn", "lastUndergroundDriveTurn", "undergroundProcessedTurn", "lastUndergroundRaidTurn"] as const) {
+      const turn = row[field];
+      if (turn !== undefined && turn !== null && (typeof turn !== "number" || !Number.isSafeInteger(turn) || turn < 0)) {
+        throw new Error(`Invalid underground union turn ${field}: ${unionId}`);
+      }
+    }
+  }
+  const lastUndergroundDriveTurn = save.world.player.lastUndergroundDriveTurn;
+  if (lastUndergroundDriveTurn !== undefined && lastUndergroundDriveTurn !== null &&
+    (!Number.isSafeInteger(lastUndergroundDriveTurn) || lastUndergroundDriveTurn < 0)) {
+    throw new Error("Invalid player underground drive turn");
+  }
   // #321: union contribution ledger. Saves written before the payout slice
   // carry no rows; missing degrades to empty and every loaded row is kept
   // explicit — same additive shape as the organizer backfill above, so no

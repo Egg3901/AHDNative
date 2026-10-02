@@ -1026,6 +1026,8 @@ export interface PlayerCharacter {
    * ACTION_HOARD_PENALTY=4, threshold 100, cap 200 at PORT-STUB neutral.
    */
   actions: number;
+  /** Turn of the player's last illicit union drive, enforcing one drive across cells per turn. */
+  lastUndergroundDriveTurn?: number | null;
   /** Campaign funds (local) for player. */
   funds: number;
   donorBaseLevel: number;

@@ -46,6 +46,18 @@ function strikeWorld(strikeTurn = 3) {
 }
 
 describe("#322 corporation labour factors", () => {
+  it("lets underground cells sustain capped density and passively slow covered production", () => {
+    const { world, union, asset } = shopWorld();
+    world.budgets.US!.unionsBanned = true;
+    union.suspended = true;
+    union.undergroundStrength = 30;
+    asset.unionization = 20;
+    const labour = loadCorporationLabourState(world, 0);
+    expect(labourFactorsForCorporation(world, EMPLOYER, labour).outputFactor).toBeCloseTo(0.94);
+    stepCorporateSectorStrikes(world, 1, labour);
+    expect(asset.unionization).toBe(20.6);
+  });
+
   it("reads exactly idle factors on a world with no live action", () => {
     const { world } = shopWorld();
     const labour = loadCorporationLabourState(world, 0);

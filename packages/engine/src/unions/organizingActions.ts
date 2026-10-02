@@ -3,6 +3,7 @@ import type { WorldState } from "../types.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import { createUnionOrganizer, unionOrganizers, unionStrength } from "./organizers.js";
 import type { Union } from "./types.js";
+import { UNDERGROUND_ACTION_COST, isUnionExposed, resolveUndergroundDrive, undergroundHeat, undergroundStrength, type UndergroundDriveMode } from "./underground.js";
 
 export const ORGANIZE_ACTION_COST = 5;
 export const ORGANIZE_STRENGTH_GAIN = 10;
@@ -43,6 +44,46 @@ export function organizeUnionAction(world: WorldState, unionId: string): { stren
   organizer.organizeCount++;
   organizer.updatedAtTurn = world.meta.turn;
   return { strength: union.strength, organizerStrength: organizer.strength };
+}
+
+/** Run the source quiet/mass drive while the country ban freezes all legal operations. */
+export function organizeUnionUndergroundAction(world: WorldState, unionId: string, mode: UndergroundDriveMode) {
+  const union = world.unions[unionId];
+  if (!union) throw new Error(`Union not found: ${unionId}`);
+  if (world.player.countryId !== union.countryId) throw new Error("You must be in this union's country to help organize it underground.");
+  if (world.budgets[union.countryId]?.unionsBanned !== true) {
+    throw new Error("Underground organizing is only possible while unions are banned. Run a legal organize drive instead.");
+  }
+  if ((world.player.lastUndergroundDriveTurn ?? null) === world.meta.turn) {
+    throw new Error("You already ran an underground drive this turn. Lay low until the next one.");
+  }
+  if (world.player.actions < UNDERGROUND_ACTION_COST) {
+    throw new Error(`An underground drive costs ${UNDERGROUND_ACTION_COST} action points (you have ${world.player.actions}).`);
+  }
+  const exposed = isUnionExposed(union, world.meta.turn);
+  const result = resolveUndergroundDrive({ mode, approval: union.approval, exposed });
+  world.player.actions -= UNDERGROUND_ACTION_COST;
+  world.player.lastUndergroundDriveTurn = world.meta.turn;
+  union.undergroundStrength = undergroundStrength(union) + result.strengthGain;
+  union.heat = Math.min(100, undergroundHeat(union) + result.heat);
+  union.recentUndergroundDriveCount = Math.max(0, union.recentUndergroundDriveCount ?? 0) + 1;
+  union.lastUndergroundDriveTurn = world.meta.turn;
+  union.updatedAtTurn = world.meta.turn;
+  const rows = unionOrganizers(world);
+  const id = `${union.id}:player`;
+  const organizer = rows[id] ?? (rows[id] = createUnionOrganizer(union.id, "player", world.meta.turn));
+  organizer.undergroundStrength = Math.max(0, organizer.undergroundStrength ?? 0) + result.strengthGain;
+  organizer.lastUndergroundDriveTurn = world.meta.turn;
+  organizer.updatedAtTurn = world.meta.turn;
+  return {
+    undergroundStrength: union.undergroundStrength,
+    status: union.exposedUntilTurn != null && world.meta.turn <= union.exposedUntilTurn
+      ? "exposed" as const
+      : union.heat >= 30 ? "suspected" as const : "dark" as const,
+    heatText: union.heat >= 60 ? "hot" as const : union.heat >= 15 ? "warm" as const : "cold" as const,
+    strengthGain: result.strengthGain,
+    actionsSpent: UNDERGROUND_ACTION_COST,
+  };
 }
 
 /** Leader-only shop drive; a failed raid consumes the source-defined costs but leaves the asset unchanged. */

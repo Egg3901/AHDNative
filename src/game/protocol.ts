@@ -39,6 +39,7 @@ export type GameCommand =
   | { type: "action"; actionId: string; params?: GameActionParams }
   | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number; buyerCorporationId?: string }
   | { type: "unionCommand"; op: "organize"; unionId: string }
+  | { type: "unionCommand"; op: "organizeUnderground"; unionId: string; mode: "quiet" | "mass" }
   | { type: "unionCommand"; op: "vote"; unionId: string }
   | { type: "unionCommand"; op: "accept"; unionId: string }
   | { type: "unionCommand"; op: "organizeSector"; unionId: string; assetId: string }

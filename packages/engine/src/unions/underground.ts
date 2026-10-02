@@ -14,6 +14,10 @@ export const DETECTION_CHANCE_PER_RECENT_DRIVE = 4;
 export const EXPOSURE_LENGTH_TURNS = 6;
 export const EXPOSED_EFFICIENCY_MULTIPLIER = 0.5;
 export const REPEAL_UNDERGROUND_HAIRCUT = 0.5;
+export const UNDERGROUND_DENSITY_CAP = 35;
+export const UNDERGROUND_DENSITY_GAIN_PER_TURN = 0.6;
+export const UNDERGROUND_SLOWDOWN_THRESHOLD = 15;
+export const UNDERGROUND_SLOWDOWN_MAX = 0.08;
 const DETECTION_CHANCE_PER_HEAT = 2;
 const DETECTION_CHANCE_MAX = 60;
 
@@ -80,4 +84,22 @@ export function decayUndergroundHeat(heat: number): number {
 export function repealUndergroundConversion(pool: number): number {
   const value = typeof pool === "number" && Number.isFinite(pool) && pool > 0 ? pool : 0;
   return Math.round(value * REPEAL_UNDERGROUND_HAIRCUT * 10) / 10;
+}
+
+export function undergroundDensityAfterBanTurn(current: number, strength: number): number {
+  const density = Math.max(0, Math.min(100, Number.isFinite(current) ? current : 0));
+  const safeStrength = Number.isFinite(strength) ? Math.max(0, strength) : 0;
+  const target = Math.min(UNDERGROUND_DENSITY_CAP, safeStrength * 0.7);
+  if (density > target) return Math.round(Math.max(target, density - 3) * 10) / 10;
+  return Math.round(Math.min(target, density + UNDERGROUND_DENSITY_GAIN_PER_TURN) * 10) / 10;
+}
+
+export function undergroundOutputFactor(strength: number): number {
+  const safe = Number.isFinite(strength) ? Math.max(0, strength) : 0;
+  const excess = Math.max(0, safe - UNDERGROUND_SLOWDOWN_THRESHOLD);
+  return 1 - Math.min(UNDERGROUND_SLOWDOWN_MAX, excess * 0.004);
+}
+
+export function undergroundSectorKey(countryId: string, sectorType: string): string {
+  return `${countryId}:${sectorType}`;
 }

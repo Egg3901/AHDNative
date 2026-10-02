@@ -10,6 +10,88 @@ import { UnionManagementPanel } from "./UnionManagementPanel";
 const unionId = "US-manufacturing";
 
 describe("UnionManagementPanel", () => {
+  it("proves the saved 0% control and 50% treatment exact same-turn funding and treasury delta", async () => {
+    const user = userEvent.setup();
+    const makeSession = () => {
+      const world = createWorld({ seed: "union-contribution-rate-twin", playerName: "Alex", countryId: "US", era: "1953" });
+      const union = world.unions[unionId]!;
+      union.ownerType = "player";
+      union.ownerId = "player";
+      union.treasury = 100_000;
+      union.strength = 100;
+      union.duesPerWorkerAnnual = 5;
+      world.unionOrganizers = { [`${unionId}:player`]: { id: `${unionId}:player`, unionId, characterId: "player", strength: 100, organizeCount: 10, createdAtTurn: 0, updatedAtTurn: 0 } };
+      const session = new GameSession();
+      session.load(serializeSave(world, "2026-10-02T00:00:00Z"));
+      return session;
+    };
+    const control = makeSession();
+    const treatment = makeSession();
+    const command = (session: GameSession) => (item: Extract<GameCommand, { type: "unionCommand" }>) => {
+      if (item.op === "contributions") session.setUnionPoliticalContributions(item.unionId, item.politicalContributionPct);
+    };
+    const controlRender = render(<UnionManagementPanel state={control.unionManagement()} busy={false} onCommand={command(control)} />);
+    const treatmentRender = render(<UnionManagementPanel state={treatment.unionManagement()} busy={false} onCommand={command(treatment)} />);
+    const controlUnion = within(controlRender.container).getByTestId(`union-${unionId}`);
+    const treatmentUnion = within(treatmentRender.container).getByTestId(`union-${unionId}`);
+    await user.click(within(controlUnion).getByRole("button", { name: "Set political contributions" }));
+    fireEvent.change(within(treatmentUnion).getByRole("slider", { name: /Political contributions as a percent/ }), { target: { value: "50" } });
+    treatmentRender.rerender(<UnionManagementPanel state={treatment.unionManagement()} busy={false} onCommand={command(treatment)} />);
+    await user.click(within(treatmentUnion).getByRole("button", { name: "Set political contributions" }));
+
+    const controlBefore = control.unionManagement().unions.find((row) => row.id === unionId)!;
+    const treatmentBefore = treatment.unionManagement().unions.find((row) => row.id === unionId)!;
+    expect(controlBefore.politicalContributionPct).toBe(0);
+    expect(treatmentBefore.politicalContributionPct).toBe(0.5);
+    const controlFunds = control.view().player.funds;
+    const treatmentFunds = treatment.view().player.funds;
+    control.advance();
+    treatment.advance();
+    const controlSave = control.serialize("2026-10-03T00:00:00Z");
+    const treatmentSave = treatment.serialize("2026-10-03T00:00:00Z");
+    const controlWorld = JSON.parse(controlSave).world;
+    const treatmentWorld = JSON.parse(treatmentSave).world;
+    const paid = treatmentWorld.unionContributionLedger.filter((row: { unionId: string; turn: number }) => row.unionId === unionId && row.turn === 1)
+      .reduce((sum: number, row: { amount: number }) => sum + row.amount, 0);
+    expect(controlWorld.unionContributionLedger ?? []).toEqual([]);
+    expect(paid).toBeGreaterThan(0);
+    expect(treatmentWorld.player.funds - treatmentFunds - (controlWorld.player.funds - controlFunds)).toBeCloseTo(paid, 8);
+    expect(
+      (controlWorld.unions[unionId].treasury - controlBefore.treasury) -
+      (treatmentWorld.unions[unionId].treasury - treatmentBefore.treasury),
+    ).toBeCloseTo(paid, 2);
+    expect(treatmentWorld.unions[unionId].politicalContributionPct).toBe(0.5);
+
+    const resumed = new GameSession();
+    resumed.load(treatmentSave);
+    resumed.advance();
+    treatment.advance();
+    expect(JSON.parse(resumed.serialize("2026-10-04T00:00:00Z")).world).toEqual(JSON.parse(treatment.serialize("2026-10-04T00:00:00Z")).world);
+  }, 45_000);
+
+  it("offers the public quiet and mass drives while a ban suspends legal union actions", async () => {
+    const user = userEvent.setup();
+    const world = createWorld({ seed: "union-panel-underground", playerName: "Alex", countryId: "US", era: "1953" });
+    world.budgets.US!.unionsBanned = true;
+    world.unions[unionId]!.suspended = true;
+    world.player.actions = 20;
+    const session = new GameSession();
+    session.load(serializeSave(world, "2026-10-02T00:00:00Z"));
+    const commands: Extract<GameCommand, { type: "unionCommand" }>[] = [];
+    const dispatch = (command: Extract<GameCommand, { type: "unionCommand" }>) => {
+      commands.push(command);
+      if (command.op === "organizeUnderground") session.organizeUnionUnderground(command.unionId, command.mode);
+    };
+    const { rerender } = render(<UnionManagementPanel state={session.unionManagement()} busy={false} onCommand={dispatch} />);
+    const union = screen.getByTestId(`union-${unionId}`);
+    expect(within(union).getByText(/National ban active/)).toBeTruthy();
+    expect(within(union).queryByRole("button", { name: "Organize United Steelworkers" })).toBeNull();
+    await user.click(within(union).getByRole("button", { name: "Quiet underground drive (10 AP)" }));
+    rerender(<UnionManagementPanel state={session.unionManagement()} busy={false} onCommand={dispatch} />);
+    expect(commands).toContainEqual({ type: "unionCommand", op: "organizeUnderground", unionId, mode: "quiet" });
+    expect(within(union).getByText(/Underground strength 4\.0/)).toBeTruthy();
+  });
+
   it("routes organizing, weighted vote, acceptance, and bargaining through public session commands", async () => {
     const user = userEvent.setup();
     const world = createWorld({ seed: "union-panel-flow", playerName: "Alex", countryId: "US", era: "1953" });

@@ -37,6 +37,7 @@ import {
   openBargainingCampaignAction,
   organizeSectorAction,
   organizeUnionAction,
+  organizeUnionUndergroundAction,
   type BargainingTerms,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, BankOption, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -546,6 +547,13 @@ export class GameSession {
   organizeUnion(unionId: string) {
     const candidate = structuredClone(this.requireWorld());
     const result = organizeUnionAction(candidate, unionId);
+    this.commit(candidate);
+    return result;
+  }
+
+  organizeUnionUnderground(unionId: string, mode: "quiet" | "mass") {
+    const candidate = structuredClone(this.requireWorld());
+    const result = organizeUnionUndergroundAction(candidate, unionId, mode);
     this.commit(candidate);
     return result;
   }
