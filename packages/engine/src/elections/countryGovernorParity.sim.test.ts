@@ -199,21 +199,23 @@ describe("source country governor election families", () => {
       (spec) => spec.countryId === "UK" && spec.electionType === "governor",
     )).toBe(false);
 
-    // The first real turn spawns the cycle-1 races. Jump the deterministic
-    // fixture clock to the source end-turn boundary instead of simulating
-    // decades of unrelated country systems. Seed the preceding accumulated
-    // ballots as an in-flight save would contain when reloaded on that edge.
+    // The first real turn spawns the cycle-1 races. Continue the same ordinary
+    // calendar and let the shared vote-accumulation phase produce ballots; do
+    // not inject a tally or move the clock to the resolution boundary.
     advanceTurn(world);
     expect(world.elections.find((election) => election.id === "regionalCouncil:UK:SCO:c1")?.endTurn).toBe(commonsAnchor + 48);
     expect(world.elections.find((election) => election.id === "regionalCouncil:UK:NIR:c1")?.endTurn).toBe(commonsAnchor + 96);
     expect(world.elections.find((election) => election.id === "regionalCouncil:UK:EMI:c1")?.endTurn).toBe(commonsAnchor + 240);
-    for (const election of world.elections) {
-      if ((election.countryId === "RU" || election.countryId === "DD") && election.electionType === "governor") {
-        election.tally = Object.fromEntries(election.candidates.map((candidate, index) => [candidate.id, index === 0 ? 100 : 10]));
-      }
-    }
-    world.meta.turn = 143;
-    advanceTurn(world);
+    const firstExecutiveEndTurns = (["RU", "DD"] as const).map((countryId) => {
+      const race = world.elections.find(
+        (election) => election.countryId === countryId && election.electionType === "governor" && election.status === "active",
+      );
+      expect(race, `${countryId} first executive race should spawn on the ordinary first turn`).toBeDefined();
+      return race!.endTurn;
+    });
+    const targetTurn = Math.max(...firstExecutiveEndTurns);
+    for (let turns = 0; world.meta.turn < targetTurn && turns < targetTurn; turns += 1) advanceTurn(world);
+    expect(world.meta.turn).toBe(targetTurn);
 
     for (const countryId of ["RU", "DD"] as const) {
       expect(Object.values(world.governors).some((office) => office.countryId === countryId), `${countryId} has seeded offices`).toBe(true);
@@ -226,6 +228,7 @@ describe("source country governor election families", () => {
       ).toBeDefined();
       expect(race!.state).toBeTruthy();
       expect(race!.winners).toHaveLength(1);
+      expect(Object.values(race!.tally).some((votes) => votes > 0), `${countryId} ordinary turn tally should receive votes`).toBe(true);
       expect(world.governors[race!.state!]!.governorId).toBe(race!.winners[0]);
     }
 
