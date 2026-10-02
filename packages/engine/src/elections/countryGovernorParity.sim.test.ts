@@ -256,18 +256,36 @@ describe("source country governor election families", () => {
     }
     const diagnosticPath = process.env.AHD_COUNTRY_TALLY_TRACE_PATH;
     if (diagnosticPath) {
-      writeFileSync(diagnosticPath, JSON.stringify({
-        provenance: {
-          sourceCommit: "0a68fee4c03f2c48692661501d539ac05f338571",
-          nativeRuntimeCommit: "7f992659c27ed4f70d2cc90efb2473920f5af1c1",
-          seed: "country-governors",
-          era: "1953",
-          targetTurn,
-          finalTurn: world.meta.turn,
-        },
-        tallyInputTrace,
-        finalRaces: world.elections.filter((election) => (election.countryId === "RU" || election.countryId === "DD") && election.electionType === "governor" && election.status === "resolved"),
-      }));
+      const jsonReplacer = (_key: string, value: unknown) => {
+        if (value instanceof Map)
+          return { __type: "Map", entries: [...value.entries()] };
+        if (value instanceof Set)
+          return { __type: "Set", values: [...value.values()] };
+        return value;
+      };
+      writeFileSync(
+        diagnosticPath,
+        JSON.stringify(
+          {
+            provenance: {
+              sourceCommit: "0a68fee4c03f2c48692661501d539ac05f338571",
+              nativeRuntimeCommit: "7f992659c27ed4f70d2cc90efb2473920f5af1c1",
+              seed: "country-governors",
+              era: "1953",
+              targetTurn,
+              finalTurn: world.meta.turn,
+            },
+            tallyInputTrace,
+            finalRaces: world.elections.filter(
+              (election) =>
+                (election.countryId === "RU" || election.countryId === "DD") &&
+                election.electionType === "governor" &&
+                election.status === "resolved",
+            ),
+          },
+          jsonReplacer,
+        ),
+      );
     }
   });
 });
