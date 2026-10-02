@@ -109,6 +109,10 @@ export interface CountryBudget {
    */
   stateOwnershipConcentration: number;
   stateOwnershipConcentrationUpdatedAtTurn?: number;
+  /** Source FederalBudget.unionsBanned; absent on historical saves means no enacted ban. */
+  unionsBanned?: boolean;
+  /** Source FederalBudget.unionLawBias, -50 right-to-work to +50 collective bargaining. */
+  unionLawBias?: number;
 }
 
 /**

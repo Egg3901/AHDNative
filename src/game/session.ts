@@ -28,7 +28,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, nationalizationTargets, nationalizationUnavailableReason,
+  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -37,6 +37,7 @@ import {
   openBargainingCampaignAction,
   organizeSectorAction,
   organizeUnionAction,
+  organizeUnionUndergroundAction,
   type BargainingTerms,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, BankOption, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -550,6 +551,13 @@ export class GameSession {
     return result;
   }
 
+  organizeUnionUnderground(unionId: string, mode: "quiet" | "mass") {
+    const candidate = structuredClone(this.requireWorld());
+    const result = organizeUnionUndergroundAction(candidate, unionId, mode);
+    this.commit(candidate);
+    return result;
+  }
+
   castUnionLeadershipVote(unionId: string) {
     const candidate = structuredClone(this.requireWorld());
     const result = castUnionLeadershipVote(candidate, unionId);
@@ -574,6 +582,13 @@ export class GameSession {
   setUnionDues(unionId: string, duesPerWorkerAnnual: number) {
     const candidate = structuredClone(this.requireWorld());
     const result = setUnionDuesAction(candidate, unionId, duesPerWorkerAnnual);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  setUnionPoliticalContributions(unionId: string, politicalContributionPct: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = setUnionPoliticalContributionsAction(candidate, unionId, politicalContributionPct);
     if (result.ok) this.commit(candidate);
     return result;
   }
@@ -1269,6 +1284,7 @@ function projectLegislature(world: WorldState): LegislatureView {
     office: seat ? `${chamberName(seat.countryId, seat.chamberKey)} · ${world.countries[seat.countryId]?.name ?? seat.countryId}`
       : player.mode === "hos" ? "Head of state" : null,
     countryId: player.countryId,
+    unionLawBanned: world.budgets[player.countryId]?.unionsBanned === true,
     ...(executiveTitle && government ? {
       governmentFormation: {
         status: government.status,

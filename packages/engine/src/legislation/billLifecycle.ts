@@ -29,6 +29,7 @@ import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
 import { energyActionLimits } from "../actions/officeBonus.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { enactTradeTariff } from "../trade/tariffs.js";
+import { applyUnionLawProvision } from "../unions/unionLaws.js";
 
 const VOTING_TURNS = 2;
 const EXEC_WINDOW_TURNS = 2;
@@ -329,6 +330,14 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // Source: AHDGame src/lib/subsidies/subsidyEffects.ts; state-scope subsidy
   // budgets remain unavailable in this solo model.
   for (const provision of bill.provisions) {
+    if (provision.type === "union_law") {
+      applyUnionLawProvision(world, bill.countryId, {
+        type: "union_law",
+        bias: provision.bias,
+        banAction: provision.banAction,
+      });
+      continue;
+    }
     if (provision.type === "tariff") {
       if (provision.tariffScopeType !== "economy_wide" || !Number.isFinite(provision.tariffRate) || provision.tariffRate! < 0 || provision.tariffRate! > 100) continue;
       enactTradeTariff(world, {

@@ -36,6 +36,8 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
 }) {
   const [duesDraft, setDuesDraft] = useState(String(union.duesPerWorkerAnnual));
   useEffect(() => setDuesDraft(String(union.duesPerWorkerAnnual)), [union.duesPerWorkerAnnual]);
+  const [contributionDraft, setContributionDraft] = useState(String(union.politicalContributionPct * 100));
+  useEffect(() => setContributionDraft(String(union.politicalContributionPct * 100)), [union.politicalContributionPct]);
   const playerLeads = union.ownerType === "player" && union.ownerId === "player";
   const pendingForPlayer = union.pendingLeaderCharacterId === "player";
   const employerId = union.representedEmployerIds[0];
@@ -51,8 +53,26 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
         {pendingForPlayer ? " · Presidency offered to you" : ""}
       </span>
       <span className="ahd-muted" style={{ fontSize: "0.73rem" }}>Union approval: {union.approval.toFixed(1)}%</span>
+      {union.suspended ? (
+        <>
+          <span className="ahd-muted" style={{ fontSize: "0.73rem" }}>
+            National ban active · Underground strength {union.undergroundStrength.toFixed(1)} · {union.undergroundStatus} · heat {union.undergroundHeatText}
+          </span>
+          <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44 }} disabled={busy || playerActions < 10}
+            onClick={() => onCommand({ type: "unionCommand", op: "organizeUnderground", unionId: union.id, mode: "quiet" })}>
+            Quiet underground drive (10 AP)
+          </button>
+          <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44 }} disabled={busy || playerActions < 10}
+            onClick={() => onCommand({ type: "unionCommand", op: "organizeUnderground", unionId: union.id, mode: "mass" })}>
+            Mass underground drive (10 AP)
+          </button>
+        </>
+      ) : null}
+      <span className="ahd-muted" style={{ fontSize: "0.73rem" }}>
+        Political contributions: {(union.politicalContributionPct * 100).toFixed(0)}% of remaining budget
+      </span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
-        <button
+        {!union.suspended ? <button
           type="button"
           className="ahd-btn ahd-btn-sm"
           style={{ minHeight: 44 }}
@@ -61,8 +81,8 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
           aria-label={`Organize ${union.name}`}
         >
           Organize union (5 AP)
-        </button>
-        {union.electionOpen && union.playerOrganizerStrength > 0 && !playerLeads && !pendingForPlayer ? (
+        </button> : null}
+        {!union.suspended && union.electionOpen && union.playerOrganizerStrength > 0 && !playerLeads && !pendingForPlayer ? (
           <button
             type="button"
             className="ahd-btn ahd-btn-sm"
@@ -73,7 +93,7 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
             Vote to lead
           </button>
         ) : null}
-        {pendingForPlayer ? (
+        {!union.suspended && pendingForPlayer ? (
           <button
             type="button"
             className="ahd-btn ahd-btn-sm"
@@ -84,7 +104,7 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
             Accept presidency
           </button>
         ) : null}
-        {playerLeads ? (
+        {!union.suspended && playerLeads ? (
           <>
             <label style={{ display: "grid", gap: "0.2rem", fontSize: "0.72rem" }}>
               Annual dues per member
@@ -108,9 +128,32 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
             >
               Set annual dues
             </button>
+            <label style={{ display: "grid", gap: "0.2rem", fontSize: "0.72rem" }}>
+              Political contributions as percent of remaining budget
+              <input
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                disabled={busy || union.suspended}
+                value={Math.min(50, Math.max(0, Number(contributionDraft) || 0))}
+                onChange={(event) => setContributionDraft(event.currentTarget.value)}
+                aria-label={`Political contributions as a percent of remaining budget for ${union.name}`}
+              />
+              <span>{Number(contributionDraft)}% · capped at 50%</span>
+            </label>
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              style={{ minHeight: 44 }}
+              disabled={busy || union.suspended || !Number.isFinite(Number(contributionDraft)) || Number(contributionDraft) < 0}
+              onClick={() => onCommand({ type: "unionCommand", op: "contributions", unionId: union.id, politicalContributionPct: Number(contributionDraft) / 100 })}
+            >
+              Set political contributions
+            </button>
           </>
         ) : null}
-        {playerLeads ? union.sectors.map((sector) => (
+        {!union.suspended && playerLeads ? union.sectors.map((sector) => (
           <button
             key={sector.id}
             type="button"
@@ -123,7 +166,7 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
             Organize {sector.corporationId} sector · {sector.unionization.toFixed(1)}% · {sector.treasuryCost.toLocaleString()} treasury{sector.strikeStartedAtTurn != null ? " · On strike" : ""}
           </button>
         )) : null}
-        {playerLeads && campaign?.currentOfferBy === "employer" && campaign.ratification?.status !== "open" ? (
+        {!union.suspended && playerLeads && campaign?.currentOfferBy === "employer" && campaign.ratification?.status !== "open" ? (
           <>
             <button
               type="button"
@@ -151,7 +194,7 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
             </button>
           </>
         ) : null}
-        {playerLeads && campaign?.ratification?.status === "open" ? (
+        {!union.suspended && playerLeads && campaign?.ratification?.status === "open" ? (
           <>
             <button
               type="button"
@@ -173,7 +216,7 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
             </button>
           </>
         ) : null}
-        {playerLeads && campaign && campaign.ratification?.status !== "open" ? (
+        {!union.suspended && playerLeads && campaign && campaign.ratification?.status !== "open" ? (
           <>
             <button
               type="button"
@@ -198,7 +241,7 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
             ) : null}
           </>
         ) : null}
-        {playerLeads && !campaign && employerId ? (
+        {!union.suspended && playerLeads && !campaign && employerId ? (
           <button
             type="button"
             className="ahd-btn ahd-btn-sm"

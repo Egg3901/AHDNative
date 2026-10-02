@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LegislaturePanel } from "./LegislaturePanel";
 import type { LegislatureView } from "../game/types";
@@ -32,6 +32,7 @@ function makeLegislature(overrides: Partial<LegislatureView> = {}): LegislatureV
   };
 }
 
+const renderPanel = () => LegislaturePanel;
 describe("LegislaturePanel", () => {
   it("renders the pending Taoiseach nomination and appointment ballot in the Dáil hierarchy", async () => {
     const user = userEvent.setup();
@@ -102,6 +103,35 @@ describe("LegislaturePanel", () => {
     await user.type(screen.getByRole("spinbutton", { name: "Customs tariff rate" }), "17.5");
     await user.click(screen.getByRole("button", { name: "Sponsor customs tariff" }));
     expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 17.5 });
+  });
+
+  it("authors a source union ban or repeal through the public legislature form", async () => {
+    const onAction = vi.fn();
+    const LegislaturePanel = await renderPanel();
+    const { rerender } = render(
+      <LegislaturePanel legislature={makeLegislature({ unionLawBanned: false })} clock={CLOCK} busy={false} onAction={onAction} />,
+    );
+    expect(screen.getByText(/propose a ban that suspends unions and blocks strikes/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sponsor union law" }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "labour.union_law", banAction: "ban" });
+
+    onAction.mockClear();
+    rerender(
+      <LegislaturePanel legislature={makeLegislature({ unionLawBanned: true })} clock={CLOCK} busy={false} onAction={onAction} />,
+    );
+    expect(screen.getByText(/unions are suspended under national law/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sponsor union law" }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "labour.union_law", banAction: "repeal_ban" });
+  });
+
+  it("authors a bounded national union-law bias from the same public form", async () => {
+    const onAction = vi.fn();
+    const LegislaturePanel = await renderPanel();
+    render(<LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={false} onAction={onAction} />);
+    fireEvent.change(screen.getByRole("combobox", { name: "Union-law action" }), { target: { value: "bias" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Union-law bias" }), { target: { value: "25" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sponsor union law" }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "labour.union_law", bias: 25 });
   });
 
   it("disables Sponsor bill when busy, sponsor unavailable, or nothing valid to sponsor", async () => {

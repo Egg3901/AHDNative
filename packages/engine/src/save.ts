@@ -206,6 +206,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const budgets = world["budgets"];
   if (isRecord(budgets)) for (const [countryId, row] of Object.entries(budgets)) {
     if (!isRecord(row)) continue;
+    if (row["unionsBanned"] === true || (typeof row["unionLawBias"] === "number" && row["unionLawBias"] !== 0)) {
+      return { ok: false, error: `Budget ${countryId} union-law state cannot be continued by the schema 42 turn reader; keep this Native save.` };
+    }
     const rates = row["taxRates"];
     const phaseIn = row["taxRatePhaseIn"];
     if (
@@ -933,6 +936,28 @@ function assertCurrentWorldState(world: WorldState): void {
     }
     if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
+    }
+    const provisions = rawBill["provisions"];
+    if (!Array.isArray(provisions)) throw new Error("Not a valid save file: invalid bill provisions");
+    for (const provision of provisions) {
+      if (!isRecord(provision) || provision["type"] !== "union_law") continue;
+      const bias = provision["bias"];
+      const banAction = provision["banAction"];
+      if (typeof bias !== "number" || !Number.isFinite(bias) || bias < -50 || bias > 50 ||
+          (banAction !== undefined && banAction !== "ban" && banAction !== "repeal_ban")) {
+        throw new Error("Not a valid save file: invalid union-law provision");
+      }
+    }
+  }
+  const budgets = value["budgets"];
+  if (isRecord(budgets)) for (const [countryId, rawBudget] of Object.entries(budgets)) {
+    if (!isRecord(rawBudget)) continue;
+    if (rawBudget["unionsBanned"] !== undefined && typeof rawBudget["unionsBanned"] !== "boolean") {
+      throw new Error(`Not a valid save file: invalid budget ${countryId} unionsBanned`);
+    }
+    const bias = rawBudget["unionLawBias"];
+    if (bias !== undefined && (typeof bias !== "number" || !Number.isFinite(bias) || bias < -50 || bias > 50)) {
+      throw new Error(`Not a valid save file: invalid budget ${countryId} unionLawBias`);
     }
   }
   const tradeTariffs = value["tradeTariffs"];
@@ -3622,9 +3647,17 @@ export function deserializeSave(raw: string): WorldState {
   // compatibility), and the election-scoped governor endorsement ledger is
   // optional/empty on legacy races. Do not stamp existing elections v3.
   if (save.schemaVersion < 58) save.world.meta.schemaVersion = 58;
+  // v59: do not infer historic law state. The optional budget fields stay
+  // absent until a source union-law bill enacts; preserve that historical
+  // absence while making the current reader reject older union-unaware readers.
+  if (save.schemaVersion < 59) save.world.meta.schemaVersion = 59;
   // Earlier readers only understood Irish PM votes. No appointment history
   // can be reconstructed; existing Irish records continue unchanged.
   if (save.schemaVersion < 61) save.world.meta.schemaVersion = 61;
+  // v62: the schema-61 reader predates union law and underground continuation.
+  // Keep historical law/drive/crisis fields absent; the version barrier is
+  // what prevents that reader from silently loading state it cannot consume.
+  if (save.schemaVersion < 62) save.world.meta.schemaVersion = 62;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3672,6 +3705,15 @@ export function deserializeSave(raw: string): WorldState {
   validateGovernmentDirectives(save.world);
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
+  for (const crisis of save.world.crises) {
+    if (
+      crisis.lastUndergroundExtensionTurn !== undefined &&
+      (!Number.isSafeInteger(crisis.lastUndergroundExtensionTurn) ||
+        crisis.lastUndergroundExtensionTurn < 0 || crisis.lastUndergroundExtensionTurn > save.world.meta.turn)
+    ) {
+      throw new Error(`Crisis ${crisis.id} has an invalid underground extension turn`);
+    }
+  }
   validatePresidentialPrimaryLedger(save.world);
   validatePresidentialGeneralMechanics(save.world);
   validatePrimaryStateOrganizations(save.world);
@@ -3754,6 +3796,27 @@ export function deserializeSave(raw: string): WorldState {
   }
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);
+  }
+  for (const [unionId, candidate] of Object.entries(save.world.unions)) {
+    if (!isRecord(candidate)) throw new Error(`Invalid underground union record: ${unionId}`);
+    const row = candidate as unknown as Record<string, unknown>;
+    for (const field of ["undergroundStrength", "heat", "recentUndergroundDriveCount"] as const) {
+      const amount = row[field];
+      if (amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || (field === "heat" && amount > 100))) {
+        throw new Error(`Invalid underground union ${field}: ${unionId}`);
+      }
+    }
+    for (const field of ["exposedUntilTurn", "lastUndergroundDriveTurn", "undergroundProcessedTurn", "lastUndergroundRaidTurn"] as const) {
+      const turn = row[field];
+      if (turn !== undefined && turn !== null && (typeof turn !== "number" || !Number.isSafeInteger(turn) || turn < 0)) {
+        throw new Error(`Invalid underground union turn ${field}: ${unionId}`);
+      }
+    }
+  }
+  const lastUndergroundDriveTurn = save.world.player.lastUndergroundDriveTurn;
+  if (lastUndergroundDriveTurn !== undefined && lastUndergroundDriveTurn !== null &&
+    (!Number.isSafeInteger(lastUndergroundDriveTurn) || lastUndergroundDriveTurn < 0)) {
+    throw new Error("Invalid player underground drive turn");
   }
   // #321: union contribution ledger. Saves written before the payout slice
   // carry no rows; missing degrades to empty and every loaded row is kept
