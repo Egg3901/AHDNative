@@ -15,7 +15,7 @@ function saveAtSchema(world: ReturnType<typeof createWorld>, schemaVersion: numb
 
 describe("corporate strategy transition save boundary", () => {
   it("uses a new schema version for retool continuation", () => {
-    expect(SCHEMA_VERSION).toBe(56);
+    expect(SCHEMA_VERSION).toBeGreaterThan(55);
   });
 
   it("preserves absent transition fields while migrating a pre-retool save", () => {
@@ -29,7 +29,7 @@ describe("corporate strategy transition save boundary", () => {
 
     const resumed = deserializeSave(saveAtSchema(world, 53));
     const assets = Object.values(corporateSectorAssets(resumed));
-    expect(resumed.meta.schemaVersion).toBe(56);
+    expect(resumed.meta.schemaVersion).toBe(SCHEMA_VERSION);
     for (const asset of assets) {
       expect(asset.transitionFromStrategyId).toBeUndefined();
       expect(asset.transitionStartTurn).toBeUndefined();
@@ -48,7 +48,7 @@ describe("corporate strategy transition save boundary", () => {
     asset.retoolRescaleApplied = true;
 
     const resumed = deserializeSave(saveAtSchema(world, 55));
-    expect(resumed.meta.schemaVersion).toBe(56);
+    expect(resumed.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(resumed.corporateSectors?.[asset.id]).toEqual(asset);
   });
 });
