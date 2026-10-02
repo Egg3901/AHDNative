@@ -4,7 +4,7 @@
  *
  * Mainline consolidates:
  * - Election entry (deterministic priority-based) — PORT-STUB in solo (blocked system: elections/orchestration.ts, operator active)
- * - Bill voting (ideology + whip) — ported here as active bill voting
+ * - Federal bill voting (source cross-pressure forces) — shared with lifecycle catch-up voting
  * - Slate follow-through + endorsement cleanup — PORT-STUB (blocked: slate/endorsement subsystem not in solo)
  *
  * This phase therefore implements the bill-voting half of nppBehavior, plus a
@@ -18,6 +18,7 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { WorldRng } from "../rng.js";
 import { effectiveNppAutonomyLevelForCountry } from "../nppAutonomyLevel.js";
+import { isEligibleNppBillVoter, isFederalBillVoteWindowOpen, resolveNppBillVote } from "./voteDecision.js";
 
 function hashUnit(s: string): number {
   let h = 0x811c9dc5;
@@ -26,54 +27,6 @@ function hashUnit(s: string): number {
     h = Math.imul(h, 0x01000193);
   }
   return (h >>> 0) / 0xffffffff;
-}
-
-type BillVote = "for" | "against" | "abstain";
-type PartyWhip = NonNullable<WorldState["partyWhips"]>[number];
-
-function ideologyVote(pol: WorldState["politicians"][number], bill: WorldState["bills"][number], turn: number, seed: string): BillVote {
-  const sponsorParty = bill.sponsorPartyId;
-  const polParty = pol.partyId;
-  const r = hashUnit(`${seed}:${pol.id}:${bill.id}:${turn}:vote`);
-  // Same party as sponsor: high for
-  if (sponsorParty && polParty === sponsorParty) {
-    if (r < 0.85) return "for";
-    if (r < 0.95) return "against";
-    return "abstain";
-  }
-  if (sponsorParty && polParty !== sponsorParty) {
-    if (r < 0.25) return "for";
-    if (r < 0.85) return "against";
-    return "abstain";
-  }
-  if (r < 0.4) return "for";
-  if (r < 0.8) return "against";
-  return "abstain";
-}
-
-function voteForBill(
-  pol: WorldState["politicians"][number],
-  bill: WorldState["bills"][number],
-  turn: number,
-  seed: string,
-  whip: PartyWhip | undefined,
-): BillVote {
-  if (!whip) return ideologyVote(pol, bill, turn, seed);
-  if (whip.mode === "hard") return whip.direction;
-  // A soft whip is followed by the same 80% compliance convention used by
-  // the source's NPP party-line behavior; the remaining ballots use ideology.
-  if (hashUnit(`${seed}:${pol.id}:${bill.id}:${turn}:whip`) < 0.8) return whip.direction;
-  return ideologyVote(pol, bill, turn, seed);
-}
-
-function currentPartyWhip(world: WorldState, partyId: string, bill: WorldState["bills"][number]): PartyWhip | undefined {
-  return (world.partyWhips ?? [])
-    .filter((whip) => whip.billId === bill.id
-      && whip.partyId === partyId
-      && whip.countryId === bill.countryId
-      && whip.chamber === bill.currentChamber
-      && whip.issuedAtTurn <= world.meta.turn)
-    .sort((a, b) => b.issuedAtTurn - a.issuedAtTurn || b.id.localeCompare(a.id))[0];
 }
 
 export const nppBehaviorPhase: TurnPhase = {
@@ -92,9 +45,10 @@ export const nppBehaviorPhase: TurnPhase = {
       const chamberKey = bill.currentChamber;
       const countryId = bill.countryId;
       if (effectiveNppAutonomyLevelForCountry(world.nppAutonomyLevel, countryId, world.player.countryId) === "off") continue;
+      if (!isFederalBillVoteWindowOpen(world, bill)) continue;
 
       const eligible = world.politicians.filter(
-        (p) => p.countryId === countryId && p.chamberKey === chamberKey,
+        (p) => p.countryId === countryId && p.chamberKey === chamberKey && isEligibleNppBillVoter(world, bill, p),
       );
       // Sort for determinism
       eligible.sort((a, b) => a.id.localeCompare(b.id));
@@ -103,16 +57,7 @@ export const nppBehaviorPhase: TurnPhase = {
 
       for (const pol of eligible) {
         if (voteMap[pol.id] !== undefined) continue; // already voted
-        // 85% chance to vote this turn (some abstain by not voting yet) — deterministic
-        if (hashUnit(`${world.meta.seed}:${pol.id}:${bill.id}:${world.meta.turn}:turnout`) < 0.15) continue;
-        const vote = voteForBill(
-          pol,
-          bill,
-          world.meta.turn,
-          world.meta.seed,
-          currentPartyWhip(world, pol.partyId, bill),
-        );
-        voteMap[pol.id] = vote;
+        voteMap[pol.id] = resolveNppBillVote(world, bill, pol);
       }
     }
 
