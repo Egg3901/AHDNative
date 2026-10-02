@@ -1,15 +1,15 @@
 import { anchorToLocal, getRateForCountry } from "../forex/conversion.js";
 import type { WorldState } from "../types.js";
-import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices, SOURCE_DEFAULT_OPERATING_SUPPLY } from "./plantCapacity.js";
-import { makeNppCapacityCashRecord } from "./corporateCashLedger.js";
+import { makeNppCapacityCashRecord, makeNppFoundingCashRecord } from "./corporateCashLedger.js";
 import { isCorpStateOwned } from "../bonds/corporateBonds.js";
 import { localToAnchor } from "../forex/conversion.js";
 import type { UnownedSectorState } from "../economy/types.js";
 import type { Corporation } from "./types.js";
 import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
-import { corporateSectorAssets } from "./corporateSectorAssets.js";
+import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnionId } from "./corporateSectorAssets.js";
 import { SOURCE_STATE_ADJACENCY } from "./sourceStateAdjacency.js";
+import { getEraNominalScale } from "../commodity/constants.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -18,6 +18,79 @@ const BUILD_TURNS: Record<string, number> = {
   construction: 48, healthcare: 48, agriculture: 48, logistics: 36,
   entertainment: 24, media: 24, financial: 24, technology: 24, retail: 12,
 };
+
+const FOUNDING_STARTER_UNITS: Record<string, number> = {
+  financial: 6, media: 80, manufacturing: 25, chemical_industries: 60,
+  healthcare: 5, retail: 80, automobiles: 1, technology: 25, energy: 250,
+  agriculture: 60, real_estate: 5, construction: 3, defense: 8,
+  telecommunications: 12, entertainment: 50, logistics: 5, extraction: 250,
+};
+
+/** Source NPP greenfield entry: source candidate → located newborn asset → pool draw and cash witness. */
+export function applyNppSourceFounding(world: WorldState): void {
+  const ledger = world.corporateCashLedger ?? (world.corporateCashLedger = []);
+  const scale = getEraNominalScale(world.meta.era);
+  const entryFeeAnchor = Math.round(100_000 * scale);
+  const cashFloorAnchor = Math.max(Math.round(125_000 * scale), Math.round(250_000 * scale));
+  const assets = corporateSectorAssets(world);
+  const year = Number(world.meta.date.slice(0, 4));
+  for (const corp of Object.values(world.corporations).sort((a, b) => a.id.localeCompare(b.id))) {
+    if (corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
+    // Source has one greenfield entry per issuer per turn.
+    if (ledger.some((row) => row.type === "corp_sector_founding" && row.corporationId === corp.id && row.turn === world.meta.turn)) continue;
+    const candidate = findSourceNppEntryCandidate(world, corp);
+    if (!candidate) continue;
+    // Current-source entry evaluation allows critical shortages to bypass the
+    // backward-looking margin gate; otherwise the issuer must meet its 15% floor.
+    if (candidate.peakShortageScore < 1.6 && (corp.effectiveProfitMargin ?? corp.profitMargin) < 15) continue;
+    if (candidate.shortageScore <= 0.85 && candidate.peakShortageScore < 1.6) continue;
+    const starterUnits = FOUNDING_STARTER_UNITS[candidate.pool.sectorType] ?? 0;
+    if (!(starterUnits > 0)) continue;
+    const price = capacityPricePerUnitAnchor(candidate.pool.sectorType, corporateSectorBasePrices(world), null, year);
+    // Source founding's authored 10% first-build discount; Game applies other
+    // market-dominance/prime/host modifiers unavailable in this Native input set.
+    const unitCostAnchor = price * 0.9;
+    const maxByMarket = Math.floor(candidate.headroomUnits * 0.5);
+    const rate = getRateForCountry(world, corp.countryId);
+    const cashLocal = corp.liquidCapital;
+    const deployableLocal = Math.max(0, (cashLocal - anchorToLocal(cashFloorAnchor + entryFeeAnchor, rate)) * 0.6);
+    const affordableUnits = unitCostAnchor > 0 ? Math.floor((deployableLocal / rate) / unitCostAnchor) : 0;
+    // Source floors at one facility quantum; the separate final cash-floor
+    // check below rejects a forced starter that cannot really be paid for.
+    const units = Math.max(starterUnits, Math.floor(Math.min(maxByMarket, affordableUnits, 10_000_000)));
+    if (units > maxByMarket || !Number.isFinite(units)) continue;
+    const buildAnchor = unitCostAnchor * units;
+    const totalAnchor = entryFeeAnchor + buildAnchor;
+    const totalLocal = anchorToLocal(totalAnchor, rate);
+    const cashAfter = cashLocal - totalLocal;
+    if (!(totalLocal > 0 && cashAfter >= anchorToLocal(cashFloorAnchor, rate) && cashAfter < cashLocal)) continue;
+
+    const regionId = candidate.pool.regionId;
+    const id = `corporate-sector:${corp.countryId}:${candidate.pool.sectorType}:${corp.id}:${regionId}`;
+    if (assets[id]) continue;
+    const onlineTurn = world.meta.turn + Math.max(1, Math.floor((BUILD_TURNS[candidate.pool.sectorType] ?? 48) / 2));
+    const asset: CorporateSectorAsset = {
+      id, corporationId: corp.id, countryId: corp.countryId, stateId: regionId,
+      sectorType: candidate.pool.sectorType, revenue: Math.round(candidate.pool.revenue * (units / candidate.headroomUnits)),
+      capitalStock: 0, capacityBookAnchor: 0, workers: calculateSectorWorkers(anchorToLocal(1_000_000, rate)),
+      buildQueue: [{ unitsOrdered: units, costPaidAnchor: buildAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true }],
+      constructionInProgressAnchor: buildAnchor, plantsStartTurn: world.meta.turn,
+      producedUnits: 0, soldUnits: 0, soldFraction: 0, realizedRevenue: 0,
+      representingUnionId: initialRepresentingUnionId(world, corp.countryId, candidate.pool.sectorType),
+      unionization: 0, wageLevel: 1, workerExpectationIndex: null,
+      strikeStartedAtTurn: null, strikeCooldownUntilTurn: null,
+      forSale: null, owner: "corporation",
+    };
+    const before = corp.liquidCapital;
+    assets[id] = asset;
+    const unitsPerAnchor = candidate.headroomUnits / localToAnchor(candidate.pool.revenue, rate);
+    const remainingAnchor = Math.max(0, candidate.headroomUnits - units);
+    candidate.pool.revenue = Math.round((remainingAnchor / unitsPerAnchor) * rate);
+    corp.liquidCapital = cashAfter;
+    const row = makeNppFoundingCashRecord({ corp, world, sector: asset, units, costLocal: totalLocal, cashDeltaLocal: cashAfter - before, costAnchor: buildAnchor, entryFeeAnchor, onlineTurn });
+    if (row) ledger.push(row);
+  }
+}
 
 /** Game market.unownedHeadroomUnits: source standard-mix implied units. */
 export function sourceUnownedHeadroomUnits(world: WorldState, pool: UnownedSectorState): number {
@@ -98,7 +171,7 @@ export function findSourceNppEntryCandidate(world: WorldState, corp: Corporation
     }
     const shortageScore = totalWeight > 0 ? weighted / totalWeight : 1;
     const rankScore = headroomUnits * shortageScore * (regionId === corp.headquartersRegionId ? 1.3 : 1);
-    candidates.push({ pool: { ...pool, regionId }, headroomUnits, shortageScore, peakShortageScore: peak, rankScore });
+    candidates.push({ pool: pool as UnownedSectorState & { regionId: string }, headroomUnits, shortageScore, peakShortageScore: peak, rankScore });
   }
   if (candidates.length === 0) return null;
   const frontier = sourceExpansionFrontierStates(corp, ownedByCorp);

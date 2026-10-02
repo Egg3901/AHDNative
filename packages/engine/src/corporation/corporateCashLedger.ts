@@ -4,7 +4,7 @@ import type { Corporation } from "./types.js";
 /** Source financialTxLog row for a successful NPP technology cash write. */
 export interface CorporateCashLedgerRecord {
   id: string;
-  type: "corp_tech_unlock" | "corp_capacity_build";
+  type: "corp_tech_unlock" | "corp_capacity_build" | "corp_sector_founding";
   turn: number;
   corporationId: string;
   corporationName: string;
@@ -24,6 +24,7 @@ export interface CorporateCashLedgerRecord {
     units?: number;
     costAnchor?: number;
     onlineTurn?: number;
+    entryFeeAnchor?: number;
   };
 }
 
@@ -45,6 +46,29 @@ export function makeNppCapacityCashRecord(input: {
     corporationName: input.corp.name || "Corporation", amount: input.cashDeltaLocal ?? -input.costLocal,
     currencyCode: input.world.budgets?.[input.corp.countryId]?.currencyCode ?? "USD",
     meta: { ledgerKey: id, sectorId: input.sector.id, sectorType: input.sector.sectorType, units: input.units, costAnchor: input.costAnchor, onlineTurn: input.onlineTurn },
+  };
+}
+
+/** Cash witness for a source-shaped greenfield NPP entry already applied. */
+export function makeNppFoundingCashRecord(input: {
+  corp: Corporation;
+  world: WorldState;
+  sector: { id: string; sectorType: string };
+  units: number;
+  costLocal: number;
+  cashDeltaLocal: number;
+  costAnchor: number;
+  entryFeeAnchor: number;
+  onlineTurn: number;
+}): CorporateCashLedgerRecord | undefined {
+  if (!(input.costLocal > 0 && Number.isFinite(input.costLocal) && input.costAnchor > 0 && Number.isFinite(input.costAnchor) && input.units > 0)) return undefined;
+  const turn = input.world.meta.turn;
+  const id = `sector-founding:${input.corp.id}:${input.sector.id}:t${turn}`;
+  return {
+    id, type: "corp_sector_founding", turn, corporationId: input.corp.id,
+    corporationName: input.corp.name || "Corporation", amount: input.cashDeltaLocal,
+    currencyCode: input.world.budgets?.[input.corp.countryId]?.currencyCode ?? "USD",
+    meta: { ledgerKey: id, sectorId: input.sector.id, sectorType: input.sector.sectorType, units: input.units, costAnchor: input.costAnchor, entryFeeAnchor: input.entryFeeAnchor, onlineTurn: input.onlineTurn },
   };
 }
 
@@ -93,14 +117,16 @@ export function validateCorporateCashLedger(value: unknown): void {
     if (meta === null || typeof meta !== "object" || Array.isArray(meta)) throw new Error("Invalid corporate cash ledger metadata");
     const details = meta as Record<string, unknown>;
     const isCapacity = row["type"] === "corp_capacity_build";
-    const identity = [row["corporationId"], isCapacity ? details["sectorId"] : details["nodeId"], row["turn"]];
+    const isFounding = row["type"] === "corp_sector_founding";
+    const isAssetCash = isCapacity || isFounding;
+    const identity = [row["corporationId"], isAssetCash ? details["sectorId"] : details["nodeId"], row["turn"]];
     const expectedId = typeof identity[0] === "string" && typeof identity[1] === "string" && Number.isInteger(identity[2])
-      ? isCapacity ? `capacity-build:${identity[0]}:${identity[1]}:t${identity[2]}` : corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
+      ? isCapacity ? `capacity-build:${identity[0]}:${identity[1]}:t${identity[2]}` : isFounding ? `sector-founding:${identity[0]}:${identity[1]}:t${identity[2]}` : corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
       : "";
     if (!expectedId || row["id"] !== expectedId || details["ledgerKey"] !== expectedId || ids.has(expectedId)) {
       throw new Error("Invalid corporate cash ledger identity");
     }
-    if ((row["type"] !== "corp_tech_unlock" && !isCapacity) || typeof identity[2] !== "number" || (identity[2] as number) < 0) {
+    if ((row["type"] !== "corp_tech_unlock" && !isAssetCash) || typeof identity[2] !== "number" || (identity[2] as number) < 0) {
       throw new Error(`Invalid corporate cash ledger type or turn for ${expectedId}`);
     }
     if (typeof row["amount"] !== "number" || !Number.isFinite(row["amount"]) || row["amount"] >= 0) {
@@ -112,12 +138,13 @@ export function validateCorporateCashLedger(value: unknown): void {
     for (const key of ["corporationName"] as const) {
       if (typeof row[key] !== "string" || row[key].length === 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
-    for (const key of (isCapacity ? ["sectorType"] : ["nodeName", "decadeId", "lane"]) as string[]) {
+    for (const key of (isAssetCash ? ["sectorType"] : ["nodeName", "decadeId", "lane"]) as string[]) {
       if (typeof details[key] !== "string" || details[key].length === 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
-    for (const key of (isCapacity ? ["units", "costAnchor", "onlineTurn"] : ["slot", "rdCost"]) as string[]) {
+    for (const key of (isAssetCash ? ["units", "costAnchor", "onlineTurn"] : ["slot", "rdCost"]) as string[]) {
       if (typeof details[key] !== "number" || !Number.isFinite(details[key]) || details[key] < 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
+    if (isFounding && (typeof details["entryFeeAnchor"] !== "number" || !Number.isFinite(details["entryFeeAnchor"]) || details["entryFeeAnchor"] < 0)) throw new Error(`Invalid corporate cash ledger entryFeeAnchor for ${expectedId}`);
     ids.add(expectedId);
   }
 }

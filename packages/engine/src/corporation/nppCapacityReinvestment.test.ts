@@ -2,10 +2,44 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 
 describe("source NPP capacity replacement", () => {
+  it("founds one located source-sized plant, debits cash and draws only that pool", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-founding", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.headquartersRegionId = "DC";
+    corp.liquidCapital = 100_000_000;
+    corp.profitMargin = 35;
+    corp.effectiveProfitMargin = 35;
+    world.unownedSectors["US:VA:manufacturing"] = { countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 50_000_000 };
+    const poolBefore = world.unownedSectors["US:VA:manufacturing"]!.revenue;
+    const cashBefore = corp.liquidCapital;
+    applyNppSourceFounding(world);
+    const assetId = `corporate-sector:US:manufacturing:${corp.id}:VA`;
+    const asset = world.corporateSectors?.[assetId];
+    expect(asset).toMatchObject({ countryId: "US", stateId: "VA", sectorType: "manufacturing", owner: "corporation" });
+    expect(asset?.buildQueue?.[0]?.unitsOrdered).toBeGreaterThanOrEqual(25);
+    expect(asset?.buildQueue?.[0]?.onlineTurn).toBeGreaterThan(world.meta.turn);
+    expect(world.unownedSectors["US:VA:manufacturing"]!.revenue).toBeLessThan(poolBefore);
+    expect(corp.liquidCapital).toBeLessThan(cashBefore);
+    expect(world.corporateCashLedger?.[0]).toMatchObject({
+      type: "corp_sector_founding", corporationId: corp.id,
+      amount: corp.liquidCapital - cashBefore,
+      meta: { ledgerKey: world.corporateCashLedger?.[0]?.id, sectorId: assetId, sectorType: "manufacturing", entryFeeAnchor: expect.any(Number) },
+    });
+    validateCorporateCashLedger(world.corporateCashLedger);
+    applyNppSourceFounding(world);
+    expect(world.corporateCashLedger).toHaveLength(1);
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    applyNppSourceFounding(resumed);
+    expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
+    expect(resumed.unownedSectors["US:VA:manufacturing"]).toEqual(world.unownedSectors["US:VA:manufacturing"]);
+    expect(resumed.corporateSectors?.[assetId]).toEqual(world.corporateSectors?.[assetId]);
+  });
+
   it("converts local unowned revenue into source standard-mix headroom units", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-headroom-fx", playerName: "Alex" });
     world.exchangeRates!["US"]!.rate = 2;
