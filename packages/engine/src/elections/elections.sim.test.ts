@@ -227,6 +227,50 @@ describe("election orchestration (W21c)", () => {
       tally: {},
     };
     w.elections = [previous, next];
+    const resumed = deserializeSave(serializeSave(w, "2026-10-03T00:00:00.000Z"));
+
+    runAutoReelectionEntry(resumed);
+
+    expect(resumed.player.legislativeSeat).toBeNull();
+    expect(resumed.elections.find((election) => election.id === next.id)?.candidates.some((candidate) => candidate.id === "player")).toBe(true);
+  });
+
+  it("W22 source behavior: re-files a player from a resolved manually withdrawn race", () => {
+    const w = createWorld(OPTS);
+    w.player.partyId = "US_DEM";
+    w.player.autoRunForReelection = true;
+    w.player.legislativeSeat = null;
+    w.player.homeRegionId = "AL";
+    w.meta.turn = 12;
+    const previous: ElectionRecord = {
+      id: "house:US:AL:c1",
+      electionType: "house",
+      countryId: "US",
+      state: "AL",
+      cycle: 1,
+      status: "resolved",
+      startTurn: 0,
+      primaryEndTurn: 8,
+      endTurn: 10,
+      totalSeats: 1,
+      chamberKey: "house",
+      candidates: [{ id: "player", name: w.player.name, partyId: "US_DEM", isNPP: false, incumbent: false, status: "withdrawn" }],
+      tally: {},
+      resolvedTurn: 10,
+    };
+    const next: ElectionRecord = {
+      ...previous,
+      id: "house:US:AL:c2",
+      cycle: 2,
+      status: "active",
+      startTurn: 11,
+      primaryEndTurn: 20,
+      endTurn: 30,
+      candidates: [],
+      tally: {},
+      resolvedTurn: undefined,
+    };
+    w.elections = [previous, next];
 
     runAutoReelectionEntry(w);
 

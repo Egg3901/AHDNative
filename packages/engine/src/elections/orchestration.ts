@@ -1347,8 +1347,11 @@ interface AutoReelectionTarget {
 }
 
 function playerContestedElection(rec: ElectionRecord): boolean {
-  if (rec.candidates.some((candidate) => candidate.id === "player" && isElectionCandidateActive(candidate)))
-    return true;
+  // A resolved source candidacy remains a re-entry anchor even if the player
+  // withdrew before the race finished. AHDGame's autoReelectionEntry reads
+  // every candidate row for resolved elections; withdrawal only prevents a
+  // duplicate entry in that same election, not the next cycle.
+  if (rec.candidates.some((candidate) => candidate.id === "player")) return true;
   return Object.values(rec.primaryResults?.byParty ?? {}).some((entries) =>
     entries.some((entry) => entry.candidateId === "player"),
   );
