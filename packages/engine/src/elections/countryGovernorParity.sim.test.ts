@@ -9,6 +9,7 @@ import { getUkCommonsSeats } from "../electionEngine/resolution/constants.js";
 import { executeAction } from "../actions/execute.js";
 import { rngFromSeed } from "../rng.js";
 import { runVoteAccumulation } from "./orchestration.js";
+import { resolvePrimaries } from "./primaryResolution.js";
 import { applyUKDevolutionPolicy, initialUKDevolutionState } from "../devolution/ukInstitutions.js";
 
 describe("source country governor election families", () => {
@@ -25,11 +26,15 @@ describe("source country governor election families", () => {
       expect(races.every((race) => race.state && race.totalSeats === seats[race.state])).toBe(true);
       expect(races.some((race) => race.state === undefined)).toBe(false);
       if (era === "1953") {
-        // Verify the real UK regional demographic tally path, then use a
-        // deterministic fixture tally to make the downstream winner and seat
-        // assertions stable across unrelated vote-model changes.
+        // Complete the required nomination transition before asking the
+        // general tally to run. Calling accumulation on the unresolved slate
+        // is correctly gated and yields no general ballots.
         world.meta.turn = races[0]!.primaryEndTurn + 1;
+        resolvePrimaries(world);
         runVoteAccumulation(world, rngFromSeed("uk-commons-real-tally"));
+        // Verify the real UK regional demographic tally path, then use a
+        // deterministic fixture tally to make downstream winner and seat
+        // assertions stable across unrelated vote-model changes.
         expect(races.every((race) => Object.values(race.tally).some((votes) => votes > 0))).toBe(true);
         for (const race of races) {
           race.tally = Object.fromEntries(race.candidates.map((candidate, index) => [candidate.id, index === 0 ? 100 : 10]));
@@ -182,7 +187,8 @@ describe("source country governor election families", () => {
 
     const defaulted = createWorld({ seed: "ni-conflict-default", playerName: "UK Prime Minister", countryId: "UK", era: "1991", mode: "hos" });
     advanceTurn(defaulted);
-    for (let i = 0; i < 6; i += 1) advanceTurn(defaulted);
+    const deadline = defaulted.northernIrelandConflict!.decision!.deadlineTurn;
+    while (defaulted.meta.turn < deadline) advanceTurn(defaulted);
     expect(defaulted.northernIrelandConflict?.tracks).toMatchObject({ violence: 77, settlementMomentum: 13, legitimacy: 32 });
     expect(defaulted.northernIrelandConflict?.decision?.nodeId).toBe("irish_position");
   });

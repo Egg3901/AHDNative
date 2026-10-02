@@ -171,12 +171,22 @@ export function advanceNorthernIrelandLivingConflict(world: WorldState): void {
   if (state.totalTurns % 18 === 0 && ["backchannels", "ceasefire", "multiparty_talks", "power_sharing"].includes(state.phase)) applyDeltas(state, { violence: 3, domesticConsent: -1 });
   if (state.decision && world.meta.turn >= state.decision.deadlineTurn) {
     const nodes = state.decision.interaction === "peace_initiative" ? INITIATIVE : IMPLEMENTATION;
-    // The source interaction window is eight turns. On expiry the driver
-    // resolves every remaining node using its authored first-option fallback.
-    for (let i = state.decision.nodeIndex; i < nodes.length; i++) {
-      applyAuthoredPosition(world, state, nodes[i]!.options[0].deltas);
+    // Source auto-resolution advances only this unanswered node, then gives
+    // the next authored participant their own full negotiation window.
+    const expiredIndex = state.decision.nodeIndex;
+    applyAuthoredPosition(world, state, nodes[expiredIndex]!.options[0].deltas);
+    const nextIndex = expiredIndex + 1;
+    if (nextIndex < nodes.length) {
+      state.decision = {
+        ...state.decision,
+        nodeId: nodes[nextIndex]!.nodeId,
+        nodeIndex: nextIndex,
+        openedTurn: world.meta.turn,
+        deadlineTurn: world.meta.turn + 8,
+      };
+    } else {
+      delete state.decision;
     }
-    delete state.decision;
   }
   if (state.phase === "agreement") {
     const cutoff = state.lastRejectedPollTurn ?? -1;

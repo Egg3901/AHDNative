@@ -127,9 +127,8 @@ describe("Northern Ireland living-conflict continuation", () => {
     expect(conflict.decision).toMatchObject({ interaction: "peace_initiative", nodeId: "uk_position", deadlineTurn: conflict.decision!.openedTurn + 8 });
     const deadline = conflict.decision!.deadlineTurn;
     while (world.meta.turn < deadline) advanceTurn(world);
-    expect(conflict.decision).toBeUndefined();
-    expect(conflict.tracks.settlementMomentum).toBe(0);
-    expect(conflict.tracks.violence).toBe(84);
+    expect(conflict.decision).toMatchObject({ interaction: "peace_initiative", nodeId: "irish_position", openedTurn: deadline, deadlineTurn: deadline + 8 });
+    expect(conflict.tracks).toMatchObject({ settlementMomentum: 13, violence: 77, legitimacy: 32 });
     const restored = deserializeSave(serializeSave(world, "ni-authored-expiry"));
     expect(restored.northernIrelandConflict).toEqual(world.northernIrelandConflict);
   });
