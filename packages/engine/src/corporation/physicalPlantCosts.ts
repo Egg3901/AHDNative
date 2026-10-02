@@ -44,6 +44,25 @@ export function sourceSectorLaborCost(input: {
   return baseline * multiplier;
 }
 
+/** Game sectorCosts dominance compliance line, based on source revenue shares. */
+export function sourceDominanceComplianceRate(input: {
+  localSharePct: number;
+  nationalSharePct: number;
+  dominanceShield: number;
+  plantsRampLambda: number;
+  stateOwned: boolean;
+}): number {
+  if (input.stateOwned) return 0;
+  const additive = (share: number, threshold: number) => {
+    const bounded = Number.isFinite(share) ? Math.max(0, Math.min(100, share)) : 0;
+    if (bounded <= threshold) return 0;
+    return 0.05 * ((bounded - threshold) / (100 - threshold));
+  };
+  const ramp = Number.isFinite(input.plantsRampLambda) ? Math.max(0, Math.min(1, input.plantsRampLambda)) : 0;
+  const shield = Number.isFinite(input.dominanceShield) ? Math.max(0, Math.min(0.6, input.dominanceShield)) : 0;
+  return Math.max(additive(input.localSharePct, 50), additive(input.nationalSharePct, 30)) * (1 - shield) * (1 - ramp);
+}
+
 /** Source ownerIdleUnits: exclude known involuntary output throttles. */
 export function sourceOwnerIdleUnits(capacity: number, producedUnits: number, involuntaryThrottle: number): number {
   if (!Number.isFinite(capacity) || capacity <= 0 || !Number.isFinite(involuntaryThrottle) || involuntaryThrottle <= 0) return 0;

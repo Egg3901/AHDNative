@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleSourcePlantPnl, sourcePlantsUpkeep, sourceSectorLaborCost, sourceSectorLaborShare } from "./physicalPlantCosts.js";
+import { assembleSourcePlantPnl, sourceDominanceComplianceRate, sourcePlantsUpkeep, sourceSectorLaborCost, sourceSectorLaborShare } from "./physicalPlantCosts.js";
 
 describe("pinned source physical plant costs", () => {
   it("uses the source era/industry labor share and wage, union, agreement, and tech multipliers", () => {
@@ -66,5 +66,11 @@ describe("pinned source physical plant costs", () => {
     expect(result.otherOpex).toBe(0);
     expect(result.totalCost).toBe(0);
     expect(result.profit).toBe(100);
+  });
+
+  it("applies the source local-or-national dominance compliance rate with shield and plants fade", () => {
+    expect(sourceDominanceComplianceRate({ localSharePct: 50, nationalSharePct: 30, dominanceShield: 0, plantsRampLambda: 0, stateOwned: false })).toBe(0);
+    expect(sourceDominanceComplianceRate({ localSharePct: 70, nationalSharePct: 65, dominanceShield: 0.25, plantsRampLambda: 0.4, stateOwned: false })).toBeCloseTo((0.05 * (35 / 70)) * 0.75 * 0.6, 12);
+    expect(sourceDominanceComplianceRate({ localSharePct: 100, nationalSharePct: 100, dominanceShield: 0, plantsRampLambda: 0, stateOwned: true })).toBe(0);
   });
 });

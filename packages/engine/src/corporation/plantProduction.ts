@@ -1,6 +1,6 @@
 /** Plants-tier production, lagged market clearing, and realized revenue. */
 import type { TurnPhase } from "../phases/types.js";
-import { getRateForCountry } from "../forex/conversion.js";
+import { getRateForCountry, localToAnchor } from "../forex/conversion.js";
 import { DAYS_PER_TURN } from "../calendar.js";
 import { softCapEffectiveMargin } from "./constants.js";
 import { corporateSectorAssets, calculateSectorWorkers } from "./corporateSectorAssets.js";
@@ -17,7 +17,7 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import type { SectorBuildOrder } from "./corporateSectorAssets.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { CORPORATE_PLANT_MARKET_STABILIZER, corporatePlantInputRates, rebuildCorporatePlantInputDemand } from "./plantDemand.js";
-import { assembleSourcePlantPnl, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
+import { assembleSourcePlantPnl, sourceDominanceComplianceRate, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 const PRICE_REALIZATION_EXPONENT = 0.5;
 const PRICE_REALIZATION_MIN = 0.7;
@@ -43,6 +43,47 @@ export function technologyOutputUnitsMultiplier(
     scaled += valueBasis * (Number.isFinite(multiplier) && multiplier! > 0 ? multiplier! : 1);
   }
   return base > 0 ? scaled / base : 1;
+}
+
+/** Game marketShare.ts revenue basis: owned receipts only, normalized by host FX. */
+export function sourcePlantDominanceShares(
+  world: WorldState,
+  assets: Record<string, CorporateSectorAsset>,
+): Map<string, { localSharePct: number; nationalSharePct: number }> {
+  const rows = Object.values(assets).flatMap((asset) => {
+    const stateId = asset.stateId;
+    if (!stateId) return [];
+    const countryId = asset.countryId || world.regions[stateId]?.countryId;
+    if (!countryId) return [];
+    const revenue = localToAnchor(Math.max(0, asset.revenue ?? 0), getRateForCountry(world, countryId));
+    return [{ asset, countryId, stateId, revenue }];
+  });
+  const localMarket = new Map<string, number>();
+  const nationalMarket = new Map<string, number>();
+  const nationalByCorporation = new Map<string, number>();
+  const localKey = (stateId: string, type: string) => `${stateId}::${type}`;
+  const nationalKey = (countryId: string, type: string) => `${countryId}::${type}`;
+  const corpKey = (corporationId: string, countryId: string, type: string) => `${corporationId}::${countryId}::${type}`;
+  for (const row of rows) {
+    const type = row.asset.sectorType;
+    const local = localKey(row.stateId, type);
+    const national = nationalKey(row.countryId, type);
+    localMarket.set(local, (localMarket.get(local) ?? 0) + row.revenue);
+    nationalMarket.set(national, (nationalMarket.get(national) ?? 0) + row.revenue);
+    const owned = corpKey(row.asset.corporationId, row.countryId, type);
+    nationalByCorporation.set(owned, (nationalByCorporation.get(owned) ?? 0) + row.revenue);
+  }
+  return new Map(rows.map((row) => {
+    const type = row.asset.sectorType;
+    const local = localMarket.get(localKey(row.stateId, type)) ?? 0;
+    const nationalKeyValue = nationalKey(row.countryId, type);
+    const national = nationalMarket.get(nationalKeyValue) ?? 0;
+    const owned = nationalByCorporation.get(corpKey(row.asset.corporationId, row.countryId, type)) ?? 0;
+    return [row.asset.id, {
+      localSharePct: local > 0 ? Math.max(0, Math.min(100, row.revenue / local * 100)) : 0,
+      nationalSharePct: national > 0 ? Math.max(0, Math.min(100, owned / national * 100)) : 0,
+    }];
+  }));
 }
 
 interface PlantOffer {
@@ -73,6 +114,7 @@ export function runCorporatePlantProductionTurn(
 ): void {
   const assets = corporateSectorAssets(world);
   const basePrices = corporateSectorBasePrices(world);
+  const dominanceShares = sourcePlantDominanceShares(world, assets);
   rebuildCorporatePlantInputDemand(world);
 
   const sellers: PlantSeller[] = [];
@@ -368,7 +410,15 @@ export function runCorporatePlantProductionTurn(
       asset.plantsUpkeepMarginBasisAnchor = upkeep.marginBasis;
     }
     const financialLegs = 0;
-    const compliance = 0;
+    const shares = dominanceShares.get(asset.id) ?? { localSharePct: 0, nationalSharePct: 0 };
+    const stateOwned = corporation.ownershipState === "stateOwned" || Boolean(corporation.countryOwnerId);
+    const compliance = realizedRevenue * sourceDominanceComplianceRate({
+      localSharePct: shares.localSharePct,
+      nationalSharePct: shares.nationalSharePct,
+      dominanceShield: techEffects.dominanceShield,
+      plantsRampLambda: upkeep.ramp,
+      stateOwned,
+    });
     if (asset.otherOpexPerUnitAnchor === undefined && produced > 0) {
       const requestedCredit = realizedRevenue * (policyMarginPp / 100);
       asset.otherOpexPerUnitAnchor = (operatingCostBasis + requestedCredit - inputCost - labour - financialLegs) / produced;

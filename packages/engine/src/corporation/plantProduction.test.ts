@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advancePlantCapitalTurn, DEFAULT_SECTOR_OUTPUT_MIX, EXTRACTION_STRATEGIES } from "./plantCapacity.js";
-import { corporatePlantProductionPhase, demandThrottleFactor, throttleSoldUnits } from "./plantProduction.js";
+import { corporatePlantProductionPhase, demandThrottleFactor, sourcePlantDominanceShares, throttleSoldUnits } from "./plantProduction.js";
 import { runCorporationTurn } from "./corporationTurn.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { createWorld } from "../world.js";
@@ -11,6 +11,20 @@ import { rebuildCorporatePlantInputDemand } from "./plantDemand.js";
 import { sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 describe("plants-tier corporate production", () => {
+  it("builds source local and national dominance shares from actual host-currency receipts", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "source-market-shares", playerName: "Alex" });
+    const [va, md, ca] = ["VA", "MD", "CA"];
+    const assets = {
+      "a-va": { id: "a-va", corporationId: "US-manufacturing", countryId: "US", stateId: va, sectorType: "manufacturing", revenue: 1_000 },
+      "a-md": { id: "a-md", corporationId: "US-manufacturing", countryId: "US", stateId: md, sectorType: "manufacturing", revenue: 1_000 },
+      "b-ca": { id: "b-ca", corporationId: "US-energy", countryId: "US", stateId: ca, sectorType: "manufacturing", revenue: 2_000 },
+    } as unknown as NonNullable<typeof world.corporateSectors>;
+    const shares = sourcePlantDominanceShares(world, assets);
+    expect(shares.get("a-va")).toEqual({ localSharePct: 100, nationalSharePct: 50 });
+    expect(shares.get("a-md")).toEqual({ localSharePct: 100, nationalSharePct: 50 });
+    expect(shares.get("b-ca")).toEqual({ localSharePct: 100, nationalSharePct: 50 });
+  });
+
   it("matches the source 3fbff460 demand probe and price-weighted mixed sales", () => {
     expect(demandThrottleFactor(60_000, 10_000, 60_000)).toBeCloseTo(11_500 / 60_000, 12);
     expect(demandThrottleFactor(60_000, 0, 60_000)).toBe(0.1);
