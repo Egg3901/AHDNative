@@ -217,11 +217,21 @@ describe("#322 strike resolution through the corporation turn", () => {
     expect(asset.strikeStartedAtTurn).toBeNull();
   });
 
+  it("starts a source-eligible wage-expectation strike during the corporate labour step", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "corporation-labour-organic-strike", playerName: "Alex" });
+    const asset = Object.values(corporateSectorAssets(world)).find((row) => row.countryId === "US")!;
+    asset.unionization = 80;
+    asset.workerExpectationIndex = 1.5;
+    const result = stepCorporateSectorStrikes(world, world.meta.turn, loadCorporationLabourState(world, world.meta.turn));
+    expect(result).toMatchObject({ started: 1 });
+    expect(asset.strikeStartedAtTurn).toBe(world.meta.turn);
+  });
+
   it("never manufactures a strike on an idle asset", () => {
     const { world } = shopWorld();
     const before = JSON.stringify(corporateSectorAssets(world));
     const result = stepCorporateSectorStrikes(world, 0, loadCorporationLabourState(world, 0));
-    expect(result).toEqual({ sectorsTrended: 0, resolvedConcession: 0, resolvedWaitout: 0, resolvedBanned: 0, resolvedAgreement: 0 });
+    expect(result).toEqual({ sectorsTrended: 0, started: 0, resolvedConcession: 0, resolvedWaitout: 0, resolvedBanned: 0, resolvedAgreement: 0 });
     expect(JSON.stringify(corporateSectorAssets(world))).toBe(before);
   });
 });

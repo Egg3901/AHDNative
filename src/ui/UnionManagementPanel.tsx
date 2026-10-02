@@ -36,6 +36,8 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
 }) {
   const [duesDraft, setDuesDraft] = useState(String(union.duesPerWorkerAnnual));
   useEffect(() => setDuesDraft(String(union.duesPerWorkerAnnual)), [union.duesPerWorkerAnnual]);
+  const [contributionDraft, setContributionDraft] = useState(String(union.politicalContributionPct * 100));
+  useEffect(() => setContributionDraft(String(union.politicalContributionPct * 100)), [union.politicalContributionPct]);
   const playerLeads = union.ownerType === "player" && union.ownerId === "player";
   const pendingForPlayer = union.pendingLeaderCharacterId === "player";
   const employerId = union.representedEmployerIds[0];
@@ -51,6 +53,9 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
         {pendingForPlayer ? " · Presidency offered to you" : ""}
       </span>
       <span className="ahd-muted" style={{ fontSize: "0.73rem" }}>Union approval: {union.approval.toFixed(1)}%</span>
+      <span className="ahd-muted" style={{ fontSize: "0.73rem" }}>
+        Political contributions: {(union.politicalContributionPct * 100).toFixed(0)}% of remaining budget
+      </span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
         <button
           type="button"
@@ -107,6 +112,29 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
               onClick={() => onCommand({ type: "unionCommand", op: "dues", unionId: union.id, duesPerWorkerAnnual: Number(duesDraft) })}
             >
               Set annual dues
+            </button>
+            <label style={{ display: "grid", gap: "0.2rem", fontSize: "0.72rem" }}>
+              Political contributions as percent of remaining budget
+              <input
+                type="range"
+                min="0"
+                max="50"
+                step="1"
+                disabled={busy || union.suspended}
+                value={Math.min(50, Math.max(0, Number(contributionDraft) || 0))}
+                onChange={(event) => setContributionDraft(event.currentTarget.value)}
+                aria-label={`Political contributions as a percent of remaining budget for ${union.name}`}
+              />
+              <span>{Number(contributionDraft)}% · capped at 50%</span>
+            </label>
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              style={{ minHeight: 44 }}
+              disabled={busy || union.suspended || !Number.isFinite(Number(contributionDraft)) || Number(contributionDraft) < 0}
+              onClick={() => onCommand({ type: "unionCommand", op: "contributions", unionId: union.id, politicalContributionPct: Number(contributionDraft) / 100 })}
+            >
+              Set political contributions
             </button>
           </>
         ) : null}

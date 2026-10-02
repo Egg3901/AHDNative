@@ -100,6 +100,10 @@ export type ExecuteActionParams = {
   originChamber?: string;
   /** Rate for the source-authored economy-wide trade tariff provision. */
   tariffRate?: number;
+  /** Source labour/unionLaws.ts provision selector. */
+  banAction?: "ban" | "repeal_ban";
+  /** Source union-law bias, clamped to the national -50..50 band. */
+  bias?: number;
   // Intra-party ballots
   intrapartyElectionId?: string;
   candidateId?: string;
@@ -953,6 +957,87 @@ function executeActionInner(
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Must hold a legislative seat to sponsor bills (career mode); HoS mode grants government sponsorship" };
+    }
+    if (catalogId === "labour.union_law") {
+      const reject = (error: string): ExecuteActionResult => {
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error };
+      };
+      if (params.sponsorCountryId && params.sponsorCountryId !== world.player.countryId) {
+        return reject("Cannot sponsor a union law outside the player's country");
+      }
+      const countryId = world.player.countryId;
+      const budget = world.budgets[countryId];
+      if (!budget) return reject(`No national budget exists for ${countryId}`);
+      const requestedAction = params.banAction;
+      const banAction = requestedAction === "ban" || requestedAction === "repeal_ban" ? requestedAction : undefined;
+      const bias = params.bias;
+      if (requestedAction !== undefined && banAction === undefined) return reject("Union-law ban action must be ban or repeal_ban");
+      if (banAction === undefined && (typeof bias !== "number" || !Number.isFinite(bias))) {
+        return reject("Union-law bias must be a finite number or specify a ban action");
+      }
+      if (banAction === "ban" && budget.unionsBanned === true) return reject("Unions are already banned in this country");
+      if (banAction === "repeal_ban" && budget.unionsBanned !== true) return reject("There is no union ban to repeal in this country");
+      if (world.bills.some((bill) => bill.countryId === countryId &&
+        !["failed", "withdrawn", "signed", "override_failed"].includes(bill.status) &&
+        bill.provisions.some((provision) => provision.type === "union_law"))) {
+        return reject("Another active union-law bill is already at this scope");
+      }
+
+      const seat = player.legislativeSeat;
+      const sovereignDecree = player.mode === "hos" && player.permanentHeadOfState === true;
+      const legislature = world.legislatures[countryId];
+      if (!sovereignDecree) {
+        if (!seat || seat.countryId !== countryId) return reject("Must hold a legislative seat in the player's country to sponsor a union law");
+        const chamber = legislature?.chambers.find((row) => row.key === seat.chamberKey && row.elected);
+        if (!chamber) return reject("The player's union-law bill must originate in an elected chamber");
+        if (params.originChamber && params.originChamber !== seat.chamberKey) return reject("A union-law bill must originate in the player's seated chamber");
+      }
+      const originChamber = sovereignDecree
+        ? legislature?.chambers.find((row) => row.elected)?.key ?? legislature?.chambers[0]?.key ?? "house"
+        : seat!.chamberKey;
+      const normalizedBias = typeof bias === "number" && Number.isFinite(bias) ? Math.max(-50, Math.min(50, bias)) : 0;
+      const id = `bill-${world.meta.turn}-${world.bills.length + 1}-labour.union_law`;
+      const bill: import("../legislation/types.js").Bill = {
+        id,
+        title: banAction === "ban" ? "National Union Ban" : banAction === "repeal_ban" ? "Repeal National Union Ban" : "National Union Law",
+        summary: banAction === "ban" ? "Suspend unions and block strike action nationwide." : banAction === "repeal_ban" ? "Restore legal union activity nationwide." : `Set national union-law bias to ${normalizedBias}.`,
+        countryId,
+        category: "subsidy",
+        legislationTypeId: "labour.union_law",
+        effectDirection: normalizedBias === 0 ? 0 : Math.sign(normalizedBias),
+        provisions: [{
+          type: "union_law",
+          legislationTypeId: "labour.union_law",
+          effectDirection: normalizedBias === 0 ? 0 : Math.sign(normalizedBias),
+          bias: normalizedBias,
+          ...(banAction ? { banAction } : {}),
+        }],
+        originChamber,
+        currentChamber: originChamber,
+        status: sovereignDecree ? "signed" : "active",
+        sponsorId: "player",
+        sponsorName: world.player.name,
+        sponsorPartyId: world.player.partyId,
+        votes: {},
+        votesFor: 0,
+        votesAgainst: 0,
+        votesAbstain: 0,
+        proposedAtTurn: world.meta.turn,
+        ...(sovereignDecree ? { enactedAtTurn: world.meta.turn } : { votingEndsOnTurn: world.meta.turn + 2 }),
+        proposalActionCost: BILL_PROPOSE_ACTION_COST,
+        filibusterInvocations: [],
+        updatedAtTurn: world.meta.turn,
+        committeeId: null,
+      };
+      world.bills.push(bill);
+      if (sovereignDecree) {
+        applyBillEffects(world, bill);
+        delete actor.actionCooldowns[actionId];
+        return { ok: true, message: `Enacted union-law bill ${id} by head-of-state authority` };
+      }
+      return { ok: true, message: `Sponsored union-law bill ${id}` };
     }
     // Source category="trade" bills carry tariff provisions, independently
     // of national tax-law bills such as CN's customs tariff rate. Game's

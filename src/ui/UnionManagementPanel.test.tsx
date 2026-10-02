@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { corporateSectorAssets, createWorld, openBargainingCampaignAction, serializeSave } from "@ahdclient/engine";
@@ -23,6 +23,7 @@ describe("UnionManagementPanel", () => {
       if (command.op === "organize") session.organizeUnion(command.unionId);
       else if (command.op === "organizeSector") session.organizeUnionSector(command.unionId, command.assetId);
       else if (command.op === "dues") session.setUnionDues(command.unionId, command.duesPerWorkerAnnual);
+      else if (command.op === "contributions") session.setUnionPoliticalContributions(command.unionId, command.politicalContributionPct);
       else if (command.op === "vote") session.castUnionLeadershipVote(command.unionId);
       else if (command.op === "accept") session.acceptUnionLeadership(command.unionId);
       else if (command.op === "call") session.callUnionBargaining(command.unionId, command.employerId, command.terms);
@@ -49,6 +50,11 @@ describe("UnionManagementPanel", () => {
     await user.type(within(union).getByRole("spinbutton", { name: "Annual dues per member for United Steelworkers" }), "100000");
     await user.click(within(union).getByRole("button", { name: "Set annual dues" }));
     refresh();
+    const contributions = within(union).getByRole("slider", { name: "Political contributions as a percent of remaining budget for United Steelworkers" });
+    fireEvent.change(contributions, { target: { value: "50" } });
+    refresh();
+    await user.click(within(union).getByRole("button", { name: "Set political contributions" }));
+    refresh();
     for (let drive = 0; drive < 7; drive++) {
       await user.click(within(union).getByRole("button", { name: /Organize sector US-manufacturing/ }));
       refresh();
@@ -59,9 +65,34 @@ describe("UnionManagementPanel", () => {
     expect(commands).toContainEqual({ type: "unionCommand", op: "vote", unionId });
     expect(commands).toContainEqual({ type: "unionCommand", op: "accept", unionId });
     expect(commands.find((command) => command.op === "dues")).toMatchObject({ op: "dues", unionId });
+    expect(commands.find((command) => command.op === "contributions")).toMatchObject({ op: "contributions", unionId, politicalContributionPct: 0.5 });
     expect(commands.filter((command) => command.op === "organizeSector")).toHaveLength(7);
     expect(commands.find((command) => command.op === "call")).toMatchObject({ op: "call", unionId, employerId: unionId });
     expect(session.unionBargaining().campaigns).toHaveLength(1);
+
+    const beforeTurn = JSON.parse(session.serialize("2026-10-02T00:00:00Z")).world;
+    expect(beforeTurn.unions[unionId].politicalContributionPct).toBe(0.5);
+    const playerFundsBefore = beforeTurn.player.funds;
+    session.advance();
+    const firstTurnSave = session.serialize("2026-10-02T00:00:00Z");
+    const firstTurn = JSON.parse(firstTurnSave).world;
+    const contributionRows = firstTurn.unionContributionLedger.filter((row: { unionId: string }) => row.unionId === unionId);
+    expect(contributionRows.length).toBeGreaterThan(0);
+    const totalPaid = contributionRows.reduce((sum: number, row: { amount: number }) => sum + row.amount, 0);
+    expect(totalPaid).toBeGreaterThan(0);
+    expect(contributionRows).toEqual([
+      expect.objectContaining({ recipientId: "player", turn: 1, amount: expect.any(Number), source: "union_pac" }),
+    ]);
+    expect(firstTurn.player.funds - playerFundsBefore).toBeGreaterThanOrEqual(totalPaid);
+    const sameTurnPayroll = session.unionManagement().unions.find((row) => row.id === unionId)!;
+    expect(totalPaid).toBeCloseTo(sameTurnPayroll.duesIncomePerTurn * 0.5, 2);
+    const reloaded = new GameSession();
+    reloaded.load(firstTurnSave);
+    expect(JSON.parse(reloaded.serialize("2026-10-02T00:00:00Z")).world.unionContributionLedger).toEqual(firstTurn.unionContributionLedger);
+    reloaded.advance();
+    const continued = JSON.parse(reloaded.serialize("2026-10-03T00:00:00Z")).world;
+    expect(continued.unionContributionLedger.filter((row: { unionId: string; turn: number }) => row.unionId === unionId && row.turn === 1).length).toBe(contributionRows.length);
+    expect(continued.unionContributionLedger.some((row: { unionId: string; turn: number }) => row.unionId === unionId && row.turn === 2)).toBe(true);
   }, 15_000);
 
   it("surfaces the source dispute escalation, strike, and withdrawal actions", async () => {

@@ -11,6 +11,8 @@ export interface UnionManagementRow {
   treasury: number;
   approval: number;
   duesPerWorkerAnnual: number;
+  politicalContributionPct: number;
+  suspended: boolean;
   maxDuesPerWorkerAnnual: number;
   duesIncomePerTurn: number;
   pendingLeaderCharacterId: string | null;
@@ -62,6 +64,8 @@ export function projectUnionManagement(world: WorldState): UnionManagementView {
         treasury: union.treasury,
         approval: union.approval,
         duesPerWorkerAnnual: union.duesPerWorkerAnnual,
+        politicalContributionPct: union.politicalContributionPct,
+        suspended: union.suspended === true,
         maxDuesPerWorkerAnnual: annualDuesCap,
         duesIncomePerTurn: duesIncomePerTurn(members, union.duesPerWorkerAnnual),
         pendingLeaderCharacterId: union.pendingLeaderCharacterId ?? null,

@@ -172,6 +172,8 @@ export interface LegislatureView {
   office: string | null;
   /** Playable country the legislature belongs to; keys persisted nav context. */
   countryId?: string;
+  /** Source-backed national ban state from the player's country budget. */
+  unionLawBanned?: boolean;
   proposals: { id: string; title: string; description: string }[];
   sponsor: ActionView;
   bills: { id: string; title: string; status: string; chamber: string; chamberKey?: string; sponsorName: string;

@@ -203,6 +203,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const budgets = world["budgets"];
   if (isRecord(budgets)) for (const [countryId, row] of Object.entries(budgets)) {
     if (!isRecord(row)) continue;
+    if (row["unionsBanned"] === true || (typeof row["unionLawBias"] === "number" && row["unionLawBias"] !== 0)) {
+      return { ok: false, error: `Budget ${countryId} union-law state cannot be continued by the schema 42 turn reader; keep this Native save.` };
+    }
     const rates = row["taxRates"];
     const phaseIn = row["taxRatePhaseIn"];
     if (
@@ -813,6 +816,28 @@ function assertCurrentWorldState(world: WorldState): void {
     }
     if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
+    }
+    const provisions = rawBill["provisions"];
+    if (!Array.isArray(provisions)) throw new Error("Not a valid save file: invalid bill provisions");
+    for (const provision of provisions) {
+      if (!isRecord(provision) || provision["type"] !== "union_law") continue;
+      const bias = provision["bias"];
+      const banAction = provision["banAction"];
+      if (typeof bias !== "number" || !Number.isFinite(bias) || bias < -50 || bias > 50 ||
+          (banAction !== undefined && banAction !== "ban" && banAction !== "repeal_ban")) {
+        throw new Error("Not a valid save file: invalid union-law provision");
+      }
+    }
+  }
+  const budgets = value["budgets"];
+  if (isRecord(budgets)) for (const [countryId, rawBudget] of Object.entries(budgets)) {
+    if (!isRecord(rawBudget)) continue;
+    if (rawBudget["unionsBanned"] !== undefined && typeof rawBudget["unionsBanned"] !== "boolean") {
+      throw new Error(`Not a valid save file: invalid budget ${countryId} unionsBanned`);
+    }
+    const bias = rawBudget["unionLawBias"];
+    if (bias !== undefined && (typeof bias !== "number" || !Number.isFinite(bias) || bias < -50 || bias > 50)) {
+      throw new Error(`Not a valid save file: invalid budget ${countryId} unionLawBias`);
     }
   }
   const tradeTariffs = value["tradeTariffs"];
@@ -3278,6 +3303,10 @@ export function deserializeSave(raw: string): WorldState {
   // absent history absent; the version bump makes older readers refuse new
   // saves rather than silently retaining a snapshot they cannot consume.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
+  // v59: do not infer historic law state. The optional budget fields stay
+  // absent until a source union-law bill enacts; the schema barrier prevents
+  // a v58 reader from loading and then freezing a live national ban/bias.
+  if (save.schemaVersion < 59) save.world.meta.schemaVersion = 59;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

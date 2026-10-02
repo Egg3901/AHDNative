@@ -109,6 +109,10 @@ export interface CountryBudget {
    * market country; only RU/DD carry a live value.
    */
   stateOwnershipConcentration: number;
+  /** Source FederalBudget.unionsBanned; absent on historical saves means no enacted ban. */
+  unionsBanned?: boolean;
+  /** Source FederalBudget.unionLawBias, -50 right-to-work to +50 collective bargaining. */
+  unionLawBias?: number;
 }
 
 /**
