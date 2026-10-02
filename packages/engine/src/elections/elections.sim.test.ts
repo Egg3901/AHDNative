@@ -116,7 +116,7 @@ describe("election orchestration (W21c)", () => {
     expect(executeAction(w, "player", "leaveParty", {}).ok).toBe(true);
     // Candidacy is swept: withdrawn the instant the player's party diverges
     // from the candidacy's snapshotted party, not merely at next resolution.
-    expect(w.elections.find((e) => e.id === target)!.candidates.some((c) => c.id === "player")).toBe(false);
+    expect(w.elections.find((e) => e.id === target)!.candidates.find((c) => c.id === "player")).toMatchObject({ status: "withdrawn" });
   });
 
   it("W22: joining a different party withdraws a candidacy filed under the old party", () => {
@@ -138,7 +138,7 @@ describe("election orchestration (W21c)", () => {
     w.player.lastPartySwitchTurn = null;
     const join2 = executeAction(w, "player", "joinParty", { partyId: "US_REP" });
     expect(join2.ok).toBe(true);
-    expect(w.elections.find((e) => e.id === target)!.candidates.some((c) => c.id === "player")).toBe(false);
+    expect(w.elections.find((e) => e.id === target)!.candidates.find((c) => c.id === "player")).toMatchObject({ status: "withdrawn" });
   });
 
   // W22 leftover: autoReelectionEntry. Ports mainline runAutoReelectionEntry

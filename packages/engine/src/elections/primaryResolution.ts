@@ -174,7 +174,7 @@ function primaryStandings(
         }
       : undefined;
   const candidatesByParty = new Map<string, ElectionCandidate[]>();
-  for (const candidate of rec.candidates) {
+    for (const candidate of rec.candidates) {
     if (candidate.status === "withdrawn") continue;
     const candidates = candidatesByParty.get(candidate.partyId) ?? [];
     candidates.push(candidate);
@@ -385,7 +385,8 @@ export function resolvePrimaries(world: WorldState): void {
       for (const candidateId of partyWinnerIds) winners.add(candidateId);
     }
 
-    for (const candidate of rec.candidates) {
+  for (const candidate of rec.candidates) {
+      candidate.status = winners.has(candidate.id) ? "active" : "withdrawn";
       if (!winners.has(candidate.id)) archiveCampaign(world, rec.id, candidate.id);
       if (presidential) {
         // Source primary-only campaigning state ends at the primary→general
@@ -395,7 +396,6 @@ export function resolvePrimaries(world: WorldState): void {
         candidate.primarySurgeUsed = false;
       }
     }
-    rec.candidates = rec.candidates.filter((candidate) => winners.has(candidate.id));
     rec.tally = {};
     delete rec.tallyState;
     delete rec.stateTallyStates;

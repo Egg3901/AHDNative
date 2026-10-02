@@ -25,7 +25,7 @@ import {
   campaignSideForPartyInRegion,
   CAMPAIGN_PS_COST_PER_UNIT,
   maxAffordableCampaignStrengthClicks,
-  allocateElectoralVotes, electoralVotesByState, electoralMajorityFor,
+  allocateElectoralVotes, electoralVotesByState, electoralMajorityFor, isElectionCandidateActive,
   type Campaign, type OpsBranchKey, type ReferendumRecord, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
@@ -674,10 +674,11 @@ function oppositionResearchAction(
   campaign: Campaign,
   campaignReason?: string,
 ): PoliticsCampaignOppositionView {
-  const playerCandidate = election.candidates.find((candidate) => candidate.id === "player");
+  const playerCandidate = election.candidates.find((candidate) => candidate.id === "player" && isElectionCandidateActive(candidate));
   const primaryOpen = world.meta.turn < election.primaryEndTurn;
   const targets = playerCandidate
     ? election.candidates
+      .filter(isElectionCandidateActive)
       .filter((candidate) => candidate.id !== "player")
       .filter((candidate) => !primaryOpen || candidate.partyId === playerCandidate.partyId)
       .map((candidate) => ({
@@ -839,7 +840,7 @@ function projectPlayerCampaign(
   const campaign = world.campaigns[campaignKey(election.id, "player")];
   if (!campaign) return null;
   const archived = campaign.status === "archived";
-  if (!election.candidates.some((c) => c.id === "player") && !archived) return null;
+  if (!election.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c)) && !archived) return null;
   const generalPhase = !archived && isGeneralPhase(world, election);
   const noRace = election.status === "resolved" ? "This election has ended." : undefined;
   const campaignReason = archived ? "Campaign is archived and read-only." : noRace;
@@ -925,6 +926,7 @@ function projectPlayerCampaign(
   const strengthBatch = strengthQuote(CAMPAIGN_STRENGTH_BATCH_STEPS[0] ?? 5);
   const strengthMax = strengthQuote(maxStrengthClicks);
   const strengthTargets: PoliticsStrengthTargetView[] = election.candidates
+    .filter(isElectionCandidateActive)
     .map((candidate) => {
       const targetCampaign = world.campaigns[campaignKey(election.id, candidate.id)];
       if (!targetCampaign || targetCampaign.status !== "active") return null;
@@ -1482,18 +1484,18 @@ export function projectPolitics(world: WorldState): PoliticsView {
   const player = world.player;
   const partyName = (partyId: string) => world.parties[partyId]?.name ?? partyId;
 
-  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player"));
+  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c)));
   const elections = world.elections.filter((e) => e.countryId === player.countryId)
     .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id)
       || Number(a.status === "resolved") - Number(b.status === "resolved")
       || (a.status === "resolved" ? b.endTurn - a.endTurn : a.primaryEndTurn - b.primaryEndTurn))
     .map((election) => {
-      const playerCandidate = election.candidates.some((c) => c.id === "player");
+      const playerCandidate = election.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c));
       const winnerIdSet = new Set(election.winners ?? []);
       const tallyEntries = Object.entries(election.tally ?? {});
       const hasVotes = tallyEntries.some(([, v]) => v > 0);
       const totalVotes = hasVotes ? tallyEntries.reduce((sum, [, v]) => sum + v, 0) : null;
-      const candidates = election.candidates.map((c) => {
+      const candidates = (election.status === "resolved" ? election.candidates : election.candidates.filter(isElectionCandidateActive)).map((c) => {
         const votes = hasVotes ? (election.tally[c.id] ?? 0) : null;
         return {
           id: c.id, name: c.name, partyId: c.partyId, partyName: partyName(c.partyId),
@@ -1525,7 +1527,7 @@ export function projectPolitics(world: WorldState): PoliticsView {
   for (const election of world.elections) {
     if (election.status === "resolved" || election.countryId !== player.countryId) continue;
     for (const candidate of election.candidates) {
-      if (candidate.id === "player") continue;
+      if (!isElectionCandidateActive(candidate) || candidate.id === "player") continue;
       const list = activeRaceIdsByPolitician.get(candidate.id) ?? [];
       list.push(election.id);
       activeRaceIdsByPolitician.set(candidate.id, list);

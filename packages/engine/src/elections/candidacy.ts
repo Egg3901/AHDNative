@@ -1,5 +1,5 @@
 import type { WorldState } from "../types.js";
-import type { ElectionRecord } from "./types.js";
+import { isElectionCandidateActive, type ElectionRecord } from "./types.js";
 import { findBlockingActiveCandidacy } from "../electionEngine/resolution/activeCandidacy.js";
 import { ensureCampaign, archiveCampaign } from "../campaigns/lifecycle.js";
 import { isCampaignEligibleElection } from "../campaigns/isCampaignEligible.js";
@@ -93,13 +93,16 @@ export function declareCandidacy(world: WorldState, electionId: string): Candida
       error: `Your selected constituency is ${selectedConstituency.name}; choose its Commons race before filing.`,
     };
   }
-  if (rec.candidates.some((c) => c.id === "player")) {
+  const existingPlayerCandidate = rec.candidates.find((c) => c.id === "player");
+  if (existingPlayerCandidate && isElectionCandidateActive(existingPlayerCandidate)) {
     return { ok: false, error: `You are already a candidate in ${describeRace(rec)}.` };
   }
 
-  const candidateRows = world.elections
-    .filter((e) => e.candidates.some((c) => c.id === "player"))
-    .map((e) => ({ _id: `player:${e.id}`, electionId: e.id, characterId: "player", status: "active" as const }));
+  const candidateRows = world.elections.flatMap((e) =>
+    e.candidates
+      .filter((candidate) => candidate.id === "player" && isElectionCandidateActive(candidate))
+      .map(() => ({ _id: `player:${e.id}`, electionId: e.id, characterId: "player", status: "active" as const })),
+  );
   const electionRows = world.elections.map((e) => ({ _id: e.id, status: e.status, countryId: e.countryId }));
   const blocking = findBlockingActiveCandidacy(candidateRows, electionRows, "player", rec.id);
   if (blocking) {
@@ -110,7 +113,7 @@ export function declareCandidacy(world: WorldState, electionId: string): Candida
     };
   }
 
-  rec.candidates.push({
+  const candidate = {
     id: "player",
     name: world.player.name,
     partyId,
@@ -119,7 +122,10 @@ export function declareCandidacy(world: WorldState, electionId: string): Candida
       world.player.legislativeSeat != null &&
       world.player.legislativeSeat.chamberKey === rec.chamberKey &&
       world.player.legislativeSeat.countryId === rec.countryId,
-  });
+    status: "active" as const,
+  };
+  if (existingPlayerCandidate) Object.assign(existingPlayerCandidate, candidate);
+  else rec.candidates.push(candidate);
   world.news.push({
     id: `candidacy:${rec.id}:${world.meta.turn}`,
     turn: world.meta.turn,
@@ -146,14 +152,14 @@ export function declareCandidacy(world: WorldState, electionId: string): Candida
 }
 
 /**
- * Shared removal: strip the player's candidacy row, tally entry, frozen
+ * Shared removal: mark the player's candidacy withdrawn, remove its tally entry, frozen
  * per-state EC totals, and campaign. Factored out of withdrawCandidacy so
  * sweepCandidaciesOnPartyChange (W22) can reuse the exact same cleanup.
  */
 function removePlayerCandidacy(world: WorldState, rec: ElectionRecord): void {
-  const idx = rec.candidates.findIndex((c) => c.id === "player");
+  const idx = rec.candidates.findIndex((c) => c.id === "player" && isElectionCandidateActive(c));
   if (idx < 0) return;
-  rec.candidates.splice(idx, 1);
+  rec.candidates[idx]!.status = "withdrawn";
   delete rec.tally["player"];
   // W24b: also purge the player's frozen per-state EC entries — without one
   // more accumulation turn to naturally drop them (accumulateVoteTurn only
@@ -171,9 +177,9 @@ function removePlayerCandidacy(world: WorldState, rec: ElectionRecord): void {
 /**
  * Withdraw the player's active candidacy. Reference
  * `POST /api/elections/[id]/withdraw` blocks only completed/resolved/cancelled
- * elections (route.ts L67-95) and requires an active candidacy; Native has no
- * separate candidate-status field (see removePlayerCandidacy) so "resolved" is
- * the sole terminal block. No fee, matching the reference.
+ * elections (route.ts L67-95) and requires an active candidacy; the current
+ * candidate record retains the source "withdrawn" status. No fee, matching
+ * the reference.
  *
  * PORT-STUB: the reference pairs withdrawal with a party-leadership re-enter
  * path (state party elections); the national path here is the only player
@@ -185,7 +191,7 @@ export function withdrawCandidacy(world: WorldState, electionId: string): Candid
   if (rec.status === "resolved") {
     return { ok: false, error: "This election has ended; you can no longer withdraw." };
   }
-  if (!rec.candidates.some((c) => c.id === "player")) {
+  if (!rec.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c))) {
     return { ok: false, error: `You are not entered in ${describeRace(rec)}.` };
   }
   removePlayerCandidacy(world, rec);
@@ -214,7 +220,7 @@ export function withdrawCandidacy(world: WorldState, electionId: string): Candid
 export function sweepCandidaciesOnPartyChange(world: WorldState, newPartyId: string | null): void {
   for (const rec of world.elections) {
     if (rec.status === "resolved") continue;
-    const cand = rec.candidates.find((c) => c.id === "player");
+    const cand = rec.candidates.find((c) => c.id === "player" && isElectionCandidateActive(c));
     if (cand && cand.partyId !== newPartyId) {
       removePlayerCandidacy(world, rec);
     }

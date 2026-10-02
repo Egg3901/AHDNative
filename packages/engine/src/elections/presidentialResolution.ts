@@ -1,5 +1,5 @@
 import type { WorldState } from "../types.js";
-import type { ElectionRecord } from "./types.js";
+import { isElectionCandidateActive, type ElectionRecord } from "./types.js";
 import {
   loadContingentElectionDataPlain,
   type CandidateInput as ContingentCandidateInput,
@@ -150,7 +150,7 @@ export function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
     });
   }
 
-  const candidates: ContingentCandidateInput[] = rec.candidates.map((c) => ({
+  const candidates: ContingentCandidateInput[] = rec.candidates.filter(isElectionCandidateActive).map((c) => ({
     _id: c.id,
     party: c.partyId,
     isNPP: false,
@@ -200,7 +200,7 @@ function vacate(world: WorldState, rec: ElectionRecord): void {
 
 export function applyPresidentialResolution(world: WorldState, rec: ElectionRecord): void {
   const totalVotes = Object.values(rec.tally).reduce((a, b) => a + b, 0);
-  if (totalVotes === 0 || rec.candidates.length === 0) {
+  if (totalVotes === 0 || !rec.candidates.some(isElectionCandidateActive)) {
     vacate(world, rec);
     return;
   }
@@ -221,7 +221,7 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
   const topEntry = ranked[0];
   if (topEntry && topEntry[1] >= majorityThreshold) {
     winnerId = topEntry[0];
-    const winnerCand = rec.candidates.find((c) => c.id === winnerId);
+    const winnerCand = rec.candidates.find((c) => isElectionCandidateActive(c) && c.id === winnerId);
     vpWinnerId = winnerCand?.runningMateId ?? null;
   } else {
     const { countryId, candidates, characters, partyMap, houseOfficials, senateOfficials } = buildContingentInputs(
@@ -263,7 +263,7 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
     };
   }
 
-  const winnerCand = rec.candidates.find((c) => c.id === winnerId);
+  const winnerCand = rec.candidates.find((c) => isElectionCandidateActive(c) && c.id === winnerId);
   const winnerParty = winnerCand?.partyId ?? targetOffice(world, winnerId)?.partyId ?? "independent";
   const vpParty = vpPartyFor(world, vpWinnerId);
 
