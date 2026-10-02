@@ -328,15 +328,16 @@ export interface PoliticsPresidentialView {
   electors: PoliticsPresidentialElectorView[];
   /** Source governor-office endorsement actions available to this player, if any. */
   governorActions?: Array<{
-    actionId: "governorEndorsePresidentialCandidate" | "withdrawGovernorEndorsement";
     electionId: string;
     stateId: string;
     candidateId: string;
     candidateName: string;
-    endorsementId?: string;
     available: boolean;
     disabledReason?: string;
-  }>;
+  } & (
+    | { actionId: "governorEndorsePresidentialCandidate" }
+    | { actionId: "withdrawGovernorEndorsement"; endorsementId: string }
+  )>;
   /** Per-state accumulation, sorted by state id; empty when no per-state tallies. */
   states: PoliticsPresidentialStateView[];
   resolved: boolean;

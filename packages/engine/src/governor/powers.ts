@@ -238,7 +238,7 @@ export function endorsePresidentialCandidate(
   stateId: string,
   electionId: string,
   candidateId: string,
-): { ok: boolean; error?: string; endorsementId?: string } {
+): { ok: true; endorsementId: string } | { ok: false; error: string } {
   const office = world.governors[stateId];
   if (!office || office.countryId !== world.player.countryId) return { ok: false, error: "No matching governor office." };
   if (office.governorId !== "player") return { ok: false, error: "You do not hold this governor's office." };
@@ -276,11 +276,13 @@ export function withdrawPresidentialGovernorEndorsement(
   world: WorldState,
   electionId: string,
   endorsementId: string,
-): { ok: boolean; error?: string } {
+): { ok: true } | { ok: false; error: string } {
   const election = world.elections.find((race) => race.id === electionId && race.electionType === "president");
   const endorsement = election?.governorEndorsements?.find((row) => row.id === endorsementId && row.isActive);
   if (!election || !endorsement) return { ok: false, error: "Active endorsement not found." };
-  if (world.governors[endorsement.stateId]?.governorId !== endorsement.endorsedById) {
+  // Game's DELETE route checks both the human office-holder and original
+  // endorser. A still-seated NPC's ledger does not grant the player authority.
+  if (world.governors[endorsement.stateId]?.governorId !== "player" || endorsement.endorsedById !== "player") {
     return { ok: false, error: "Only the sitting governor may withdraw this endorsement." };
   }
   endorsement.isActive = false;

@@ -204,6 +204,21 @@ describe("presidential per-unit accumulation", () => {
     expect(serializeSave(world, new Date(0).toISOString())).toBe(nonOfficeBefore);
   });
 
+  it("refuses player withdrawal of another sitting governor's endorsement without mutation", () => {
+    const { world, race } = setup("2019");
+    const governorId = world.politicians.find(p => p.countryId === "US")!.id;
+    world.governors.CA!.governorId = governorId;
+    race.governorEndorsements = [{
+      id: "governor-owned-endorsement", stateId: "CA", candidateId: race.candidates[0]!.id,
+      endorsedById: governorId, createdAtTurn: world.meta.turn, isActive: true,
+    }];
+    const before = serializeSave(world, new Date(0).toISOString());
+    expect(executeAction(world, "player", "withdrawGovernorEndorsement", {
+      electionId: race.id, endorsementId: race.governorEndorsements[0]!.id,
+    })).toMatchObject({ ok: false, error: expect.stringContaining("sitting governor") });
+    expect(serializeSave(world, new Date(0).toISOString())).toBe(before);
+  });
+
   it("withdraws endorsements when the source election ends or governor leaves office", () => {
     const { world, race } = setup("2019");
     race.governorEndorsements = [{
