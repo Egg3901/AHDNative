@@ -86,16 +86,25 @@ describe("UK Commons vacancy plumbing", () => {
     const regular = world.elections.find((election) => election.countryId === "UK" && election.electionType === "commons" && election.state === "LON");
     expect(regular).toBeDefined();
     expect(executeAction(world, "player", "declareCandidacy", { electionId: regular!.id }).ok).toBe(true);
-    expect(executeAction(world, "player", "campaignRallyTour", { electionId: regular!.id, active: true }).ok).toBe(true);
     expect(executeAction(world, "player", "convertCash", { amount: world.player.cash }).ok).toBe(true);
+    let publicCampaignActions = 0;
+    const campaignIfAvailable = () => {
+      if (world.player.politicalInfluence >= 100 || world.player.actions < 1 || world.player.funds < 20_000) return;
+      if (executeAction(world, "player", "campaign", {}).ok) publicCampaignActions++;
+    };
     for (let i = 0; i < 3; i++) {
       expect(executeAction(world, "player", "advertise", {}).ok).toBe(true);
       if (i < 2) {
         advanceTurn(world);
+        campaignIfAvailable();
         advanceTurn(world);
+        campaignIfAvailable();
       }
     }
-    while (regular!.status !== "resolved" && world.meta.turn <= regular!.endTurn) advanceTurn(world);
+    while (regular!.status !== "resolved" && world.meta.turn <= regular!.endTurn) {
+      advanceTurn(world);
+      campaignIfAvailable();
+    }
     expect(regular!.status).toBe("resolved");
     expect(world.player.legislativeSeat, JSON.stringify({
       turn: world.meta.turn,
@@ -103,8 +112,9 @@ describe("UK Commons vacancy plumbing", () => {
       winnerIds: regular!.winners,
       playerVotes: regular!.tally.player,
       topVotes: [...Object.entries(regular!.tally)].sort(([, a], [, b]) => b - a).slice(0, 12),
-      playerSupport: world.candidateSupports.player?.support,
       playerFavorability: world.player.favorability,
+      politicalInfluence: world.player.politicalInfluence,
+      publicCampaignActions,
     })).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
     const heldSeats = world.player.legislativeSeat!.seatsHeld ?? 1;
     expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(true);
@@ -114,8 +124,10 @@ describe("UK Commons vacancy plumbing", () => {
     const special = world.elections.find((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === "LON");
     expect(special).toMatchObject({ totalSeats: heldSeats, byElectionCarve: expect.any(Number), vacancyIds: [world.ukCommonsVacancies![0]!.id] });
     expect(executeAction(world, "player", "declareCandidacy", { electionId: special!.id }).ok).toBe(true);
-    expect(executeAction(world, "player", "campaignRallyTour", { electionId: special!.id, active: true }).ok).toBe(true);
-    while (special!.status !== "resolved" && world.meta.turn <= special!.endTurn) advanceTurn(world);
+    while (special!.status !== "resolved" && world.meta.turn <= special!.endTurn) {
+      advanceTurn(world);
+      campaignIfAvailable();
+    }
     expect(special!.status).toBe("resolved");
     expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ status: "filled", filledById: "player" })]);
     expect(world.player.legislativeSeat).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
