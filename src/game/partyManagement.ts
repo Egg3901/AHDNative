@@ -62,6 +62,26 @@ export interface PartyManagementView {
   founding: PartyFoundingStatus;
   parties: PartyManagedView[];
   charters: PartyCharterView[];
+  merger?: PartyMergerManagementView;
+}
+
+export interface PartyMergerManagementView {
+  available: boolean;
+  disabledReason: string | null;
+  targets: Array<{ id: string; name: string; abbreviation: string }>;
+  proposals: Array<{
+    id: string;
+    proposerPartyName: string;
+    targetPartyName: string;
+    status: string;
+    expiresTurn: number;
+    playerSide: "proposing" | "target" | null;
+    canVote: boolean;
+    proposingYes: number;
+    proposingNo: number;
+    targetYes: number;
+    targetNo: number;
+  }>;
 }
 
 export function projectPartyFounding(world: WorldState): PartyFoundingStatus {
@@ -139,6 +159,19 @@ export function projectPartyManagement(world: WorldState): PartyManagementView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
   const player = world.player;
+  const playerParty = player.partyId ? world.parties[player.partyId] : undefined;
+  const canProposeMerger = !!playerParty && !playerParty.mergedIntoPartyId && (
+    playerParty.chairId === "player" || playerParty.viceChairId === "player" || (playerParty.committeeIds ?? []).includes("player")
+  );
+  const openOwnMerger = (world.partyMergerProposals ?? []).some((proposal) => proposal.status === "open" && proposal.proposerPartyId === playerParty?.id);
+  const latestPassedMerge = (world.partyMergerProposals ?? [])
+    .filter((proposal) => proposal.proposerPartyId === playerParty?.id && proposal.status === "passed")
+    .reduce((latest, proposal) => Math.max(latest, proposal.resolvedTurn ?? proposal.createdTurn), -Infinity);
+  const mergerCooldown = Number.isFinite(latestPassedMerge) ? Math.max(0, latestPassedMerge + 96 - world.meta.turn) : 0;
+  const mergerDisabledReason = !playerParty ? "Join a party first."
+    : !canProposeMerger ? "Only your party chair, vice-chair, or national committee members may propose a merger."
+    : openOwnMerger ? "Your party already has an open merger proposal."
+    : mergerCooldown > 0 ? `Merger proposals available in ${mergerCooldown} turns.` : null;
   const parties = Object.values(world.parties)
     .filter((party) => party.countryId === country.id)
     .map((party) => ({
@@ -159,5 +192,33 @@ export function projectPartyManagement(world: WorldState): PartyManagementView {
     founding: projectPartyFounding(world),
     parties,
     charters: projectPartyCharters(world),
+    merger: {
+      available: !mergerDisabledReason,
+      disabledReason: mergerDisabledReason,
+      targets: parties.filter((party) => party.id !== playerParty?.id && !world.parties[party.id]?.mergedIntoPartyId)
+        .map(({ id, name, abbreviation }) => ({ id, name, abbreviation })),
+      proposals: (world.partyMergerProposals ?? [])
+        .filter((proposal) => proposal.countryId === player.countryId)
+        .map((proposal) => {
+          const side: "proposing" | "target" | null = playerParty?.id === proposal.proposerPartyId ? "proposing"
+            : playerParty?.id === proposal.targetPartyId ? "target" : null;
+          const sideParty = side === "proposing" ? world.parties[proposal.proposerPartyId] : side === "target" ? world.parties[proposal.targetPartyId] : undefined;
+          const canVote = !!side && !!sideParty && (sideParty.chairId === "player" || sideParty.viceChairId === "player"
+            || sideParty.treasurerId === "player" || (sideParty.committeeIds ?? []).includes("player"));
+          return {
+            id: proposal.id,
+            proposerPartyName: world.parties[proposal.proposerPartyId]?.name ?? proposal.proposerPartyId,
+            targetPartyName: world.parties[proposal.targetPartyId]?.name ?? proposal.targetPartyId,
+            status: proposal.status,
+            expiresTurn: proposal.expiresTurn,
+            playerSide: side,
+            canVote: canVote && proposal.status === "open" && world.meta.turn < proposal.expiresTurn,
+            proposingYes: proposal.proposingVotes.filter((vote) => vote.vote === "yes").length,
+            proposingNo: proposal.proposingVotes.filter((vote) => vote.vote === "no").length,
+            targetYes: proposal.targetVotes.filter((vote) => vote.vote === "yes").length,
+            targetNo: proposal.targetVotes.filter((vote) => vote.vote === "no").length,
+          };
+        }),
+    },
   };
 }

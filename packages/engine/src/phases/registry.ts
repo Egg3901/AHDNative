@@ -15,6 +15,7 @@ import {
   expireChartersPhase,
   emptyPartyCleanupPhase,
   partyMemberCountReconcilePhase,
+  partyMergerProposalExpiryPhase,
   playerEndorsementPartySweepPhase,
 } from "../party/phases.js";
 
@@ -219,6 +220,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   expireChartersPhase,
   emptyPartyCleanupPhase,
   partyMemberCountReconcilePhase,
+  partyMergerProposalExpiryPhase,
   nppRelationshipMaintenancePhase,
   nppBillSponsorshipPhase,
   nppStanceDriftPhase,
