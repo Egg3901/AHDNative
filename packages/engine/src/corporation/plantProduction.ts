@@ -17,6 +17,7 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import type { SectorBuildOrder } from "./corporateSectorAssets.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { CORPORATE_PLANT_MARKET_STABILIZER, corporatePlantInputRates, rebuildCorporatePlantInputDemand } from "./plantDemand.js";
+import { assembleSourcePlantPnl, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 const PRICE_REALIZATION_EXPONENT = 0.5;
 const PRICE_REALIZATION_MIN = 0.7;
@@ -325,32 +326,82 @@ export function runCorporatePlantProductionTurn(
     const priorMargin = softCapEffectiveMargin(corporation.profitMargin);
     const operatingCostBasis = realizedRevenue * (1 - priorMargin / 100);
     const produced = asset.producedUnits ?? 0;
-    if (asset.otherOpexPerUnitAnchor === undefined && produced > 0) {
-      asset.otherOpexPerUnitAnchor = (operatingCostBasis - inputCost) / produced;
+    const year = Number(world.meta.date.slice(0, 4));
+    const techEffects = getSectorTechEffects({ type: corporation.sectorType, ...corporation }, asset.sectorType);
+    const agreements = Object.values(world.collectiveAgreements ?? {}).filter((agreement) =>
+      agreement.employerCorporationId === corporation.id &&
+      agreement.sectorIds.includes(asset.id) &&
+      agreement.status === "active" &&
+      world.meta.turn >= agreement.startsAtTurn &&
+      world.meta.turn < agreement.expiresAtTurn,
+    );
+    const negotiatedWageFloor = agreements.reduce((floor, agreement) => Math.max(floor, agreement.wageLevel), 0.8);
+    const currentMarginModifier = marginModifierPpByCorporation.get(corporation.id) ?? 0;
+    const policyMarginPp = softCapEffectiveMargin(priorMargin + currentMarginModifier) - priorMargin;
+    // The source has a separate labourSystemMode config. Native's unions
+    // phase is the nearest saved control: when disabled, source wage costs,
+    // like the source wages tier, are absent.
+    const labour = world.featureFlags.unions ? sourceSectorLaborCost({
+      revenue: realizedRevenue,
+      marginPct: softCapEffectiveMargin(priorMargin + currentMarginModifier),
+      type: corporation.sectorType,
+      year,
+      wageLevel: asset.wageLevel ?? 1,
+      negotiatedWageFloor,
+      unionization: asset.unionization ?? 0,
+      techLaborCostMultiplier: techEffects.laborCostMultiplier,
+    }) : 0;
+    const plantsStartTurn = asset.plantsStartTurn ?? world.meta.turn;
+    asset.plantsStartTurn = plantsStartTurn;
+    const upkeep = sourcePlantsUpkeep({
+      mixPrice: mixPriceAnchor,
+      capacity: productionCapacity,
+      producedUnits: produced,
+      involuntaryThrottle: outputFactor,
+      effectiveMarginPct: priorMargin + (marginModifierPpByCorporation.get(corporation.id) ?? 0),
+      marginBasisAnchor: asset.plantsUpkeepMarginBasisAnchor,
+      plantsStartTurn,
+      turn: world.meta.turn,
+      localPerAnchor,
+    });
+    if (asset.plantsUpkeepMarginBasisAnchor === undefined) {
+      asset.plantsUpkeepMarginBasisAnchor = upkeep.marginBasis;
     }
-    const otherOpex = Number.isFinite(asset.otherOpexPerUnitAnchor)
+    const financialLegs = 0;
+    const compliance = 0;
+    if (asset.otherOpexPerUnitAnchor === undefined && produced > 0) {
+      const requestedCredit = realizedRevenue * (policyMarginPp / 100);
+      asset.otherOpexPerUnitAnchor = (operatingCostBasis + requestedCredit - inputCost - labour - financialLegs) / produced;
+    }
+    const rawOtherOpex = Number.isFinite(asset.otherOpexPerUnitAnchor)
       ? asset.otherOpexPerUnitAnchor! * produced
-      : operatingCostBasis - inputCost;
-    const requestedPolicyCredit = realizedRevenue * ((marginModifierPpByCorporation.get(corporation.id) ?? 0) / 100);
-    const creditableOperatingBills = inputCost + Math.max(0, otherOpex);
-    const policyCredit = requestedPolicyCredit > 0
-      ? Math.min(requestedPolicyCredit, creditableOperatingBills)
-      : requestedPolicyCredit;
-    const operatingCost = inputCost + otherOpex - policyCredit;
+      : operatingCostBasis - inputCost - labour - financialLegs;
+    const requestedPolicyCredit = realizedRevenue * (policyMarginPp / 100);
+    const pnl = assembleSourcePlantPnl({
+      revenue: realizedRevenue, inputs: inputCost, labour, upkeep: upkeep.cost,
+      compliance, financialLegs, growth: 0, otherOpex: rawOtherOpex,
+      requestedPolicyCredit,
+    });
     const effectiveProfitMargin = realizedRevenue > 0
-      ? Math.min(100, 100 * (1 - operatingCost / realizedRevenue))
+      ? Math.min(100, 100 * (1 - pnl.operatingCost / realizedRevenue))
       : priorMargin;
     asset.effectiveProfitMargin = effectiveProfitMargin;
     asset.plantsPnl = {
       turn: world.meta.turn,
       revenue: realizedRevenue,
       inputs: inputCost,
-      otherOpex,
-      policyCredit,
+      labour,
+      upkeep: upkeep.cost,
+      otherOpex: pnl.otherOpex,
+      otherOpexUncapped: pnl.otherOpexUncapped,
+      otherOpexCreditCapped: pnl.otherOpexCreditCapped,
+      financialLegs,
+      compliance,
+      policyCredit: pnl.policyCredit,
       growth: 0,
-      operatingCost,
-      totalCost: operatingCost,
-      profit: realizedRevenue - operatingCost,
+      operatingCost: pnl.operatingCost,
+      totalCost: pnl.totalCost,
+      profit: pnl.profit,
     };
 
     asset.soldUnits = soldUnits;
@@ -437,6 +488,33 @@ export const corporatePlantProductionPhase: TurnPhase = {
     runCorporatePlantProductionTurn(world);
   },
 };
+
+/** Game computeGrowthAndRegulatory: realized/nameplate receipts, bounded to [0, 1]. */
+export function corporatePlantsRealizationRatio(world: WorldState, corporationId: string): number {
+  const prices = corporateSectorBasePrices(world);
+  let realized = 0;
+  let nominal = 0;
+  for (const asset of Object.values(corporateSectorAssets(world))) {
+    if (asset.corporationId !== corporationId) continue;
+    const selected = asset.strategyId !== undefined && asset.strategyId !== "standard";
+    const strategy = selected || asset.transitionFromStrategyId
+      ? effectiveSectorStrategyRates(asset, world.meta.turn)
+      : { supply: SOURCE_DEFAULT_OPERATING_SUPPLY[asset.sectorType] };
+    let yieldPerCapacity = 0;
+    for (const [rawCommodity, rate] of Object.entries(strategy.supply)) {
+      const price = prices[rawCommodity as CommodityType];
+      if ((rate ?? 0) > 0 && Number.isFinite(price) && price! > 0) yieldPerCapacity += rate! / price!;
+    }
+    const mixPrice = yieldPerCapacity > 0 ? 1 / yieldPerCapacity : 0;
+    const capacity = effectiveSectorCapacity(asset, prices, world.meta.turn);
+    const hostRate = getRateForCountry(world, asset.countryId);
+    const assetNominal = capacity * mixPrice * hostRate * DAYS_PER_TURN;
+    if (!(assetNominal > 0) || !Number.isFinite(assetNominal)) continue;
+    nominal += assetNominal;
+    realized += Math.max(0, asset.realizedRevenue ?? 0);
+  }
+  return nominal > 0 ? Math.max(0, Math.min(1, realized / nominal)) : 1;
+}
 
 function postureFor(asset: CorporateSectorAsset, demand: number, supply: number): number {
   const lastSold = asset.soldFraction;

@@ -64,12 +64,13 @@ import {
   type CorporationLabourFactors,
 } from "./corporationLabour.js";
 import { syncSourceRegionalSectorReceipts } from "./sourceRegionalSectorSeed.js";
-import { runCorporatePlantProductionTurn } from "./plantProduction.js";
+import { corporatePlantsRealizationRatio, runCorporatePlantProductionTurn } from "./plantProduction.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng } from "./rdInnovationRng.js";
 import { applyNppSourceStrategyRetools, strategyTransitionMarginModifier } from "./strategyRetooling.js";
 import { unlockNppCorporationTech } from "./techTree/nppUnlock.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
+import { assembleSourcePlantPnl } from "./physicalPlantCosts.js";
 import {
   RD_EXTRACTION_BOOST_MAX,
   RD_EXTRACTION_BOOST_MIN,
@@ -386,7 +387,7 @@ export const corporationTurnPhase: TurnPhase = {
       }, {
         softBudget,
         ...(plannedTargetRate !== undefined ? { plannedTargetRate } : {}),
-      }, plantOperatingMargin, tech.growthCostMultiplier);
+      }, plantOperatingMargin, tech.growthCostMultiplier * corporatePlantsRealizationRatio(world, corp.id));
       // Game sectorCosts carries the tapered expansion bill through the
       // physical statement even after plant capacity becomes authoritative.
       // Native has one real asset per issuer; a revenue share keeps this
@@ -396,9 +397,28 @@ export const corporationTurnPhase: TurnPhase = {
         for (const sector of issuerAssets) {
           if (!sector.plantsPnl) continue;
           const share = Math.max(0, sector.realizedRevenue ?? 0) / totalRevenue;
-          sector.plantsPnl.growth = corp.currentGrowthCost * share;
-          sector.plantsPnl.totalCost = sector.plantsPnl.operatingCost + sector.plantsPnl.growth;
-          sector.plantsPnl.profit = sector.plantsPnl.revenue - sector.plantsPnl.totalCost;
+          const growth = corp.currentGrowthCost * share;
+          const settledPnl = assembleSourcePlantPnl({
+            revenue: sector.plantsPnl.revenue,
+            inputs: sector.plantsPnl.inputs,
+            labour: sector.plantsPnl.labour ?? 0,
+            upkeep: sector.plantsPnl.upkeep ?? 0,
+            compliance: sector.plantsPnl.compliance ?? 0,
+            financialLegs: sector.plantsPnl.financialLegs ?? 0,
+            growth,
+            otherOpex: sector.plantsPnl.otherOpexUncapped ?? sector.plantsPnl.otherOpex,
+            requestedPolicyCredit: sector.plantsPnl.revenue * ((softCapEffectiveMargin(
+              softCapEffectiveMargin(corp.profitMargin) + (marginModifierByCorp.get(corp.id) ?? 0),
+            ) - softCapEffectiveMargin(corp.profitMargin)) / 100),
+          });
+          sector.plantsPnl.growth = growth;
+          sector.plantsPnl.otherOpex = settledPnl.otherOpex;
+          sector.plantsPnl.otherOpexUncapped = settledPnl.otherOpexUncapped;
+          sector.plantsPnl.otherOpexCreditCapped = settledPnl.otherOpexCreditCapped;
+          sector.plantsPnl.policyCredit = settledPnl.policyCredit;
+          sector.plantsPnl.operatingCost = settledPnl.operatingCost;
+          sector.plantsPnl.totalCost = settledPnl.totalCost;
+          sector.plantsPnl.profit = settledPnl.profit;
         }
       }
       // Source insolvency uses management, separately from creator ownership.

@@ -8,6 +8,7 @@ import { rngFromState } from "../rng.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { rebuildCorporatePlantInputDemand } from "./plantDemand.js";
+import { sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 describe("plants-tier corporate production", () => {
   it("matches the source 3fbff460 demand probe and price-weighted mixed sales", () => {
@@ -300,9 +301,16 @@ describe("plants-tier corporate production", () => {
     advanceTurn(world);
 
     const settled = world.corporateSectors[id]!;
+    const sourceLabor = sourceSectorLaborCost({
+      revenue: settled.realizedRevenue!, marginPct: 20, type: "manufacturing",
+      year: Number(world.meta.date.slice(0, 4)), wageLevel: settled.wageLevel ?? 1,
+      unionization: settled.unionization ?? 0, techLaborCostMultiplier: 1,
+    });
     expect(settled.plantsPnl?.turn).toBe(world.meta.turn);
     expect(settled.plantsPnl?.revenue).toBe(settled.realizedRevenue);
     expect(settled.plantsPnl?.inputs).toBeGreaterThan(0);
+    expect(settled.plantsPnl?.labour).toBeCloseTo(sourceLabor, 8);
+    expect(settled.plantsPnl?.upkeep).toBe(0); // source 240-turn ramp starts at zero
     expect(settled.plantsPnl?.profit).toBeCloseTo(
       settled.plantsPnl!.revenue - settled.plantsPnl!.totalCost,
       8,

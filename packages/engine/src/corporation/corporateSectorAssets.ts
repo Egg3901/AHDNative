@@ -84,7 +84,13 @@ export interface CorporateSectorAsset {
     turn: number;
     revenue: number;
     inputs: number;
+    labour?: number;
+    upkeep?: number;
     otherOpex: number;
+    otherOpexUncapped?: number;
+    otherOpexCreditCapped?: boolean;
+    financialLegs?: number;
+    compliance?: number;
     policyCredit: number;
     growth: number;
     operatingCost: number;
@@ -93,6 +99,8 @@ export interface CorporateSectorAsset {
   };
   /** Held residual operating cost per output unit, calibrated at first output. */
   otherOpexPerUnitAnchor?: number;
+  /** Source idle-upkeep price basis, stamped on first physical P&L turn. */
+  plantsUpkeepMarginBasisAnchor?: number;
   /** Operating margin derived from this asset's recorded physical costs. */
   effectiveProfitMargin?: number;
   /** Staffed headcount, derived from recorded revenue (#296). */
@@ -312,14 +320,21 @@ export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
     if (!pnl || !Number.isInteger(pnl.turn) || pnl.turn < 0) {
       throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L turn`);
     }
-    for (const field of ["revenue", "inputs", "otherOpex", "policyCredit", "growth", "operatingCost", "totalCost", "profit"] as const) {
-      if (typeof pnl[field] !== "number" || !Number.isFinite(pnl[field])) {
+    for (const field of ["revenue", "inputs", "labour", "upkeep", "otherOpex", "otherOpexUncapped", "financialLegs", "compliance", "policyCredit", "growth", "operatingCost", "totalCost", "profit"] as const) {
+      if (pnl[field] !== undefined && (typeof pnl[field] !== "number" || !Number.isFinite(pnl[field]))) {
         throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L ${field}`);
       }
+      if (["revenue", "inputs", "otherOpex", "policyCredit", "growth", "operatingCost", "totalCost", "profit"].includes(field) && pnl[field] === undefined) {
+        throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L ${field}`);
+      }
+    }
+    if (pnl.otherOpexCreditCapped !== undefined && typeof pnl.otherOpexCreditCapped !== "boolean") {
+      throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L otherOpexCreditCapped`);
     }
   }
   for (const [field, value] of [
     ["otherOpexPerUnitAnchor", asset.otherOpexPerUnitAnchor],
+    ["plantsUpkeepMarginBasisAnchor", asset.plantsUpkeepMarginBasisAnchor],
     ["effectiveProfitMargin", asset.effectiveProfitMargin],
   ] as const) {
     if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
@@ -357,7 +372,7 @@ export function validateSectorStrategy(asset: CorporateSectorAsset): void {
 
 /** Persisted plant quantities must be finite, nonnegative source balances. */
 export function validateSectorPlantCapital(asset: CorporateSectorAsset): void {
-  for (const field of ["capitalStock", "capacityBookAnchor"] as const) {
+  for (const field of ["capitalStock", "capacityBookAnchor", "plantsUpkeepMarginBasisAnchor"] as const) {
     const value = asset[field];
     if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
       throw new Error(`Corporate sector ${asset.id} has invalid ${field}`);
