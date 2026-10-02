@@ -6,6 +6,7 @@ import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { corporationTurnPhase, updateNppCorporationFinancialPolicy } from "./corporationTurn.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
+import { rngFromSeed } from "../rng.js";
 
 const healthy: StrategySituation = {
   score: 18, debtDominant: false, chronicLowFill: false, hasHeadroom: true, isCaretaker: false,
@@ -104,14 +105,14 @@ describe("source NPP corporation strategy", () => {
     const corp = world.corporations["US-manufacturing"]!;
     const eligibleTurn = [1, 2, 3, 4, 5, 6, 7, 8].find((turn) => sourceCorporateStrategyStaggerEligible(corp.id, turn))!;
     world.meta.turn = eligibleTurn;
-    corporationTurnPhase.run(world);
+    corporationTurnPhase.run(world, rngFromSeed("npp-strategy-public-turn"));
     expect(corp.nppStrategy).toBeDefined();
 
     const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     world.meta.turn += 1;
     resumed.meta.turn += 1;
-    corporationTurnPhase.run(world);
-    corporationTurnPhase.run(resumed);
+    corporationTurnPhase.run(world, rngFromSeed("npp-strategy-continuation"));
+    corporationTurnPhase.run(resumed, rngFromSeed("npp-strategy-continuation"));
     expect(resumed.corporations[corp.id]?.nppStrategy).toEqual(corp.nppStrategy);
     expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
     expect(resumed.corporateSectors).toEqual(world.corporateSectors);
