@@ -6,6 +6,10 @@ import { makeNppCapacityCashRecord } from "./corporateCashLedger.js";
 import { isCorpStateOwned } from "../bonds/corporateBonds.js";
 import { localToAnchor } from "../forex/conversion.js";
 import type { UnownedSectorState } from "../economy/types.js";
+import type { Corporation } from "./types.js";
+import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
+import { corporateSectorAssets } from "./corporateSectorAssets.js";
+import { SOURCE_STATE_ADJACENCY } from "./sourceStateAdjacency.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -30,6 +34,79 @@ export function sourceUnownedHeadroomUnits(world: WorldState, pool: UnownedSecto
     if ((rate ?? 0) > 0 && Number.isFinite(price) && (price ?? 0) > 0) unitsPerAnchor += rate! / price!;
   }
   return Number.isFinite(unitsPerAnchor * revenueAnchor) ? unitsPerAnchor * revenueAnchor : 0;
+}
+
+/** Game expansionFrontierStates over actual Native asset/HQ geography. */
+export function sourceExpansionFrontierStates(
+  corp: Pick<Corporation, "countryId" | "headquartersRegionId">,
+  assets: readonly Pick<CorporateSectorAsset, "countryId" | "stateId">[],
+): Set<string> {
+  const occupied = new Set(assets.filter((asset) => asset.countryId === corp.countryId && asset.stateId).map((asset) => asset.stateId!));
+  const origins = occupied.size > 0 ? occupied : new Set(corp.headquartersRegionId ? [corp.headquartersRegionId] : []);
+  const adjacency = SOURCE_STATE_ADJACENCY as Readonly<Record<string, Readonly<Record<string, readonly string[]>>>>;
+  const frontier = new Set<string>();
+  for (const origin of origins) {
+    for (const adjacent of adjacency[corp.countryId]?.[origin] ?? []) {
+      if (!occupied.has(adjacent)) frontier.add(adjacent);
+    }
+  }
+  return frontier;
+}
+
+export interface SourceNppEntryCandidate {
+  pool: UnownedSectorState & { regionId: string };
+  headroomUnits: number;
+  shortageScore: number;
+  peakShortageScore: number;
+  rankScore: number;
+}
+
+/** Game findBestUnownedSector's location/headroom/shortage/type-cascade core. */
+export function findSourceNppEntryCandidate(world: WorldState, corp: Corporation): SourceNppEntryCandidate | null {
+  const assets = Object.values(corporateSectorAssets(world));
+  const ownedByCorp = assets.filter((asset) => asset.corporationId === corp.id);
+  const occupied = new Set(ownedByCorp.filter((asset) => asset.stateId).map((asset) => `${asset.stateId}:${asset.sectorType}`));
+  const stateControlled = new Set(assets.filter((asset) => {
+    const owner = world.corporations[asset.corporationId];
+    return Boolean(owner && isCorpStateOwned(owner) && asset.stateId);
+  }).map((asset) => `${asset.stateId}:${asset.sectorType}`));
+  const candidates: SourceNppEntryCandidate[] = [];
+  for (const pool of Object.values(world.unownedSectors)) {
+    const regionId = pool.regionId;
+    if (pool.countryId !== corp.countryId || !regionId || occupied.has(`${regionId}:${pool.sectorType}`) || stateControlled.has(`${regionId}:${pool.sectorType}`)) continue;
+    const region = world.regions[regionId];
+    // Aggregate country pools have no locational basis. HQ-only projection
+    // rows are residence facts, not markets; neither can be founded into.
+    if (!region || region.countryId !== corp.countryId || region.corporationHeadquartersOnly) continue;
+    // Game uses deposit headroom instead of demand for extraction. Native has
+    // not yet ported its exact NPP extraction opportunity adapter; do not
+    // invent a deposit score from demand-side pool revenue.
+    if (pool.sectorType === "extraction") continue;
+    const headroomUnits = sourceUnownedHeadroomUnits(world, pool);
+    if (!(headroomUnits > 0)) continue;
+    const supply = SOURCE_DEFAULT_OPERATING_SUPPLY[pool.sectorType];
+    let weighted = 0;
+    let totalWeight = 0;
+    let peak = 0;
+    for (const [commodity, rate] of Object.entries(supply)) {
+      const row = world.commodityPrices[commodity as keyof typeof world.commodityPrices];
+      if (!(rate! > 0) || !row || !(row.basePrice > 0) || !Number.isFinite(row.globalPrice / row.basePrice)) continue;
+      const ratio = row.globalPrice / row.basePrice;
+      weighted += rate! * ratio;
+      totalWeight += rate!;
+      peak = Math.max(peak, ratio);
+    }
+    const shortageScore = totalWeight > 0 ? weighted / totalWeight : 1;
+    const rankScore = headroomUnits * shortageScore * (regionId === corp.headquartersRegionId ? 1.3 : 1);
+    candidates.push({ pool: { ...pool, regionId }, headroomUnits, shortageScore, peakShortageScore: peak, rankScore });
+  }
+  if (candidates.length === 0) return null;
+  const frontier = sourceExpansionFrontierStates(corp, ownedByCorp);
+  const frontierCandidates = frontier.size > 0 ? candidates.filter((candidate) => frontier.has(candidate.pool.regionId)) : [];
+  const search = frontierCandidates.length > 0 ? frontierCandidates : candidates;
+  const critical = search.filter((candidate) => candidate.peakShortageScore >= 1.6);
+  const primary = critical.length > 0 ? critical : search.filter((candidate) => candidate.pool.sectorType === corp.sectorType);
+  return [...(primary.length > 0 ? primary : search)].sort((a, b) => b.rankScore - a.rankScore || a.pool.regionId.localeCompare(b.pool.regionId) || a.pool.sectorType.localeCompare(b.pool.sectorType))[0] ?? null;
 }
 
 /** Source NPP physical replacement leg. Growth/founding use separate pool and pricing inputs. */

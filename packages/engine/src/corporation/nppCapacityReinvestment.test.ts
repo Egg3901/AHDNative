@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 
 describe("source NPP capacity replacement", () => {
@@ -13,6 +13,29 @@ describe("source NPP capacity replacement", () => {
     // Independent Game formula: anchor revenue × Σ(default supply / modern base price) × eraUnitScale.
     const sourceUnits = 1_000_000 * (0.4 / 800 + 0.2 / 400) * 69.76744186046511;
     expect(sourceUnownedHeadroomUnits(world, pool)).toBeCloseTo(sourceUnits, 6);
+  });
+
+  it("selects an actual source-authored frontier pool using headroom and shortage rank", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-entry-frontier", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    corp.headquartersRegionId = "DC";
+    const frontier = sourceExpansionFrontierStates(corp, []);
+    expect([...frontier].sort()).toEqual(["MD", "VA"]);
+    world.unownedSectors = {
+      ...world.unownedSectors,
+      "US:VA:manufacturing": { countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 2_000_000 },
+      "US:MD:manufacturing": { countryId: "US", sectorType: "manufacturing", regionId: "MD", revenue: 1_000_000 },
+      "US:CA:manufacturing": { countryId: "US", sectorType: "manufacturing", regionId: "CA", revenue: 20_000_000 },
+    };
+    const candidate = findSourceNppEntryCandidate(world, corp);
+    expect(candidate?.pool.regionId).toBe("VA");
+    expect(candidate?.headroomUnits).toBeGreaterThan(0);
+    expect(candidate?.shortageScore).toBeCloseTo(1, 8);
+    world.unownedSectors["US:MD:logistics"] = { countryId: "US", sectorType: "logistics", regionId: "MD", revenue: 2_000_000 };
+    world.commodityPrices.freight!.globalPrice = world.commodityPrices.freight!.basePrice * 2;
+    const shortageCandidate = findSourceNppEntryCandidate(world, corp);
+    expect(shortageCandidate?.pool).toMatchObject({ regionId: "MD", sectorType: "logistics" });
+    expect(shortageCandidate?.peakShortageScore).toBe(2);
   });
 
   it("writes a source-sized replacement order with the matching cash debit and resumes identically", () => {
