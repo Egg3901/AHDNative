@@ -10,98 +10,82 @@
  */
 import type { CommodityType } from "../commodity/constants.js";
 import type { WorldState } from "../types.js";
-import type { CorporationType } from "./types.js";
+import { CORPORATION_TYPES, type CorporationType } from "./types.js";
+import { SOURCE_SECTOR_STRATEGIES } from "./sectorStrategyCatalog.js";
 import { DAYS_PER_TURN } from "../calendar.js";
 
 export const PLANT_CAPITAL_SEED_HEADROOM = 1.1;
 export const PLANT_CAPITAL_DEPRECIATION_PER_TURN = 0.0005;
 const GROWTH_COST_MULTIPLIER = 3;
 
-/** Game's ungated standard-strategy output mix (`SECTOR_STRATEGIES`, standard), source cb66acdf. */
-export const DEFAULT_SECTOR_OUTPUT_MIX: Partial<Record<CorporationType, Partial<Record<CommodityType, number>>>> = {
-  manufacturing: { steel: 0.4, building_materials: 0.2 },
-  technology: { electronics: 0.35, software: 0.35 },
-  energy: { energy: 0.65 },
-  chemical_industries: { chemicals: 0.5, plastics: 0.25 },
-  healthcare: { healthcare_services: 0.5 },
-  agriculture: { food: 0.5 },
-  automobiles: { vehicles: 0.5 },
-  financial: { financial_services: 0.5 },
-  media: { advertising: 0.5 },
-  defense: { vehicles: 0.2, electronics: 0.15, ordnance: 0.1 },
-  real_estate: { real_estate_services: 0.45 },
-  construction: { construction_services: 0.45 },
-  telecommunications: { software: 0.2, network_services: 0.4 },
-  entertainment: { advertising: 0.2, entertainment_services: 0.4 },
-  retail: { retail: 0.5 },
-  logistics: { freight: 0.45, consulting_services: 0.25 },
-  // AHDGame SECTOR_STRATEGIES.extraction.standard (Diversified), pinned
-  // source revision 96831835. Keep the plants list price and standard
-  // operation output mix on the same source basis.
-  extraction: { iron: 0.25, coal: 0.22, oil: 0.14, rare_earth: 0.14, natural_gas: 0.14, timber: 0.12 },
-};
+/** AHDGame capacityEconomy.capacityEraPriceIndex at source cb66acdf. */
+export function capacityEraPriceIndex(year: number | null | undefined): number {
+  if (typeof year !== "number" || !Number.isFinite(year)) return 5;
+  if (year < 1971) return 1;
+  if (year < 1979) return 1.4;
+  if (year < 1991) return 2.6;
+  if (year < 1999) return 3.6;
+  return 5;
+}
+
+/** Source `SECTOR_STRATEGIES` recipes at cb66acdf, including exact standard rows. */
+export const DEFAULT_SECTOR_OUTPUT_MIX = Object.fromEntries(
+  CORPORATION_TYPES.map((sectorType) => [sectorType, SOURCE_SECTOR_STRATEGIES[sectorType].standard.supply]),
+) as Record<CorporationType, Partial<Record<CommodityType, number>>>;
 
 /**
- * Source-authored extraction production methods available without tech unlocks
- * in the 1953 Game ruleset (SECTOR_STRATEGIES, cb66acdf). Native currently
- * supports these operation rows as persisted asset identities; it does not
- * yet port Game's CEO retool command, transition interpolation/cooldown, or
- * technology-unlock tree. Missing strategyId is the source `standard` row.
+ * Game's legacy SECTOR_SUPPLY rows are used until a non-standard strategy or
+ * an active transition exists. Most rows equal the standard strategy table;
+ * these two source rows are intentionally different and must remain so.
  */
-export const EXTRACTION_STRATEGIES = {
-  standard: {
-    supply: DEFAULT_SECTOR_OUTPUT_MIX.extraction!,
-    demand: { energy: 0.2, vehicles: 0.15, freight: 0.1, chemicals: 0.08, construction_services: 0.03 },
-  },
-  iron_mining: {
-    supply: { iron: 0.78 },
-    demand: { energy: 0.25, vehicles: 0.15, freight: 0.12, steel: 0.05, ordnance: 0.08 },
-  },
-  oil_gas: {
-    supply: { oil: 0.58, natural_gas: 0.32 },
-    demand: { energy: 0.2, steel: 0.1, vehicles: 0.1, chemicals: 0.15, ordnance: 0.02 },
-  },
-  rare_earth_mining: {
-    supply: { rare_earth: 0.72 },
-    demand: { energy: 0.25, chemicals: 0.2, vehicles: 0.1, freight: 0.1, ordnance: 0.07 },
-  },
-  coal_mining: {
-    supply: { coal: 0.72 },
-    demand: { energy: 0.2, vehicles: 0.15, freight: 0.15, ordnance: 0.09 },
-  },
-  timber_logging: {
-    supply: { timber: 0.64 },
-    demand: { vehicles: 0.2, energy: 0.15, freight: 0.15, construction_services: 0.05 },
-  },
-} satisfies Record<string, {
-  supply: Partial<Record<CommodityType, number>>;
-  demand: Partial<Record<CommodityType, number>>;
-}>;
+export const SOURCE_DEFAULT_OPERATING_SUPPLY: Record<CorporationType, Partial<Record<CommodityType, number>>> = {
+  ...DEFAULT_SECTOR_OUTPUT_MIX,
+  chemical_industries: { chemicals: 0.5, plastics: 0.25 },
+  extraction: { iron: 0.4, coal: 0.3, oil: 0.14, rare_earth: 0.27, natural_gas: 0.24, timber: 0.2 },
+};
 
+export const SECTOR_STRATEGIES = SOURCE_SECTOR_STRATEGIES;
+export const EXTRACTION_STRATEGIES = SECTOR_STRATEGIES.extraction;
 export type ExtractionStrategyId = keyof typeof EXTRACTION_STRATEGIES;
 
-/** Source getStrategy's extraction recipe lookup; unknown IDs fail closed. */
+export interface SectorStrategyMethod {
+  supply: Partial<Record<CommodityType, number>>;
+  demand: Partial<Record<CommodityType, number>>;
+  minDecade?: string;
+  requiresTechUnlock?: boolean;
+}
+
+/** Source getStrategy recipe lookup; unknown methods fail closed. */
+export function getSectorStrategy(sectorType: CorporationType, strategyId?: string | null): SectorStrategyMethod {
+  const id = strategyId ?? "standard";
+  const strategy = (SECTOR_STRATEGIES[sectorType] as Record<string, SectorStrategyMethod>)[id];
+  if (!strategy) throw new Error(`Unknown ${sectorType} strategy ${id}`);
+  return {
+    supply: strategy.supply as Partial<Record<CommodityType, number>>,
+    demand: strategy.demand as Partial<Record<CommodityType, number>>,
+    ...(strategy.minDecade ? { minDecade: strategy.minDecade } : {}),
+    ...(strategy.requiresTechUnlock ? { requiresTechUnlock: true } : {}),
+  };
+}
+
+export function hasSectorStrategy(sectorType: CorporationType, strategyId: string): boolean {
+  return Object.hasOwn(SECTOR_STRATEGIES[sectorType], strategyId);
+}
+
+/** Source getStrategy supply recipe lookup; unknown IDs fail closed. */
 export function sectorSupplyMix(
   sectorType: CorporationType,
   strategyId?: string | null,
 ): Partial<Record<CommodityType, number>> {
-  if (sectorType !== "extraction") return DEFAULT_SECTOR_OUTPUT_MIX[sectorType] ?? {};
-  const id = strategyId ?? "standard";
-  const strategy = EXTRACTION_STRATEGIES[id as ExtractionStrategyId];
-  if (!strategy) throw new Error(`Unknown extraction strategy ${id}`);
-  return strategy.supply;
+  return getSectorStrategy(sectorType, strategyId).supply;
 }
 
-/** Source getStrategy's extraction input recipe lookup; unknown IDs fail closed. */
+/** Source getStrategy input recipe lookup; unknown IDs fail closed. */
 export function sectorDemandMix(
   sectorType: CorporationType,
   strategyId?: string | null,
 ): Partial<Record<CommodityType, number>> | undefined {
-  if (sectorType !== "extraction") return undefined;
-  const id = strategyId ?? "standard";
-  const strategy = EXTRACTION_STRATEGIES[id as ExtractionStrategyId];
-  if (!strategy) throw new Error(`Unknown extraction strategy ${id}`);
-  return strategy.demand;
+  return getSectorStrategy(sectorType, strategyId).demand;
 }
 
 export interface PlantCapitalSeed {
@@ -149,6 +133,7 @@ export function seedPlantCapital(input: {
   sectorType: CorporationType;
   strategyId?: string | null;
   basePrices: Partial<Record<CommodityType, number>>;
+  year: number;
 }): PlantCapitalSeed {
   const { revenueLocal, localPerAnchor, sectorType, basePrices } = input;
   if (!Number.isFinite(revenueLocal) || revenueLocal <= 0 || !Number.isFinite(localPerAnchor) || localPerAnchor <= 0) {
@@ -169,7 +154,7 @@ export function seedPlantCapital(input: {
   const dailyRevenueAnchor = revenueLocal / localPerAnchor / DAYS_PER_TURN;
   const impliedUnits = dailyRevenueAnchor * unitYield;
   const capitalStock = impliedUnits * PLANT_CAPITAL_SEED_HEADROOM;
-  const capacityBookAnchor = capitalStock * (GROWTH_COST_MULTIPLIER / unitYield);
+  const capacityBookAnchor = capitalStock * (GROWTH_COST_MULTIPLIER / unitYield) * capacityEraPriceIndex(input.year);
   return Number.isFinite(capitalStock) && Number.isFinite(capacityBookAnchor)
     ? { capitalStock, capacityBookAnchor }
     : { capitalStock: 0, capacityBookAnchor: 0 };
@@ -179,7 +164,8 @@ export function seedPlantCapital(input: {
 export function capacityPricePerUnitAnchor(
   sectorType: CorporationType,
   basePrices: Partial<Record<CommodityType, number>>,
-  strategyId?: string | null,
+  strategyId: string | null | undefined,
+  year: number | null | undefined,
 ): number {
   const supply = sectorSupplyMix(sectorType, strategyId);
   let unitYield = 0;
@@ -189,7 +175,9 @@ export function capacityPricePerUnitAnchor(
       unitYield += (rawRate ?? 0) / basePrice!;
     }
   }
-  return unitYield > 0 && Number.isFinite(unitYield) ? GROWTH_COST_MULTIPLIER / unitYield : 0;
+  return unitYield > 0 && Number.isFinite(unitYield)
+    ? GROWTH_COST_MULTIPLIER / unitYield * capacityEraPriceIndex(year)
+    : 0;
 }
 
 /**

@@ -516,7 +516,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const sectorAssets = world["corporateSectors"];
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
     isRecord(asset) && (
-      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)) ||
+      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied"].some(field => hasOwn(asset, field)) ||
       (hasOwn(asset, "strategyId") && asset["strategyId"] !== undefined && asset["strategyId"] !== "standard")
     ),
   );

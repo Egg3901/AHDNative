@@ -58,6 +58,7 @@ import { rollDebatePrep } from "../stats/debatePrep.js";
 import { isCorpStateOwned, issueCorporateBond, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { quoteCorporateBondIssuance } from "../bonds/corporateBondQuote.js";
 import { buybackCorporateBondUnits } from "../bonds/corporateBondServicing.js";
+import { setCorporateSectorStrategy } from "../corporation/strategyRetooling.js";
 import { BOND_UNIT_FACE_VALUE } from "../bonds/constants.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
@@ -123,6 +124,8 @@ export type ExecuteActionParams = {
   // W10 markets
   corpId?: string;
   corporationId?: string;
+  sectorId?: string;
+  strategyId?: string;
   tier?: "seizure";
   shares?: number;
   // W13 bonds
@@ -1896,6 +1899,19 @@ function executeActionInner(
     return { ok: true, message: `Sold ${shares} shares of ${corp.tickerSymbol} for ${notional}` };
   }
 
+  if (actionId === "setCorporateSectorStrategy") {
+    const result = setCorporateSectorStrategy(
+      world,
+      actorId,
+      params.corpId!,
+      params.sectorId!,
+      params.strategyId!,
+    );
+    return result.ok
+      ? { ok: true, message: `Retooling started; ${result.transitionTurns}-turn transition began at source retool cost ${result.feeLocal}` }
+      : result;
+  }
+
   // W13 bonds — player buy/sell sovereign bond units at mainline pricing.
   // #307 extends the same seam to corporate issues with issuer/owner invariant
   // enforcement below (corporate servicing itself is #308).
@@ -2527,6 +2543,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         (params.rdBudgetPerTurn === undefined || Number.isFinite(params.rdBudgetPerTurn))
         ? null
         : "setCorporationCompensation requires corpId, salaryPerTurn, dividendRate, and optional rdBudgetPerTurn";
+    case "setCorporateSectorStrategy":
+      return params.corpId && params.sectorId && params.strategyId
+        ? null
+        : "setCorporateSectorStrategy requires corpId, sectorId, and strategyId";
     case "buyBond":
     case "sellBond":
       return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0

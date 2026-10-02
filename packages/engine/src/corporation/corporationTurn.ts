@@ -66,6 +66,7 @@ import { syncSourceRegionalSectorReceipts } from "./sourceRegionalSectorSeed.js"
 import { runCorporatePlantProductionTurn } from "./plantProduction.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng } from "./rdInnovationRng.js";
+import { strategyTransitionMarginModifier } from "./strategyRetooling.js";
 import {
   RD_EXTRACTION_BOOST_MAX,
   RD_EXTRACTION_BOOST_MIN,
@@ -341,7 +342,7 @@ export const corporationTurnPhase: TurnPhase = {
       const subsidyMargin = subsidyMarginModifierForCorporation(subsidies, corp);
       const labourAndSubsidy = {
         ...labourFactors,
-        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin,
+        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin + strategyTransitionMarginModifier(world, corp.id),
       };
       const asset = Object.values(world.corporateSectors ?? {}).find((candidate) => candidate.corporationId === corp.id);
       const fx = world.exchangeRates?.[corp.countryId]?.rate ?? 1;
