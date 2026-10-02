@@ -17,7 +17,7 @@ describe("official National Corporation controls", () => {
     const energyId = session.markets().nationalCompanyManagement!.corporations.find(corporation => corporation.name === "State Energy")!.id;
     function LiveCompany() {
       const [markets, setMarkets] = useState(() => session.markets());
-      const onAction: GameScreenProps["onAction"] = (id, params) => {
+      const onAction: GameScreenProps["onAction"] = async (id, params) => {
         const result = session.act(id, params);
         setMarkets(session.markets());
         return result.ok;
@@ -27,7 +27,7 @@ describe("official National Corporation controls", () => {
     const user = userEvent.setup();
     render(<LiveCompany />);
     expect(screen.queryByRole("region", { name: "Reorganize state corporations" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Official", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Official" }));
     const management = screen.getByRole("region", { name: "Reorganize state corporations" });
     await user.selectOptions(within(management).getByLabelText("Industry to split off"), "media");
     await user.type(within(management).getByLabelText("New state corporation name"), "State Media");
