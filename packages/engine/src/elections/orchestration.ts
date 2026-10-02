@@ -14,6 +14,7 @@ import {
   type GeneralResolutionInput,
 } from "../electionEngine/resolution/generalResolution.js";
 import { generateNpcNameAndGender } from "../npp/nameGenerator.js";
+import { liveChamberSeatsByParty } from "../government/seatWeights.js";
 import { buildTallyTurnIndex, realAccumulate } from "./tallyAdapter.js";
 import { ensureCampaignsForElection, archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { applyPresidentialResolution } from "./presidentialResolution.js";
@@ -541,19 +542,8 @@ export function recomputeComposition(world: WorldState, countryId: string, chamb
   if (!leg) return;
   const chamber = leg.chambers.find((c) => c.key === chamberKey);
   if (!chamber) return;
-  const seatsByParty: Record<string, number> = {};
-  let held = 0;
-  for (const p of world.politicians) {
-    if (p.countryId === countryId && p.chamberKey === chamberKey) {
-      seatsByParty[p.partyId] = (seatsByParty[p.partyId] ?? 0) + 1;
-      held++;
-    }
-  }
-  const playerSeat = world.player.legislativeSeat;
-  if (playerSeat && playerSeat.countryId === countryId && playerSeat.chamberKey === chamberKey && world.player.partyId) {
-    seatsByParty[world.player.partyId] = (seatsByParty[world.player.partyId] ?? 0) + 1;
-    held++;
-  }
+  const seatsByParty = liveChamberSeatsByParty(world, countryId, chamberKey);
+  const held = Object.values(seatsByParty).reduce((sum, seats) => sum + seats, 0);
   chamber.composition = { seatsByParty, vacancies: Math.max(0, chamber.seats - held) };
 }
 
@@ -680,30 +670,16 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   const result = resolveGeneralElectionPure(input);
   if (!result) return;
 
-  // seatsEstimate is per-candidate but list-style: one candidate id may carry
-  // several of its party's seats. Convert to per-party totals, then seat that
-  // many of the party's slate in tally order (slates are full, so counts fit).
-  const partyOf = new Map(rec.candidates.map((c) => [c.id, c.partyId]));
-  const seatsByParty = new Map<string, number>();
-  for (const [candId, seats] of Object.entries(result.seatsEstimate)) {
-    if (seats <= 0) continue;
-    const pid = partyOf.get(candId);
-    if (pid) seatsByParty.set(pid, (seatsByParty.get(pid) ?? 0) + seats);
-  }
-  const winnerIds = new Set<string>();
-  for (const [pid, seats] of [...seatsByParty.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const slate = rec.candidates
-      .filter((c) => c.partyId === pid)
-      .sort((a, b) => (rec.tally[b.id] ?? 0) - (rec.tally[a.id] ?? 0) || a.id.localeCompare(b.id));
-    for (let k = 0; k < seats && k < slate.length; k++) {
-      const cand = slate[k];
-      if (cand) winnerIds.add(cand.id);
-    }
-  }
+  // Game stores each actual winner with its allocated seatsHeld. A nominee
+  // can represent several seats; redistributing by party and capping at the
+  // surviving primary slate loses seats and can seat zero-allocation nominees.
+  const winnerSeats = new Map(result.winners);
+  const winnerIds = new Set(winnerSeats.keys());
   // Unseat losing holders of the contested seats.
   for (const holder of seatHolders(world, rec)) {
     if (!winnerIds.has(holder.id)) {
       holder.chamberKey = "";
+      delete holder.seatsHeld;
       holder.electedState = undefined;
       holder.senateClass = undefined;
     }
@@ -715,6 +691,8 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     const pol = world.politicians.find((p) => p.id === id);
     if (pol) {
       pol.chamberKey = rec.chamberKey;
+      if (result.isMultiSeat) pol.seatsHeld = winnerSeats.get(id)!;
+      else delete pol.seatsHeld;
       pol.electedState = rec.state;
       pol.senateClass = rec.senateClass;
     }
@@ -729,6 +707,7 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     world.player.legislativeSeat = {
       chamberKey: rec.chamberKey,
       countryId: rec.countryId,
+      ...(result.isMultiSeat ? { seatsHeld: winnerSeats.get("player")! } : {}),
       ...(rec.state ? { regionId: rec.state } : {}),
     };
   } else if (playerContested) {

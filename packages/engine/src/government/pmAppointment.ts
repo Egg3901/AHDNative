@@ -1,5 +1,6 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
+import { heldSeatCount, liveChamberSeatsByParty } from "./seatWeights.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
 import { COUNTRY_CONFIGS } from "../electionEngine/countryElectionConstants.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY, INITIAL_CONFIDENCE, majorityThreshold, minorityThreshold } from "./constants.js";
@@ -94,7 +95,8 @@ export function getPmAppointmentEligibility(world: WorldState): PmAppointmentEli
   if (authorized && !partyMayFormGovernment(world, countryId, partyId)) return ineligible("Only the ruling party may form government in a one-party state", partyId);
   const chamber = world.legislatures[countryId]?.chambers.find((item) => item.key === chamberKey);
   if (!chamber) return ineligible(`${chamberLabel} is unavailable`, partyId);
-  const partySeats = chamber.composition.seatsByParty[partyId] ?? 0;
+  const seatsByParty = liveChamberSeatsByParty(world, countryId, chamberKey);
+  const partySeats = seatsByParty[partyId] ?? 0;
   const requiredMajority = majorityThreshold(chamber.seats);
   if (authorized && partySeats >= requiredMajority) return { eligible: true, reason: null, formationType: "majority", partyId, coalitionId: null, coalitionPartyIds: null, partySeats };
   if (authorized && partySeats >= minorityThreshold(chamber.seats)) return { eligible: true, reason: null, formationType: "minority", partyId, coalitionId: null, coalitionPartyIds: null, partySeats };
@@ -105,7 +107,7 @@ export function getPmAppointmentEligibility(world: WorldState): PmAppointmentEli
   if (coalition) {
     if (!coalition.memberPartyIds[0] || !partyMayFormGovernment(world, countryId, coalition.memberPartyIds[0])) return ineligible("Only a coalition led by the ruling party may form government in a one-party state", partyId, partySeats);
     const coalitionPartyIds = coalition.memberPartyIds.filter((memberId) => world.parties[memberId]?.countryId === countryId);
-    const coalitionSeats = coalitionPartyIds.reduce((sum, memberId) => sum + (chamber.composition.seatsByParty[memberId] ?? 0), 0);
+    const coalitionSeats = coalitionPartyIds.reduce((sum, memberId) => sum + (seatsByParty[memberId] ?? 0), 0);
     if (coalitionPartyIds.includes(partyId)) {
       if (coalitionSeats >= requiredMajority) return { eligible: true, reason: null, formationType: "coalition", partyId, coalitionId: coalition.id, coalitionPartyIds, partySeats: coalitionSeats };
       if (coalitionSeats >= minorityThreshold(chamber.seats)) return { eligible: true, reason: null, formationType: "minority", partyId, coalitionId: coalition.id, coalitionPartyIds, partySeats: coalitionSeats };
@@ -176,18 +178,17 @@ function tallyPmAppointmentVotes(world: WorldState, vote: PmAppointmentVoteRecor
   let ayes = 0;
   let nays = 0;
   for (const [voterId, choice] of Object.entries(vote.votes)) {
-    // A lower-chamber seat is single-member: the player's elected seat weighs one and
-    // each source-seeded Native politician represents one NPP seat.
+    // Source appointment ballots weight each current office by seatsHeld.
     if (voterId === "player") {
       if (!playerHasLowerChamberSeat(world, vote.countryId, vote.chamberKey)) continue;
-      if (choice === "aye") ayes++;
-      else nays++;
+      if (choice === "aye") ayes += heldSeatCount(world.player.legislativeSeat!);
+      else nays += heldSeatCount(world.player.legislativeSeat!);
       continue;
     }
     const politician = world.politicians.find((candidate) => candidate.id === voterId);
     if (!politician || politician.countryId !== vote.countryId || politician.chamberKey !== vote.chamberKey) continue;
-    if (choice === "aye") ayes++;
-    else nays++;
+    if (choice === "aye") ayes += heldSeatCount(politician);
+    else nays += heldSeatCount(politician);
   }
   return { ayes, nays };
 }
@@ -211,10 +212,11 @@ function installPlayerAsHeadOfGovernment(world: WorldState, vote: PmAppointmentV
   government.governingPartyId = vote.partyId;
   government.coalitionPartyIds = vote.coalitionPartyIds;
   government.pmPoliticianId = "player";
-  government.totalSeatsSupporting = (vote.coalitionPartyIds ?? [vote.partyId]).reduce((sum, partyId) => sum + (chamber.composition.seatsByParty[partyId] ?? 0), 0);
+  const seatsByParty = liveChamberSeatsByParty(world, vote.countryId, vote.chamberKey);
+  government.totalSeatsSupporting = (vote.coalitionPartyIds ?? [vote.partyId]).reduce((sum, partyId) => sum + (seatsByParty[partyId] ?? 0), 0);
   government.totalSeats = chamber.seats;
   government.majorityThreshold = majorityThreshold(chamber.seats);
-  government.seatsByParty = { ...chamber.composition.seatsByParty };
+  government.seatsByParty = seatsByParty;
   government.lostMajority = false;
   government.formedTurn = world.meta.turn;
   government.pmVacancyDeadlineTurn = null;

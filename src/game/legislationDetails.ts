@@ -23,6 +23,7 @@ import {
   LEGISLATION_FREEZE_MESSAGE,
   proposalNpiCost,
   BILL_PROPOSE_ACTION_COST,
+  resolveCurrentBillVote,
   type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -336,8 +337,12 @@ export function buildLegislationDetails(
     const other = !override && bill.currentChamber !== bill.originChamber;
     const votingOpen = VOTING_OPEN_STATUSES.has(bill.status);
     const votes = other ? bill.otherChamberVotes : override ? bill.vetoOverrideVotes : bill.votes;
-    const liveTally = { for: 0, against: 0, abstain: 0 };
-    for (const vote of Object.values(votes ?? {})) liveTally[vote as "for" | "against" | "abstain"]++;
+    const stored = {
+      for: (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
+      against: (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
+      abstain: (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
+    };
+    const liveTally = resolveCurrentBillVote(world, bill.countryId, bill.currentChamber, votes, stored).totals;
     const gate = voteGate(bill.countryId, bill.currentChamber, bill.status);
     return {
       id: bill.id,
