@@ -2,13 +2,42 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceLogisticsSupportedSectorCount, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceLogisticsSupportedSectorCount, sourceNppCapacityBuildCostAnchor, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 describe("source NPP capacity replacement", () => {
+  it("prices a replacement with source local and national dominance, prime, host and expansion legs", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-build-price", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    const rival = { ...corp, id: "source-rival", tickerSymbol: "RIVL" };
+    world.corporations[rival.id] = rival;
+    world.centralBanks.US!.primeRate = 4;
+    world.regionalMetrics.VA ??= {};
+    world.regionalMetrics.VA!["economic.costOfLiving"] = { value: 120 };
+    const own = {
+      id: "own-plant", corporationId: corp.id, countryId: "US", stateId: "VA", sectorType: "manufacturing" as const,
+      revenue: 600, capitalStock: 10_000, workers: 1, representingUnionId: null, forSale: null, owner: "corporation" as const,
+    };
+    const peer = {
+      ...own, id: "peer-plant", corporationId: rival.id, revenue: 400, capitalStock: 10_000,
+    };
+    world.corporateSectors = { [own.id]: own, [peer.id]: peer };
+    const pool = { countryId: "US", sectorType: "manufacturing" as const, regionId: "VA", revenue: 50_000_000 };
+    world.unownedSectors = { "US:VA:manufacturing": pool };
+    const headroom = sourceUnownedHeadroomUnits(world, pool);
+    const localShare = 10_000 / (10_000 + headroom) * 100;
+    const nationalShare = 60;
+    const growthMultiplier = (share: number, threshold: number) => share <= threshold ? 1 : 1 + 2 * ((share - threshold) / (100 - threshold)) ** 2;
+    const rawDominance = Math.max(growthMultiplier(localShare, 50), growthMultiplier(nationalShare, 30));
+    const density = 0.35 + 0.65 / 4;
+    const expected = capacityPricePerUnitAnchor("manufacturing", corporateSectorBasePrices(world), undefined, 1953)
+      * (1 + (rawDominance - 1) * density) * 1.4 * 1.2 * 0.8;
+    expect(sourceNppCapacityBuildCostAnchor(world, corp, own, 1, 1953)).toBeCloseTo(expected, 8);
+  });
+
   it("applies the source logistics-supported footprint cap to greenfield entry", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-logistics-footprint", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;
@@ -202,7 +231,11 @@ describe("source NPP capacity replacement", () => {
     // Game reinvest.test vector: 1,000 nameplate, 800 produced, 95% sell-through,
     // one-turn accrual. Source: runUnits * 0.0005 * accrual * fillScale.
     const expectedUnits = 1_000 * 0.8 * 0.0005 * (0.5 + 0.5 * ((0.95 - 0.85) / 0.15));
-    const expectedAnchorCost = expectedUnits * listPrice;
+    // Game computeBuildCost at neutral NPP acumen: prime-rate multiplier and
+    // the source 0.8 non-founding expansion-price factor; no host/dominance
+    // charge for this unlocated, sub-threshold fixture.
+    const expectedAnchorCost = expectedUnits * listPrice
+      * Math.max(0.5, 1 + (world.centralBanks.US?.primeRate ?? 0) / 10) * 0.8;
     applyNppCapacityReplacement(world);
 
     expect(asset.buildQueue).toHaveLength(1);

@@ -45,6 +45,53 @@ export function sourceLogisticsSupportedSectorCount(logisticsStrength: number | 
   return Math.floor(SOURCE_SPRAWL_SECTOR_THRESHOLD * (1 + strength / SOURCE_LOGISTICS_MAX_SPRAWL_EFFECT));
 }
 
+/** Source computeBuildCost price for an existing NPP plant (not a founding). */
+export function sourceNppCapacityBuildCostAnchor(
+  world: WorldState,
+  corp: Corporation,
+  asset: CorporateSectorAsset,
+  units: number,
+  year: number,
+): number {
+  const assets = Object.values(corporateSectorAssets(world));
+  const sectorAssets = assets.filter((row) => row.countryId === asset.countryId && row.sectorType === asset.sectorType && row.stateId !== null);
+  const nationalRevenue = sectorAssets.reduce((sum, row) => sum + Math.max(0, row.revenue ?? row.realizedRevenue ?? 0), 0);
+  const issuerRevenue = sectorAssets.filter((row) => row.corporationId === corp.id)
+    .reduce((sum, row) => sum + Math.max(0, row.revenue ?? row.realizedRevenue ?? 0), 0);
+  const nationalShare = nationalRevenue > 0 ? issuerRevenue / nationalRevenue * 100 : 0;
+  const pool = asset.stateId
+    ? Object.values(world.unownedSectors).find((row) => row.countryId === asset.countryId && row.regionId === asset.stateId && row.sectorType === asset.sectorType)
+    : undefined;
+  const headroom = pool ? sourceUnownedHeadroomUnits(world, pool) : 0;
+  const capital = Math.max(0, asset.capitalStock ?? 0);
+  const localShare = asset.stateId && capital + headroom > 0 ? capital / (capital + headroom) * 100 : 0;
+  const rivals = asset.stateId
+    ? new Set(assets.filter((row) => row.countryId === asset.countryId && row.stateId === asset.stateId && row.sectorType === asset.sectorType && row.corporationId !== corp.id).map((row) => row.corporationId)).size
+    : undefined;
+  const density = Number.isFinite(rivals)
+    ? 0.35 + 0.65 * Math.min(4, rivals!) / 4
+    : 1;
+  const dominance = Math.max(sourceDominanceBuildMultiplier(localShare, 50), sourceDominanceBuildMultiplier(nationalShare, 30));
+  const dominanceMultiplier = 1 + (dominance - 1) * density;
+  const primeRate = world.centralBanks[asset.countryId]?.primeRate ?? 0;
+  const rateMultiplier = Math.max(0.5, 1 + primeRate / 10);
+  const costOfLiving = asset.stateId ? world.regionalMetrics[asset.stateId]?.["economic.costOfLiving"]?.value : undefined;
+  const hostMultiplier = Number.isFinite(costOfLiving) && (costOfLiving ?? 0) > 0
+    ? Math.min(1.6, Math.max(0.6, costOfLiving! / 100))
+    : 1;
+  const unitPrice = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world), asset.strategyId, year);
+  // Current Game replacement call passes neutral NPP acumen, no research
+  // discount, and `founding:false`, so investment rules apply the 0.8 expansion
+  // multiplier. Keep each authored price leg explicit in this bridge.
+  return units * unitPrice * dominanceMultiplier * rateMultiplier * hostMultiplier * 0.8;
+}
+
+function sourceDominanceBuildMultiplier(sharePct: number, threshold: number): number {
+  const share = Math.max(0, Math.min(100, sharePct));
+  if (share <= threshold) return 1;
+  return 1 + 2 * ((share - threshold) / (100 - threshold)) ** 2;
+}
+
 /** Source NPP greenfield entry: source candidate → located newborn asset → pool draw and cash witness. */
 export function applyNppSourceFounding(world: WorldState): void {
   const ledger = world.corporateCashLedger ?? (world.corporateCashLedger = []);
@@ -303,12 +350,7 @@ export function applyNppCapacityReplacement(world: WorldState): void {
     const units = runUnits * 0.0005 * accrualTurns * fillScale;
     if (!(units > 0)) continue;
 
-    // Game's full computeBuildCost adds market dominance, prime-rate/acumen,
-    // tech, and host cost-of-living legs. Native does not yet persist all those
-    // source inputs, so this producer is restricted to its source list-price
-    // basis and keeps those omitted price legs explicit for parity work.
-    const unitPriceAnchor = capacityPricePerUnitAnchor(asset.sectorType, prices, asset.strategyId, year);
-    const costAnchor = units * unitPriceAnchor;
+    const costAnchor = sourceNppCapacityBuildCostAnchor(world, corp, asset, units, year);
     const costLocal = anchorToLocal(costAnchor, getRateForCountry(world, corp.countryId));
     const cashLocal = Math.max(0, corp.liquidCapital);
     // Source replacement rail: <=25% of current cash and a strictly positive remainder.
