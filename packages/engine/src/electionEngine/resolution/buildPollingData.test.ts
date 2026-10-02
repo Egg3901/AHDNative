@@ -217,14 +217,16 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
     region: string,
     seats: number,
     votes: Record<string, number>,
-    parties: Record<string, string>
+    parties: Record<string, string>,
+    countryId = "UK",
   ) {
     const tally = { totalVotes: votes, candidateParties: parties } as never;
     const projection = computeSeatEstimates(
       "commons",
       seats,
       tally,
-      new Set(Object.keys(votes))
+      new Set(Object.keys(votes)),
+      countryId,
     );
     const ranked = Object.entries(votes)
       .map(([id, v]) => ({ id, votes: v, party: parties[id] }))
@@ -239,7 +241,7 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
       undefined,
       undefined,
       undefined,
-      "UK"
+      countryId
     ).seatsEstimate;
     const byParty = (est: Record<string, number> | null) => {
       const out: Record<string, number> = {};
@@ -337,5 +339,33 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
     expect(projection).toEqual(resolution);
     const total = Object.values(projection).reduce((s, v) => s + v, 0);
     expect(total).toBe(10);
+  });
+});
+
+describe("US House delegation-sized eligibility", () => {
+  it("uses the same seat-scaled gate in projection and resolution", () => {
+    const votes = { major: 700, minor: 180, fringe: 120 };
+    const parties = { major: "A", minor: "B", fringe: "C" };
+    const tally = { totalVotes: votes, candidateParties: parties } as never;
+    const projection = computeSeatEstimates(
+      "house",
+      5,
+      tally,
+      new Set(Object.keys(votes)),
+      "US",
+    );
+    const resolution = allocateSeats(
+      "house",
+      "CA",
+      5,
+      Object.entries(votes).map(([id, value]) => ({ id, votes: value, party: parties[id as keyof typeof parties] })),
+      1000,
+      { CA: 5 },
+      undefined,
+      undefined,
+      "US",
+    ).seatsEstimate;
+    expect(projection).toMatchObject({ major: 4, minor: 1, fringe: 0 });
+    expect(projection).toEqual(resolution);
   });
 });

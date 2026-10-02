@@ -91,6 +91,15 @@ describe("allocateSeats — preset-aware house seats", () => {
 });
 
 describe("getMultiSeatMinShare", () => {
+  it("derives the US House gate from delegation size and preserves non-US House at 20%", () => {
+    expect(getMultiSeatMinShare("house", 4, "US")).toBe(0.2);
+    expect(getMultiSeatMinShare("house", 5, "US")).toBeCloseTo(1 / 6);
+    expect(getMultiSeatMinShare("house", 9, "US")).toBe(0.1);
+    expect(getMultiSeatMinShare("house", 20, "NG")).toBe(0.2);
+    expect(getMultiSeatMinShare("house", 20)).toBe(0.2);
+    expect(getMultiSeatMinShare("house", undefined, "US")).toBe(0.2);
+  });
+
   it("should return 0.1 for stateSenate", () => {
     expect(getMultiSeatMinShare("stateSenate")).toBe(0.1);
   });

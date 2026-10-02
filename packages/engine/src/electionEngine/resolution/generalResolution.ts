@@ -97,7 +97,7 @@ export function resolveGeneralElectionPure(input: GeneralResolutionInput): Gener
     apportionment?.houseSeats,
     blocShares,
     apportionment?.commonsSeats,
-    government?.countryId,
+    election.countryId,
   );
 
   return {

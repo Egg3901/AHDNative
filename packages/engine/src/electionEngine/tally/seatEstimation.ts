@@ -22,18 +22,19 @@ import { getMultiSeatMinShare } from "../resolution/seatAllocation.js";
 
 export interface EstimateSeatsArgs {
   electionType: string;
+  countryId?: string;
   totalSeats?: number | null;
   enriched: EnrichedCandidate[];
   newTotals: Record<string, number>;
 }
 
 export function estimateSeats(args: EstimateSeatsArgs): Record<string, number> | undefined {
-  const { electionType, totalSeats, enriched, newTotals } = args;
+  const { electionType, countryId, totalSeats, enriched, newTotals } = args;
   if (!totalSeats || !MULTI_SEAT_TYPES.has(electionType)) return undefined;
   const totalVotesCast = enriched.reduce((s, ec) => s + (newTotals[ec.candidateId] ?? 0), 0);
   if (totalVotesCast === 0) return undefined;
 
-  const minShare = getMultiSeatMinShare(electionType);
+  const minShare = getMultiSeatMinShare(electionType, totalSeats, countryId);
   const groupKey = (ec: EnrichedCandidate) =>
     ec.party && ec.party !== "independent" ? `party:${ec.party}` : `cand:${ec.candidateId}`;
   const votesByGroup = new Map<string, number>();

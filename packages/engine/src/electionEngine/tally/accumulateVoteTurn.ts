@@ -503,6 +503,7 @@ export function accumulateVoteTurn(
   // Seat estimation (Hamilton)
   const seatsEstimate = estimateSeats({
     electionType: election.electionType,
+    countryId: election.countryId,
     totalSeats: election.totalSeats ?? null,
     enriched: effEnriched,
     newTotals,

@@ -34,6 +34,7 @@ export function computeSeatEstimates(
   totalSeats: number | null | undefined,
   tally: ElectionVoteTally | null,
   activeCandidateIdSet: Set<string>,
+  countryId?: string,
 ): Record<string, number> | null {
   // Same gate as the engine (allocateSeats + the per-turn estimate in
   // tallyManagement): every MULTI_SEAT_TYPES race, plus a "senate" race that
@@ -58,7 +59,7 @@ export function computeSeatEstimates(
   }
   if (totalActiveVotes === 0) return null;
 
-  const minShare = getMultiSeatMinShare(electionType);
+  const minShare = getMultiSeatMinShare(electionType, totalSeats, countryId);
   const allEntries = Object.entries(activeVotes);
 
   // Eligibility must match `allocateSeats` exactly, or the projected-seats

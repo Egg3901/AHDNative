@@ -9,7 +9,25 @@ import { MULTI_SEAT_TYPES } from "./constants.js";
  * AHDGame applies a 10% gate to Commons and snap Commons as well as its
  * multi-member PR chambers. The US House retains its distinct 20% threshold.
  */
-export function getMultiSeatMinShare(electionType: string): number {
+export function getHouseSeatMinShare(authoritativeSeats?: number): number {
+  if (
+    authoritativeSeats == null ||
+    !Number.isInteger(authoritativeSeats) ||
+    authoritativeSeats <= 0
+  ) {
+    return 0.2;
+  }
+  return Math.min(0.2, Math.max(0.1, 1 / (authoritativeSeats + 1)));
+}
+
+export function getMultiSeatMinShare(
+  electionType: string,
+  authoritativeSeats?: number,
+  countryId?: string,
+): number {
+  if (electionType === "house") {
+    return countryId === "US" ? getHouseSeatMinShare(authoritativeSeats) : 0.2;
+  }
   if (
     electionType === "commons" ||
     electionType === "snap_commons" ||
@@ -108,7 +126,7 @@ export function allocateSeats(
    * allocates the 625-seat redistribution (ticket #1058).
    */
   commonsSeats: Record<string, number> = UK_COMMONS_SEATS,
-  _countryId?: string
+  countryId?: string
 ): SeatAllocationResult {
   // "senate" is single-seat for the US (one seat per class per state, always
   // totalSeats=1). Nigeria's Senate is a multi-seat-per-zone body (18-21 seats),
@@ -148,7 +166,7 @@ export function allocateSeats(
     // 22% across two candidates clears a 20% gate while a 0.8% fringe
     // candidate can no longer sneak in. Callers without party data fall back
     // to the legacy per-candidate share.
-    const minShare = getMultiSeatMinShare(electionType);
+    const minShare = getMultiSeatMinShare(electionType, authoritativeSeats, countryId);
     const votesByGroup = new Map<string, number>();
     for (const c of ranked) {
       const k = eligibilityGroupKey(c);
