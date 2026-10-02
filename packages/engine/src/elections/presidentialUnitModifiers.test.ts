@@ -103,10 +103,8 @@ describe("presidential per-unit accumulation", () => {
     const baseline = setup("2019");
     const sourceEffect = setup("2019");
     const candidate = sourceEffect.race.candidates[0]!;
-    const candidateIds = new Set(sourceEffect.race.candidates.map((entry) => entry.id));
-    const runningMate = sourceEffect.world.politicians.find((p) => !candidateIds.has(p.id))!;
-    runningMate.homeState = "CA";
-    candidate.runningMateId = runningMate.id;
+    sourceEffect.world.player.homeRegionId = "CA";
+    candidate.runningMateId = "player";
 
     runVoteAccumulation(baseline.world, rngFromSeed("presidential-vp-state"));
     runVoteAccumulation(sourceEffect.world, rngFromSeed("presidential-vp-state"));
@@ -120,13 +118,27 @@ describe("presidential per-unit accumulation", () => {
     expect(stateTotals(sourceEffect.world, "TX")).toEqual(stateTotals(baseline.world, "TX"));
   });
 
+  it("does not grant the human-character home-state bonus to an NPC running mate", () => {
+    const baseline = setup("2019");
+    const npcTicket = setup("2019");
+    const mate = npcTicket.world.politicians.find(p =>
+      !npcTicket.race.candidates.some(candidate => candidate.id === p.id),
+    )!;
+    mate.homeState = "CA";
+    npcTicket.race.candidates[0]!.runningMateId = mate.id;
+
+    runVoteAccumulation(baseline.world, rngFromSeed("npc-vp-no-human-bonus"));
+    runVoteAccumulation(npcTicket.world, rngFromSeed("npc-vp-no-human-bonus"));
+
+    // Game reads running mates only from the characters collection, never npps.
+    expect(stateTotals(npcTicket.world, "CA")).toEqual(stateTotals(baseline.world, "CA"));
+  });
+
   it("persists the district unit tally layout and the VP modifier outcome through resume", () => {
     const { world, race } = setup("2019");
     const candidate = race.candidates[0]!;
-    const candidateIds = new Set(race.candidates.map((entry) => entry.id));
-    const runningMate = world.politicians.find((p) => !candidateIds.has(p.id))!;
-    runningMate.homeState = "ME";
-    candidate.runningMateId = runningMate.id;
+    world.player.homeRegionId = "ME";
+    candidate.runningMateId = "player";
 
     runVoteAccumulation(world, rngFromSeed("presidential-unit-save"));
     const expectedEc = allocateElectoralVotes(world, race);
@@ -137,7 +149,7 @@ describe("presidential per-unit accumulation", () => {
     for (const unitId of ["ME_CD1", "ME_CD2", "NE_CD1", "NE_CD2", "NE_CD3"]) {
       expect(stateTotals(resumed, unitId)).toEqual(stateTotals(world, unitId));
     }
-    expect(resumed.elections[0]!.candidates[0]!.runningMateId).toBe(runningMate.id);
+    expect(resumed.elections[0]!.candidates[0]!.runningMateId).toBe("player");
   });
 
   it("creates, charges, consumes, saves and withdraws a source-scoped governor endorsement", () => {
