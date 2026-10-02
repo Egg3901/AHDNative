@@ -53,7 +53,7 @@ export interface CorporateSectorAsset {
   transitionFromStrategyId?: string;
   /** Source world turn the 12-turn strategy blend began. */
   transitionStartTurn?: number;
-  /** Source anti-flip-flop deadline, retained after transition completion. */
+  /** Source-set +24 deadline; Game clears it with the transition at turn 12. */
   transitionCooldownUntilTurn?: number;
   /** Whether physical plant stock was converted to the destination unit basis. */
   retoolRescaleApplied?: boolean;

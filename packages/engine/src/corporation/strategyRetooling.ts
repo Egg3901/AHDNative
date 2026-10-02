@@ -15,7 +15,9 @@ import {
   corporateSectorBasePrices,
   getSectorStrategy,
   hasSectorStrategy,
+  SECTOR_STRATEGIES,
 } from "./plantCapacity.js";
+import { isBaselineSourceStrategyAvailable } from "./sourceStrategyTechAvailability.js";
 
 export const STRATEGY_TRANSITION_TURNS = 12;
 export const STRATEGY_COOLDOWN_TURNS = 24;
@@ -23,6 +25,9 @@ export const STRATEGY_RETOOL_COST_FRACTION = 0.25;
 const SHORTAGE_RETOOL_SD_THRESHOLD = 0.5;
 const SHORTAGE_RETOOL_MIN_RATE = 0.1;
 const SHORTAGE_TRANSITION_HEADSTART = 6;
+export const STRATEGY_SHIFT_MARGIN_TRIGGER = -3;
+export const STRATEGY_SHIFT_MIN_ADVANTAGE = 0.08;
+export const STRATEGY_SHIFT_PROFIT_SEEK_ADVANTAGE = 0.25;
 
 export interface EffectiveExtractionStrategyRates {
   supply: Partial<Record<CommodityType, number>>;
@@ -97,6 +102,110 @@ export function strategyTransitionMarginModifier(world: WorldState, corporationI
   return revenueWeight > 0 ? modifierWeighted / revenueWeight : 0;
 }
 
+type StrategyScoreView = Pick<ReturnType<typeof getSectorStrategy>, "supply" | "demand">;
+
+/** Game strategyPriceScore: output price gains less input price penalties. */
+export function sourceStrategyPriceScore(
+  strategy: StrategyScoreView,
+  priceRatioOf: (commodity: CommodityType) => number | null,
+): number | null {
+  let score = 0;
+  let priced = false;
+  for (const [rawCommodity, rate] of Object.entries(strategy.supply)) {
+    if (typeof rate !== "number" || rate <= 0) continue;
+    const ratio = priceRatioOf(rawCommodity as CommodityType);
+    if (ratio === null) continue;
+    score += rate * (ratio - 1);
+    priced = true;
+  }
+  for (const [rawCommodity, rate] of Object.entries(strategy.demand)) {
+    if (typeof rate !== "number" || rate <= 0) continue;
+    const ratio = priceRatioOf(rawCommodity as CommodityType);
+    if (ratio === null) continue;
+    score -= rate * (ratio - 1);
+    priced = true;
+  }
+  return priced ? score : null;
+}
+
+/** Exact source eight-turn cohort formula applied to Native's persisted issuer ID. */
+export function sourceCorporateStrategyStaggerEligible(corporationId: string, turn: number): boolean {
+  const tail = Number.parseInt(corporationId.slice(-6), 16);
+  const hash = Number.isFinite(tail) ? tail : 0;
+  return (hash + turn) % 8 === 0;
+}
+
+/**
+ * Run Game's NPP input-squeeze strategy chooser over Native's represented
+ * private NPP issuers. Native has global commodity prices only, so this reads
+ * the exact source fallback used when reachable/national prices are absent;
+ * it does not synthesize a country price. Research choices not represented by
+ * Native remain locked, while source auto-granted baseline methods are usable.
+ */
+export function applyNppSourceStrategyRetools(world: WorldState): void {
+  const year = Number(world.meta.date.slice(0, 4));
+  const turn = world.meta.turn;
+  const prices = corporateSectorBasePrices(world);
+  const assets = Object.values(corporateSectorAssets(world));
+  const priceRatioOf = (commodity: CommodityType): number | null => {
+    const row = world.commodityPrices[commodity];
+    if (!row || !(row.basePrice > 0) || !(row.globalPrice > 0) || !Number.isFinite(row.globalPrice)) return null;
+    const ratio = row.globalPrice / row.basePrice;
+    return Number.isFinite(ratio) ? ratio : null;
+  };
+
+  for (const corp of Object.values(world.corporations)) {
+    if ((corp.ceoType ?? "npp") !== "npp" || corp.countryOwnerId || corp.suspended) continue;
+    if (!sourceCorporateStrategyStaggerEligible(corp.id, turn)) continue;
+    let best: { asset: CorporateSectorAsset; fromStrategyId: string; toStrategyId: string; advantage: number } | null = null;
+    for (const asset of assets) {
+      if (asset.corporationId !== corp.id || asset.owner === "player" || asset.sectorType === "extraction") continue;
+      if (asset.transitionFromStrategyId) continue;
+      if (asset.transitionCooldownUntilTurn !== undefined && turn < asset.transitionCooldownUntilTurn) continue;
+
+      const currentStrategyId = asset.strategyId ?? "standard";
+      if (!hasSectorStrategy(asset.sectorType, currentStrategyId)) continue;
+      const currentScore = sourceStrategyPriceScore(getSectorStrategy(asset.sectorType, currentStrategyId), priceRatioOf);
+      if (currentScore === null) continue;
+
+      // Game uses each sector's effectiveProfitMargin here. Native currently
+      // records that source output only at issuer level; use the issuer value
+      // until the per-asset physical P&L writer is ported. This preserves the
+      // source threshold for today's one-asset issuer model, while the missing
+      // per-asset producer remains an explicit broader parity gap.
+      const distressed = corp.effectiveProfitMargin <= STRATEGY_SHIFT_MARGIN_TRIGGER;
+      const requiredAdvantage = distressed ? STRATEGY_SHIFT_MIN_ADVANTAGE : STRATEGY_SHIFT_PROFIT_SEEK_ADVANTAGE;
+      for (const strategyId of Object.keys(SECTOR_STRATEGIES[asset.sectorType] ?? {})) {
+        if (strategyId === currentStrategyId || !isBaselineSourceStrategyAvailable(asset.sectorType, strategyId, year)) continue;
+        const score = sourceStrategyPriceScore(getSectorStrategy(asset.sectorType, strategyId), priceRatioOf);
+        if (score === null) continue;
+        const advantage = score - currentScore;
+        if (advantage < requiredAdvantage) continue;
+        if (best === null || advantage > best.advantage) {
+          best = { asset, fromStrategyId: currentStrategyId, toStrategyId: strategyId, advantage };
+        }
+      }
+    }
+    if (!best) continue;
+
+    const { asset, fromStrategyId, toStrategyId } = best;
+    const fromPrice = capacityPricePerUnitAnchor(asset.sectorType, prices, fromStrategyId, year);
+    const toPrice = capacityPricePerUnitAnchor(asset.sectorType, prices, toStrategyId, year);
+    const ratio = fromPrice > 0 && toPrice > 0 ? fromPrice / toPrice : 1;
+    const nextStock = Math.max(0, asset.capitalStock ?? 0) * ratio;
+    const nextQueue = (asset.buildQueue ?? []).map(order => ({ ...order, unitsOrdered: order.unitsOrdered * ratio }));
+    if (!Number.isFinite(ratio) || ratio <= 0 || !Number.isFinite(nextStock) || nextQueue.some(order => !Number.isFinite(order.unitsOrdered))) continue;
+
+    asset.strategyId = toStrategyId;
+    asset.transitionFromStrategyId = fromStrategyId;
+    asset.transitionStartTurn = turn;
+    asset.transitionCooldownUntilTurn = turn + STRATEGY_COOLDOWN_TURNS;
+    asset.retoolRescaleApplied = true;
+    asset.capitalStock = nextStock;
+    asset.buildQueue = nextQueue;
+  }
+}
+
 export type RetoolResult = { ok: true; feeLocal: number; transitionTurns: number } | { ok: false; error: string };
 
 /** Source command eligibility, fee, unit-basis conversion and transition writer for supported domestic assets. */
@@ -121,7 +230,7 @@ export function setCorporateSectorStrategy(
   if (target.minDecade && currentYear < Number(target.minDecade)) {
     return { ok: false, error: "This production method is not available in this era yet." };
   }
-  if (target.requiresTechUnlock) {
+  if (target.requiresTechUnlock && !isBaselineSourceStrategyAvailable(asset.sectorType, strategyId, currentYear)) {
     return { ok: false, error: "Unlock this production method in the corporate technology tree first." };
   }
   const targetSupply = target.supply;
