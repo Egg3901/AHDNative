@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { executeAction } from "../actions/execute.js";
 import { projectSaveToV42, serializeSave, deserializeSave } from "../save.js";
 import { createWorld } from "../world.js";
-import { calcRdScoreAfterTurn, rdMoraleFactor, sourcePlannedTargetRate } from "./constants.js";
+import { calcRdScoreAfterTurn, rdMoraleFactor, sourcePlanTrendGdpGrowth, sourcePlannedTargetRate } from "./constants.js";
 import { corporationTurnPhase, runCorporationTurn, runCorporateRdInnovations, updateNppCorporationFinancialPolicy } from "./corporationTurn.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng, sha256FirstUint32BE } from "./rdInnovationRng.js";
@@ -41,6 +41,11 @@ describe("corporation R&D lifecycle", () => {
     expect(sourcePlannedTargetRate({ countryId: "RU", sectorType: "manufacturing", year: 1953, marketizationLevel: 10, currentTargetRate: 6 })).toBe(6.02);
     expect(sourcePlannedTargetRate({ countryId: "RU", sectorType: "agriculture", year: 1953, marketizationLevel: 10, currentTargetRate: 6 })).toBe(5.98);
     expect(sourcePlannedTargetRate({ countryId: "DD", sectorType: "defense", year: 1953, marketizationLevel: 10, currentTargetRate: 2 })).toBe(2.02);
+    // Current Game era baselines: RU trendGdpGrowth is 3% for 1971-1978,
+    // not the 6% reconstruction rate held in 1953-1970.
+    expect(sourcePlannedTargetRate({ countryId: "RU", sectorType: "manufacturing", year: 1971, marketizationLevel: 10, currentTargetRate: 6 })).toBe(5.98);
+    expect(sourcePlannedTargetRate({ countryId: "DD", sectorType: "manufacturing", year: 1978, marketizationLevel: 10, currentTargetRate: 4 })).toBe(3.98);
+    expect(sourcePlanTrendGdpGrowth("RU", 1992)).toBe(-5);
     expect(sourcePlannedTargetRate({ countryId: "RU", sectorType: "manufacturing", year: 1953, marketizationLevel: 30, currentTargetRate: 6 })).toBeUndefined();
 
     const world = createWorld({ era: "1953", countryId: "RU", seed: "rd-plan-gravity", playerName: "Alex" });

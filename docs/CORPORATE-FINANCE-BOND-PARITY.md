@@ -115,9 +115,12 @@ input multiplier wiring. The current Game source's issuer-currency daily gross
 revenue/capacity floor for NPP tech pricing and its cash reserve are now wired
 into the Native tech chooser with direct source-shaped tests. Game
 `origin/main` is `7ab3cc75`; its newer founding/reinvestment/tech cash-writeback
-ledger witnesses are not represented in Native state. Full #107 remains open
-for those gaps and for plan gravity, caretaker/CEO lifecycle, snapshot,
-insolvency, and integrated public-turn acceptance.
+ledger witnesses are not represented in Native state. The plan-gravity trend
+reader now follows the current RU 1953/1971/1979/1991 source-era values and DD
+1953/1971 range; the source turn consumer and focused era-transition vectors
+pass. Full #107 remains open for cross-era public-turn/save journeys, those
+ledger witnesses, caretaker/CEO lifecycle, snapshot, insolvency, and integrated
+acceptance.
 
 ## Finance and macro integration
 
