@@ -21,14 +21,14 @@ describe("UK Commons vacancy plumbing", () => {
     const holder = world.politicians.find((politician) => politician.countryId === "UK" && politician.chamberKey === "commons")!;
     holder.electedState = "LON";
     world.ukCommonsVacancies = [
-      { id: "vacancy-a", countryId: "UK", regionId: "LON", formerHolderId: "former-a", reason: "resignation", vacatedTurn: 0, status: "open" },
-      { id: "vacancy-b", countryId: "UK", regionId: "LON", formerHolderId: "former-b", reason: "resignation", vacatedTurn: 0, status: "open" },
+      { id: "vacancy-a", countryId: "UK", regionId: "LON", formerHolderId: "former-a", seats: 2, reason: "resignation", vacatedTurn: 0, status: "open" },
+      { id: "vacancy-b", countryId: "UK", regionId: "LON", formerHolderId: "former-b", seats: 3, reason: "resignation", vacatedTurn: 0, status: "open" },
     ];
 
     scheduleUkCommonsByElections(world);
 
     const special = world.elections.find((election) => election.electionType === "special_commons");
-    expect(special).toMatchObject({ countryId: "UK", state: "LON", totalSeats: 2, startTurn: world.meta.turn, primaryEndTurn: world.meta.turn + 24, endTurn: world.meta.turn + 48, byElectionCarve: expect.any(Number), vacancyIds: ["vacancy-a", "vacancy-b"] });
+    expect(special).toMatchObject({ countryId: "UK", state: "LON", totalSeats: 5, startTurn: world.meta.turn, primaryEndTurn: world.meta.turn + 24, endTurn: world.meta.turn + 48, byElectionCarve: expect.any(Number), vacancyIds: ["vacancy-a", "vacancy-b"] });
     expect(world.ukCommonsVacancies?.every((vacancy) => vacancy.status === "scheduled" && vacancy.electionId === special!.id)).toBe(true);
     expect(seatHolders(world, special!)).toEqual([]);
     expect(holder.chamberKey).toBe("commons");
@@ -39,7 +39,7 @@ describe("UK Commons vacancy plumbing", () => {
 
   it("cancels live Commons specials and reopens their claimed vacancies on a snap", () => {
     const world = createWorld({ seed: "commons-snap-cancels-special", playerName: "UK MP", countryId: "UK", era: "2019" });
-    world.ukCommonsVacancies = [{ id: "vacancy-snap", countryId: "UK", regionId: "LON", formerHolderId: "former", reason: "resignation", vacatedTurn: 0, status: "open" }];
+    world.ukCommonsVacancies = [{ id: "vacancy-snap", countryId: "UK", regionId: "LON", formerHolderId: "former", seats: 2, reason: "resignation", vacatedTurn: 0, status: "open" }];
     scheduleUkCommonsByElections(world);
     const special = world.elections.find((election) => election.electionType === "special_commons")!;
 
@@ -48,6 +48,16 @@ describe("UK Commons vacancy plumbing", () => {
 
     expect(world.elections.find((election) => election.id === special.id)?.status).toBe("cancelled");
     expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ status: "open" })]);
+  });
+
+  it("carries a weighted held Commons office into the regional special seat count", () => {
+    const world = createWorld({ seed: "commons-weighted-vacancy", playerName: "UK MP", countryId: "UK", era: "2019" });
+    world.player.legislativeSeat = { countryId: "UK", chamberKey: "commons", regionId: "LON", seatsHeld: 4 };
+
+    expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(true);
+    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ regionId: "LON", seats: 4, status: "open" })]);
+    scheduleUkCommonsByElections(world);
+    expect(world.elections.find((election) => election.electionType === "special_commons")).toMatchObject({ totalSeats: 4, byElectionCarve: expect.any(Number) });
   });
 
   it("does not arm a first-run UK government's source-absent PM vacancy deadline", () => {
@@ -87,12 +97,13 @@ describe("UK Commons vacancy plumbing", () => {
     while (regular!.status !== "resolved" && world.meta.turn <= regular!.endTurn) advanceTurn(world);
     expect(regular!.status).toBe("resolved");
     expect(world.player.legislativeSeat).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
+    const heldSeats = world.player.legislativeSeat!.seatsHeld ?? 1;
     expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(true);
-    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ regionId: "LON", formerHolderId: "player", status: "open" })]);
+    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ regionId: "LON", formerHolderId: "player", seats: heldSeats, status: "open" })]);
 
     advanceTurn(world);
     const special = world.elections.find((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === "LON");
-    expect(special).toMatchObject({ totalSeats: 1, byElectionCarve: expect.any(Number), vacancyIds: [world.ukCommonsVacancies![0]!.id] });
+    expect(special).toMatchObject({ totalSeats: heldSeats, byElectionCarve: expect.any(Number), vacancyIds: [world.ukCommonsVacancies![0]!.id] });
     expect(executeAction(world, "player", "declareCandidacy", { electionId: special!.id }).ok).toBe(true);
     while (special!.status !== "resolved" && world.meta.turn <= special!.endTurn) advanceTurn(world);
     expect(special!.status).toBe("resolved");

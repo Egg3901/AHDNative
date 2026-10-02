@@ -1,5 +1,6 @@
 import type { WorldState } from "../types.js";
 import { getUkCommonsSeats, eraToPreset } from "../electionEngine/resolution/constants.js";
+import { heldSeatCount } from "../government/seatWeights.js";
 import type { ElectionRecord } from "./types.js";
 
 export const UK_COMMONS_BY_ELECTION_FILING_TURNS = 24;
@@ -14,6 +15,8 @@ export interface UkCommonsVacancy {
   countryId: "UK";
   regionId: string;
   formerHolderId: string;
+  /** Source vacancy.seats preserves the departed regional office weight. */
+  seats?: number;
   reason: "resignation";
   vacatedTurn: number;
   status: UkCommonsVacancyStatus;
@@ -38,6 +41,7 @@ export function resignUkCommonsSeat(world: WorldState): { ok: true; vacancy: UkC
     countryId: "UK",
     regionId,
     formerHolderId: "player",
+    seats: heldSeatCount(seat),
     reason: "resignation",
     vacatedTurn: world.meta.turn,
     status: "open",
@@ -47,13 +51,13 @@ export function resignUkCommonsSeat(world: WorldState): { ok: true; vacancy: UkC
   return { ok: true, vacancy };
 }
 
-export function closeUkCommonsVacancies(world: WorldState, vacancyIds: readonly string[], winnerByVacancy: ReadonlyMap<string, string>): void {
+export function closeUkCommonsVacancies(world: WorldState, vacancyIds: readonly string[], soleWinnerId?: string): void {
   for (const vacancy of world.ukCommonsVacancies ?? []) {
     if (vacancy.status !== "open" && vacancy.status !== "scheduled") continue;
     if (!vacancyIds.includes(vacancy.id)) continue;
-    const winner = winnerByVacancy.get(vacancy.id);
-    vacancy.status = winner ? "filled" : "open";
-    if (winner) { vacancy.filledById = winner; vacancy.filledTurn = world.meta.turn; }
+    vacancy.status = "filled";
+    if (soleWinnerId) vacancy.filledById = soleWinnerId;
+    vacancy.filledTurn = world.meta.turn;
     delete vacancy.electionId;
   }
 }
@@ -98,13 +102,16 @@ export function scheduleUkCommonsByElections(world: WorldState): void {
   for (const [regionId, rows] of [...openByRegion.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const existingSpecial = world.elections.find((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === regionId && (election.status === "active" || election.status === "upcoming"));
     if (existingSpecial) {
+      let addedSeats = 0;
       for (const vacancy of rows) {
         if (existingSpecial.vacancyIds?.includes(vacancy.id)) continue;
         existingSpecial.vacancyIds = [...(existingSpecial.vacancyIds ?? []), vacancy.id];
-        existingSpecial.totalSeats += 1;
+        addedSeats += Math.max(1, vacancy.seats ?? 1);
         vacancy.status = "scheduled";
         vacancy.electionId = existingSpecial.id;
       }
+      existingSpecial.totalSeats += addedSeats;
+      existingSpecial.byElectionCarve = Math.min(1, existingSpecial.totalSeats / (seatsByRegion[regionId] ?? existingSpecial.totalSeats));
       continue;
     }
     const fillsFirst = world.elections.some((election) => election.countryId === "UK" && (election.state === regionId || (election.electionType === "snap_commons" && election.state === undefined)) && ["commons", "snap_commons"].includes(election.electionType) && (election.status === "active" || election.status === "upcoming") && election.endTurn <= world.meta.turn + UK_COMMONS_BY_ELECTION_TOTAL_TURNS + 1);
@@ -116,6 +123,7 @@ export function scheduleUkCommonsByElections(world: WorldState): void {
     const regionSeats = seatsByRegion[regionId] ?? 0;
     if (regionSeats < 1) continue;
     const vacancyIds = rows.map((vacancy) => vacancy.id).sort();
+    const vacancySeats = rows.reduce((total, vacancy) => total + Math.max(1, vacancy.seats ?? 1), 0);
     const primaryEndTurn = world.meta.turn + UK_COMMONS_BY_ELECTION_FILING_TURNS;
     const id = `special_commons:UK:${regionId}:c${world.meta.turn}`;
     const rec: ElectionRecord = {
@@ -124,13 +132,13 @@ export function scheduleUkCommonsByElections(world: WorldState): void {
       countryId: "UK",
       state: regionId,
       vacancyIds,
-      byElectionCarve: Math.min(1, rows.length / regionSeats),
+      byElectionCarve: Math.min(1, vacancySeats / regionSeats),
       cycle: world.meta.turn,
       status: "active",
       startTurn: world.meta.turn,
       primaryEndTurn,
       endTurn: primaryEndTurn + UK_COMMONS_BY_ELECTION_GENERAL_TURNS,
-      totalSeats: rows.length,
+      totalSeats: vacancySeats,
       chamberKey: "commons",
       candidates: [],
       tally: {},

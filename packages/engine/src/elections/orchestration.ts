@@ -839,14 +839,12 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   }
 
   if (rec.electionType === "special_commons" && rec.vacancyIds?.length) {
-    const vacancies = (world.ukCommonsVacancies ?? []).filter((vacancy) => rec.vacancyIds!.includes(vacancy.id));
     const winners = [...winnerIds].sort((a, b) => (rec.tally[b] ?? 0) - (rec.tally[a] ?? 0) || a.localeCompare(b));
-    const winnerByVacancy = new Map<string, string>();
-    winners.forEach((winnerId, index) => {
-      const vacancy = vacancies[index];
-      if (vacancy) winnerByVacancy.set(vacancy.id, winnerId);
-    });
-    closeUkCommonsVacancies(world, rec.vacancyIds, winnerByVacancy);
+    // Source marks every claim on the completed regional election as filled;
+    // it does not map a departed office row to a particular replacement.
+    // Preserve Native's winner pointer only when the regional result has one
+    // actual holder, whose seatsHeld now captures the full allocation.
+    closeUkCommonsVacancies(world, rec.vacancyIds, winners.length === 1 ? winners[0] : undefined);
   } else if (rec.countryId === "UK" && ["commons", "snap_commons"].includes(rec.electionType) && (rec.state || rec.electionType === "snap_commons")) {
     for (const vacancy of world.ukCommonsVacancies ?? []) {
       if ((rec.state && vacancy.regionId !== rec.state) || (vacancy.status !== "open" && vacancy.status !== "scheduled")) continue;
