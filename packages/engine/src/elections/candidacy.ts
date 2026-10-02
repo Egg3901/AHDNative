@@ -83,8 +83,10 @@ export function declareCandidacy(world: WorldState, electionId: string): Candida
   }
   const selectedConstituency = world.player.constituency;
   if (
-    rec.countryId === "UK" && rec.constituencyId && selectedConstituency
-    && rec.constituencyId !== selectedConstituency.id
+    rec.countryId === "UK" && selectedConstituency &&
+    (rec.constituencyId ? rec.constituencyId !== selectedConstituency.id :
+      rec.constituencyIds ? !rec.constituencyIds.includes(selectedConstituency.id) :
+        rec.electionType !== "special_commons" && rec.state !== undefined && selectedConstituency.regionId !== rec.state)
   ) {
     return {
       ok: false,

@@ -73,6 +73,8 @@ import { applyBillEffects } from "../legislation/billLifecycle.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment } from "../government/pmAppointment.js";
 import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeacePoll } from "../livingConflict/northernIreland.js";
+import { resignUkCommonsSeat } from "../elections/ukCommonsVacancies.js";
+import { recomputeComposition } from "../elections/orchestration.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -587,6 +589,13 @@ function executeActionInner(
     if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may campaign on the Northern Ireland peace-agreement ballot." };
     const result = campaignNorthernIrelandPeacePoll(world, params.niPollSide ?? "yes", params.units ?? 0);
     return result.ok ? { ok: true, message: `Recorded ${params.units} ${params.niPollSide} campaign units for the peace-agreement poll.` } : result;
+  }
+  if (actionId === "resignCommonsSeat") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can resign their UK Commons seat." };
+    const result = resignUkCommonsSeat(world);
+    if (!result.ok) return result;
+    recomputeComposition(world, "UK", "commons");
+    return { ok: true, message: `You resigned from your ${result.vacancy.regionId} Commons office; a by-election is now due.` };
   }
 
   if (actionId === "fundraise") {
@@ -2474,6 +2483,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.niOptionId ? null : "chooseNorthernIrelandConflictOption requires niOptionId";
     case "campaignNorthernIrelandPeacePoll":
       return params.niPollSide && params.units !== undefined ? null : "campaignNorthernIrelandPeacePoll requires niPollSide and units";
+    case "resignCommonsSeat":
+      return null;
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null

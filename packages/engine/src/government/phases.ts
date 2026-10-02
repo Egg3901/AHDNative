@@ -248,7 +248,11 @@ export function triggerSnapElection(world: WorldState, countryId: string, chambe
     .filter((e) => e.countryId === countryId && e.chamberKey === chamberKey)
     .reduce((max, e) => Math.max(max, e.cycle), 0);
   world.elections = world.elections.filter(
-    (e) => !(e.countryId === countryId && e.chamberKey === chamberKey && e.status !== "resolved"),
+    // Match snapElection.ts: its cancellation query uses the canonical lower
+    // chamber election type (`commons`, `house`, etc.). Special by-elections
+    // share the chamberKey but have their own electionType and survive this
+    // regular-cycle cancellation in the source.
+    (e) => !(e.countryId === countryId && e.electionType === chamberKey && (e.status === "active" || e.status === "upcoming")),
   );
 
   const snapType = SNAP_ELECTION_TYPE_BY_CHAMBER[chamberKey] ?? `snap_${chamberKey}`;

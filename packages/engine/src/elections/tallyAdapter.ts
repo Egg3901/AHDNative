@@ -572,7 +572,23 @@ export function realAccumulate(world: WorldState, rng: WorldRng, rec: ElectionRe
   if (rec.electionType === "president") {
     return realAccumulatePresident(world, rng, rec);
   }
-  const slice = rec.state ? stateSliceFor(world, rec.state, rec.id) : null;
-  if (!slice) return false;
+  const regionalSlice = rec.state ? stateSliceFor(world, rec.state, rec.id) : null;
+  if (!regionalSlice) return false;
+  const carve = rec.electionType === "special_commons" ? rec.byElectionCarve : undefined;
+  const slice = typeof carve === "number" && carve > 0 && carve < 1
+    ? {
+        ...regionalSlice,
+        state: {
+          ...regionalSlice.state,
+          population: regionalSlice.state.population * carve,
+          votingEligiblePopulation: regionalSlice.state.votingEligiblePopulation == null ? null : regionalSlice.state.votingEligiblePopulation * carve,
+        },
+        demographics: {
+          ...regionalSlice.demographics,
+          groups: Object.fromEntries(Object.entries(regionalSlice.demographics.groups).map(([id, group]) => [id, { ...group, population: group.population * carve }])),
+        },
+        turnout: { ...regionalSlice.turnout, totalPool: regionalSlice.turnout.totalPool * carve },
+      }
+    : regionalSlice;
   return runAccumulate(world, rng, rec, slice);
 }

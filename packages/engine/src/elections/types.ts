@@ -61,6 +61,10 @@ export interface ElectionRecord {
   state?: string | undefined;
   /** UK constituency identifier for a constituency-specific Commons race. */
   constituencyId?: string | undefined;
+  /** Fraction of the regional electorate carved for a UK Commons by-election. */
+  byElectionCarve?: number | undefined;
+  /** Source vacancy IDs the special race claims and must close on resolution. */
+  vacancyIds?: string[] | undefined;
   /** Senate class for US senate races. */
   senateClass?: 1 | 2 | 3 | undefined;
   cycle: number;

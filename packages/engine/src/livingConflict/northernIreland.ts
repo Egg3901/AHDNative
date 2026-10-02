@@ -85,15 +85,9 @@ const IMPLEMENTATION: readonly Node[] = [
 
 export function initialNorthernIrelandLivingConflict(startingYear: number): NorthernIrelandLivingConflict | undefined {
   if (startingYear < 1991) return undefined;
-  if (startingYear >= 1999) {
-    // The authored 1998 settlement is part of the later supported historical
-    // packs; source seeds their devolved institutions as already established.
-    return {
-      _id: "northern_ireland", hasOpened: true, status: "settled", phase: "power_sharing", phaseLevel: 6,
-      phaseTurns: 0, totalTurns: 0, lastProcessedTurn: 0, lastInteractionTurn: 0,
-      tracks: { violence: 20, settlementMomentum: 80, legitimacy: 60, unionistConsent: 65, nationalistConsent: 65, decommissioning: 65, institutionalStability: 60, domesticConsent: 65, referendumRatification: 1, ratificationAuthorization: 2, ratificationFailureCount: 0 },
-    };
-  }
+  // AHDGame auto-opens its 1991-onward definition at phase 1 when a fresh
+  // world first reaches the ordinary living-conflict turn driver. Only the
+  // explicit 2027 continuation snapshot is pre-seeded as settled.
   return { _id: "northern_ireland", hasOpened: true, status: "active", phase: "armed_stalemate", phaseLevel: 1, phaseTurns: 0, totalTurns: 0, lastProcessedTurn: -1, lastInteractionTurn: -24, tracks: { ...START_TRACKS } };
 }
 
@@ -111,6 +105,8 @@ function applyAuthoredPosition(world: WorldState, state: NorthernIrelandLivingCo
   if (!region) return;
   const constructive = (deltas.settlementMomentum ?? 0) > 0;
   region.independenceDesire = clampTrack((region.independenceDesire ?? 50) + (constructive ? -1 : 2));
+  const localAutonomy = world.regionalMetrics.NIR?.["governance.localAutonomy"];
+  if (localAutonomy) localAutonomy.value = clampTrack(localAutonomy.value + (constructive ? 2 : -2));
 }
 
 function nextPhase(state: NorthernIrelandLivingConflict): NorthernIrelandPhase | null {
@@ -134,6 +130,10 @@ function reconcilePosture(world: WorldState, turn: number): void {
   const uk = world.ukDevolution;
   if (!state || !uk) return;
   const posture: NorthernIrelandPosture = state.phase === "power_sharing" && state.status === "settled" && state.tracks.ratificationAuthorization >= 2 && state.tracks.referendumRatification >= 1 ? "power_sharing" : state.phase === "fragile_settlement" ? "suspended" : "unsettled";
+  const startingYear = Number(world.meta.date.slice(0, 4));
+  // Source migration rule: modern pack institutions predate a fresh living
+  // conflict record; opening the phase-1 conflict cannot abolish them.
+  if (!uk.northernIrelandPeace && startingYear >= 1999 && posture === "unsettled") return;
   if (uk.northernIrelandPeace?.posture === posture) return;
   const prior = uk.regions.NIR;
   const firstCycle = world.elections
@@ -171,11 +171,12 @@ export function advanceNorthernIrelandLivingConflict(world: WorldState): void {
   if (state.totalTurns % 18 === 0 && ["backchannels", "ceasefire", "multiparty_talks", "power_sharing"].includes(state.phase)) applyDeltas(state, { violence: 3, domesticConsent: -1 });
   if (state.decision && world.meta.turn >= state.decision.deadlineTurn) {
     const nodes = state.decision.interaction === "peace_initiative" ? INITIATIVE : IMPLEMENTATION;
-    const current = nodes[state.decision.nodeIndex];
-    if (current) applyAuthoredPosition(world, state, current.options[0].deltas); // Source expiry picks first (these authored defaults withhold).
-    const nextIndex = state.decision.nodeIndex + 1;
-    if (nextIndex >= nodes.length) delete state.decision;
-    else state.decision = { ...state.decision, nodeId: nodes[nextIndex]!.nodeId, nodeIndex: nextIndex, openedTurn: world.meta.turn, deadlineTurn: world.meta.turn + 6 };
+    // The source interaction window is eight turns. On expiry the driver
+    // resolves every remaining node using its authored first-option fallback.
+    for (let i = state.decision.nodeIndex; i < nodes.length; i++) {
+      applyAuthoredPosition(world, state, nodes[i]!.options[0].deltas);
+    }
+    delete state.decision;
   }
   if (state.phase === "agreement") {
     const cutoff = state.lastRejectedPollTurn ?? -1;
@@ -190,19 +191,19 @@ export function advanceNorthernIrelandLivingConflict(world: WorldState): void {
     const interaction: NorthernIrelandInteraction | null = state.phase === "agreement" && state.tracks.referendumRatification >= 1 ? "agreement_implementation" : state.phase === "agreement" ? null : ["power_sharing", "fragile_settlement"].includes(state.phase) ? "agreement_implementation" : "peace_initiative";
     if (interaction) {
       const nodes = interaction === "peace_initiative" ? INITIATIVE : IMPLEMENTATION;
-      state.decision = { interaction, nodeId: nodes[0]!.nodeId, nodeIndex: 0, openedTurn: world.meta.turn, deadlineTurn: world.meta.turn + 6 };
+      state.decision = { interaction, nodeId: nodes[0]!.nodeId, nodeIndex: 0, openedTurn: world.meta.turn, deadlineTurn: world.meta.turn + 8 };
       state.lastInteractionTurn = world.meta.turn;
     }
   }
   const phase = nextPhase(state);
   if (phase) {
     state.phase = phase; state.phaseLevel = PHASES.indexOf(phase) + 1 as NorthernIrelandLivingConflict["phaseLevel"]; state.phaseTurns = 0;
-    state.status = phase === "power_sharing" ? "settled" : phase === "ceasefire" ? "ceasefire" : "negotiating";
+    state.status = phase === "power_sharing" ? "settled" : phase === "ceasefire" ? "ceasefire" : phase === "armed_stalemate" ? "active" : "negotiating";
     if (phase === "agreement") state.tracks.ratificationAuthorization = 0;
     if (["armed_stalemate", "backchannels", "ceasefire", "multiparty_talks", "power_sharing", "fragile_settlement"].includes(phase)) {
       const interaction: NorthernIrelandInteraction = phase === "power_sharing" || phase === "fragile_settlement" ? "agreement_implementation" : "peace_initiative";
       const nodes = interaction === "peace_initiative" ? INITIATIVE : IMPLEMENTATION;
-      state.decision = { interaction, nodeId: nodes[0]!.nodeId, nodeIndex: 0, openedTurn: world.meta.turn, deadlineTurn: world.meta.turn + 6 };
+      state.decision = { interaction, nodeId: nodes[0]!.nodeId, nodeIndex: 0, openedTurn: world.meta.turn, deadlineTurn: world.meta.turn + 8 };
       state.lastInteractionTurn = world.meta.turn;
     }
   }
@@ -227,8 +228,7 @@ export function chooseNorthernIrelandLivingConflictOption(world: WorldState, act
   applyAuthoredPosition(world, state, option.deltas);
   const nextIndex = state.decision.nodeIndex + 1;
   if (nextIndex >= nodes.length) delete state.decision;
-  else state.decision = { ...state.decision, nodeId: nodes[nextIndex]!.nodeId, nodeIndex: nextIndex, openedTurn: world.meta.turn, deadlineTurn: world.meta.turn + 6 };
-  state.lastInteractionTurn = world.meta.turn;
+  else state.decision = { ...state.decision, nodeId: nodes[nextIndex]!.nodeId, nodeIndex: nextIndex };
   return { ok: true };
 }
 

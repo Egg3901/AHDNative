@@ -411,6 +411,8 @@ export interface WorldState {
   northernIrelandConflict?: import("./livingConflict/northernIreland.js").NorthernIrelandLivingConflict;
   /** Belfast Agreement public consent poll; intentionally separate from reunification referendum actuation. */
   northernIrelandPeacePoll?: import("./livingConflict/northernIreland.js").NorthernIrelandPeacePoll;
+  /** Source-shaped UK Commons vacancy ledger. Absent on saves predating #2886 parity work. */
+  ukCommonsVacancies?: import("./elections/ukCommonsVacancies.js").UkCommonsVacancy[];
   governorAddresses: import("./governor/types.js").GovernorAddress[];
   governorOrders: import("./governor/types.js").GovernorOrder[];
   /**

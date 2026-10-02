@@ -18,6 +18,7 @@ import { realAccumulate } from "./tallyAdapter.js";
 import { ensureCampaignsForElection, archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
+import { closeUkCommonsVacancies, scheduleUkCommonsByElections } from "./ukCommonsVacancies.js";
 import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
 import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS, UK_DEVOLVED_GOVERNOR_REGIONS } from "../government/constants.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
@@ -340,6 +341,9 @@ export function recordSeriesKey(r: ElectionRecord): string {
 
 /** Politicians currently holding the contested seats. */
 export function seatHolders(world: WorldState, rec: ElectionRecord): Politician[] {
+  // A UK special Commons record contests only the vacancies it claims; the
+  // remaining regional MPs do not stand or risk losing their offices.
+  if (rec.countryId === "UK" && rec.electionType === "special_commons") return [];
   return world.politicians.filter(
     (p) =>
       p.countryId === rec.countryId &&
@@ -855,6 +859,23 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     world.player.legislativeSeat = null;
   }
 
+  if (rec.electionType === "special_commons" && rec.vacancyIds?.length) {
+    const vacancies = (world.ukCommonsVacancies ?? []).filter((vacancy) => rec.vacancyIds!.includes(vacancy.id));
+    const winners = [...winnerIds].sort((a, b) => (rec.tally[b] ?? 0) - (rec.tally[a] ?? 0) || a.localeCompare(b));
+    const winnerByVacancy = new Map<string, string>();
+    winners.forEach((winnerId, index) => {
+      const vacancy = vacancies[index];
+      if (vacancy) winnerByVacancy.set(vacancy.id, winnerId);
+    });
+    closeUkCommonsVacancies(world, rec.vacancyIds, winnerByVacancy);
+  } else if (rec.countryId === "UK" && rec.electionType === "commons" && rec.state) {
+    for (const vacancy of world.ukCommonsVacancies ?? []) {
+      if (vacancy.regionId !== rec.state || (vacancy.status !== "open" && vacancy.status !== "scheduled")) continue;
+      vacancy.status = "subsumed";
+      delete vacancy.electionId;
+    }
+  }
+
   rec.status = "resolved";
   cullOrphanedGenerated(world);
   rec.winners = [...winnerIds];
@@ -949,6 +970,8 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
     };
     world.elections.push(rec);
   }
+
+  scheduleUkCommonsByElections(world);
 
   // Status transitions + candidate fill on activation (sorted for determinism).
   for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {

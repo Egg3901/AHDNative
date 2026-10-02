@@ -71,6 +71,7 @@ export type ActionId =
   | "invokeFilibuster"
   | "declareCandidacy"
   | "withdrawCandidacy"
+  | "resignCommonsSeat"
   | "contestPartyLeadership"
   | "votePartyLeadership"
   | "issuePartyWhip"
@@ -549,6 +550,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     // Reference POST /api/elections/[id]/withdraw also charges no fee.
     fundCost: 0,
     systems: ["elections"],
+    status: "available",
+  },
+  resignCommonsSeat: {
+    id: "resignCommonsSeat",
+    name: "Resign from the Commons",
+    description: "Vacate your recorded UK Commons regional office and trigger the source by-election watcher.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections", "ukCommonsVacancies"],
     status: "available",
   },
   contestPartyLeadership: {
