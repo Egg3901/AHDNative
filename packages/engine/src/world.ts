@@ -165,8 +165,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
 // v52: durable state-ownership action history; older readers cannot record continuation.
-// v53: source nationalization eligibility and issuer history; older readers
-// cannot continue this state (added by the #725 eligibility slice).
+// v53: source nationalization eligibility and issuer history; earlier saves
+// retain absent creation/grace history rather than receiving invented clocks.
 // v54: persisted labour political snapshots affect future regional dynamics;
 // older readers retain unknown JSON but cannot consume the consequence.
 export const SCHEMA_VERSION = 54;

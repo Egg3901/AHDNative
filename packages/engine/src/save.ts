@@ -48,6 +48,7 @@ import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
 import { validatePoliticalState } from "./politicalMetrics/validate.js";
+import { validateNationalizationEligibilityState } from "./corporation/nationalizationEligibility.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
@@ -193,6 +194,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(poolRows) && Object.keys(poolRows).length > 0) {
     return { ok: false, error: "Bond market pool cash cannot be projected to the schema 42 turn reader; keep this Native save." };
   }
+  const ownershipMetadata = world["corporations"];
+  if (isRecord(ownershipMetadata) && Object.values(ownershipMetadata).some(corp => isRecord(corp) &&
+    ["nationalizationOwnerKind", "financialDistressSinceTurn", "ceoVacantSinceTurn", "privatizedAtTurn"].some(key => hasOwn(corp, key)))) {
+    return { ok: false, error: "Nationalization origin and grace clocks cannot be continued by schema 42. Keep this Native save." };
+  }
+
   const budgets = world["budgets"];
   if (isRecord(budgets)) for (const [countryId, row] of Object.entries(budgets)) {
     if (!isRecord(row)) continue;
@@ -204,6 +211,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     ) {
       return { ok: false, error: `Budget ${countryId} solidarity surcharge state cannot be projected to the schema 42 turn reader; keep this Native save.` };
     }
+
   }
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
@@ -3264,8 +3272,7 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Historical actions have no reconstructable history. Preserve absence.
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
-  // v53 is reserved for the source-backed nationalization eligibility
-  // contract. Older schemas first take its own migration, then v54 below.
+  // No creator or grace history is invented for earlier Native issuers.
   if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
   // Political labour snapshots change the next-turn regional board. Keep
   // absent history absent; the version bump makes older readers refuse new
@@ -3316,6 +3323,7 @@ export function deserializeSave(raw: string): WorldState {
   validateBankingState(save.world);
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
+  validateNationalizationEligibilityState(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing

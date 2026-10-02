@@ -228,7 +228,7 @@ function ActionCard({
       ) : null}
       {action.requires === "corporation" ? (
         <label className="ahd-field" style={{ maxWidth: "20rem" }}>
-          <span className="ahd-label">Distressed corporation</span>
+          <span className="ahd-label">Corporation</span>
           <select className="ahd-select" value={action.choices?.some((choice) => choice.id === corporationId) ? corporationId : action.choices?.[0]?.id ?? ""} onChange={(event) => setCorporationId(event.target.value)} disabled={busy || !action.available || !action.choices?.length} aria-label={`Corporation for ${action.name}`}>
             {action.choices?.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
             {!action.choices?.length ? <option value="">No eligible corporations</option> : null}

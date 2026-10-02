@@ -12,9 +12,8 @@ test('actual executive taking opens its National Corporation register and surviv
   const session = new GameSession();
   session.create({ era: '1953', countryId: 'US', homeRegionId: 'NY', mode: 'hos', seed: 'state-register-mobile', playerName: 'Register Operator' });
   const saved = JSON.parse(session.serialize(SAVED_AT));
-  // Fixture supplies recorded financial distress, while fresh source SP
-  // government authority and the taking itself use the actual public flow.
-  saved.world.corporations['US-media'].insolventSinceTurn = saved.world.meta.turn;
+  // Fresh procedural NPC ownership is eligible in the source. Government
+  // authority and the taking itself use the actual public worker flow.
   const firmName = saved.world.corporations['US-media'].name;
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto('/');
@@ -22,8 +21,8 @@ test('actual executive taking opens its National Corporation register and surviv
   await gameReady(page);
   await navigateGame(page, 'Actions');
   await page.getByRole('tab', { name: /Executive,/ }).click();
-  await page.getByLabel('Corporation for Nationalize Distressed Corporation').selectOption('US-media');
-  await page.getByRole('button', { name: 'Take action: Nationalize Distressed Corporation', exact: true }).click();
+  await page.getByLabel('Corporation for Nationalize Corporation').selectOption('US-media');
+  await page.getByRole('button', { name: 'Take action: Nationalize Corporation', exact: true }).click();
   await gameReady(page);
 
   const openRegister = async () => {
@@ -33,7 +32,7 @@ test('actual executive taking opens its National Corporation register and surviv
     await expect(page.getByRole('tab', { name: 'Register', exact: true })).toHaveAttribute('aria-selected', 'true');
     const actions = page.getByRole('region', { name: 'State ownership actions', exact: true });
     await expect(actions).toContainText(firmName);
-    await expect(actions).toContainText('Financial distress');
+    await expect(actions).toContainText('NPC-owned');
     await expect(actions).toContainText('Executive');
     await expect(actions).toContainText('Seizure');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
