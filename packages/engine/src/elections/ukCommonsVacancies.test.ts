@@ -227,15 +227,15 @@ describe("UK Commons vacancy plumbing", () => {
     expect(world.player.funds).toBeLessThan(before.funds);
   });
 
-  it("carries a public LON candidate through a source campaign, resignation, special race, and save", () => {
+  it("carries a public NIR candidate through a source campaign, resignation, special race, and save", () => {
     const world = createWorld({
-      seed: "commons-public-player-office-probe",
+      seed: "commons-public-player-nir-sf-probe",
       playerName: "UK MP",
       countryId: "UK",
       era: "1953",
-      partyId: "UK_LAB",
-      homeRegionId: "LON",
-      policies: { economic: -2, social: -3 },
+      partyId: "UK_SF",
+      homeRegionId: "NIR",
+      policies: { economic: -3, social: -2 },
       wealth: "high",
       // The public creator requires exactly 28 stat points. This legal build
       // balances campaign charisma/debate with source fundraising capacity.
@@ -254,7 +254,7 @@ describe("UK Commons vacancy plumbing", () => {
       (election) =>
         election.countryId === "UK" &&
         election.electionType === "commons" &&
-        election.state === "LON",
+        election.state === "NIR",
     );
     expect(regular).toBeDefined();
     expect(
@@ -285,7 +285,7 @@ describe("UK Commons vacancy plumbing", () => {
           };
           if (
             diagnostic.election?._id === regular!.id &&
-            diagnostic.election.state === "LON"
+            diagnostic.election.state === "NIR"
           )
             tallyInputTrace.push(snapshot);
         },
@@ -359,10 +359,12 @@ describe("UK Commons vacancy plumbing", () => {
           {
             provenance: {
               sourceCommit: "0a68fee4c03f2c48692661501d539ac05f338571",
-              baselineNativeCommit:
-                "328ff6bae8ad82a39314211113dd31aee777c6ec",
-              seed: "commons-public-player-office-probe",
-              regionId: "LON",
+              nativeRuntimeCommit:
+                "056b3334e4ddf71b0327679e6245a45db316e663",
+              strategyCommit:
+                "6ab2a01d559a2f46b793bced5cfa36e298ab4522",
+              seed: "commons-public-player-nir-sf-probe",
+              regionId: "NIR",
               electionId: regular!.id,
               finalTurn: world.meta.turn,
             },
@@ -469,11 +471,11 @@ describe("UK Commons vacancy plumbing", () => {
         topVotes: topVotes.slice(0, 5),
         tallyInputs,
         electorate: {
-          population: world.regions.LON?.population,
-          votingEligiblePopulation: world.regions.LON?.votingEligiblePopulation,
-          categoryWeights: world.stateDemographics.LON?.categoryWeights,
+          population: world.regions.NIR?.population,
+          votingEligiblePopulation: world.regions.NIR?.votingEligiblePopulation,
+          categoryWeights: world.stateDemographics.NIR?.categoryWeights,
           groups: Object.fromEntries(
-            Object.entries(world.stateDemographics.LON?.groups ?? {}).map(
+              Object.entries(world.stateDemographics.NIR?.groups ?? {}).map(
               ([id, group]) => [
                 id,
                 {
@@ -485,12 +487,12 @@ describe("UK Commons vacancy plumbing", () => {
               ],
             ),
           ),
-          regionTurnout: world.regionTurnouts.LON,
+          regionTurnout: world.regionTurnouts.NIR,
         },
         partyOrganizations: Object.values(world.partyRegions).filter(
           (row) =>
-            row.regionId === "LON" &&
-            ["UK_LAB", "UK_CON", "UK_LIB"].includes(row.partyId),
+            row.regionId === "NIR" &&
+            ["UK_SF", "UK_CON", "UK_LAB"].includes(row.partyId),
         ),
         playerFavorability: world.player.favorability,
         politicalInfluence: world.player.politicalInfluence,
@@ -506,7 +508,7 @@ describe("UK Commons vacancy plumbing", () => {
     ).toMatchObject({
       countryId: "UK",
       chamberKey: "commons",
-      regionId: "LON",
+      regionId: "NIR",
     });
     const heldSeats = world.player.legislativeSeat!.seatsHeld ?? 1;
     expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(
@@ -514,7 +516,7 @@ describe("UK Commons vacancy plumbing", () => {
     );
     expect(world.ukCommonsVacancies).toMatchObject([
       expect.objectContaining({
-        regionId: "LON",
+        regionId: "NIR",
         formerHolderId: "player",
         seats: heldSeats,
         status: "open",
@@ -526,7 +528,7 @@ describe("UK Commons vacancy plumbing", () => {
       (election) =>
         election.countryId === "UK" &&
         election.electionType === "special_commons" &&
-        election.state === "LON",
+        election.state === "NIR",
     );
     expect(special).toMatchObject({
       totalSeats: heldSeats,
@@ -552,10 +554,10 @@ describe("UK Commons vacancy plumbing", () => {
     expect(world.player.legislativeSeat).toMatchObject({
       countryId: "UK",
       chamberKey: "commons",
-      regionId: "LON",
+      regionId: "NIR",
     });
     const restored = deserializeSave(
-      serializeSave(world, "commons-public-player-office-probe"),
+      serializeSave(world, "commons-public-player-nir-sf-probe"),
     );
     expect(restored.ukCommonsVacancies).toEqual(world.ukCommonsVacancies);
     expect(restored.player.legislativeSeat).toEqual(
