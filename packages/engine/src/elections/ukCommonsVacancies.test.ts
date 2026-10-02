@@ -3,8 +3,6 @@ import { advanceTurn } from "../engine.js";
 import { executeAction } from "../actions/execute.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
-import { rngFromSeed } from "../rng.js";
-import { runElectionResolution, runVoteAccumulation } from "./orchestration.js";
 import { scheduleUkCommonsByElections } from "./ukCommonsVacancies.js";
 import { seatHolders } from "./orchestration.js";
 import { governmentFormationPhase, governmentVacancyWatcherPhase, triggerSnapElection } from "../government/phases.js";
@@ -86,11 +84,8 @@ describe("UK Commons vacancy plumbing", () => {
         advanceTurn(world);
       }
     }
-    regular!.primaryEndTurn = world.meta.turn;
-    world.meta.turn = regular!.primaryEndTurn + 1;
-    runVoteAccumulation(world, rngFromSeed("commons-public-player-office-tally"));
-    world.meta.turn = regular!.endTurn;
-    runElectionResolution(world);
+    while (regular!.status !== "resolved" && world.meta.turn <= regular!.endTurn) advanceTurn(world);
+    expect(regular!.status).toBe("resolved");
     expect(world.player.legislativeSeat).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
     expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(true);
     expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ regionId: "LON", formerHolderId: "player", status: "open" })]);
@@ -99,12 +94,7 @@ describe("UK Commons vacancy plumbing", () => {
     const special = world.elections.find((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === "LON");
     expect(special).toMatchObject({ totalSeats: 1, byElectionCarve: expect.any(Number), vacancyIds: [world.ukCommonsVacancies![0]!.id] });
     expect(executeAction(world, "player", "declareCandidacy", { electionId: special!.id }).ok).toBe(true);
-    special!.primaryEndTurn = world.meta.turn;
-    world.meta.turn = special!.primaryEndTurn + 1;
-    runVoteAccumulation(world, rngFromSeed("commons-public-special-ballot"));
-    special!.endTurn = world.meta.turn + 1;
-    world.meta.turn = special!.endTurn;
-    runElectionResolution(world);
+    while (special!.status !== "resolved" && world.meta.turn <= special!.endTurn) advanceTurn(world);
     expect(special!.status).toBe("resolved");
     expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ status: "filled", filledById: "player" })]);
     expect(world.player.legislativeSeat).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
