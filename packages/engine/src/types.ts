@@ -767,6 +767,8 @@ export interface Politician {
   partyId: string;
   /** Chamber key this politician holds (e.g. "house", "volkskammer"); "" = unseated. */
   chamberKey: string;
+  /** Source ElectedOfficial.seatsHeld; absent legacy or single-seat offices weigh one. */
+  seatsHeld?: number;
   /** US state whose seat is held (house/senate). */
   electedState?: string | undefined;
   /** Source NPP homeState; independent of electedState when an officeholder moves or loses their seat. */
@@ -1145,6 +1147,8 @@ export interface PlayerCharacter {
   legislativeSeat: {
     chamberKey: string;
     countryId: string;
+    /** Source ElectedOfficial.seatsHeld; absent legacy or single-seat offices weigh one. */
+    seatsHeld?: number;
     /** Region won in the election. Required for constituency-bound offices. */
     regionId?: string;
   } | null;

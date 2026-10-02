@@ -182,6 +182,13 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  const weightedPlayer = world["player"];
+  const weightedSeat = isRecord(weightedPlayer) ? weightedPlayer["legislativeSeat"] : undefined;
+  const weightedOfficials = world["politicians"];
+  if ((isRecord(weightedSeat) && hasOwn(weightedSeat, "seatsHeld")) ||
+    (Array.isArray(weightedOfficials) && weightedOfficials.some(official => isRecord(official) && hasOwn(official, "seatsHeld")))) {
+    return { ok: false, error: "Weighted elected seats cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
   const partyWhips = world["partyWhips"];
   if (Array.isArray(partyWhips) && partyWhips.some((whip) => isRecord(whip) && typeof whip["stateId"] === "string" && whip["stateId"].length > 0)) {
     return { ok: false, error: `Home-state party whip behavior cannot be projected to the schema 42 turn reader. Keep this Native save.` };
@@ -899,6 +906,18 @@ function assertCurrentWorldState(world: WorldState): void {
     (player["homeRegionId"] !== null && typeof player["homeRegionId"] !== "string")
   ) {
     throw new Error("Not a valid save file: invalid world state");
+  }
+
+  const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>
+    holder["seatsHeld"] === undefined ||
+    (Number.isSafeInteger(holder["seatsHeld"]) && (holder["seatsHeld"] as number) >= 1);
+  const playerSeat = player["legislativeSeat"];
+  if (isRecord(playerSeat) && !hasValidSeatWeight(playerSeat)) {
+    throw new Error("Not a valid save file: invalid player seat weight");
+  }
+  const politicians = value["politicians"];
+  if (Array.isArray(politicians) && politicians.some(p => isRecord(p) && !hasValidSeatWeight(p))) {
+    throw new Error("Not a valid save file: invalid politician seat weight");
   }
 
   const pricingState = value["centralBankPricingPhaseIn"];
@@ -3667,8 +3686,11 @@ export function deserializeSave(raw: string): WorldState {
   // v63: primary/split-off ownership routing needs the new consumer.
   // Preserve historical absence of primary flags and sector assignments.
   if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
-  // v64: NPP replacement orders and their cash-write witnesses are consumed
-  // by the public corporation turn. Their historical absence stays absent.
+  // v64 combines allocated seat weights (required by winner, ballot and
+  // government continuation) with NPP replacement orders and their cash-write
+  // witnesses (consumed by the public corporation turn). Earlier readers must
+  // refuse state they cannot continue. Missing legacy weights default to one;
+  // historical winner weights cannot be reconstructed after redistribution.
   if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written

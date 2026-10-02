@@ -4,9 +4,28 @@
  * didPass/didPassWithFilibusterCheck with the quorum (votes cast) rule.
  */
 
-import type { Politician } from "../types.js";
+import type { Politician, WorldState } from "../types.js";
 import type { Bill } from "./types.js";
 import type { WorldRng } from "../rng.js";
+import { chamberSeatWeights } from "../government/seatWeights.js";
+
+/** Game's resolvePhaseVotes/resolveBillCardTally use only current holders.
+ * If no ballot survives, retain the stored aggregate rather than inventing
+ * one vote for each stale or foreign key.
+ */
+export function resolveCurrentBillVote(
+  world: WorldState,
+  countryId: string,
+  chamberKey: string,
+  votes: Record<string, "for" | "against" | "abstain"> | undefined,
+  stored: { for: number; against: number; abstain: number },
+  regionId?: string,
+): { totals: { for: number; against: number; abstain: number }; votes: Record<string, "for" | "against" | "abstain"> } {
+  const weights = chamberSeatWeights(world, countryId, chamberKey, regionId);
+  const scoped = Object.fromEntries(Object.entries(votes ?? {}).filter(([key]) => weights.has(key)));
+  if (Object.keys(scoped).length === 0) return { totals: { ...stored }, votes: { ...votes } };
+  return { totals: tallyVotes(scoped, weights), votes: scoped };
+}
 
 // Re-export helpers from mainline billLifecycleHelpers
 export function didPass(votesFor: number, votesAgainst: number): boolean {
