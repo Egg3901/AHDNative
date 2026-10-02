@@ -1,4 +1,5 @@
-// @ts-nocheck
+import { DEM_2020_DELEGATES, GOP_2020_DELEGATES } from "../../elections/data/usPrimaryCalendar.js";
+
 /**
  * Presidential nomination resolution (rework, Part A).
  *
@@ -21,15 +22,44 @@
  */
 
 export type PrimaryCalendarFamily = "dem" | "gop";
-function getDelegateMajority(family: PrimaryCalendarFamily, _preset?: string): number { return family === "dem" ? 1991 : 1276; }
+function getDelegateMajority(family: PrimaryCalendarFamily, _preset?: string): number {
+  const counts = family === "dem" ? DEM_2020_DELEGATES : GOP_2020_DELEGATES;
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  return Math.floor(total / 2) + 1;
+}
 const MAX_AXIS_DISTANCE = Math.sqrt(200);
 function computeCandidateAffinity(params: { a: { charEP: number; charSP: number; party: string }; b: { charEP: number; charSP: number; party: string }; partyGroupFavorabilityByKey?: Map<string, number> }): number {
   const dist = Math.hypot(params.a.charEP - params.b.charEP, params.a.charSP - params.b.charSP);
   const ideological = Math.max(0, Math.min(1, 1 - dist / MAX_AXIS_DISTANCE));
   const m = params.partyGroupFavorabilityByKey;
-  if (!m || m.size===0) return ideological;
-  // simplified coalition: if map has keys for both parties, blend 0.7/0.3 else ideological
-  return ideological;
+  if (!m || m.size === 0) return ideological;
+
+  const groupIds = new Set<string>();
+  for (const key of m.keys()) {
+    const separator = key.indexOf(":");
+    if (separator < 0) continue;
+    const party = key.slice(0, separator);
+    if (party === params.a.party || party === params.b.party) {
+      groupIds.add(key.slice(separator + 1));
+    }
+  }
+  if (groupIds.size === 0) return ideological;
+
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (const groupId of groupIds) {
+    const va = m.get(`${params.a.party}:${groupId}`) ?? 0;
+    const vb = m.get(`${params.b.party}:${groupId}`) ?? 0;
+    dot += va * vb;
+    normA += va * va;
+    normB += vb * vb;
+  }
+  if (normA === 0 || normB === 0) return ideological;
+
+  const cosine = dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  const coalition = Math.max(0, Math.min(1, (cosine + 1) / 2));
+  return 0.7 * ideological + 0.3 * coalition;
 }
 export interface PresidentialRuleset { conventionEnabled: boolean; version?: number; }
 
@@ -72,6 +102,8 @@ export interface ResolveNominationParams {
   partyDelegates: Record<string, number>;
   family: PrimaryCalendarFamily;
   preset?: string;
+  /** Live source threshold after this preset's electoral-vote rescaling. */
+  majorityThreshold?: number;
   /** Active in-party endorsements: endorser candidate id -> endorsed candidate id. */
   endorsements?: Map<string, string>;
   /** Candidate ideological/coalition positions for affinity redistribution. */
@@ -111,7 +143,7 @@ export function resolveNominationForParty(
   if (candidateIds.length === 0) return null;
 
   const positionById = new Map(enriched.map((e) => [e.candidateId, e]));
-  const majorityThreshold = getDelegateMajority(family, preset);
+  const majorityThreshold = params.majorityThreshold ?? getDelegateMajority(family, preset);
 
   // Best-first order over a supplied delegate map: more delegates, then more
   // national votes, then candidate id ascending. Deterministic, no RNG.

@@ -32,6 +32,8 @@ import * as CampaignManager from "./campaignManager.js";
 import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as CampaignContribute from "./campaignContribute.js";
+import { buildStatePresence } from "./campaignPresence.js";
+import { setPrimaryCampaignState, usePrimaryHomeStateSurge } from "./primaryCampaign.js";
 import * as Referendum from "../referendum/request.js";
 import * as ReferendumCampaign from "../referendum/campaign.js";
 import * as ReferendumGroundGame from "../referendum/groundGame.js";
@@ -432,6 +434,21 @@ function executeActionInner(
     !(world.player.mode === "hos" && world.player.permanentHeadOfState === true)
   ) {
     return { ok: false, error: LEGISLATION_FREEZE_MESSAGE };
+  }
+
+  // Campaign presence is charged to the active campaign's own source pools,
+  // not to the character. Resolve it before generic player AP/accounting.
+  if (actionId === "buildStatePresence") {
+    const result = buildStatePresence(world, actorId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "setPrimaryCampaignState") {
+    const result = setPrimaryCampaignState(world, actorId, params.electionId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "usePrimaryHomeStateSurge") {
+    const result = usePrimaryHomeStateSurge(world, actorId, params.electionId);
+    return result.ok ? { ok: true, message: result.message } : result;
   }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
@@ -2515,6 +2532,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.electionId && Object.prototype.hasOwnProperty.call(params, "managerId")
         ? null
         : "campaignManager requires electionId and managerId";
+    case "buildStatePresence":
+      return params.regionId ? null : `${actionId} requires regionId`;
+    case "setPrimaryCampaignState":
+      return params.electionId && params.regionId ? null : `${actionId} requires electionId and regionId`;
+    case "usePrimaryHomeStateSurge":
+      return params.electionId ? null : `${actionId} requires electionId`;
     case "campaignCanvass":
       return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
         ? null
