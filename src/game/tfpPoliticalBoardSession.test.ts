@@ -14,6 +14,7 @@ const SAVED_AT = "2026-10-02T00:00:00.000Z";
 type SavedWorld = {
   meta: { date: string };
   nationalMetrics: Record<string, Record<string, { value: number }>>;
+  budgets?: Record<string, { economicFactors: { gdpGrowth: number } }>;
   corporateSectors?: Record<string, {
     stateId: string | null;
     revenue?: number;
@@ -86,6 +87,13 @@ describe("#40 TFP political inputs through the public saved session", () => {
     expect(treatedTfp).toBe(treatedSkill);
     expect(treatedTfp).not.toBe(savedWorld(control).nationalMetrics.US?.[POLITICAL_PATHS[0]]?.value);
 
+    const controlWorld = savedWorld(control);
+    const treatedWorld = savedWorld(treated);
+    expect(treatedWorld.budgets?.US?.economicFactors.gdpGrowth)
+      .toBe(treatedWorld.nationalMetrics.US?.["economic.gdpGrowth"]?.value);
+    expect(controlWorld.budgets?.US?.economicFactors.gdpGrowth)
+      .toBe(controlWorld.nationalMetrics.US?.["economic.gdpGrowth"]?.value);
+
     const resumed = new GameSession();
     resumed.load(treated.serialize(SAVED_AT));
     treated.advance();
@@ -96,10 +104,15 @@ describe("#40 TFP political inputs through the public saved session", () => {
     expect(sourceWeightedValue(resumed, "US", POLITICAL_PATHS[0])).toBe(continuedSkill);
   }, 180_000);
 
-  it("carries all six current Game basket leaves across normal turns and reload", () => {
+  it("evolves the four source political leaves and preserves the two seed-only roots across turns/reload", () => {
     const session = new GameSession();
     session.create({ era: "2019", countryId: "UK", seed: "tfp-session-board-flow", playerName: "Tester" });
-    const startSkill = sourceWeightedValue(session, "UK", POLITICAL_PATHS[0]);
+    const initialWorld = savedWorld(session);
+    const startPoliticalInputs = Object.fromEntries(
+      POLITICAL_PATHS.map((path) => [path, sourceWeightedValue(session, "UK", path)]),
+    );
+    const startRd = initialWorld.nationalMetrics.UK?.["economic.rdIntensity"]?.value;
+    const startUrbanization = initialWorld.nationalMetrics.UK?.["population.urbanizationRate"]?.value;
     expect(session.regions({ regionId: "LON" }).selected?.politicalMetrics?.["education.adultSkills"]?.value)
       .toEqual(expect.any(Number));
 
@@ -128,8 +141,14 @@ describe("#40 TFP political inputs through the public saved session", () => {
         .toBe(tfp?.[path]?.value);
     }
 
-    const endSkill = sourceWeightedValue(session, "UK", POLITICAL_PATHS[0]);
-    expect(endSkill).not.toBe(startSkill);
+    for (const path of POLITICAL_PATHS) {
+      expect(sourceWeightedValue(session, "UK", path), `evolved ${path}`)
+        .not.toBe(startPoliticalInputs[path]);
+    }
+    expect(tfp?.["economic.rdIntensity"]?.value, "source R&D root has no turn writer")
+      .toBe(startRd);
+    expect(tfp?.["population.urbanizationRate"]?.value, "source urbanization root has no turn writer")
+      .toBe(startUrbanization);
     const basket = tfpBasket({
       rdIntensity: tfp!["economic.rdIntensity"]!.value,
       workforceSkill: tfp!["education.workforceSkill"]!.value,

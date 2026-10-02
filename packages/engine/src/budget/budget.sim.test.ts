@@ -9,7 +9,7 @@ import { computeFiscalTerm, computeInflation } from "../phases/macroCountryTurn.
 import { FISCAL_YEAR_START_TURN_IN_YEAR, getTurnInYear, isFiscalYearEnd } from "./fiscalYear.js";
 import { applyPerTurnGrowthToFederalBases } from "./fiscalBaseGrowth.js";
 import { calculateGenericRegionalRevenue } from "./regionalBudget.js";
-import { regionalBudgetProcessingPhase } from "./phases.js";
+import { fiscalBaseGrowthPhase, regionalBudgetProcessingPhase } from "./phases.js";
 
 const OPTS = { seed: "budget-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
@@ -156,6 +156,38 @@ describe("fiscalBaseGrowth", () => {
     const expectedWages = bases.wagesAndSalaries * (1 + 4.5 / 100 / 48);
     expect(grown.wagesAndSalaries).toBeCloseTo(expectedWages, 0);
     expect(grown.taxableIncome).toBeCloseTo(bases.taxableIncome * (1 + 4.5 / 100 / 48), 0);
+  });
+
+  it("uses current national GDP growth for tax-base and receipt growth", () => {
+    const seed = createWorld(OPTS);
+    const slow = structuredClone(seed);
+    const fast = structuredClone(seed);
+    const fallback = structuredClone(seed);
+    slow.nationalMetrics.US!["economic.gdpGrowth"] = { value: -2 };
+    fast.nationalMetrics.US!["economic.gdpGrowth"] = { value: 6 };
+    delete fallback.nationalMetrics.US?.["economic.gdpGrowth"];
+    fallback.regionalMetrics.CA!["economic.gdpGrowth"] = { value: -4 };
+    fallback.regionalMetrics.TX!["economic.gdpGrowth"] = { value: 2 };
+    fallback.regions.CA!.gdp = 100;
+    fallback.regions.TX!.gdp = 300;
+    const slowBases = structuredClone(slow.budgets.US!.taxBases);
+    const fastBases = structuredClone(fast.budgets.US!.taxBases);
+
+    fiscalBaseGrowthPhase.run(slow, null as never);
+    fiscalBaseGrowthPhase.run(fast, null as never);
+    fiscalBaseGrowthPhase.run(fallback, null as never);
+
+    expect(slow.budgets.US!.economicFactors.gdpGrowth).toBe(-2);
+    expect(fast.budgets.US!.economicFactors.gdpGrowth).toBe(6);
+    expect(fast.budgets.US!.taxBases.domesticCorporateProfits)
+      .toBe(applyPerTurnGrowthToFederalBases(fastBases, fast.budgets.US!.economicFactors).domesticCorporateProfits);
+    expect(slow.budgets.US!.taxBases.domesticCorporateProfits)
+      .toBe(applyPerTurnGrowthToFederalBases(slowBases, slow.budgets.US!.economicFactors).domesticCorporateProfits);
+    expect(fast.budgets.US!.taxBases.domesticCorporateProfits)
+      .toBeGreaterThan(slow.budgets.US!.taxBases.domesticCorporateProfits);
+    expect(fast.budgets.US!.taxBases.taxableSales).toBeGreaterThan(slow.budgets.US!.taxBases.taxableSales);
+    expect(fast.budgets.US!.revenue.total).toBeGreaterThan(slow.budgets.US!.revenue.total);
+    expect(fallback.budgets.US!.economicFactors.gdpGrowth).toBeCloseTo(0.5, 12);
   });
 });
 
