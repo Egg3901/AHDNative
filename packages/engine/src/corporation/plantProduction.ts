@@ -365,7 +365,8 @@ export function runCorporatePlantProductionTurn(
     // The held residual is policy-neutral, like Game's otherOpexAnchor.
     // Current-turn labor/subsidy/retool margin modifiers are applied once by
     // corporationTurn after this physical settlement.
-    const priorMargin = softCapEffectiveMargin(asset.profitMargin ?? corporation.profitMargin);
+    const baseMargin = asset.profitMargin ?? corporation.profitMargin;
+    const priorMargin = softCapEffectiveMargin(baseMargin);
     const produced = asset.producedUnits ?? 0;
     const year = Number(world.meta.date.slice(0, 4));
     const techEffects = getSectorTechEffects({ type: corporation.sectorType, ...corporation }, asset.sectorType);
@@ -379,8 +380,8 @@ export function runCorporatePlantProductionTurn(
     const negotiatedWageFloor = agreements.reduce((floor, agreement) => Math.max(floor, agreement.wageLevel), 0.8);
     const currentMarginModifier = marginModifierPpByCorporation.get(corporation.id) ?? 0;
     const disasterMarginModifier = sourceCrisisMarginPenalty(world, asset.countryId, world.meta.turn);
-    const policyMarginPp = sourcePlantPolicyCredit(100, priorMargin, currentMarginModifier);
-    const totalEffectiveMargin = softCapEffectiveMargin(priorMargin + currentMarginModifier + disasterMarginModifier);
+    const policyMarginPp = sourcePlantPolicyCredit(100, baseMargin, currentMarginModifier);
+    const totalEffectiveMargin = softCapEffectiveMargin(baseMargin + currentMarginModifier + disasterMarginModifier);
     // The source has a separate labourSystemMode config. Native's unions
     // phase is the nearest saved control: when disabled, source wage costs,
     // like the source wages tier, are absent.
