@@ -1,3 +1,20 @@
+## Pending election, career government and paid-taking integration
+
+Original #97 and #98 remain open until the combined full gate and original
+criterion review pass. Primary waves, delegates and convention resolution are
+integrated with source DC/ME/NE Electoral College paths, VP home-state and actual
+governor endorsement producers. German and Chinese career players now have a
+party-chair nomination and parliamentary appointment path; formation freeze
+remains in force before the appointment. Focused appointment/save and legislature
+UI checks pass; the complete earned-seat career journeys are still being checked.
+
+Paid executive taking has source fair/discounted/seizure payouts, treasury and
+political consequences, actual output-based ownership concentration and two
+phone worker/save/resume evidence. See
+[the paid-taking checkpoint](STATE-OWNERSHIP-COMPENSATION-75.md).
+#75, #107, #114, #284, #96 and #101 remain partial. This pending integration
+adds no issue closure to the accepted count below.
+
 ## Current parity count and ownership correction, 2026-10-02
 
 Current GitHub state: **51 open from 63: 38 partial, 8 not started, 3 deferred, 2 blocked**.
