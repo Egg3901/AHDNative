@@ -248,6 +248,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // the RNG-consuming phases (voteAccumulation, electionTimers) keep their
   // relative order. Later state-dependent RNG use can still change with
   // election outcomes; this is not a whole-world RNG equivalence claim.
+  governorEndorsementsPhase,
   campaignTurnPhase,
   // #68: leader pullback runs immediately after campaignTurn (which never
   // writes campaignStrength) and before voteAccumulation, matching mainline's
@@ -404,7 +405,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   governorAddressExpiryPhase,
   governorByElectionWatcherPhase,
   governorLegislationQueuePhase,
-  governorEndorsementsPhase,
   // #323: the W15 union cluster (unionsTurn, nppUnionBehavior) and the #315
   // pension phase used to live here at the tail; they now run immediately
   // after corporationTurnPhase near the head of this array, in mainline's

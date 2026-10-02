@@ -118,6 +118,10 @@ export interface ElectionRecord {
    * for the full compatibility rationale; no SCHEMA_VERSION bump needed).
    */
   stateTallyStates?: Record<string, unknown>;
+  /** Election-scoped active/withdrawn state-governor endorsements (schema v58). */
+  governorEndorsements?: import("../governor/types.js").GovernorEndorsement[];
+  /** Source presidential ruleset frozen when this race is scheduled; absent legacy races are v1. */
+  presidentialRulesetVersion?: number;
   /** Persisted one-shot nominee transition, recorded before general tallying. */
   primaryResults?: PrimaryResults;
   primaryResolvedTurn?: number;

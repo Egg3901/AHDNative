@@ -1380,6 +1380,41 @@ function validatePresidentialPrimaryLedger(world: WorldState): void {
   }
 }
 
+function validatePresidentialGeneralMechanics(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const version = rawRace["presidentialRulesetVersion"];
+    const endorsements = rawRace["governorEndorsements"];
+    if (version !== undefined && (rawRace["countryId"] !== "US" || rawRace["electionType"] !== "president" ||
+      !Number.isSafeInteger(version) || (version as number) < 1)) {
+      throw new Error("Not a valid save file: invalid presidential general ruleset stamp");
+    }
+    if (endorsements === undefined) continue;
+    if (rawRace["countryId"] !== "US" || rawRace["electionType"] !== "president" || !Array.isArray(endorsements)) {
+      throw new Error("Not a valid save file: governor endorsement ledger belongs only to a US presidential race");
+    }
+    const ids = new Set<string>();
+    const activeGovernorStates = new Set<string>();
+    for (const row of endorsements) {
+      if (!isRecord(row) || typeof row["id"] !== "string" || row["id"].length === 0 || ids.has(row["id"]) ||
+        typeof row["stateId"] !== "string" || world.regions[row["stateId"]]?.countryId !== "US" ||
+        typeof row["candidateId"] !== "string" || typeof row["endorsedById"] !== "string" ||
+        !Number.isSafeInteger(row["createdAtTurn"]) || (row["createdAtTurn"] as number) < 0 ||
+        (row["isActive"] !== true && row["isActive"] !== false) ||
+        (row["withdrawnAtTurn"] !== undefined && (!Number.isSafeInteger(row["withdrawnAtTurn"]) ||
+          (row["withdrawnAtTurn"] as number) < (row["createdAtTurn"] as number))) ||
+        (row["withdrawnReason"] !== undefined && !["manual", "election_ended", "candidate_inactive", "governor_left_office"].includes(String(row["withdrawnReason"])))) {
+        throw new Error("Not a valid save file: invalid presidential governor endorsement");
+      }
+      if (row["isActive"] === true && activeGovernorStates.has(row["stateId"] as string)) {
+        throw new Error("Not a valid save file: multiple active governor endorsements for one state and race");
+      }
+      ids.add(row["id"] as string);
+      if (row["isActive"] === true) activeGovernorStates.add(row["stateId"] as string);
+    }
+  }
+}
+
 function validatePrimaryStateOrganizations(world: WorldState): void {
   const validateOwner = (
     ownerId: string,
@@ -3459,6 +3494,10 @@ export function deserializeSave(raw: string): WorldState {
   // Schema 55 adds optional primary waves, delegates and campaign records. Do not
   // synthesize primary history: the first due wave records actual turn state.
   if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
+  // v55 -> v58: general presidential ruleset stamps are absent=>v1 (source
+  // compatibility), and the election-scoped governor endorsement ledger is
+  // optional/empty on legacy races. Do not stamp existing elections v3.
+  if (save.schemaVersion < 58) save.world.meta.schemaVersion = 58;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3500,6 +3539,7 @@ export function deserializeSave(raw: string): WorldState {
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
   validatePresidentialPrimaryLedger(save.world);
+  validatePresidentialGeneralMechanics(save.world);
   validatePrimaryStateOrganizations(save.world);
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);

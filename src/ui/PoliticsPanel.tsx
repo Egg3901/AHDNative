@@ -1605,6 +1605,27 @@ function PresidentialRaceSection({ politics, busy, onAction, initialId, onOpenCa
           <CandidateRoster candidates={selected.candidates} />
 
           {selected.presidential ? <PresidentialElectoralCollege presidential={selected.presidential} /> : null}
+          {selected.presidential?.governorActions?.length ? (
+            <section aria-label="Governor presidential endorsements" style={{ marginTop: "0.6rem" }}>
+              <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Governor endorsements</h4>
+              <p className="ahd-help" role="note">A sitting governor may endorse a same-party candidate in an active presidential race for one governor office action point. The effect is limited to that state.</p>
+              <ul style={{ listStyle: "none", margin: "0.3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                {selected.presidential.governorActions.map((action) => (
+                  <li key={`${action.stateId}:${action.actionId}:${action.candidateId}`} style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+                    <span>{action.stateId} · {action.candidateName}</span>
+                    <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy || !action.available}
+                      aria-label={`${action.actionId === "withdrawGovernorEndorsement" ? "Withdraw" : "Endorse"} ${action.candidateName} from ${action.stateId}`}
+                      onClick={() => onAction(action.actionId, action.actionId === "withdrawGovernorEndorsement"
+                        ? { electionId: action.electionId, endorsementId: action.endorsementId }
+                        : { electionId: action.electionId, regionId: action.stateId, candidateId: action.candidateId })}>
+                      {action.actionId === "withdrawGovernorEndorsement" ? "Withdraw endorsement" : "Endorse · 1 office AP"}
+                    </button>
+                    {!action.available && action.disabledReason ? <span className="ahd-help">{action.disabledReason}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {selected.winnerIds.length > 0 ? (
             onOpenPolitician ? (

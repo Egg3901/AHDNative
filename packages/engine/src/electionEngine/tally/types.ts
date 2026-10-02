@@ -231,6 +231,8 @@ export interface AccumulateVoteTurnInput {
    * byte-identically to before.
    */
   voteMultiplierByCandidateId?: Record<string, number>;
+  /** Ordered post-campaign candidate multipliers, each rounded like the source pipeline. */
+  additionalVoteMultipliersByCandidateId?: Record<string, number[]>;
 }
 
 export interface AccumulateVoteTurnResult {

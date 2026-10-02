@@ -810,9 +810,12 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
       startTurn: plan.startTurn,
       primaryEndTurn: plan.primaryEndTurn,
       endTurn: plan.endTurn,
-      // New presidential primaries start on the same current source ruleset as
-      // AHDGame perpetualElections, which stamps CURRENT_PRESIDENTIAL_RULESET_VERSION (3).
-      ...(plan.countryId === "US" && plan.electionType === "president" ? { primaryRulesetVersion: 3 } : {}),
+      // AHDGame stamps the whole new presidential race at the active source
+      // ruleset; the legacy primary-specific slot remains for its existing
+      // lifecycle consumers until those are unified.
+      ...(plan.countryId === "US" && plan.electionType === "president"
+        ? { primaryRulesetVersion: 3, presidentialRulesetVersion: 3 }
+        : {}),
       totalSeats: spec.totalSeats,
       chamberKey: spec.chamberKey,
       candidates: [],

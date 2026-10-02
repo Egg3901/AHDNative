@@ -72,6 +72,7 @@ import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
+import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -415,6 +416,18 @@ function executeActionInner(
   if (actionId === "usePrimaryHomeStateSurge") {
     const result = usePrimaryHomeStateSurge(world, actorId, params.electionId);
     return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "governorEndorsePresidentialCandidate") {
+    if (actorId !== "player") return { ok: false, error: "Only the player governor may use this action." };
+    const result = endorsePresidentialCandidate(world, params.regionId!, params.electionId!, params.candidateId!);
+    return result.ok
+      ? { ok: true, message: `Endorsed candidate in ${params.regionId}.` }
+      : { ok: false, error: result.error ?? "Governor endorsement failed." };
+  }
+  if (actionId === "withdrawGovernorEndorsement") {
+    if (actorId !== "player") return { ok: false, error: "Only the player governor may use this action." };
+    const result = withdrawPresidentialGovernorEndorsement(world, params.electionId!, params.endorsementId!);
+    return result.ok ? { ok: true, message: "Governor endorsement withdrawn." } : result;
   }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
@@ -2438,6 +2451,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.regionId ? null : `Action ${actionId} requires a regionId`;
     case "requestReferendum":
       return params.regionId ? null : "requestReferendum requires regionId";
+    case "governorEndorsePresidentialCandidate":
+      return params.regionId && params.electionId && params.candidateId
+        ? null : "governorEndorsePresidentialCandidate requires regionId, electionId, and candidateId";
+    case "withdrawGovernorEndorsement":
+      return params.electionId && params.endorsementId
+        ? null : "withdrawGovernorEndorsement requires electionId and endorsementId";
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null

@@ -169,7 +169,7 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v54: source labour political-feedback snapshots; added on its owning branch.
 // v55: persisted US primary wave, delegate and campaign history; older readers cannot
 // continue a resolved/active primary without discarding its source ledger.
-export const SCHEMA_VERSION = 55;
+export const SCHEMA_VERSION = 58;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
