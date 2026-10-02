@@ -229,6 +229,25 @@ describe("source NPP capacity replacement", () => {
     expect(findSourceNppEntryCandidate(world, corp)?.pool).toMatchObject({ regionId: "VA", sectorType: "agriculture" });
   });
 
+  it("does not hide a source output with buyers behind a glutted co-product average", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-entry-peak-shortage", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.liquidCapital = 100_000_000;
+    corp.profitMargin = 20;
+    corp.effectiveProfitMargin = 20;
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice;
+    world.commodityPrices.steel!.globalPrice = world.commodityPrices.steel!.basePrice * 0.5;
+    world.unownedSectors = {
+      "US:VA:manufacturing": { countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 50_000_000 },
+    };
+    const candidate = findSourceNppEntryCandidate(world, corp)!;
+    expect(candidate.shortageScore).toBeLessThan(0.85);
+    expect(candidate.peakShortageScore).toBe(1);
+    applyNppSourceFounding(world);
+    expect(Object.values(world.corporateSectors ?? {}).some((asset) => asset.corporationId === corp.id && asset.stateId === "VA")).toBe(true);
+  });
+
   it("writes a source-sized replacement order with the matching cash debit and resumes identically", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-capacity-replacement", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;
