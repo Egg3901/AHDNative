@@ -14,7 +14,7 @@ import {
   type GeneralResolutionInput,
 } from "../electionEngine/resolution/generalResolution.js";
 import { generateNpcNameAndGender } from "../npp/nameGenerator.js";
-import { realAccumulate } from "./tallyAdapter.js";
+import { buildTallyTurnIndex, realAccumulate } from "./tallyAdapter.js";
 import { ensureCampaignsForElection, archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
@@ -931,10 +931,11 @@ export function runVoteAccumulation(world: WorldState, rng: WorldRng): void {
   // One id index per turn: the per-candidate lookup made this phase 1000x
   // costlier than every other phase (bench finding).
   const byId = new Map(world.politicians.map((p) => [p.id, p]));
+  const tallyIndex = buildTallyTurnIndex(world);
   for (const rec of inWindow.sort((a, b) => a.id.localeCompare(b.id))) {
     // Real mainline tally where demographics exist (US, W16); stub elsewhere
     // until W39 brings UK/RU/DD tables.
-    if (!realAccumulate(world, rng, rec)) {
+    if (!realAccumulate(world, rng, rec, tallyIndex)) {
       stubAccumulate(world, rng, rec, byId);
     }
   }
