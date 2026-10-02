@@ -101,8 +101,8 @@ describe("UK Commons vacancy plumbing", () => {
       policies: { economic: -2, social: -3 },
       wealth: "high",
       // The public creator requires exactly 28 stat points. This legal build
-      // prioritizes campaign charisma and Commons debate capacity.
-      stats: { charisma: 10, debate: 10, energy: 3, fundraising: 1, businessAcumen: 1, statecraft: 1, intellect: 2 },
+      // balances campaign charisma/debate with source fundraising capacity.
+      stats: { charisma: 8, debate: 8, energy: 4, fundraising: 5, businessAcumen: 1, statecraft: 1, intellect: 1 },
     });
     advanceTurn(world);
     const regular = world.elections.find((election) => election.countryId === "UK" && election.electionType === "commons" && election.state === "LON");
@@ -118,6 +118,19 @@ describe("UK Commons vacancy plumbing", () => {
       if (publicActionFailures.length < 8 && error) publicActionFailures.push({ turn: world.meta.turn, action, error });
     };
     const campaignIfAvailable = () => {
+      while (world.player.donorBaseLevel < 5 && world.player.actions >= 4) {
+        const built = executeAction(world, "player", "buildDonorBase", {});
+        if (built.ok) publicDonorBaseActions++;
+        else {
+          recordFailure("buildDonorBase", built.error);
+          break;
+        }
+      }
+      if (world.player.favorability < 65 && world.player.actions >= 5 && (world.meta.turn === 1 || world.meta.turn % 8 === 0)) {
+        const advertised = executeAction(world, "player", "advertise", {});
+        if (advertised.ok) publicAdActions++;
+        else recordFailure("advertise", advertised.error);
+      }
       if (world.player.politicalInfluence < 100 && world.player.actions > 0) {
         let result = executeAction(world, "player", "campaign", {});
         if (result.ok) publicCampaignActions++;
@@ -140,11 +153,6 @@ describe("UK Commons vacancy plumbing", () => {
           } else recordFailure("campaign", result.error);
         } else recordFailure("campaign", result.error);
       }
-      if (world.player.favorability < 100 && world.player.actions > 0 && world.meta.turn % 8 === 0) {
-        const advertised = executeAction(world, "player", "advertise", {});
-        if (advertised.ok) publicAdActions++;
-        else recordFailure("advertise", advertised.error);
-      }
     };
     campaignIfAvailable();
     while (regular!.status !== "resolved" && world.meta.turn <= regular!.endTurn) {
@@ -154,7 +162,7 @@ describe("UK Commons vacancy plumbing", () => {
     expect(regular!.status).toBe("resolved");
     const topVotes = [...Object.entries(regular!.tally)].sort(([, a], [, b]) => b - a).slice(0, 12);
     const candidateInputs = regular!.candidates
-      .filter((candidate) => candidate.id === "player" || topVotes.some(([id]) => id === candidate.id))
+      .filter((candidate) => candidate.id === "player" || topVotes.slice(0, 3).some(([id]) => id === candidate.id))
       .map((candidate) => ({
         id: candidate.id,
         name: candidate.name,
@@ -168,12 +176,18 @@ describe("UK Commons vacancy plumbing", () => {
     expect(world.player.legislativeSeat, JSON.stringify({
       turn: world.meta.turn,
       electionId: regular!.id,
-      winnerIds: regular!.winners,
+      winnerIds: regular!.winners.slice(0, 5),
       playerVotes: regular!.tally.player,
-      topVotes,
+      topVotes: topVotes.slice(0, 5),
       candidateInputs,
-      electorate: { population: world.regions.LON?.population, votingEligiblePopulation: world.regions.LON?.votingEligiblePopulation, stateDemographics: world.stateDemographics.LON, regionTurnout: world.regionTurnouts.LON },
-      partyOrganizations: Object.values(world.partyRegions).filter((row) => row.regionId === "LON"),
+      electorate: {
+        population: world.regions.LON?.population,
+        votingEligiblePopulation: world.regions.LON?.votingEligiblePopulation,
+        categoryWeights: world.stateDemographics.LON?.categoryWeights,
+        groups: Object.fromEntries(Object.entries(world.stateDemographics.LON?.groups ?? {}).map(([id, group]) => [id, { population: group.population, economicLean: group.economicLean, socialLean: group.socialLean, turnout: group.turnout }])),
+        regionTurnout: world.regionTurnouts.LON,
+      },
+      partyOrganizations: Object.values(world.partyRegions).filter((row) => row.regionId === "LON" && ["UK_LAB", "UK_CON", "UK_LIB"].includes(row.partyId)),
       playerFavorability: world.player.favorability,
       politicalInfluence: world.player.politicalInfluence,
       donorBaseLevel: world.player.donorBaseLevel,
