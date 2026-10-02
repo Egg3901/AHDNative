@@ -17,7 +17,7 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import type { SectorBuildOrder } from "./corporateSectorAssets.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { CORPORATE_PLANT_MARKET_STABILIZER, corporatePlantInputRates, rebuildCorporatePlantInputDemand } from "./plantDemand.js";
-import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
+import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantPolicyCredit, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 const PRICE_REALIZATION_EXPONENT = 0.5;
 const PRICE_REALIZATION_MIN = 0.7;
@@ -379,7 +379,7 @@ export function runCorporatePlantProductionTurn(
     const negotiatedWageFloor = agreements.reduce((floor, agreement) => Math.max(floor, agreement.wageLevel), 0.8);
     const currentMarginModifier = marginModifierPpByCorporation.get(corporation.id) ?? 0;
     const disasterMarginModifier = sourceCrisisMarginPenalty(world, asset.countryId, world.meta.turn);
-    const policyMarginPp = softCapEffectiveMargin(priorMargin + currentMarginModifier) - priorMargin;
+    const policyMarginPp = sourcePlantPolicyCredit(100, priorMargin, currentMarginModifier);
     const totalEffectiveMargin = softCapEffectiveMargin(priorMargin + currentMarginModifier + disasterMarginModifier);
     // The source has a separate labourSystemMode config. Native's unions
     // phase is the nearest saved control: when disabled, source wage costs,

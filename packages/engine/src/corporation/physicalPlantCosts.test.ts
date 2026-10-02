@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantsUpkeep, sourceSectorLaborCost, sourceSectorLaborShare } from "./physicalPlantCosts.js";
+import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantPolicyCredit, sourcePlantsUpkeep, sourceSectorLaborCost, sourceSectorLaborShare } from "./physicalPlantCosts.js";
 import { createWorld } from "../world.js";
 
 describe("pinned source physical plant costs", () => {
@@ -86,6 +86,11 @@ describe("pinned source physical plant costs", () => {
     expect(result.otherOpex).toBe(0);
     expect(result.totalCost).toBe(0);
     expect(result.profit).toBe(100);
+  });
+
+  it("soft-caps each sector's own source policy-credit basis", () => {
+    expect(sourcePlantPolicyCredit(1_000, 98, 10)).toBeCloseTo(33.810755600647724, 12);
+    expect(sourcePlantPolicyCredit(1_000, 35, 10)).toBe(100);
   });
 
   it("applies the source local-or-national dominance compliance rate with shield and plants fade", () => {

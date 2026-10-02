@@ -5,6 +5,7 @@
  */
 import type { CorporationType } from "./types.js";
 import type { WorldState } from "../types.js";
+import { softCapEffectiveMargin } from "./constants.js";
 
 const LABOR_INTENSITY: Readonly<Record<CorporationType, number>> = {
   technology: 0.3, healthcare: 0.3, media: 0.28, entertainment: 0.28,
@@ -65,6 +66,12 @@ export function sourceCrisisMarginPenalty(world: Pick<WorldState, "crises">, cou
 export function sourcePlantFinancialLeg(revenue: number, disasterMarginPenaltyPp: number): number {
   if (!Number.isFinite(revenue) || revenue <= 0 || !Number.isFinite(disasterMarginPenaltyPp) || disasterMarginPenaltyPp >= 0) return 0;
   return revenue * (-disasterMarginPenaltyPp / 100);
+}
+
+/** Source sectorCosts policy credit, based on this asset's base margin. */
+export function sourcePlantPolicyCredit(revenue: number, baseMarginPct: number, modifierPp: number): number {
+  if (!Number.isFinite(revenue) || !Number.isFinite(baseMarginPct) || !Number.isFinite(modifierPp)) return 0;
+  return revenue * (softCapEffectiveMargin(baseMarginPct + modifierPp) - softCapEffectiveMargin(baseMarginPct)) / 100;
 }
 
 /** Game sectorCosts dominance compliance line, based on source revenue shares. */

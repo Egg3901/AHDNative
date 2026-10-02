@@ -71,7 +71,7 @@ import { applyNppSourceStrategyRetools, strategyTransitionMarginModifier } from 
 import { applyNppCapacityReplacement, applyNppSourceFounding } from "./nppCapacityReinvestment.js";
 import { unlockNppCorporationTech } from "./techTree/nppUnlock.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
-import { assembleSourcePlantPnl } from "./physicalPlantCosts.js";
+import { assembleSourcePlantPnl, sourcePlantPolicyCredit } from "./physicalPlantCosts.js";
 import {
   RD_EXTRACTION_BOOST_MAX,
   RD_EXTRACTION_BOOST_MIN,
@@ -413,9 +413,11 @@ export const corporationTurnPhase: TurnPhase = {
             financialLegs: sector.plantsPnl.financialLegs ?? 0,
             growth,
             otherOpex: sector.plantsPnl.otherOpexUncapped ?? sector.plantsPnl.otherOpex,
-            requestedPolicyCredit: sector.plantsPnl.revenue * ((softCapEffectiveMargin(
-              softCapEffectiveMargin(corp.profitMargin) + (marginModifierByCorp.get(corp.id) ?? 0),
-            ) - softCapEffectiveMargin(corp.profitMargin)) / 100),
+            requestedPolicyCredit: sourcePlantPolicyCredit(
+              sector.plantsPnl.revenue,
+              sector.profitMargin ?? corp.profitMargin,
+              marginModifierByCorp.get(corp.id) ?? 0,
+            ),
           });
           sector.plantsPnl.growth = growth;
           sector.plantsPnl.otherOpex = settledPnl.otherOpex;
