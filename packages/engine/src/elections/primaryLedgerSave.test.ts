@@ -41,8 +41,8 @@ describe("presidential primary ledger save validation", () => {
       schemaVersion: number;
       world: { meta: { schemaVersion: number }; elections: unknown[] };
     };
-    doc.schemaVersion = 53;
-    doc.world.meta.schemaVersion = 53;
+    doc.schemaVersion = 54;
+    doc.world.meta.schemaVersion = 54;
 
     const loaded = deserializeSave(JSON.stringify(doc));
 
