@@ -6,10 +6,14 @@ import { MarketsPanel } from './MarketsPanel';
 import type { DrawerRouteId } from './MobileNavigation';
 import type { UnionManagementView } from '../game/unionManagement';
 
-export function MarketsRoute({ load, loadUnions, revision, busy, onAction, onSectorSale, onUnionCommand, initialId, onNavigate, onDrill }: {
+export function MarketsRoute({ load, loadUnions, loadStateOwnership, revision, busy, onAction, onSectorSale, onUnionCommand, initialId, initialCompanyTab, hideBrowseBack, onOpenCompany, onNavigate, onDrill }: {
   initialId?: string;
   load: GameScreenProps['loadMarkets']; revision: object;
   loadUnions?: GameScreenProps['loadUnionManagement'];
+  loadStateOwnership?: GameScreenProps['loadStateOwnership'];
+  initialCompanyTab?: "overview" | "register";
+  hideBrowseBack?: boolean;
+  onOpenCompany?: (id: string) => void;
   busy: boolean; onAction: GameScreenProps['onAction']; onSectorSale?: GameScreenProps['onSectorSale'];
   onUnionCommand?: (command: Extract<GameCommand, { type: "unionCommand" }>) => void;
   /** Opens a linked destination (region) from the company detail. */
@@ -45,7 +49,7 @@ export function MarketsRoute({ load, loadUnions, revision, busy, onAction, onSec
     ]);
     return { markets, unions };
   }, [load, loadUnions]);
-  return <DetailQuery load={loadPage} revision={revision} label="Stock market">
-    {({ markets, unions }) => <MarketsPanel markets={markets} unions={unions} initialId={companyId} onSelect={setCompanyId} busy={busy} onAction={onAction} onSectorSale={onSectorSale} onUnionCommand={onUnionCommand} onOpenRegion={handleOpenRegion} />}
+  return <DetailQuery load={loadPage} revision={revision} label={initialCompanyTab === "register" ? "National Corporation" : "Stock market"}>
+    {({ markets, unions }) => <MarketsPanel markets={markets} unions={unions} initialId={companyId} onSelect={setCompanyId} busy={busy} onAction={onAction} onSectorSale={onSectorSale} onUnionCommand={onUnionCommand} onOpenRegion={handleOpenRegion} loadStateOwnership={loadStateOwnership} initialCompanyTab={initialCompanyTab} hideBrowseBack={hideBrowseBack} onOpenCompany={onOpenCompany} />}
   </DetailQuery>;
 }

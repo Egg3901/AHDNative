@@ -20,6 +20,7 @@ import { projectCabinetSponsor, projectNominationDetail, projectNominationList, 
 import { projectHallOfFame, type HallOfFameQuery } from "./hallOfFame";
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
+import { projectStateOwnership } from "./stateOwnership";
 import { projectCapabilityNav } from "./capabilityNav";
 import { projectMyCorporation } from "./identityOrg";
 import { projectPolitics, projectPoliticalMetrics, projectPartyMembership } from "./politics";
@@ -539,6 +540,7 @@ export class GameSession {
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 
   markets() { return projectMarkets(this.requireWorld()); }
+  stateOwnership(countryId?: string) { return projectStateOwnership(this.requireWorld(), countryId); }
   unionManagement() { return projectUnionManagement(this.requireWorld()); }
 
   organizeUnion(unionId: string) {

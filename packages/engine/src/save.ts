@@ -48,6 +48,7 @@ import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
 import { validatePoliticalState } from "./politicalMetrics/validate.js";
+import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -198,6 +199,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const metaSchema = meta["schemaVersion"];
 
   if (envelopeSchema === V42_SCHEMA && metaSchema === V42_SCHEMA) {
+    if (hasOwn(world, "stateOwnershipLedger")) {
+      return { ok: false, error: "State ownership history cannot be continued by schema 42. Keep this Native save." };
+    }
     if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
       isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
       return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
@@ -548,6 +552,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
     isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
     return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
+  }
+  if (hasOwn(world, "stateOwnershipLedger")) {
+    return { ok: false, error: "State ownership history cannot be continued by schema 42. Keep this Native save." };
   }
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
@@ -3351,6 +3358,8 @@ export function deserializeSave(raw: string): WorldState {
   // and political boards. Keep recorded absence on legacy saves; seeding a
   // progressed game here would invent government posture, scores or history.
   if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
+  // Historical actions have no reconstructable history. Preserve absence.
+  if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3402,6 +3411,7 @@ export function deserializeSave(raw: string): WorldState {
   validateSoeSave(save.world);
   validateBankingState(save.world);
   validatePoliticalState(save.world);
+  validateStateOwnershipLedger(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing

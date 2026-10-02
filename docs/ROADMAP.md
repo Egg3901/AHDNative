@@ -1,8 +1,25 @@
 # AHDNative roadmap
 
+## State ownership register and seized cash, 2026-10-02 (#75 partial)
+
+The National Budget ownership entry opens the actual National Corporation with
+Register selected. Real executive-taking history, current holdings, assumed
+unmatured debt and shareholder totals survive ordinary turns and normal reload.
+Company links and Back restore Register, then Budget. Seized donor cash goes
+once to treasury; new state issuers start at zero while existing issuers keep
+their cash. Schema 52 preserves absent historical ledgers and refuses malformed
+records or unsupported older-reader exports.
+
+[Source vectors, player checks and remaining acceptance](STATE-OWNERSHIP-REGISTER-75.md)
+record two public action/save cases, four engine save cases, seven UI cases and
+the actual 320px/390px worker action/two-resume browser flow. Full nationalization
+eligibility, notice, compensation, auctions, political consequences, national
+planning and special-court journeys remain #75. No full #75 acceptance group
+is checked by this register slice. #298/#211/#510/#122 are reference only.
+
 ## Qualified ownership and political consumers, 2026-10-02
 
-Current verified count: **54 open, down from 63**, with 39 partial, 10 not started,
+Current verified count: **54 open, down from 63**, with 40 partial, 9 not started,
 3 deferred and 2 blocked. Nine confirmed night closures: #308, #297, #51,
 #110, #111, #299, #115, #298 and #211. The corporate-sector program is 7/7
 complete; selected country-law parent #101 remains 2/7.

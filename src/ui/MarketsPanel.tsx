@@ -9,7 +9,7 @@
  *   share quantity, at-market buy/sell). No server or Next.js imports;
  *   props arrive through MarketsView. Root owns routing and onAction.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CROSS_CURRENCY_UNAVAILABLE,
   evaluateShareTrade,
@@ -25,6 +25,8 @@ import { useDualPaneLayout } from "./dualPane";
 import { TrendChart } from "./TrendChart";
 import { UnionManagementPanel } from "./UnionManagementPanel";
 import type { UnionManagementView } from "../game/unionManagement";
+import { DetailQuery } from "./DetailQuery";
+import { StateOwnershipPanel } from "./StateOwnershipPanel";
 
 export interface MarketsPanelProps {
   markets: MarketsView;
@@ -37,6 +39,10 @@ export interface MarketsPanelProps {
   unions?: UnionManagementView;
   /** Opens the linked region detail (the existing regions destination). */
   onOpenRegion?: (regionId: string) => void;
+  loadStateOwnership?: GameScreenProps["loadStateOwnership"];
+  initialCompanyTab?: "overview" | "register";
+  hideBrowseBack?: boolean;
+  onOpenCompany?: (id: string) => void;
 }
 
 function AvailabilityHint({ cost, available, disabledReason }: { cost: number; available: boolean; disabledReason?: string }) {
@@ -767,6 +773,10 @@ function CompanyDetail({
   onSectorSale,
   onBack,
   onOpenRegion,
+  loadStateOwnership,
+  initialCompanyTab = "overview",
+  hideBrowseBack,
+  onOpenCompany,
 }: {
   listing: MarketListing;
   markets: MarketsView;
@@ -778,7 +788,15 @@ function CompanyDetail({
   onBack: () => void;
   /** Opens the linked region detail (the existing regions destination). */
   onOpenRegion?: (regionId: string) => void;
+  loadStateOwnership?: GameScreenProps["loadStateOwnership"];
+  initialCompanyTab?: "overview" | "register";
+  hideBrowseBack?: boolean;
+  onOpenCompany?: (id: string) => void;
 }) {
+  const [companyTab, setCompanyTab] = useState(initialCompanyTab);
+  const registerAvailable = listing.nationalCountryId !== undefined && loadStateOwnership !== undefined;
+  const loadRegister = useCallback(() => loadStateOwnership!(listing.nationalCountryId), [loadStateOwnership, listing.nationalCountryId]);
+  useEffect(() => { setCompanyTab(initialCompanyTab); }, [listing.id, initialCompanyTab]);
   const [shares, setShares] = useState("");
   const [salaryPerTurn, setSalaryPerTurn] = useState(String(listing.ceoSalaryPerTurn ?? 0));
   const [dividendRate, setDividendRate] = useState(String(listing.dividendRate ?? 0));
@@ -858,13 +876,27 @@ function CompanyDetail({
     onAction("issueCorporateBond", { corpId: listing.id, faceValue, maturityTurns });
   };
 
+  const companyHeroView = <RouteHero image={companyHero(listing.sectorType)} alt={companyHeroAlt(listing.sectorType)} eyebrow={listing.sectorLabel} title={listing.name} />;
+  const companyTabs = registerAvailable && <div role="tablist" aria-label="National Corporation" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+    {(["overview", "register"] as const).map(tab => <button type="button" role="tab" aria-selected={companyTab === tab}
+      key={tab} className={`ahd-btn ahd-btn-sm ${companyTab === tab ? "" : "ahd-btn-ghost"}`} onClick={() => setCompanyTab(tab)}>{tab === "overview" ? "Overview" : "Register"}</button>)}
+  </div>;
+  if (registerAvailable && companyTab === "register") return <div className="ahd-stack" data-pane="detail">
+    {companyHeroView}{companyTabs}
+    <DetailQuery load={loadRegister} revision={markets} label="State ownership register">
+      {ownership => <StateOwnershipPanel ownership={ownership} onOpenCompany={id => {
+        if (id === listing.id) setCompanyTab("overview");
+        if (onOpenCompany) onOpenCompany(id);
+      }} />}
+    </DetailQuery>
+  </div>;
   return (
     <div className="ahd-stack" data-pane="detail">
-      <div>
+      {!hideBrowseBack && <div>
         <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={onBack} aria-label="Back to market list">
           Back
         </button>
-      </div>
+      </div>}
 
       {/*
         Company hero (#378): the listing's recorded engine sectorType keys
@@ -875,12 +907,8 @@ function CompanyDetail({
         image. No new route or mechanic: key, label and art all come from
         the existing listing and the bundled set.
       */}
-      <RouteHero
-        image={companyHero(listing.sectorType)}
-        alt={companyHeroAlt(listing.sectorType)}
-        eyebrow={listing.sectorLabel}
-        title={listing.name}
-      />
+      {companyHeroView}
+      {companyTabs}
 
       <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Company</h2>
@@ -1246,7 +1274,7 @@ function CompanyDetail({
   );
 }
 
-export function MarketsPanel({ markets, unions, busy, onAction, onSectorSale, onUnionCommand = () => {}, initialId = null, onSelect, onOpenRegion }: MarketsPanelProps) {
+export function MarketsPanel({ markets, unions, busy, onAction, onSectorSale, onUnionCommand = () => {}, initialId = null, onSelect, onOpenRegion, loadStateOwnership, initialCompanyTab, hideBrowseBack, onOpenCompany }: MarketsPanelProps) {
   const [query, setQuery] = useState("");
   // Default context: the player's own country, mirroring AHDGame's sectors page
   // (src/app/sectors/page.tsx), which preselects the corporation/character
@@ -1419,6 +1447,10 @@ export function MarketsPanel({ markets, unions, busy, onAction, onSectorSale, on
         onSectorSale={onSectorSale}
         onBack={() => setSelectedId(null)}
         onOpenRegion={onOpenRegion}
+        loadStateOwnership={loadStateOwnership}
+        initialCompanyTab={initialCompanyTab}
+        hideBrowseBack={hideBrowseBack}
+        onOpenCompany={onOpenCompany ?? setSelectedId}
       />
     );
   }
@@ -1435,6 +1467,10 @@ export function MarketsPanel({ markets, unions, busy, onAction, onSectorSale, on
           onSectorSale={onSectorSale}
           onBack={() => setSelectedId(null)}
           onOpenRegion={onOpenRegion}
+          loadStateOwnership={loadStateOwnership}
+          initialCompanyTab={initialCompanyTab}
+          hideBrowseBack={hideBrowseBack}
+          onOpenCompany={onOpenCompany ?? setSelectedId}
         />
       </div>
     );

@@ -174,6 +174,8 @@ export interface MarketListing {
   headquartersRegionId?: string;
   brandColor?: string;
   isStateOwned: boolean;
+  /** Source National Corporation page gate, separate from command-economy SOEs. */
+  nationalCountryId?: string;
   ceoSalaryPerTurn?: number;
   dividendRate?: number;
   /** Live source-style corporate bond primary issuance preview for the seated player CEO. */
@@ -543,6 +545,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       ...(corp.headquartersRegionId !== undefined ? { headquartersRegionId: corp.headquartersRegionId } : {}),
       ...(corp.brandColor !== undefined ? { brandColor: corp.brandColor } : {}),
       isStateOwned: corp.ownershipState === "stateOwned" || corp.countryOwnerId !== undefined,
+      ...(corp.countryOwnerId !== undefined ? { nationalCountryId: corp.countryOwnerId } : {}),
       ...(corp.ceoSalaryPerTurn !== undefined ? { ceoSalaryPerTurn: corp.ceoSalaryPerTurn } : {}),
       ...(corp.dividendRate !== undefined ? { dividendRate: corp.dividendRate } : {}),
       ...(corp.ceoType === "player" && corp.ceoId === "player" && corp.ceoVacant !== true
