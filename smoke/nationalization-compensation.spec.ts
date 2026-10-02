@@ -24,7 +24,7 @@ test('Official National Corporation paid taking survives a normal turn and two p
   await gameReady(page);
   await navigateGame(page, 'National Budget');
   await page.getByRole('button', { name: 'State ownership register', exact: true }).click();
-  await page.getByRole('button', { name: /United States National Corporation.*media/ }).click();
+  await page.getByRole('button', { name: /United States National Corporation/ }).click();
   await expect(page.getByRole('tab', { name: 'Nationalize', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Official', exact: true }).click();
   await page.getByRole('tab', { name: 'Nationalize', exact: true }).click();

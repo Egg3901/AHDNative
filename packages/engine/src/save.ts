@@ -3659,6 +3659,9 @@ export function deserializeSave(raw: string): WorldState {
   // Keep historical law/drive/crisis fields absent; the version barrier is
   // what prevents that reader from silently loading state it cannot consume.
   if (save.schemaVersion < 62) save.world.meta.schemaVersion = 62;
+  // v63: primary/split-off ownership routing needs the new consumer.
+  // Preserve historical absence of primary flags and sector assignments.
+  if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

@@ -1,3 +1,26 @@
+## Pending primary National Corporation routing (#75)
+
+The first executive taking now creates the source financial holding company:
+state-owned, vacant CEO, zero own cash and shares, and no bank charter. Different
+industries route to that primary issuer; historical split-off assignments take
+precedence for individual assets while whole-company debt and the ownership
+register retain the primary identity. An existing unflagged national issuer is
+preserved without inventing a primary flag. Ownership queries remain read-only.
+
+Public action, ordinary-turn and reload checks pass, with compensation,
+head-of-government authority, register/UI and historical routing regressions.
+The actual schema62 reader accepted the unfamiliar primary flag but routed the
+next energy taking into another issuer. Schema63 now refuses that continuation;
+the current reader keeps both industries in one primary through a turn and reload.
+The branch includes the preceding union62 grammar. Its full combined gate remains
+pending; this adds no accepted closure. Current source was checked at
+[AHDGame 7ab3cc75](https://github.com/Egg3901/AHDGame/blob/7ab3cc75ace65062449867a2f55971c34b64c903/src/lib/nationalization/nationalCorporation.ts).
+
+All four original #75 acceptance groups remain unchecked. The no-issuer country
+entry still needs the source nationalization hub with real pending takings and
+auctions; restructuring actions, strategic/monopoly and legislative takings,
+notice/cure, national planning, state operations and special courts remain active.
+
 ## Pending election, career government and paid-taking integration
 
 Original #97 and #98 remain open until the combined full gate and original
