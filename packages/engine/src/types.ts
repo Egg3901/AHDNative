@@ -313,6 +313,8 @@ export interface WorldState {
    * Maintained by government/phases.ts. Schema v22.
    */
   governments: Record<string, GovernmentState>;
+  /** Pending/passed parliamentary PM nomination ballots. Source `pmAppointmentVotes`. */
+  pmAppointmentVotes: import("./government/pmAppointment.js").PmAppointmentVoteRecord[];
   /**
    * Cabinet (W29). Ports cabinetMembers + cabinetNominations
    * (src/lib/db/types/cabinet.ts, src/lib/cabinetNominationLifecycle.ts,

@@ -10,6 +10,10 @@ import {
 import { createWorld } from "./world.js";
 import { advanceTurn } from "./engine.js";
 import { deserializeSave, serializeSave } from "./save.js";
+import { actionRefreshPhase } from "./actions/actionRefresh.js";
+import { fundGenerationPhase } from "./actions/fundGenerationPhase.js";
+import { nppActionProcessingPhase } from "./npp/nppActionProcessing.js";
+import { rngFromSeed } from "./rng.js";
 
 /**
  * Issue #345 (autonomy tier axis). Canonical source: AHDGame at the 1902
@@ -108,13 +112,29 @@ describe("npp autonomy tier contract (#345)", () => {
     }
     const homeSponsored = (w: typeof v1) =>
       w.bills.filter((b) => b.nppSponsored && b.countryId === "US").length;
-    const abroadSponsored = (w: typeof v1) =>
-      w.bills.filter((b) => b.nppSponsored && b.countryId !== "US").length;
     // v2 comingles with the player country; v1 resolves to off there while
     // still acting abroad.
     expect(homeSponsored(v2)).toBeGreaterThan(0);
     expect(homeSponsored(v1)).toBe(0);
-    expect(abroadSponsored(v1)).toBeGreaterThan(0);
+
+    // Full turns correctly freeze legislation in the overseas parliamentary
+    // countries while their governments are pending, so sponsorship is not a
+    // valid proxy for the v1 foreign activity rail in this fixture. Exercise
+    // the source NPP action consumer with its actual per-turn resource inputs;
+    // only NPP action processing can change these regional organization rows.
+    const activeAbroad = createWorld({ era: "1953", countryId: "US", seed, playerName: "Ada", initialization: "historical", autonomyLevel: "v1" });
+    const initialPartyRegions = structuredClone(activeAbroad.partyRegions);
+    const turnRng = rngFromSeed(seed);
+    for (let turn = 0; turn < 48; turn += 1) {
+      activeAbroad.meta.turn = turn;
+      actionRefreshPhase.run(activeAbroad, turnRng);
+      fundGenerationPhase.run(activeAbroad, turnRng);
+      nppActionProcessingPhase.run(activeAbroad, turnRng);
+    }
+    const changedPartyRegions = Object.entries(activeAbroad.partyRegions)
+      .filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(initialPartyRegions[key]));
+    expect(changedPartyRegions.some(([, row]) => row.countryId !== "US")).toBe(true);
+    expect(changedPartyRegions.some(([, row]) => row.countryId === "US")).toBe(false);
   });
 
   it("round-trips the tier through save and reload", () => {

@@ -128,10 +128,12 @@ describe("NewGameScreen", () => {
   });
 
   it("rejects seed longer than 256", async () => {
+    const user = userEvent.setup();
     render(<NewGameScreen eras={ERAS} busy={false} onStart={vi.fn()} onBack={vi.fn()} />);
     const seedInput = screen.getByLabelText(/seed/i) as HTMLInputElement;
     expect(seedInput).toHaveAttribute("maxLength", "256");
-    await userEvent.setup().type(seedInput, "x".repeat(257));
+    await user.click(seedInput);
+    await user.paste("x".repeat(257));
     expect(seedInput.value.length).toBe(256);
   });
 

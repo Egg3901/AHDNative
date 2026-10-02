@@ -1,10 +1,11 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
+import { decodeSavePayload, encodeSavePayload, type SavePayload } from './savePayload';
 
 export interface SaveMetadata {
   slotId: string; savedAt: string; schemaVersion: number;
   turn: number; countryId: string; playerName: string;
 }
-interface StoredSave { slotId: string; contents: string; metadata: SaveMetadata; }
+interface StoredSave { slotId: string; contents?: SavePayload; metadata: SaveMetadata; }
 
 // Browser storage supports local QA. Distributed native builds use the Rust store.
 async function database(): Promise<IDBDatabase> {
@@ -32,13 +33,15 @@ export const saveRepository = {
     const save = JSON.parse(contents);
     const metadata: SaveMetadata = { slotId, savedAt: save.savedAt, schemaVersion: save.schemaVersion,
       turn: save.world.meta.turn, countryId: save.world.player.countryId, playerName: save.world.player.name };
-    await transaction('readwrite', store => store.put({ slotId, contents, metadata } satisfies StoredSave));
+    const payload = await encodeSavePayload(contents);
+    await transaction('readwrite', store => store.put({ slotId, contents: payload, metadata } satisfies StoredSave));
   },
   async load(slotId: string): Promise<string> {
     if (isTauri()) return invoke('load_game', { slotId });
     const saved: StoredSave | undefined = await transaction('readonly', store => store.get(slotId));
     if (!saved) throw new Error('This saved game could not be found.');
-    return saved.contents;
+    if (saved.contents === undefined) throw new Error('This saved game has no browser payload.');
+    return decodeSavePayload(saved.contents);
   },
   async list(): Promise<SaveMetadata[]> {
     if (isTauri()) return invoke('list_saves');

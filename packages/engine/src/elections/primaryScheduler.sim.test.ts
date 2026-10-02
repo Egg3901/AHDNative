@@ -175,4 +175,33 @@ describe("primary ballot scheduler", () => {
     expect(resumedRace.candidates.map((candidate) => candidate.id)).toHaveLength(1);
     expect(race.primaryResults).toBeUndefined();
   });
+
+  it("preserves complete primary snapshot history across save reload and resumed turns", () => {
+    const { world, race } = setupRace();
+    world.nppAutonomyLevel = "off";
+    race.primaryEndTurn = 100;
+    race.endTurn = 110;
+
+    for (let turn = 0; turn < 80; turn += 1) advanceTurn(world);
+
+    expect(race.primarySnapshots).toHaveLength(80);
+    world.elections.push({ ...race, id: `${race.id}:finalized`, status: "resolved" });
+    const saveContents = serializeSave(world, "2026-09-11T00:00:00Z");
+    const savedWorld = JSON.parse(saveContents).world as typeof world;
+    expect(savedWorld.elections[0]?.primarySnapshots).toHaveLength(80);
+    const finalizedSave = savedWorld.elections.find((entry) => entry.id === `${race.id}:finalized`);
+    expect(finalizedSave?.status).toBe("resolved");
+    expect(finalizedSave?.primarySnapshots).toEqual(savedWorld.elections[0]?.primarySnapshots);
+
+    const reloaded = deserializeSave(saveContents);
+    const restoredRace = reloaded.elections[0]!;
+    expect(restoredRace.primarySnapshots).toEqual(savedWorld.elections[0]?.primarySnapshots);
+
+    advanceTurn(reloaded);
+    expect(restoredRace.primarySnapshots).toHaveLength(81);
+    const resumed = deserializeSave(serializeSave(reloaded, "2026-09-11T00:00:00Z"));
+    expect(resumed.elections[0]?.primarySnapshots).toHaveLength(81);
+    expect(resumed.elections[0]?.primarySnapshots?.[0]?.turn).toBe(1);
+    expect(resumed.elections[0]?.primarySnapshots?.at(-1)?.turn).toBe(81);
+  });
 });

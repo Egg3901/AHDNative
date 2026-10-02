@@ -72,6 +72,8 @@ import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
+import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
+import { castPmAppointmentVote, proposePmAppointment } from "../government/pmAppointment.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -96,6 +98,8 @@ export type ExecuteActionParams = {
   policyOptionId?: string;
   billId?: string;
   vote?: "for" | "against" | "abstain";
+  pmAppointmentVoteId?: string;
+  pmVote?: "aye" | "nay";
   sponsorCountryId?: string;
   billTitle?: string;
   billCategory?: string;
@@ -415,6 +419,32 @@ function executeActionInner(
   if (actionId === "usePrimaryHomeStateSurge") {
     const result = usePrimaryHomeStateSurge(world, actorId, params.electionId);
     return result.ok ? { ok: true, message: result.message } : result;
+  }
+  // These source commands are recorded in parliamentary state, not charged
+  // through generic action points or action counters.
+  if (actionId === "proposePmAppointment") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a Taoiseach." };
+    const result = proposePmAppointment(world);
+    return result.ok
+      ? { ok: true, message: `Opened Taoiseach appointment vote ${result.vote.id}.` }
+      : { ok: false, error: result.error };
+  }
+  if (actionId === "votePmAppointment") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a Taoiseach appointment." };
+    const result = castPmAppointmentVote(world, params.pmAppointmentVoteId ?? "", params.pmVote ?? "aye");
+    return result.ok
+      ? { ok: true, message: `Recorded ${params.pmVote} on Taoiseach appointment ${params.pmAppointmentVoteId}.` }
+      : { ok: false, error: result.error };
+  }
+  // A pending parliamentary government freezes bill proposals before any
+  // generic AP/NPI charge. Source-authorized permanent sovereign decrees are
+  // exempt, matching Game's mayRuleByDecree exception.
+  if (
+    actionId === "sponsorBill" &&
+    isLegislationFrozen(world, world.player.countryId) &&
+    !(world.player.mode === "hos" && world.player.permanentHeadOfState === true)
+  ) {
+    return { ok: false, error: LEGISLATION_FREEZE_MESSAGE };
   }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
@@ -2506,6 +2536,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.catalogId ? null : `${actionId} requires catalogId`;
     case "voteOnBill":
       return params.billId && params.vote ? null : "voteOnBill requires billId and vote";
+    case "votePmAppointment":
+      return params.pmAppointmentVoteId && (params.pmVote === "aye" || params.pmVote === "nay")
+        ? null
+        : "votePmAppointment requires pmAppointmentVoteId and pmVote aye|nay";
     case "invokeFilibuster":
       return params.billId ? null : "invokeFilibuster requires billId";
     case "contestPartyLeadership":
