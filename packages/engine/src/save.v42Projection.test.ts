@@ -72,10 +72,15 @@ function parseProjected(contents: string): {
 }
 
 it("refuses SOE production independently of the regional metric guard", () => {
-  const world = createWorld(WORLD_OPTS);
-  // The separate default-world test verifies the earlier TFP refusal.
+  // Start from the historical, otherwise-projectable envelope so newer
+  // corporation tech state cannot mask the SOE consumer refusal.
+  const world = loadHistoricalFresh();
   world.regionalMetrics = {};
-  expect(world.corporations["RU-manufacturing"]!.soe).toBeDefined();
+  const seeded = createWorld(WORLD_OPTS).corporations["RU-manufacturing"]!;
+  const soeCorp = world.corporations["RU-manufacturing"]!;
+  expect(seeded.soe).toBeDefined();
+  soeCorp.soe = structuredClone(seeded.soe!);
+  delete soeCorp.legacySoeProjection;
   const result = projectSaveToV42(serializeSave(world, SAVED_AT));
   expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/SOE|Gosbank|command-economy/) });
 });
@@ -319,6 +324,15 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/market pressure/);
   });
 
+it("refuses a corporate currency that schema 42 would infer differently from the issuing country", () => {
+    const world = loadHistoricalFresh();
+    world.corporations["US-manufacturing"]!.liquidCurrencyCode = "GBP";
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("liquid currency"),
+    });
+  });
+
   it("refuses a Native world with live prop-book state that schema 42 cannot carry (#328)", () => {
     const world = loadHistoricalFresh();
     const doc = JSON.parse(serializeSave(world, SAVED_AT)) as {
@@ -400,6 +414,18 @@ describe("projectSaveToV42 public envelope", () => {
     if (projected.ok) throw new Error("expected relabel refusal");
     expect(projected.error).toMatch(/countryPolitics|not an authentic schema 42/i);
   });
+});
+
+it("persists the opt-in frontier experiment and refuses an enabled flag at the schema 42 reader boundary", () => {
+  const world = loadHistoricalFresh();
+  world.frontierEntryExperimentEnabled = true;
+  const contents = serializeSave(world, SAVED_AT);
+  expect(deserializeSave(contents).frontierEntryExperimentEnabled).toBe(true);
+  expect(projectSaveToV42(contents)).toMatchObject({ ok: false, error: expect.stringContaining("Frontier-entry experiment") });
+
+  const malformed = JSON.parse(contents) as { world: Record<string, unknown> };
+  malformed.world.frontierEntryExperimentEnabled = "true";
+  expect(() => deserializeSave(JSON.stringify(malformed))).toThrow("Frontier-entry experiment flag must be boolean");
 });
 
 it("rejects a malformed world even when both schema labels are 42", () => {

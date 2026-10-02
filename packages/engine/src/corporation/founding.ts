@@ -36,6 +36,7 @@ import { CORPORATION_TYPES } from "./types.js";
 import { SECTOR_WEIGHTS_1953 } from "./sectorSeedWeights1953.js";
 import { GROWTH_RATE_TURNS_PER_YEAR, MAX_GROWTH_RATE, MIN_GROWTH_RATE, DEFAULT_PROFIT_MARGIN, deriveCeoArchetype, CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "../market/constants.js";
+import { foundingTechState } from "./techTree/nppUnlock.js";
 
 /**
  * Deterministic ticker for a (country, sectorType) pair — always unique
@@ -125,6 +126,7 @@ export function seedCorporations(
   countries: readonly FoundingCountryInput[],
   rng: WorldRng,
   currentTurn: number,
+  currentYear = 1953,
 ): Record<string, Corporation> {
   const corporations: Record<string, Corporation> = {};
   const sorted = [...countries].filter((c) => c.playable).sort((a, b) => a.id.localeCompare(b.id));
@@ -170,6 +172,7 @@ export function seedCorporations(
         countryId: country.id,
         ...(country.headquartersRegionId ? { headquartersRegionId: country.headquartersRegionId } : {}),
         sectorType,
+        ...foundingTechState(sectorType, currentYear),
         personality: { ambition, stubbornness },
         archetype,
         revenue: perTurnRevenue,

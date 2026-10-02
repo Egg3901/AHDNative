@@ -311,7 +311,7 @@ describe("buyShares / sellShares actions", () => {
     expect(repriced.sharePrice).toBeGreaterThan(repriced.fundamentalSharePrice);
     expect(repriced.orderFlowWindowBuyValue).toBe(0);
     expect(repriced.orderFlowWindowSellValue).toBe(0);
-    expect(repriced.priceHistory?.at(-1)).toEqual({ turn: reloaded.meta.turn, price: repriced.sharePrice });
+    expect(repriced.priceHistory?.at(-1)).toEqual({ turn: reloaded.meta.turn, price: repriced.sharePrice, currencyCode: "USD" });
   });
 
   it("carries a successful sell through save/reload into downward order flow", () => {
@@ -342,7 +342,7 @@ describe("buyShares / sellShares actions", () => {
     expect(corp.sentimentMultiplier).toBe(1);
     expect(corp.sharePrice).toBe(corp.fundamentalSharePrice);
     expect(corp.priceHistory).toHaveLength(1);
-    expect(corp.priceHistory?.[0]).toEqual({ turn: world.meta.turn, price: corp.sharePrice });
+    expect(corp.priceHistory?.[0]).toEqual({ turn: world.meta.turn, price: corp.sharePrice, currencyCode: "USD" });
   });
 
   it("applies source investor-confidence sentiment without inventing a pulse", () => {

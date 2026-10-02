@@ -48,6 +48,11 @@ describe("regional extraction operation entry", () => {
     expect(operation.constructionInProgressAnchor).toBe(starterCost);
     const totalCost = anchorToLocal(SECTOR_EXPANSION_BASE_COST_ANCHOR + starterCost, rateForLocalBalance(world, "US"));
     expect(world.corporations["US-extraction"]!.liquidCapital).toBe(before - totalCost);
+    expect(world.corporateCashLedger?.[0]).toMatchObject({
+      type: "corp_sector_founding", corporationId: "US-extraction",
+      amount: world.corporations["US-extraction"]!.liquidCapital - before,
+      meta: { sectorId: operation.id, sectorType: "extraction", units: EXTRACTION_STARTER_UNITS, costAnchor: starterCost, entryFeeAnchor: SECTOR_EXPANSION_BASE_COST_ANCHOR },
+    });
     expect(Object.values(corporateSectorAssets(world))).toContainEqual(expect.objectContaining({
       corporationId: "US-extraction", countryId: "US", stateId: "TX", sectorType: "extraction", workers: 500,
     }));
@@ -56,6 +61,7 @@ describe("regional extraction operation entry", () => {
       corporationId: "US-extraction", countryId: "US", stateId: "TX", sectorType: "extraction", workers: 500,
       capitalStock: 0, capacityBookAnchor: 0, buildQueue: operation.buildQueue,
     }));
+    expect(reloaded.corporateCashLedger).toEqual(world.corporateCashLedger);
   });
 
   it("uses the source capacity price column and source era-scaled entry fee anchors", () => {

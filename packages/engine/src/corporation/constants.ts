@@ -253,9 +253,10 @@ const COMMAND_PLAN_PRIORITY: Readonly<Record<string, number>> = {
 /** Source era monetary table trendGdpGrowth values for Native's authored command-economy corridor. */
 export function sourcePlanTrendGdpGrowth(countryId: string, year: number): number | undefined {
   if (countryId === "RU") {
-    if (year >= 1953 && year < 1979) return 6;
+    if (year >= 1953 && year < 1971) return 6;
+    if (year >= 1971 && year < 1979) return 3;
     if (year >= 1979 && year < 1991) return 2.5;
-    if (year === 1991) return -5;
+    if (year >= 1991 && year < 1999) return -5;
   }
   if (countryId === "DD" && year >= 1953 && year < 1979) return 3;
   return undefined;

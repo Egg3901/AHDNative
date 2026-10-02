@@ -69,6 +69,13 @@ import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { splitNationalCorporation, mergeNationalCorporation } from "../corporation/nationalReorganization.js";
+import { foundPlayerCorporation } from "../corporation/playerFounding.js";
+import { expandPlayerCorporationSector } from "../corporation/playerSectorExpansion.js";
+import { buyCorporateSectorForSale } from "../corporation/corporateSectorAcquire.js";
+import { castCorporationRelocationVote, openCorporationRelocationVote } from "../corporation/relocationVotes.js";
+import { relocatePlayerWithCorporation } from "../corporation/relocatePlayerWithCorporation.js";
+import { relocateCorporateHeadquarters } from "../corporation/relocateCorporateHeadquarters.js";
+import type { CorporationType } from "../corporation/types.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
@@ -86,6 +93,11 @@ export type ExecuteActionParams = {
   /** Source canvassing batch size, 1 through 50. */
   count?: number;
   amount?: number; // for convertCash
+  corporationName?: string;
+  tickerSymbol?: string;
+  sectorType?: CorporationType;
+  secondarySectorType?: CorporationType;
+  startingCapital?: number;
   partyId?: string;
   caucusId?: string;
   caucusName?: string;
@@ -138,6 +150,7 @@ export type ExecuteActionParams = {
   corpId?: string;
   corporationId?: string;
   sectorId?: string;
+  relocationChoice?: "yes" | "no";
   strategyId?: string;
   tier?: "fair" | "discounted" | "seizure";
   newCorpName?: string;
@@ -159,7 +172,6 @@ export type ExecuteActionParams = {
   subsidyOp?: "enact" | "end";
   subsidyScope?: string;
   subsidyScopeType?: "economy_wide" | "sector";
-  sectorType?: string;
   targetStrategyId?: string;
   domesticOnly?: boolean;
   directiveOp?: "setGosbankPosture";
@@ -479,6 +491,61 @@ function executeActionInner(
 
   if (actionId === "splitNationalCorporation") return splitNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.newCorpName!);
   if (actionId === "mergeNationalCorporation") return mergeNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.intoCorpId);
+  if (actionId === "foundCorporation") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can found a corporation" };
+    const result = foundPlayerCorporation(world, {
+      name: params.corporationName ?? "",
+      tickerSymbol: params.tickerSymbol ?? "",
+      sectorType: params.sectorType!,
+      ...(params.secondarySectorType ? { secondarySectorType: params.secondarySectorType } : {}),
+      startingCapital: params.startingCapital,
+    });
+    return result.ok
+      ? { ok: true, message: `Founded ${world.corporations[result.corporationId]!.name} (${world.corporations[result.corporationId]!.tickerSymbol}) with ${result.startingCapital} in starting capital.` }
+      : { ok: false, error: result.error };
+  }
+  if (actionId === "expandCorporationSector") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can expand a corporation" };
+    const corporation = world.corporations[params.corporationId ?? ""];
+    if (!corporation) return { ok: false, error: "expandCorporationSector requires a valid corporationId" };
+    const result = expandPlayerCorporationSector(world, {
+      corporationId: corporation.id,
+      regionId: params.regionId ?? "",
+      sectorType: params.sectorType ?? corporation.sectorType,
+    });
+    return result.ok
+      ? { ok: true, message: `Expanded ${corporation.tickerSymbol} into ${params.regionId}; first capacity comes online on turn ${result.onlineTurn}.` }
+      : { ok: false, error: result.error };
+  }
+  if (actionId === "buyCorporateSector") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can buy a corporate sector" };
+    const result = buyCorporateSectorForSale(world, params.sectorId ?? "", params.corporationId ?? "");
+    return result.ok
+      ? { ok: true, message: `Bought the listed sector for ${result.priceAnchor} anchor units.` }
+      : { ok: false, error: result.error ?? "Corporate sector purchase failed." };
+  }
+  if (actionId === "openCorporateRelocationVote") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can propose a corporate relocation" };
+    const result = openCorporationRelocationVote(world, params.corporationId ?? "", params.regionId ?? "");
+    return result.ok ? { ok: true, message: `Opened relocation vote ${result.voteId}.` } : result;
+  }
+  if (actionId === "voteCorporateRelocation") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on corporate relocation" };
+    const result = castCorporationRelocationVote(world, params.corporationId ?? "", params.relocationChoice ?? "no");
+    return result.ok ? { ok: true, message: `Recorded ${params.relocationChoice} on the corporate relocation vote (${result.status}).` } : result;
+  }
+  if (actionId === "relocatePlayerWithCorporation") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player CEO can relocate with a corporation" };
+    const result = relocatePlayerWithCorporation(world, params.corporationId ?? "", params.regionId ?? "");
+    return result.ok ? { ok: true, message: `Relocated with the corporation for ${result.cost} and started a 72-turn cooldown.` } : result;
+  }
+  if (actionId === "relocateCorporateHeadquarters") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player CEO can relocate corporate headquarters" };
+    const result = relocateCorporateHeadquarters(world, params.corporationId ?? "", params.regionId ?? "");
+    return result.ok
+      ? { ok: true, message: `Relocated headquarters for ${result.cost}${result.ceoVacated ? "; CEO position is now vacant" : ""}.` }
+      : result;
+  }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
@@ -2589,6 +2656,27 @@ function executeActionInner(
 
 function validateRequiredActionParams(actionId: string, params: ExecuteActionParams): string | null {
   switch (actionId) {
+    case "foundCorporation":
+      return params.corporationName && params.tickerSymbol && params.sectorType
+        ? null : "foundCorporation requires corporationName, tickerSymbol, and sectorType";
+    case "expandCorporationSector":
+      return params.corporationId && params.regionId
+        ? null : "expandCorporationSector requires corporationId and regionId";
+    case "buyCorporateSector":
+      return params.corporationId && params.sectorId
+        ? null : "buyCorporateSector requires corporationId and sectorId";
+    case "openCorporateRelocationVote":
+      return params.corporationId && params.regionId
+        ? null : "openCorporateRelocationVote requires corporationId and regionId";
+    case "voteCorporateRelocation":
+      return params.corporationId && params.relocationChoice
+        ? null : "voteCorporateRelocation requires corporationId and relocationChoice";
+    case "relocatePlayerWithCorporation":
+      return params.corporationId && params.regionId
+        ? null : "relocatePlayerWithCorporation requires corporationId and regionId";
+    case "relocateCorporateHeadquarters":
+      return params.corporationId && params.regionId
+        ? null : "relocateCorporateHeadquarters requires corporationId and regionId";
     case "canvass":
     case "organize":
     case "pressureBoost":

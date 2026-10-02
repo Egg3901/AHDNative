@@ -18,6 +18,7 @@ import {
   SECTOR_STRATEGIES,
 } from "./plantCapacity.js";
 import { isBaselineSourceStrategyAvailable } from "./sourceStrategyTechAvailability.js";
+import { getUnlockedStrategyIds } from "./techTree/selectors.js";
 
 export const STRATEGY_TRANSITION_TURNS = 12;
 export const STRATEGY_COOLDOWN_TURNS = 24;
@@ -176,7 +177,7 @@ export function applyNppSourceStrategyRetools(world: WorldState): void {
       const distressed = corp.effectiveProfitMargin <= STRATEGY_SHIFT_MARGIN_TRIGGER;
       const requiredAdvantage = distressed ? STRATEGY_SHIFT_MIN_ADVANTAGE : STRATEGY_SHIFT_PROFIT_SEEK_ADVANTAGE;
       for (const strategyId of Object.keys(SECTOR_STRATEGIES[asset.sectorType] ?? {})) {
-        if (strategyId === currentStrategyId || !isBaselineSourceStrategyAvailable(asset.sectorType, strategyId, year)) continue;
+        if (strategyId === currentStrategyId || !corporationHasStrategy(corp, strategyId, year)) continue;
         const score = sourceStrategyPriceScore(getSectorStrategy(asset.sectorType, strategyId), priceRatioOf);
         if (score === null) continue;
         const advantage = score - currentScore;
@@ -202,8 +203,23 @@ export function applyNppSourceStrategyRetools(world: WorldState): void {
     asset.transitionCooldownUntilTurn = turn + STRATEGY_COOLDOWN_TURNS;
     asset.retoolRescaleApplied = true;
     asset.capitalStock = nextStock;
+    if (Number.isFinite(asset.otherOpexPerUnitAnchor)) {
+      // Preserve the source calibrated residual bill while the output-unit
+      // basis changes: source physicalPnl rescales its per-unit anchor by the
+      // inverse of the same capacity-price ratio.
+      asset.otherOpexPerUnitAnchor = asset.otherOpexPerUnitAnchor! / ratio;
+    }
     asset.buildQueue = nextQueue;
   }
+}
+
+export function corporationHasStrategy(
+  corp: Pick<import("./types.js").Corporation, "sectorType" | "unlockedTechNodeIds" | "techDecadeLane">,
+  strategyId: string,
+  year: number,
+): boolean {
+  return isBaselineSourceStrategyAvailable(corp.sectorType, strategyId, year) ||
+    getUnlockedStrategyIds({ type: corp.sectorType, ...corp }).includes(strategyId);
 }
 
 export type RetoolResult = { ok: true; feeLocal: number; transitionTurns: number } | { ok: false; error: string };
@@ -230,7 +246,7 @@ export function setCorporateSectorStrategy(
   if (target.minDecade && currentYear < Number(target.minDecade)) {
     return { ok: false, error: "This production method is not available in this era yet." };
   }
-  if (target.requiresTechUnlock && !isBaselineSourceStrategyAvailable(asset.sectorType, strategyId, currentYear)) {
+  if (target.requiresTechUnlock && !corporationHasStrategy(corp, strategyId, currentYear)) {
     return { ok: false, error: "Unlock this production method in the corporate technology tree first." };
   }
   const targetSupply = target.supply;
@@ -290,6 +306,9 @@ export function setCorporateSectorStrategy(
   asset.transitionCooldownUntilTurn = world.meta.turn + STRATEGY_COOLDOWN_TURNS;
   asset.retoolRescaleApplied = true;
   asset.capitalStock = nextStock;
+  if (Number.isFinite(asset.otherOpexPerUnitAnchor)) {
+    asset.otherOpexPerUnitAnchor = asset.otherOpexPerUnitAnchor! / rescaleRatio;
+  }
   asset.buildQueue = nextQueue;
   return { ok: true, feeLocal, transitionTurns: shortage ? 6 : STRATEGY_TRANSITION_TURNS };
 }

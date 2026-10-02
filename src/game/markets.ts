@@ -54,6 +54,7 @@ export interface MarketActionHint {
 export interface MarketPricePoint {
   turn: number;
   price: number;
+  currencyCode?: string;
 }
 
 export interface MarketCountry {
@@ -489,7 +490,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       playerShares,
       cashCurrencyMatches: currency === playerCurrency,
     };
-    const priceHistory: MarketPricePoint[] = (corp.priceHistory ?? []).map(({ turn, price }) => ({ turn, price }));
+    const priceHistory: MarketPricePoint[] = (corp.priceHistory ?? []).map(({ turn, price, currencyCode }) => ({ turn, price, ...(currencyCode ? { currencyCode } : {}) }));
     const corporateAssets = assetByCorporation.get(corp.id) ?? [];
     const primaryAsset = corporateAssets.find((asset) => asset.countryId === corp.countryId && asset.sectorType === corp.sectorType);
     const portfolioAssets = corporateAssets

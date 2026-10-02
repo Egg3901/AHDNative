@@ -21,6 +21,7 @@ import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
 import { CORPORATION_TYPES, type CorporationType, type ShareholderEntry } from "./corporation/types.js";
+import { CURRENCY_CODE_BY_COUNTRY } from "./forex/constants.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -55,6 +56,9 @@ import { validateNationalizationEligibilityState } from "./corporation/nationali
 import { validateNationalCorporations } from "./corporation/nationalCorporation.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { validatePendingNationalizations } from "./corporation/pendingNationalizations.js";
+import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
+import { validateNppStrategyState } from "./corporation/nppCorpStrategy.js";
+import { validateCorporateRelocationVote } from "./corporation/relocationVotes.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -326,6 +330,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       error: `RPG stats are disabled in this ruleset. Schema 42 always applies RPG stats; keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
+  if (world["frontierEntryExperimentEnabled"] === true) {
+    return { ok: false, error: `Frontier-entry experiment state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   if (hasOwn(world, "bankingLaws") || hasOwn(world, "bankPropTradingEnabled")) {
     return { ok: false, error: `Banking policies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
@@ -354,6 +361,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       ok: false,
       error: "player.homeRegionId is not a nullable string. Schema 42 cannot store that identity",
     };
+  }
+  if (hasOwn(player, "lastRelocatedTurn")) {
+    return { ok: false, error: `Player relocation cooldown cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
   // Issue #334: schema 42 has no difficulty axis. An absent or normal
   // axis projects cleanly (dropped below; absent reloads as the identical
@@ -460,6 +470,19 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     if (!isRecord(value)) {
       return { ok: false, error: `Corporation ${corpId} cannot be projected to schema 42` };
     }
+    if (value["isPrivate"] === true || value["relocationVote"] !== undefined) {
+      return { ok: false, error: `Corporation ${corpId} has private-company or relocation-vote state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
+    const liquidCurrencyCode = value["liquidCurrencyCode"];
+    if (liquidCurrencyCode !== undefined) {
+      const countryId = String(value["countryId"] ?? "");
+      const expectedCurrency = CURRENCY_CODE_BY_COUNTRY[countryId] ??
+        (isRecord(world["budgets"]) && isRecord(world["budgets"][countryId]) && typeof world["budgets"][countryId]!["currencyCode"] === "string"
+          ? world["budgets"][countryId]!["currencyCode"] as string : "USD");
+      if (typeof liquidCurrencyCode !== "string" || !/^[A-Z]{3}$/.test(liquidCurrencyCode) || liquidCurrencyCode !== expectedCurrency) {
+        return { ok: false, error: `Corporation ${corpId} has a liquid currency that schema 42 cannot infer from its country. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
     // Schema 42 readers preserve unknown save keys, but their corporation
     // turn has no CEO ballot, appointment, compensation, or dividend phase.
     // Only neutral default values are reversible; an active lifecycle must
@@ -548,6 +571,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // Preserve the earlier market/governance refusal before checking R&D.
   for (const [corpId, value] of Object.entries(corporations)) {
     if (!isRecord(value)) continue;
+    if (Array.isArray(value["unlockedTechNodeIds"]) || value["techDecadeLane"] !== undefined || value["techDecadeChosenTurn"] !== undefined ||
+      value["marketingStrength"] !== undefined || value["logisticsStrength"] !== undefined) {
+      return { ok: false, error: `Corporation ${corpId} has technology-tree state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
     const rdAmounts = ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain"].map((field) => value[field]);
     const hasNonzeroRdState = rdAmounts.some((amount) =>
       amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
@@ -562,7 +589,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const sectorAssets = world["corporateSectors"];
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
     isRecord(asset) && (
-      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied"].some(field => hasOwn(asset, field)) ||
+      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied", "plantsPnl", "otherOpexPerUnitAnchor", "plantsUpkeepMarginBasisAnchor", "effectiveProfitMargin", "mothballed"].some(field => hasOwn(asset, field)) ||
       (hasOwn(asset, "strategyId") && asset["strategyId"] !== undefined && asset["strategyId"] !== "standard")
     ),
   );
@@ -671,6 +698,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     delete corp["orderFlowWindowBuyValue"];
     delete corp["orderFlowWindowSellValue"];
     delete corp["priceHistory"];
+    delete corp["liquidCurrencyCode"];
     delete corp["rdBudgetPerTurn"];
     delete corp["rdScore"];
     delete corp["lastRdSpendPerTurn"];
@@ -905,6 +933,11 @@ function assertCurrentWorldState(world: WorldState): void {
     (player["homeRegionId"] !== null && typeof player["homeRegionId"] !== "string")
   ) {
     throw new Error("Not a valid save file: invalid world state");
+  }
+  const lastRelocatedTurn = player["lastRelocatedTurn"];
+  if (lastRelocatedTurn !== undefined &&
+      (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
+    throw new Error("Not a valid save file: invalid player relocation turn");
   }
 
   const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>
@@ -3687,10 +3720,10 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
   // v64: preserve absent legacy seat weights as one. Historical winner
   // weights cannot be reconstructed from previously redistributed rosters.
-  // Earlier readers must refuse weighted offices they cannot continue.
   if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
-  // v65: state-ownership bill targets and legislative ledger authority.
-  // Historical absence remains absent; an older reader cannot enact these bills.
+  // v65: legislative taking notices, NPP strategy/replacement/cash records,
+  // and corporate relocation/FX receipts need their new continuation consumers.
+  // Preserve historical absence instead of inventing prior choices or history.
   if (save.schemaVersion < 65) save.world.meta.schemaVersion = 65;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
@@ -3757,9 +3790,26 @@ export function deserializeSave(raw: string): WorldState {
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
   validatePendingNationalizations(save.world);
+  if (save.world.corporateCashLedger !== undefined) validateCorporateCashLedger(save.world.corporateCashLedger);
   validateNationalizationEligibilityState(save.world);
   validateNationalCorporations(save.world);
   validateCanvassState(save.world);
+  if (save.world.frontierEntryExperimentEnabled !== undefined && typeof save.world.frontierEntryExperimentEnabled !== "boolean") {
+    throw new Error("Frontier-entry experiment flag must be boolean");
+  }
+  for (const corporation of Object.values(save.world.corporations)) validateNppStrategyState(corporation.nppStrategy);
+  for (const [corporationId, corporation] of Object.entries(save.world.corporations)) {
+    if (corporation.isPrivate !== undefined && typeof corporation.isPrivate !== "boolean") throw new Error(`Corporation ${corporationId} has invalid private-company state`);
+    if (corporation.liquidCurrencyCode !== undefined && (typeof corporation.liquidCurrencyCode !== "string" || !/^[A-Z]{3}$/.test(corporation.liquidCurrencyCode))) {
+      throw new Error(`Corporation ${corporationId} has invalid liquid currency`);
+    }
+    for (const point of corporation.priceHistory ?? []) {
+      if (point.currencyCode !== undefined && !/^[A-Z]{3}$/.test(point.currencyCode)) {
+        throw new Error(`Corporation ${corporationId} has invalid price-history currency`);
+      }
+    }
+    validateCorporateRelocationVote(corporation.relocationVote, corporationId);
+  }
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row

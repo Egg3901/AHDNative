@@ -86,6 +86,8 @@ export interface WorldState {
    * which both validate the effective `v4` default.
    */
   nppAutonomyLevel?: import("./nppAutonomyLevel.js").NppAutonomyLevel;
+  /** Source GameState.frontierEntryExperimentEnabled; absent is fail-closed. */
+  frontierEntryExperimentEnabled?: boolean;
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;
@@ -277,6 +279,13 @@ export interface WorldState {
   corporations: Record<string, Corporation>;
   /** Distinct CorporateSector assets with stateId null until regional ownership is sourced. Optional on pre-#293 schema-44 saves. */
   corporateSectors?: Record<string, import("./corporation/corporateSectorAssets.js").CorporateSectorAsset>;
+  /**
+   * Successful NPP cash writes for source-sector technology unlocks. Native
+   * mutates the offline corporation record directly, so the deterministic row
+   * is appended in the same turn operation as the cash/R&D debit and unlock.
+   * Optional on older saves; validated at the save boundary.
+   */
+  corporateCashLedger?: Array<import("./corporation/corporateCashLedger.js").CorporateCashLedgerRecord>;
   /**
    * Per-country aggregate corporate revenue, one turn apart, feeding the
    * macroCountryTurn growth signal. Maintained by corporationTurn.ts. Schema v19.
@@ -1024,11 +1033,15 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** Source character-relocation cooldown anchor; absent means never relocated. */
+  lastRelocatedTurn?: number;
   /** Source CharacterStateOrg rows keyed by US state. */
   primaryStateOrganizations?: Record<string, PrimaryStateOrganization>;
   /** One normalized UK office constituency selection, valid only in its saved region. */
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
+  /** Source per-user 168-turn corporation-founding cooldown; absent means never founded. */
+  lastCorporationFoundedTurn?: number;
   /**
    * Optional foreign-currency personal balances. Bond cash flows use the
    * bond's denomination, matching AHDGame Character.currencyBalances.personal.

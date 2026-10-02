@@ -29,6 +29,7 @@ import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
+  isCorpStateOwned, privateEnterprisePermittedInCountry,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -71,6 +72,10 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "pollLarge", category: "intelligence" },
   { id: "debatePrep", category: "intelligence" },
   { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting elected head of government and an eligible domestic issuer." },
+  { id: "openCorporateRelocationVote", requires: "corporationRegion", category: "executive", prerequisite: "Requires an active CEO and a public corporation with eligible shareholders." },
+  { id: "voteCorporateRelocation", requires: "corporationVote", category: "executive", prerequisite: "Requires shares in a corporation with an open relocation vote." },
+  { id: "relocateCorporateHeadquarters", requires: "corporationRegion", category: "executive", prerequisite: "Requires an active CEO; public corporations need a passed shareholder vote for the selected destination." },
+  { id: "relocatePlayerWithCorporation", requires: "corporationRegion", category: "executive", prerequisite: "Requires residence at the corporation headquarters and an active CEO; relocation starts a 72-turn personal cooldown." },
 ];
 const HOS_ACTIONS: typeof ACTIONS = [
   { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
@@ -1002,7 +1007,13 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       // advertises an action executeAction unconditionally refuses (the
       // statless quick-create path); the engine error stays authoritative.
       const characterReason = characterActionDisabledReason(world, id);
-      const choices = id === "nationalizeCorporation" ? nationalizationTargets(world) : undefined;
+      const choices = id === "nationalizeCorporation" ? nationalizationTargets(world)
+        : id === "voteCorporateRelocation" ? corporateRelocationChoices(world, id)
+        : id === "openCorporateRelocationVote" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation"
+          ? corporateRelocationChoices(world, id) : undefined;
+      const destinations = requires === "corporationRegion" && choices?.length
+        ? choices.flatMap((choice) => corporateRelocationDestinations(world, choice.id, id))
+        : undefined;
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
         : characterReason ? characterReason
         : id === "nationalizeCorporation" ? nationalizationUnavailableReason(world)
@@ -1010,6 +1021,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : player.actions < cost ? "Not enough action points."
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
         : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
+        : (id === "openCorporateRelocationVote" || id === "voteCorporateRelocation" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation") && !choices?.length ? "No eligible corporation is available for this action."
+        : requires === "corporationRegion" && !destinations?.length ? "No eligible headquarters destination is available."
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "debatePrep" && !world.featureFlags.rpgStats ? "The stat system is not currently enabled."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
@@ -1019,7 +1032,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
         ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: campaignAnchorToLocal(fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)), player.countryId) } : {}),
-        ...(requires ? { requires } : {}), ...(choices ? { choices } : {}), ...(prerequisite ? { prerequisite } : {}),
+        ...(requires ? { requires } : {}), ...(choices ? { choices } : {}), ...(destinations ? { destinations } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };
     }),
     regions: Object.values(world.regions).filter((region) => region.countryId === country.id).map(({ id, name }) => ({ id, name })),
@@ -1221,6 +1234,40 @@ function projectFinance(world: WorldState): FinanceView {
  * recipients); executeAction stays authoritative for balances, quota, and
  * the forex-off cross-border block.
  */
+function corporateRelocationChoices(world: WorldState, actionId: string): { id: string; label: string }[] {
+  return Object.values(world.corporations)
+    .filter((corp) => corp.ceoId === "player" && corp.ceoType === "player" && corp.ceoVacant !== true)
+    .filter((corp) => actionId === "voteCorporateRelocation"
+      ? corp.relocationVote?.status === "open" && corp.shareholders.some((holder) => holder.holder === "player" && holder.shares > 0)
+      : actionId === "openCorporateRelocationVote"
+        ? corp.isPrivate !== true && corp.relocationVote?.status !== "open" && corp.shareholders.some((holder) => holder.shares > 0)
+        : actionId === "relocateCorporateHeadquarters"
+          ? corp.isPrivate === true || corp.relocationVote?.status === "passed"
+          : corp.headquartersRegionId === world.player.homeRegionId &&
+            (world.player.lastRelocatedTurn === undefined || world.meta.turn >= world.player.lastRelocatedTurn + 72))
+    .map((corp) => ({ id: corp.id, label: corp.tickerSymbol ?? corp.id }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function corporateRelocationDestinations(
+  world: WorldState,
+  corporationId: string,
+  actionId: string,
+): { id: string; corporationId: string; label: string }[] {
+  const corp = world.corporations[corporationId];
+  if (!corp) return [];
+  const vote = corp.relocationVote;
+  return Object.values(world.regions)
+    .filter((region) => !region.corporationHeadquartersOnly &&
+      (region.id !== corp.headquartersRegionId || (actionId === "relocateCorporateHeadquarters" && vote?.status === "passed" && vote.destinationRegionId === region.id)))
+    .filter((region) => region.countryId === corp.countryId || world.countries[region.countryId]?.playable === true)
+    .filter((region) => region.countryId === corp.countryId || isCorpStateOwned(corp) || privateEnterprisePermittedInCountry(world, region.countryId))
+    .filter((region) => actionId !== "relocateCorporateHeadquarters" || corp.isPrivate === true ||
+      (vote?.status === "passed" && vote.destinationRegionId === region.id && vote.destinationCountryId === region.countryId))
+    .map((region) => ({ id: region.id, corporationId, label: `${region.name} (${region.countryId})` }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function projectWire(world: WorldState): FinanceView["wire"] {
   const player = world.player;
   const senderHome = homeCurrency(world, player.countryId);

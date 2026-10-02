@@ -204,6 +204,10 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
     expect(resolveBondCurrency(world, legacy)).toBe("GBP");
     expect(resolveBondCurrency(world, { ...legacy, currencyCode: "" })).toBe("GBP");
     expect(resolveBondCurrency(world, { countryId: "unknown", currencyCode: undefined })).toBe("USD");
+    // Non-player budgets may carry a USD placeholder; the pinned country
+    // currency table still identifies the source-authored local denomination.
+    world.budgets.DE = { ...world.budgets.US!, countryId: "DE", currencyCode: "USD" };
+    expect(resolveBondCurrency(world, { countryId: "DE", currencyCode: undefined })).toBe("EUR");
   });
 
   it("keeps legacy domestic maturity settlement in home cash through the public phase", () => {

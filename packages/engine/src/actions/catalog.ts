@@ -106,6 +106,13 @@ export type ActionId =
   // W11 extraction/prospecting
   | "launchProspect"
   | "expandRegionalExtraction"
+  | "foundCorporation"
+  | "expandCorporationSector"
+  | "buyCorporateSector"
+  | "openCorporateRelocationVote"
+  | "voteCorporateRelocation"
+  | "relocatePlayerWithCorporation"
+  | "relocateCorporateHeadquarters"
   | "issueExtractionContract"
   | "acceptExtractionContract"
   | "declineExtractionContract"
@@ -907,6 +914,50 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["corporations", "extraction"],
     status: "available",
   },
+  foundCorporation: {
+    id: "foundCorporation",
+    name: "Found Corporation",
+    description: "Found a private corporation from personal cash, with source-scaled startup capital, founder shares, CEO control, and home-region headquarters.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations"],
+    status: "available",
+  },
+  expandCorporationSector: {
+    id: "expandCorporationSector",
+    name: "Expand Corporation into a Region",
+    description: "Pay the source entry fee and a priced first-facility order to enter a recorded regional market as the active corporation CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "regional-markets"],
+    status: "available",
+  },
+  buyCorporateSector: {
+    id: "buyCorporateSector",
+    name: "Buy Listed Corporate Sector",
+    description: "As an active corporate CEO, buy a listed operating sector from its current issuer. The host market's source command-economy gate and both issuer cash ledgers apply.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "regional-markets"],
+    status: "available",
+  },
+  openCorporateRelocationVote: {
+    id: "openCorporateRelocationVote",
+    name: "Propose Corporate Relocation",
+    description: "Open a 24-turn shareholder vote to relocate a public corporation's headquarters to a recorded region.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["corporations", "corporation/governance"], status: "available",
+  },
+  voteCorporateRelocation: {
+    id: "voteCorporateRelocation",
+    name: "Vote on Corporate Relocation",
+    description: "Cast or update your source-weighted shareholder ballot on a pending headquarters relocation.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["corporations", "corporation/governance"], status: "available",
+  },
   issueExtractionContract: {
     id: "issueExtractionContract",
     name: "Issue Extraction Contract",
@@ -915,6 +966,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["extraction/contracts"],
+    status: "available",
+  },
+  relocatePlayerWithCorporation: {
+    id: "relocatePlayerWithCorporation",
+    name: "Relocate with Corporation",
+    description: "Move to a source-authored region with your corporation as CEO, paying source market-cap relocation costs and starting the 72-turn personal cooldown.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "forex"],
+    status: "available",
+  },
+  relocateCorporateHeadquarters: {
+    id: "relocateCorporateHeadquarters",
+    name: "Relocate Corporate Headquarters",
+    description: "Move headquarters as CEO for 7% of domestic market capitalization; public companies require a passed relocation vote.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "corporation/governance", "forex"],
     status: "available",
   },
   acceptExtractionContract: {

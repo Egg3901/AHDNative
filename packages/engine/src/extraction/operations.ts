@@ -4,6 +4,8 @@ import { getEraNominalScale } from "../commodity/constants.js";
 import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnionId, validateCorporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import type { CorporateSectorAsset } from "../corporation/corporateSectorAssets.js";
 import { capacityEraPriceIndex, capacityPricePerUnitAnchor, corporateSectorBasePrices } from "../corporation/plantCapacity.js";
+import { makeNppFoundingCashRecord, validateCorporateCashLedger } from "../corporation/corporateCashLedger.js";
+import { DEFAULT_PROFIT_MARGIN } from "../corporation/constants.js";
 
 /** Mainline AHDGame corporations.ts SECTOR_EXPANSION_BASE_COST. */
 export const SECTOR_EXPANSION_BASE_COST_ANCHOR = 100_000;
@@ -76,6 +78,7 @@ export function expandRegionalExtraction(
     countryId: region.countryId,
     stateId: regionId,
     sectorType: "extraction",
+    profitMargin: DEFAULT_PROFIT_MARGIN,
     workers: calculateSectorWorkers(1_000_000), // Source newborn facility workforce before realized first-turn receipts.
     revenue: 0,
     capitalStock: 0,
@@ -105,8 +108,21 @@ export function expandRegionalExtraction(
   const assets = { ...existingAssets, [assetId]: asset };
   validateCorporateSectorAssets(world, assets);
 
-  corporation.liquidCapital -= totalCost;
+  const cashBefore = corporation.liquidCapital;
+  const cashAfter = cashBefore - totalCost;
+  const cashRecord = makeNppFoundingCashRecord({
+    corp: corporation, world, sector: asset, units: EXTRACTION_STARTER_UNITS,
+    costLocal: totalCost, cashDeltaLocal: cashAfter - cashBefore,
+    costAnchor: starterBuildAnchor, entryFeeAnchor: expansionCostAnchor,
+    onlineTurn: starterOnlineTurn,
+  });
+  if (!cashRecord) return { ok: false, error: "Could not build a valid extraction founding cash witness" };
+  const ledger = [...(world.corporateCashLedger ?? []), cashRecord];
+  validateCorporateCashLedger(ledger);
+
+  corporation.liquidCapital = cashAfter;
   world.corporateSectors = assets;
+  world.corporateCashLedger = ledger;
   return { ok: true, assetId, expansionCostAnchor, starterBuildAnchor, starterOnlineTurn };
 }
 

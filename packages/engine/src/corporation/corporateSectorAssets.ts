@@ -43,6 +43,8 @@ export interface CorporateSectorAsset {
   countryId: string;
   stateId: string | null;
   sectorType: CorporationType;
+  /** Source CorporateSector.profitMargin base, distinct from the issuer and effective result. */
+  profitMargin?: number;
   /**
    * Current source extraction operating method. Omission means standard for
    * legacy/fresh Native issuers. Only the 1953 ungated extraction methods are
@@ -79,6 +81,30 @@ export interface CorporateSectorAsset {
   realizedRevenue?: number;
   /** Actual fill fraction by produced commodity. */
   soldByCommodity?: Partial<Record<CommodityType, number>>;
+  /** Source physical operating statement, in Native local currency per turn. */
+  plantsPnl?: {
+    turn: number;
+    revenue: number;
+    inputs: number;
+    labour?: number;
+    upkeep?: number;
+    otherOpex: number;
+    otherOpexUncapped?: number;
+    otherOpexCreditCapped?: boolean;
+    financialLegs?: number;
+    compliance?: number;
+    policyCredit: number;
+    growth: number;
+    operatingCost: number;
+    totalCost: number;
+    profit: number;
+  };
+  /** Held residual operating cost per output unit, calibrated at first output. */
+  otherOpexPerUnitAnchor?: number;
+  /** Source idle-upkeep price basis, stamped on first physical P&L turn. */
+  plantsUpkeepMarginBasisAnchor?: number;
+  /** Operating margin derived from this asset's recorded physical costs. */
+  effectiveProfitMargin?: number;
   /** Staffed headcount, derived from recorded revenue (#296). */
   workers: number;
   /** Seeded-union owner for the (countryId, sectorType) pair, or null when unrepresented (#296). */
@@ -128,6 +154,8 @@ export interface CorporateSectorAsset {
   strikeCooldownUntilTurn?: number | null;
   forSale: { priceAnchor: number } | null;
   owner: CorporateSectorOwner;
+  /** Source CorporateSector.mothballed; absent means the asset is live. */
+  mothballed?: boolean;
 }
 
 /**
@@ -215,7 +243,7 @@ export function projectCorporateSector(world: WorldState, asset: CorporateSector
   return {
     ...asset,
     revenue: asset.revenue ?? corporation.revenue,
-    profitMargin: corporation.profitMargin,
+    profitMargin: asset.profitMargin ?? corporation.profitMargin,
     targetGrowthRate: corporation.targetGrowthRate,
     currentGrowthRate: corporation.currentGrowthRate,
   };
@@ -241,6 +269,7 @@ export function seedCorporateSectorAssets(world: WorldState): Record<string, Cor
       countryId: corporation.countryId,
       stateId: null,
       sectorType: corporation.sectorType,
+      profitMargin: corporation.profitMargin,
       ...plantCapital,
       workers: calculateSectorWorkers(corporation.revenue, null),
       representingUnionId,
@@ -282,9 +311,44 @@ export function validateCorporateSectorAssets(
     validateSectorLaborRelations(asset);
     validateSectorPlantCapital(asset);
     validateSectorStrategy(asset);
+    validateSectorPlantPnl(asset);
+    if (asset.mothballed !== undefined && typeof asset.mothballed !== "boolean") {
+      throw new Error(`Corporate sector ${asset.id} has invalid mothballed state`);
+    }
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
+  }
+}
+
+/** Schema-60 source P&L fields are either wholly absent or fully finite. */
+export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
+  if (asset.plantsPnl !== undefined) {
+    const pnl = asset.plantsPnl;
+    if (!pnl || !Number.isInteger(pnl.turn) || pnl.turn < 0) {
+      throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L turn`);
+    }
+    for (const field of ["revenue", "inputs", "labour", "upkeep", "otherOpex", "otherOpexUncapped", "financialLegs", "compliance", "policyCredit", "growth", "operatingCost", "totalCost", "profit"] as const) {
+      if (pnl[field] !== undefined && (typeof pnl[field] !== "number" || !Number.isFinite(pnl[field]))) {
+        throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L ${field}`);
+      }
+      if (["revenue", "inputs", "otherOpex", "policyCredit", "growth", "operatingCost", "totalCost", "profit"].includes(field) && pnl[field] === undefined) {
+        throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L ${field}`);
+      }
+    }
+    if (pnl.otherOpexCreditCapped !== undefined && typeof pnl.otherOpexCreditCapped !== "boolean") {
+      throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L otherOpexCreditCapped`);
+    }
+  }
+  for (const [field, value] of [
+    ["profitMargin", asset.profitMargin],
+    ["otherOpexPerUnitAnchor", asset.otherOpexPerUnitAnchor],
+    ["plantsUpkeepMarginBasisAnchor", asset.plantsUpkeepMarginBasisAnchor],
+    ["effectiveProfitMargin", asset.effectiveProfitMargin],
+  ] as const) {
+    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+      throw new Error(`Corporate sector ${asset.id} has an invalid ${field}`);
+    }
   }
 }
 
@@ -317,7 +381,7 @@ export function validateSectorStrategy(asset: CorporateSectorAsset): void {
 
 /** Persisted plant quantities must be finite, nonnegative source balances. */
 export function validateSectorPlantCapital(asset: CorporateSectorAsset): void {
-  for (const field of ["capitalStock", "capacityBookAnchor"] as const) {
+  for (const field of ["capitalStock", "capacityBookAnchor", "plantsUpkeepMarginBasisAnchor"] as const) {
     const value = asset[field];
     if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
       throw new Error(`Corporate sector ${asset.id} has invalid ${field}`);

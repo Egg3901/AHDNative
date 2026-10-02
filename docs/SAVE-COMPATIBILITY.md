@@ -8,6 +8,8 @@ Schema 64 persists source `seatsHeld` on actual multi-seat winners. PM, legislat
 
 Schema 65 adds bill corporation targets, legislative acquisition provenance and persisted player nationalization notices. Public bill sponsorship posts the source 48-turn notice; ordinary corporate turns complete due legislative notices, retain governing-party context, and cancel vanished or already state-owned targets. Legacy absence stays absent. Schema 42 projection explicitly refuses notice state. Four focused public action/save/ordinary-turn tests pass, including complete-world/RNG equality after reloading a recorded near-deadline continuation. That fixture does not establish a full 48-turn career, full nationalization parity, or current cross-engine interchange. Automatic strategic/monopoly cure resolution, sector-wide bills, complete UI authoring and an actual immutable schema-64 reader refusal artifact remain separate gates.
 
+The unpublished schema 65 integration also contains source NPP strategy memory, physical capacity replacement, corporate cash records, headquarters votes and corporate currency relocation. Individual producer tests are recorded separately; combined continuation and actual published-reader refusal still require qualification before publication. This is partial work on #107 and #75.
+
 ## Run
 
 ```sh
