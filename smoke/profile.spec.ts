@@ -46,6 +46,7 @@ test('profile picture, biography and standing survive a real save and resume', a
   await expect.poll(() => picture.evaluate(img => (img as HTMLImageElement).naturalWidth)).toBe(256);
   await expect(footer).toContainText('Turn 0 ·');
   await expect(profile.getByRole('region', { name: 'Political standing' })).toContainText('25 / 200');
+  await expect(profile.getByRole('button', { name: 'Change picture', exact: true })).toBeEnabled();
   const savedPicture = await picture.getAttribute('src');
   await page.reload();
   await page.getByRole('button', { name: 'Continue Profile Player' }).click();
@@ -58,6 +59,9 @@ test('profile picture, biography and standing survive a real save and resume', a
   await page.screenshot({ path: 'artifacts/reviews/profile-port/profile-saved-390.png', fullPage: true });
   await profile.getByRole('button', { name: 'Remove picture' }).click();
   await expect(picture).toHaveCount(0);
+  // The worker updates the profile before its save finishes. The enabled
+  // control is the public completion signal for the persisted update.
+  await expect(profile.getByRole('button', { name: 'Upload picture', exact: true })).toBeEnabled();
   await page.reload();
   await page.getByRole('button', { name: 'Continue Profile Player' }).click();
   await gameReady(page);

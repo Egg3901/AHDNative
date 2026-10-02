@@ -51,7 +51,7 @@ export interface Bill {
   sponsorPartyId: string | null;
   adminProposed?: boolean;
   nppSponsored?: boolean;
-  /** Source proposal accounting; refunded exactly once when this bill passes. */
+  /** Source proposal accounting for the public ledger; refunded once if this bill passes. */
   proposalActionCost?: number;
   proposalNpiCost?: number;
   proposalCostsRefunded?: boolean;
@@ -102,6 +102,7 @@ export type BillProvisionType =
   | "tariff"
   | "subsidy"
   | "end_subsidy"
+  | "union_law"
   | "nationalize"
   | "privatize"
   // W28: currency union accession. Source: src/lib/billEnactment.ts
@@ -127,6 +128,10 @@ export interface BillProvision {
   domesticOnly?: boolean;
   /** Target union id for type "currency_union". Source: finance/currencyUnion.ts. */
   currencyUnionId?: string;
+  /** AHDGame labour/unionLaws.ts national union-law axis. */
+  bias?: number;
+  /** National prohibition lifecycle; bans preserve the separately enacted bias. */
+  banAction?: "ban" | "repeal_ban";
   // For economy/partySupport provisions, carry delta payload via catalog
 }
 

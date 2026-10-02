@@ -97,8 +97,8 @@ command-economy plan/reform gravity remain unported. The R&D innovation stream
 adds sector capacity only; no national TFP effect is claimed. Extraction R&D
 still lacks the full source action, facility and regional prerequisite flow.
 
-The active #107 worktree adds a schema-60 asset P&L record and the pinned
-Game sector tech tree, including NPP one-node-per-turn selection after
+The active #107 worktree adds a pending finance-family asset P&L record and
+the pinned Game sector tech tree, including NPP one-node-per-turn selection after
 settlement, RD/cash debits, lane and unlock persistence, and consumption of
 production-rate, input-rate, price, margin, growth and strategy-unlock effects.
 The committed cost slice ports the pinned `laborCost.ts`, `idleUpkeep.ts`,

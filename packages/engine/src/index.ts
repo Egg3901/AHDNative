@@ -71,6 +71,8 @@ export type { FundCostInput } from "./actions/fundCost.js";
 export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
 export * from "./actions/polling.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
+export { proposalNpiCost, BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST } from "./legislation/proposalCosts.js";
+export { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "./legislation/freeze.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
 export * from "./membership.js";
 export * from "./caucus.js";
@@ -184,9 +186,23 @@ export type {
 } from "./unions/actions.js";
 export type { BargainingCampaign, CollectiveAgreement } from "./unions/campaigns.js";
 export type { BargainingTerms } from "./unions/bargaining.js";
-export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction } from "./unions/organizingActions.js";
+export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction, organizeUnionUndergroundAction } from "./unions/organizingActions.js";
 export { setUnionDuesAction } from "./unions/duesActions.js";
 export type { SetUnionDuesResult } from "./unions/duesActions.js";
+export { setUnionPoliticalContributionsAction } from "./unions/contributionActions.js";
+export * from "./unions/underground.js";
+export { processUndergroundTurn } from "./unions/undergroundTurn.js";
+export type { SetUnionPoliticalContributionsResult } from "./unions/contributionActions.js";
+export { applyUnionLawProvision, clampUnionLawBias, lawAdjustedUnionizationThreshold, STRIKE_LAW_THRESHOLD_WEIGHT } from "./unions/unionLaws.js";
+export {
+  extendUnionBanStrikeFromUnderground,
+  hasActiveUnionBanStrike,
+  triggerUnionBanStrike,
+  UNION_BAN_STRIKE_DURATION_TURNS,
+  UNDERGROUND_CRISIS_EXTENSION_LIMIT,
+  UNION_BAN_STRIKE_KIND,
+} from "./unions/unionBanStrike.js";
+export type { UnionLawProvision } from "./unions/unionLaws.js";
 export { averageAnnualWage, duesIncomePerTurn, maxDuesForWage, unionMembers } from "./unions/dues.js";
 export { representedSectorsForUnion } from "./unions/sectorAggregation.js";
 export { acceptUnionLeadership, castUnionLeadershipVote } from "./unions/leadership.js";
@@ -281,6 +297,7 @@ export {
   OUTPUT_GAP_BOUND,
 } from "./economy/macroConstants.js";
 export { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
+export * from "./government/pmAppointment.js";
 export { EXTRACTABLE_RESOURCES } from "./commodity/constants.js";
 export type { ExtractableResource } from "./commodity/constants.js";
 // #242 character-creation stats/wealth/alignment. Pure rules shared by the
@@ -380,7 +397,6 @@ export type { OpsTreeState, OpsChannelTotals } from "./campaigns/opsCurrentEffec
 // Authoritative player action refresh projection (#31), shared by the
 // actionRefresh phase and the Profile/footer resource breakdowns.
 export { projectPlayerActionRefresh, resolvePlayerSeat } from "./actions/officeBonus.js";
-export { BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST, proposalNpiCost } from "./legislation/proposalCosts.js";
 export type { PlayerActionProjection, PlayerSeat } from "./actions/officeBonus.js";
 
 // #49: the national-influence per-turn gain is projected from the exact function

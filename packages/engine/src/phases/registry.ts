@@ -90,6 +90,8 @@ import {
   leadershipElectionsPhase,
 } from "../intraparty/phases.js";
 import { governmentFormationPhase, governmentVacancyWatcherPhase } from "../government/phases.js";
+import { nppGovernmentDirectivesPhase } from "../government/directives.js";
+import { pmAppointmentPhase } from "../government/pmAppointment.js";
 import { impeachmentLifecyclePhase } from "../impeachment/phases.js";
 import { presidentialSuccessionPhase } from "../executive/phases.js";
 import { cabinetTransitionPhase, cabinetNominationLifecyclePhase } from "../cabinet/phases.js";
@@ -248,6 +250,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // the RNG-consuming phases (voteAccumulation, electionTimers) keep their
   // relative order. Later state-dependent RNG use can still change with
   // election outcomes; this is not a whole-world RNG equivalence claim.
+  governorEndorsementsPhase,
   campaignTurnPhase,
   // #68: leader pullback runs immediately after campaignTurn (which never
   // writes campaignStrength) and before voteAccumulation, matching mainline's
@@ -309,6 +312,8 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // its PM vacancy deadline cleared before governmentVacancyWatcherPhase
   // checks it, exactly as mainline's pmVacancyDeadline.ts requires.
   governmentFormationPhase,
+  nppGovernmentDirectivesPhase,
+  pmAppointmentPhase,
   governmentVacancyWatcherPhase,
   // W24 presidential succession/impeachment cluster at END before
   // newsMaintenance - same rng-stream-stability rule as every other tail
@@ -404,7 +409,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   governorAddressExpiryPhase,
   governorByElectionWatcherPhase,
   governorLegislationQueuePhase,
-  governorEndorsementsPhase,
   // #323: the W15 union cluster (unionsTurn, nppUnionBehavior) and the #315
   // pension phase used to live here at the tail; they now run immediately
   // after corporationTurnPhase near the head of this array, in mainline's

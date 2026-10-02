@@ -320,6 +320,8 @@ export interface WorldState {
    * Maintained by government/phases.ts. Schema v22.
    */
   governments: Record<string, GovernmentState>;
+  /** Pending/passed parliamentary PM nomination ballots. Source `pmAppointmentVotes`. */
+  pmAppointmentVotes: import("./government/pmAppointment.js").PmAppointmentVoteRecord[];
   /**
    * Cabinet (W29). Ports cabinetMembers + cabinetNominations
    * (src/lib/db/types/cabinet.ts, src/lib/cabinetNominationLifecycle.ts,
@@ -747,6 +749,15 @@ export interface Campaign {
   createdAtTurn: number;
 }
 
+/** Native projection of a source CharacterStateOrg row for presidential primaries. */
+export interface PrimaryStateOrganization {
+  level: number;
+  totalInvested: number;
+  updatedAtTurn: number;
+  lastBuildTurn: number;
+  lastBuildFunds: number;
+}
+
 export interface Politician {
   /** Deterministic id sequential per country, e.g. "US-1" */
   id: string;
@@ -1016,6 +1027,8 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** Source CharacterStateOrg rows keyed by US state. */
+  primaryStateOrganizations?: Record<string, PrimaryStateOrganization>;
   /** One normalized UK office constituency selection, valid only in its saved region. */
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
@@ -1031,6 +1044,8 @@ export interface PlayerCharacter {
    * ACTION_HOARD_PENALTY=4, threshold 100, cap 200 at PORT-STUB neutral.
    */
   actions: number;
+  /** Turn of the player's last illicit union drive, enforcing one drive across cells per turn. */
+  lastUndergroundDriveTurn?: number | null;
   /** Campaign funds (local) for player. */
   funds: number;
   donorBaseLevel: number;
@@ -1808,6 +1823,8 @@ export interface CrisisRecord {
   effects: Array<{ type: string; value: number; effectType: "flat" | "tick" | "decay" }>;
   status: "active" | "resolved";
   endTurn?: number;
+  /** Source union-ban general strike's once-per-turn underground extension guard. */
+  lastUndergroundExtensionTurn?: number;
   wireMessageOnStart: string;
   wireMessageOnEnd: string;
   playerResponse?: string | null;

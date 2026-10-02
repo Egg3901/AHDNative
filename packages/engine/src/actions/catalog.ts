@@ -63,8 +63,12 @@ export type ActionId =
   | "influenceNpp"
   | "recruitCaucusNpp"
   | "endorse"
+  | "governorEndorsePresidentialCandidate"
+  | "withdrawGovernorEndorsement"
   | "sponsorBill"
   | "voteOnBill"
+  | "proposePmAppointment"
+  | "votePmAppointment"
   | "repealLaw"
   | "invokeFilibuster"
   | "declareCandidacy"
@@ -115,6 +119,9 @@ export type ActionId =
   | "campaignRallyTour"
   | "campaignRetarget"
   | "campaignManager"
+  | "buildStatePresence"
+  | "setPrimaryCampaignState"
+  | "usePrimaryHomeStateSurge"
   | "campaignCanvass"
   | "campaignTargetedAd"
   | "campaignContribute"
@@ -459,10 +466,30 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["endorsement/support"],
     status: "available",
   },
+  governorEndorsePresidentialCandidate: {
+    id: "governorEndorsePresidentialCandidate",
+    name: "Governor Endorsement",
+    description: "As the sitting governor, endorse a same-party candidate in an active presidential race. Costs one gubernatorial office action point.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
+    status: "available",
+  },
+  withdrawGovernorEndorsement: {
+    id: "withdrawGovernorEndorsement",
+    name: "Withdraw Governor Endorsement",
+    description: "Withdraw your active presidential endorsement as its sitting governor.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
+    status: "available",
+  },
   sponsorBill: {
     id: "sponsorBill" as ActionId,
     name: "Sponsor Bill",
-    description: "Propose a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Costs 10 AP plus the provision's national influence cost.",
+    description: "Propose a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Costs 10 AP and 5 NPI per ordinary policy provision; tariff provisions cost no NPI.",
     baseCost: 10,
     cooldown: 1,
     fundCost: 0,
@@ -477,6 +504,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["legislation/voting"],
+    status: "available",
+  },
+  proposePmAppointment: {
+    id: "proposePmAppointment",
+    name: "Nominate Head of Government",
+    description: "An elected member who chairs a party with enough seats may nominate themselves for a 24-turn appointment vote.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["government/pmAppointment"],
+    status: "available",
+  },
+  votePmAppointment: {
+    id: "votePmAppointment",
+    name: "Vote on Government Appointment",
+    description: "Cast an aye or nay in an active parliamentary appointment vote.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["government/pmAppointment"],
     status: "available",
   },
   repealLaw: {
@@ -968,6 +1015,36 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign/management"],
+    status: "available",
+  },
+  buildStatePresence: {
+    id: "buildStatePresence",
+    name: "Build campaign presence",
+    description: "Spend campaign actions and funds to build a source-priced presence level in a US state.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-presence"],
+    status: "available",
+  },
+  setPrimaryCampaignState: {
+    id: "setPrimaryCampaignState",
+    name: "Campaign in a primary state",
+    description: "Move your primary campaign to a US state; the action cost follows that state's source electoral-vote tier.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
+    status: "available",
+  },
+  usePrimaryHomeStateSurge: {
+    id: "usePrimaryHomeStateSurge",
+    name: "Use home-state primary surge",
+    description: "Spend 3 actions and $25,000 for the source 15% vote boost in your home state for this primary.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
     status: "available",
   },
   campaignCanvass: {

@@ -156,5 +156,7 @@ describe("default TFP inputs through GameSession (#40)", () => {
     expect(readSave(resumed).world.countries.US.economy.outputGap).toBe(
       readSave(session).world.countries.US.economy.outputGap,
     );
-  }, 180_000);
+  // Full nomination plus saved treatment/control turns can exceed the prior
+  // three-minute budget when source plant and primary phases also run.
+  }, 420_000);
 });

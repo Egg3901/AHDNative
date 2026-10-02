@@ -77,10 +77,15 @@ function firstUsUnion(world: World): string {
   return id;
 }
 
-function corpCash(world: World): number {
+function corpCashDeltaCents(treatment: World, control: World): number {
+  expect(Object.keys(treatment.corporations).sort()).toEqual(Object.keys(control.corporations).sort());
   let total = 0;
-  for (const corp of Object.values(world.corporations)) total += corp.liquidCapital;
-  return Math.round(total * 100) / 100;
+  for (const [id, corp] of Object.entries(treatment.corporations)) {
+    // Each employer's debit settles in cents. Subtract those balances before
+    // summing; subtracting two worldwide cash totals loses small payments.
+    total += Math.round(control.corporations[id]!.liquidCapital * 100) - Math.round(corp.liquidCapital * 100);
+  }
+  return total;
 }
 
 /**
@@ -209,7 +214,7 @@ describe("finance phase reconcile #317", () => {
     expect(scheme!.lastChargedTurn).toBe(1);
     expect(b.world.pensionSchemes?.[b.unionId]).toBeUndefined();
     const moved = scheme!.totalContributions + scheme!.totalTopUps;
-    expect(Math.round((corpCash(b.world) - corpCash(a.world)) * 100) / 100).toBeCloseTo(moved, 2);
+    expect(corpCashDeltaCents(a.world, b.world)).toBe(Math.round(moved * 100));
 
     // Wires: immediate settlement persists through the turn untouched. No
     // turn phase consumes wire state, so recipients and quota read exactly

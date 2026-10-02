@@ -1,27 +1,56 @@
+## Pending election, career government and paid-taking integration
+
+Original #97 and #98 remain open until the combined full gate and original
+criterion review pass. Primary waves, delegates and convention resolution are
+integrated with source DC/ME/NE Electoral College paths, VP home-state and actual
+governor endorsement producers. German and Chinese career players now have a
+party-chair nomination and parliamentary appointment path; formation freeze
+remains in force before the appointment. Focused appointment/save and legislature
+UI checks pass; the complete earned-seat career journeys are still being checked.
+
+Paid executive taking has source fair/discounted/seizure payouts, treasury and
+political consequences, actual output-based ownership concentration and two
+phone worker/save/resume evidence. See
+[the paid-taking checkpoint](STATE-OWNERSHIP-COMPENSATION-75.md).
+#75, #107, #114, #284, #96 and #101 remain partial. This pending integration
+adds no issue closure to the accepted count below.
+
 ## Current parity count and ownership correction, 2026-10-02
 
-Current GitHub state: **53 open from 63: 40 partial, 8 not started, 3 deferred, 2 blocked**.
-Ten verified closures: #308, #297, #51, #110, #111, #299, #115, #286, #287 and #40.
-Source plants audit reopened #298/#211; parent #211 is 6/7. #75 is partial,
-with all four broad original criteria unchecked.
+Current GitHub state: **51 open from 63: 38 partial, 8 not started, 3 deferred, 2 blocked**.
+Thirteen verified night closures: #308, #297, #51, #110, #111, #299, #115,
+#286, #287, #40, #322, #298 and #211. All seven #211 children are closed.
+#75 remains partial, with all four broad original criteria unchecked.
 
-Register [PR #723](https://github.com/Egg3901/AHDNative/pull/723) merged
-`f6b92ef` after exact `c77a300` passed the complete app/engine/content/browser/Rust
-[gate 36948341621](https://github.com/Egg3901/AHDNative/actions/runs/36948341621).
+[PR #728](https://github.com/Egg3901/AHDNative/pull/728) merged `2e844c9`
+after exact `2dc0fb6` passed the complete app/engine/content/browser/Rust
+[gate 36959645371](https://github.com/Egg3901/AHDNative/actions/runs/36959645371).
+The original #322 bargaining criteria are complete: worker and industry political
+feedback reaches the actual regional board, persists and decays through ordinary
+turns, and introduces no duplicate corporate or plant economic damage. Public
+organization, leadership, dues, bargaining, deadline dispute, treatment/control
+and save/replay evidence passed. Schema 54 preserves absent history and makes
+the actual prior reader refuse continuation it cannot consume.
+
+The same accepted head delivers current source NPC/player creator classification,
+72-turn financial/CEO-vacancy grace, 168-turn cooldown and schema 53 refusal for
+older readers. Real CEO action/turn/save paths, strict save boundaries and
+fresh NPC two-phone worker resumes pass. Source plants receive the 85%
+capacity/paid-basis transition; paid construction, ordered queues and earlier ramp
+survive. Public reparent/merge RED cases became GREEN through ordinary production
+and reload. The source implementation and tests are identical to the pending
+eligibility candidate. [Evidence](NATIONALIZATION-ELIGIBILITY-75.md).
+All original #298 criteria, including accepted government authority and separate
+secession ownership/unowned-pool conservation, are checked and qualified by the
+same full gate. #298 and parent #211 are confirmed closed again.
+
 Budget opens the actual National Corporation register and current holdings,
-with company return navigation, source debt/None compensation and treasury cash.
-
-The active continuation adds current source NPC/player creator classification,
-72-turn financial/CEO-vacancy grace, 168-turn cooldown and schema53 refusal for
-older readers. Actual CEO action/turn/save paths, strict save boundaries and
-fresh NPC two-phone worker resumes pass. Source plants now receive the 85%
-capacity/paid-basis transition; paid construction/ordered queues and earlier ramp
-survive. Two public reparent/merge RED cases became GREEN through ordinary
-production and reload. [Evidence](NATIONALIZATION-ELIGIBILITY-75.md).
-These changes await the integrated final gate and merge before restoring
-#298/#211 closure. Full #75 eligibility, compensation, notices, political effects,
-auctions, national planning and special-court/country flows remain the goal.
-Dated earlier checkpoints below are historical; this count supersedes them.
+with company return navigation, source debt/None compensation and treasury cash,
+accepted earlier in [PR #723](https://github.com/Egg3901/AHDNative/pull/723).
+Full #75 compensation, strategic/monopoly/legislative eligibility, notices,
+political effects, auctions, national planning and special-court/country flows
+remain active work. Dated earlier checkpoints below are historical;
+this count and accepted state supersede them.
 
 Selected CN/DE tax laws are complete: [PR #721](https://github.com/Egg3901/AHDNative/pull/721)
 merged `a96a02d` after exact `a3b1c0e` passed the
@@ -42,6 +71,20 @@ retain their source seed-only behavior. Current GDP growth reaches fiscal bases
 and receipts after aggregation. Public saved treatment/control and actual
 320px/390px education-spending/registry/resume flows pass. #40 is closed;
 [GROWTH-PARITY.md](GROWTH-PARITY.md) records the evidence. Wider #106 remains open.
+
+
+Irish VAT [PR #724](https://github.com/Egg3901/AHDNative/pull/724) merged
+`8138063` after exact `798e0a1` passed the
+[full gate](https://github.com/Egg3901/AHDNative/actions/runs/36957264821).
+The actual Native proposal/vote/enactment/phase-in/replacement/repeal and
+320px/390px worker/save/resume flow is verified. #284 remains partial for the
+complete source NPP agenda/urgency and a reference-playable Irish career;
+57 other law rows retain named blockers. Automatic closure was reversed.
+
+The current source audit reopened #98 for missing live ME/NE district handling,
+VP home-state and real governor-endorsement producers/modifiers. Its four
+original acceptance groups remain unchecked. The work is active; an earlier
+closure did not establish those mechanics. Current open count includes #98.
 
 # AHDNative roadmap
 

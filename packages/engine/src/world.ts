@@ -159,18 +159,28 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v48: interbank loan book (world.interbankLoans); see save.ts.
 // v49: source-authored corporation HQ region identity; see save.ts.
 // v50: deterministic local corporation name and brand identity; see save.ts.
-// v51: source political boards and lagged cabinet driver state; see save.ts.
+// v51: source NPP government agenda and political boards/lagged cabinet
+// driver state; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
 // v52: durable state-ownership action history; older readers cannot record continuation.
-// v53: nationalization origin and grace history.
-// v54-v55: reserved union and primary state writers.
+// v53: source nationalization eligibility and issuer history; earlier saves
+// retain absent creation/grace history rather than receiving invented clocks.
+// v54: persisted labour political snapshots affect future regional dynamics;
+// older readers retain unknown JSON but cannot consume the consequence.
+// v55: source primary waves, delegates and campaign history.
 // v56: corporate strategy-transition state.
 // v57: source paid-taking tiers, confidence history and actual ownership concentration.
-// v60: persisted per-asset plant P&L and corporate tech-tree continuation.
-export const SCHEMA_VERSION = 60;
+// v58: presidential unit ruleset and election-scoped governor endorsement ledger.
+// v59: enacted national union-ban and law-bias state drive future labor turns;
+// older readers must refuse these saves instead of treating the budget fields
+// as inert extensions.
+// v61: country-scoped parliamentary player appointments beyond the Irish-only reader.
+// v62: union-law, underground organizing, detection, and ban-strike continuation
+// must not be accepted by the schema-61 reader, which cannot consume that state.
+export const SCHEMA_VERSION = 62;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1011,6 +1021,35 @@ export function createWorld(options: NewWorldOptions): WorldState {
   }
   const stateResourceCapacities = seedStateResourceCapacities(regionIdsByCountry, pack.era.id);
 
+  // AHDGame's authored IE governmentFormation seed is present at the 1991 and
+  // 2019 Irish starts in `src/lib/countries/ie/data/ieGovernmentFormation.ts`:
+  // pending, no Taoiseach, and Dáil Éireann's 160 seats / 81-seat majority.
+  // Keep that real pending state so the shared source legislation freeze is
+  // active before Native's first government-formation turn.
+  const governments: WorldState["governments"] = {};
+  const initialDail = legislatures.IE?.chambers.find((chamber) => chamber.key === "dail");
+  if (initialDail) {
+    governments.IE = {
+      countryId: "IE",
+      chamberKey: "dail",
+      status: "pending",
+      formationType: null,
+      governingPartyId: null,
+      coalitionPartyIds: null,
+      pmPoliticianId: null,
+      totalSeatsSupporting: 0,
+      majorityThreshold: 81,
+      totalSeats: 160,
+      seatsByParty: {},
+      lostMajority: false,
+      formedTurn: null,
+      snapElectionsUsed: 0,
+      lastSnapElectionTurn: null,
+      pmVacancyDeadlineTurn: null,
+      confidence: 0,
+    };
+  }
+
   const world: WorldState = {
     meta: {
       schemaVersion: SCHEMA_VERSION,
@@ -1075,14 +1114,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
     nationalPartyElections: [],
     nationalCommitteeElections: [],
     coalitions: [],
-    // W23: parliamentary government state is lazily created by
-    // government/phases.ts governmentFormationPhase on its first run per
-    // country, not seeded here - mirrors how elections/orchestration.ts
-    // lazily spawns the first ElectionRecord rather than world.ts hardcoding
-    // one, so the formation logic has exactly one code path (no
-    // seed-vs-runtime duplication) for both a fresh world and a country that
-    // is created without a legislature this era.
-    governments: {},
+    // W23: IE begins from its source-authored pending Dáil government; other
+    // parliamentary records remain lazily created by governmentFormationPhase.
+    governments,
+    pmAppointmentVotes: [],
     cabinetMembers: [],
     cabinetNominations: [],
     supremeCourtSeats: [],
