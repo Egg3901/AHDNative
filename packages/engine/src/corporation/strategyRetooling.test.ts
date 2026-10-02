@@ -161,7 +161,7 @@ describe("corporation strategy transition source vectors", () => {
     expect(resumed.plantMarketDemand).toEqual(world.plantMarketDemand);
   });
 
-  it("finishes the 12-turn transition and enforces the 24-turn cooldown across save and replay", () => {
+  it("finishes the 12-turn transition and clears the source cooldown across save and replay", () => {
     const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: "corp-source-retool-full-cycle", playerName: "Alex" });
     const corp = world.corporations["US-extraction"]!;
     const asset = Object.values(corporateSectorAssets(world)).find(row => row.corporationId === corp.id)!;
@@ -184,31 +184,34 @@ describe("corporation strategy transition source vectors", () => {
     // restart the strategy's source 12-turn clock.
     for (let i = 0; i < 6; i++) advanceTurn(world);
     const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
-    for (let i = 6; i < 12; i++) {
+    for (let i = 6; i < 11; i++) {
       advanceTurn(world);
       advanceTurn(resumed);
     }
+    const whileTransitioning = executeAction(world, "player", "setCorporateSectorStrategy", {
+      corpId: corp.id, sectorId: asset.id, strategyId: "oil_gas",
+    });
+    expect(whileTransitioning).toMatchObject({
+      ok: false,
+      error: "Already transitioning to a new strategy. Wait for completion.",
+    });
+    advanceTurn(world);
+    advanceTurn(resumed);
     const live = world.corporateSectors![asset.id]!;
     const replayed = resumed.corporateSectors![asset.id]!;
     expect(replayed).toEqual(live);
     expect(live.transitionFromStrategyId).toBeUndefined();
+    expect(live.transitionStartTurn).toBeUndefined();
+    // Game sectorTurn cleanup clears this timestamp at the 12-turn transition
+    // boundary despite the initial command recording a +24 turn value.
+    expect(live.transitionCooldownUntilTurn).toBeUndefined();
     expect(live.strategyId).toBe("iron_mining");
-    expect(live.transitionCooldownUntilTurn).toBe(24);
-
-    // Retooling is unavailable on turn 23 but becomes legal on the exact
-    // source cooldown boundary (turn 24).
-    while (world.meta.turn < 23) advanceTurn(world);
-    const beforeExpiry = executeAction(world, "player", "setCorporateSectorStrategy", {
-      corpId: corp.id, sectorId: asset.id, strategyId: "oil_gas",
-    });
-    expect(beforeExpiry).toMatchObject({ ok: false, error: "Strategy change on cooldown. 1 turns remaining." });
-    advanceTurn(world);
     const atExpiry = executeAction(world, "player", "setCorporateSectorStrategy", {
       corpId: corp.id, sectorId: asset.id, strategyId: "oil_gas",
     });
     expect(atExpiry.ok).toBe(true);
-    expect(asset.transitionStartTurn).toBe(24);
-    expect(asset.transitionCooldownUntilTurn).toBe(48);
+    expect(asset.transitionStartTurn).toBe(12);
+    expect(asset.transitionCooldownUntilTurn).toBe(36);
   });
 
   it("rejects non-CEO, unaffordable, and same-strategy retools without partial writes", () => {

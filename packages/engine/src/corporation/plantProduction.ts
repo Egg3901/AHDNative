@@ -182,6 +182,11 @@ export function runCorporatePlantProductionTurn(
     if (!effectiveStrategy.isTransitioning && asset.transitionFromStrategyId) {
       delete asset.transitionFromStrategyId;
       delete asset.transitionStartTurn;
+      // Game sectorTurn clears the 24-turn timestamp when its 12-turn blend
+      // finishes (sectorCalculations.test.ts asserts this exact write). The
+      // command sets a +24 deadline, but the source turn cleanup intentionally
+      // makes the strategy available again at transition completion.
+      delete asset.transitionCooldownUntilTurn;
     }
   }
 
