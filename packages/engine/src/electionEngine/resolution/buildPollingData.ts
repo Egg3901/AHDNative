@@ -12,7 +12,7 @@ type PoliticalParty = PoliticalPartyInput;
 type PrimarySnapshot = PrimarySnapshotInput;
 type ElectionVoteTally = ElectionVoteTallyInput;
 type PartyGroup = PartyGroupInput;
-import { applyMajoritarianBonus, getMultiSeatMinShare, type MajoritarianBonusConfig } from "./seatAllocation.js";
+import { getMultiSeatMinShare } from "./seatAllocation.js";
 // PartyGroup already defined above
 // PollingData already defined above
 import { MULTI_SEAT_TYPES } from "./constants.js";
@@ -34,11 +34,6 @@ export function computeSeatEstimates(
   totalSeats: number | null | undefined,
   tally: ElectionVoteTally | null,
   activeCandidateIdSet: Set<string>,
-  // FPTP winner's bonus (#3244): pass getMajoritarianBonus(electionType,
-  // gameState.currentYear) so the projected-seats panel matches how the race
-  // will actually resolve in historical in-game years (pre-1999).
-  // Omitted/undefined → proportional (current behavior).
-  majoritarianBonus?: MajoritarianBonusConfig
 ): Record<string, number> | null {
   // Same gate as the engine (allocateSeats + the per-turn estimate in
   // tallyManagement): every MULTI_SEAT_TYPES race, plus a "senate" race that
@@ -63,9 +58,7 @@ export function computeSeatEstimates(
   }
   if (totalActiveVotes === 0) return null;
 
-  const minShare = getMultiSeatMinShare(electionType, {
-    majoritarian: majoritarianBonus !== undefined,
-  });
+  const minShare = getMultiSeatMinShare(electionType);
   const allEntries = Object.entries(activeVotes);
 
   // Eligibility must match `allocateSeats` exactly, or the projected-seats
@@ -110,26 +103,8 @@ export function computeSeatEstimates(
   const seats: Record<string, number> = {};
   for (const [cid] of allEntries) seats[cid] = 0;
 
-  // Cube-law re-split of the top-two party groups (party from the tally's
-  // candidateParties map; candidates without one stand alone). Effective
-  // weights sum to poolVotes, so the Largest Remainder step is untouched.
-  const effectiveVotes =
-    majoritarianBonus && pool.length > 1
-      ? applyMajoritarianBonus(
-          pool.map(([cid, v]) => {
-            const party = tally.candidateParties?.[cid];
-            return {
-              id: cid,
-              votes: v,
-              group: party && party !== "independent" ? `party:${party}` : `cand:${cid}`,
-            };
-          }),
-          majoritarianBonus
-        )
-      : undefined;
-
   const allocs = pool.map(([cid, v]) => {
-    const exact = ((effectiveVotes?.get(cid) ?? v) / poolVotes) * totalSeats;
+    const exact = (v / poolVotes) * totalSeats;
     return { cid, floor: Math.floor(exact), remainder: exact - Math.floor(exact) };
   });
 

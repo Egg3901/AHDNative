@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 let _ctr=0; class ObjectId { _id: string; constructor(){ this._id = `oid-${++_ctr}`; } toString(){ return this._id; } equals(o:any){ return this._id===o._id; } }
 type ElectionCandidate = any; type PoliticalParty = any; type PrimarySnapshot = any;
 import { buildPollingData, computeSeatEstimates } from "./buildPollingData.js";
-import { allocateSeats, getMajoritarianBonus } from "./seatAllocation.js";
+import { allocateSeats } from "./seatAllocation.js";
 
 // Minimal fixtures — buildPollingData only reads the fields set here.
 function makeCandidate(overrides: Partial<ElectionCandidate>): ElectionCandidate {
@@ -211,8 +211,6 @@ describe("buildPollingData — primary phase", () => {
 // shapes that used to diverge.
 
 describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", () => {
-  const YEAR_1953 = 1953;
-  const bonus = getMajoritarianBonus("commons", YEAR_1953);
 
   /** Runs both engines over the same votes and returns per-party seat totals. */
   function bothEngines(
@@ -226,8 +224,7 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
       "commons",
       seats,
       tally,
-      new Set(Object.keys(votes)),
-      bonus
+      new Set(Object.keys(votes))
     );
     const ranked = Object.entries(votes)
       .map(([id, v]) => ({ id, votes: v, party: parties[id] }))
@@ -240,7 +237,9 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
       ranked,
       totalVotes,
       undefined,
-      bonus
+      undefined,
+      undefined,
+      "UK"
     ).seatsEstimate;
     const byParty = (est: Record<string, number> | null) => {
       const out: Record<string, number> = {};

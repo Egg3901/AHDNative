@@ -506,11 +506,6 @@ export function accumulateVoteTurn(
     totalSeats: election.totalSeats ?? null,
     enriched: effEnriched,
     newTotals,
-    currentYear: derived.currentYear ?? null,
-    statePartyOrgs: input.statePartyOrgs.map((po) => ({
-      partyId: po.partyId,
-      organization: po.organization,
-    })),
   });
 
   // Build snapshot
