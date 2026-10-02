@@ -1,7 +1,7 @@
 ## Current parity count and ownership correction, 2026-10-02
 
-Current GitHub state: **56 open from 63: 43 partial, 8 not started, 3 deferred, 2 blocked**.
-Seven verified closures remain #308,#297,#51,#110,#111,#299 and #115.
+Current GitHub state: **54 open from 63: 41 partial, 8 not started, 3 deferred, 2 blocked**.
+Nine verified closures: #308, #297, #51, #110, #111, #299, #115, #286 and #287.
 Source plants audit reopened #298/#211; parent #211 is 6/7. #75 is partial,
 with all four broad original criteria unchecked.
 
@@ -22,6 +22,16 @@ These changes await the integrated final gate and merge before restoring
 #298/#211 closure. Full #75 eligibility, compensation, notices, political effects,
 auctions, national planning and special-court/country flows remain the goal.
 Dated earlier checkpoints below are historical; this count supersedes them.
+
+Selected CN/DE tax laws are complete: [PR #721](https://github.com/Egg3901/AHDNative/pull/721)
+merged `a96a02d` after exact `a3b1c0e` passed the
+[full app/engine/content/browser/Rust gate](https://github.com/Egg3901/AHDNative/actions/runs/36953474054).
+All five CN and seven DE rows pass real career proposal/vote/enactment/effect,
+supported replacement/repeal and save/reload; source home-state ballots and
+actual 320px/390px SP decree/replacement/budget/resume journeys pass. #286 and
+#287 are closed, with original criteria checked and incomplete labels removed.
+[Evidence](DE-CN-TAX-LAW-CAREER-EVIDENCE-286-287.md). Parent #101 is 4/7;
+its broader catalog, unavailable inventory and NPC agenda scope remain open.
 
 # AHDNative roadmap
 
