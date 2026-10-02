@@ -15,6 +15,9 @@ export interface StateOwnershipEntry {
   compensationAnchor: number;
   debtAnchor: number;
   shareholdersSettled: number;
+  /** Older acquisition records retain their original absence. */
+  confidenceBefore?: number;
+  confidenceAfter?: number;
   turn: number;
 }
 
@@ -51,6 +54,12 @@ export function validateStateOwnershipLedger(world: WorldState): void {
       || !Number.isInteger(row.turn) || (row.turn as number) < 0 || (row.turn as number) > world.meta.turn) {
       throw new Error("Invalid state ownership record");
     }
+    for (const key of ["confidenceBefore", "confidenceAfter"]) {
+      if (Object.hasOwn(row, key) && (typeof row[key] !== "number" || !Number.isFinite(row[key]) || (row[key] as number) < 0 || (row[key] as number) > 100)) {
+        throw new Error("Invalid state ownership confidence record");
+      }
+    }
+    if (Object.hasOwn(row, "confidenceBefore") !== Object.hasOwn(row, "confidenceAfter")) throw new Error("Invalid state ownership confidence record");
     ids.add(row.id);
   }
 }

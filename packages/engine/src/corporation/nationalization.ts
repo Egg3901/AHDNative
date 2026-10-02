@@ -7,6 +7,7 @@ import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "../government/constants.js";
 import { isRecordedSingleplayerHeadOfGovernment } from "../government/singleplayerHeadOfGovernment.js";
 import { executiveTakingEligibility } from "./nationalizationEligibility.js";
 import { nationalizationCompensation, settleNationalizationCompensation, indicativeNationalizationCompensation, type CompensationTier } from "./nationalizationCompensation.js";
+import { applyExecutiveTakingConsequences } from "./nationalizationConsequences.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
 export const NATIONALIZATION_REVENUE_KEEP = 0.85;
@@ -208,6 +209,7 @@ export function nationalizeDistressedCorporation(
   national.foundingRevenue += Math.round(donor.foundingRevenue * keep);
   national.currentGrowthCost += Math.round(donor.currentGrowthCost * keep);
   world.corporations[nationalCorporationId] = national;
+  const consequences = applyExecutiveTakingConsequences(world, donor.countryId, eligibility.triggers, tier, compensation.valuationAnchor, compensation.payoutAnchor);
   const ledger = world.stateOwnershipLedger ??= [];
   ledger.push({
     id: `taking-${donor.countryId}-${world.meta.turn}-${ledger.length}-${donor.id}`,
@@ -222,6 +224,7 @@ export function nationalizeDistressedCorporation(
     compensationAnchor: compensation.payoutAnchor,
     debtAnchor,
     shareholdersSettled: donor.shareholders.length,
+    ...consequences,
     turn: world.meta.turn,
   });
   return {
