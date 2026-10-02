@@ -21,6 +21,7 @@ import { declareCandidacy } from "./candidacy.js";
 import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
 import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS, UK_DEVOLVED_GOVERNOR_REGIONS } from "../government/constants.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
+import { nppAutonomyLevelAtLeast, resolveNppAutonomyLevel } from "../nppAutonomyLevel.js";
 import { UK_REGIONAL_COUNCIL_COHORT_BY_REGION } from "../electionEngine/midtermOppositionBoost.js";
 
 /**
@@ -85,6 +86,13 @@ export interface SeriesSpec {
 
 export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   const specs: SeriesSpec[] = [];
+  // AHDGame RU/DD/eastern-bloc source gates are live for beta/active player
+  // countries, or for non-player countries governed by NPP at v1+. Native has
+  // no runtime country-status table: the selected playable country is its
+  // active/player-enabled equivalent; other seeded countries follow NPP v1.
+  const sourceNppCountryLive = (countryId: string): boolean =>
+    world.player.countryId === countryId ||
+    nppAutonomyLevelAtLeast(resolveNppAutonomyLevel(world.nppAutonomyLevel), "v1");
   const regions = world.regions ?? {};
   const cycleContext = cycleContextForWorld(world);
   const cycleAnchors = getCycleAnchors(cycleContext);
@@ -110,6 +118,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   for (const region of Object.values(regions)) {
     const r = region as unknown as { id: string; countryId: string };
     if (!GOVERNOR_COUNTRIES.has(r.countryId)) continue;
+    if ((r.countryId === "RU" || r.countryId === "DD") && !sourceNppCountryLive(r.countryId)) continue;
     if (r.countryId === "UK") {
       // AHDGame's initialUKDevolutionState activates Scotland, Wales and NI
       // from 1999, and London from 2000. Native has no policy-backed office
@@ -181,13 +190,13 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
     }
   }
   // RU: supreme soviet chambers; DD: volkskammer. Single-list national races.
-  if (world.legislatures["RU"]) {
+  if (world.legislatures["RU"] && sourceNppCountryLive("RU")) {
     for (const [type, key] of [["supremeSovietDeputy", "sovietOfTheUnion"], ["nationalitiesDeputy", "sovietOfNationalities"]] as const) {
       const ch = world.legislatures["RU"].chambers.find((c) => c.key === key);
       if (ch && ch.elected) specs.push({ electionType: type, countryId: "RU", chamberKey: ch.key, totalSeats: ch.seats });
     }
   }
-  if (world.legislatures["DD"]) {
+  if (world.legislatures["DD"] && sourceNppCountryLive("DD")) {
     const vk = world.legislatures["DD"].chambers.find((c) => c.key === "volkskammer");
     if (vk && vk.elected) specs.push({ electionType: "volkskammerDeputy", countryId: "DD", chamberKey: "volkskammer", totalSeats: vk.seats });
   }
@@ -213,6 +222,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
     const r = region as unknown as { id: string; countryId: string; senateSeats?: number };
     const spec = SUBNATIONAL_CHAMBERS[r.countryId];
     if (!spec) continue;
+    if ((r.countryId === "RU" || r.countryId === "DD") && !sourceNppCountryLive(r.countryId)) continue;
     if (typeof r.senateSeats !== "number" || r.senateSeats <= 0) continue;
     const leg = world.legislatures[r.countryId];
     const chamber = leg?.chambers.find((c) => c.key === spec.chamberKey);

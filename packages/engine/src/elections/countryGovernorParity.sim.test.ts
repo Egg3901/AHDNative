@@ -43,6 +43,22 @@ describe("source country governor election families", () => {
     }
   });
 
+  it("matches source RU/DD beta-or-NPP election liveness", () => {
+    const nonPlayer = createWorld({ seed: "ru-dd-gate-off", playerName: "Tester", countryId: "US", era: "1953" });
+    nonPlayer.nppAutonomyLevel = "off";
+    expect(electionSeriesForWorld(nonPlayer).some((spec) => spec.countryId === "RU" || spec.countryId === "DD")).toBe(false);
+
+    const nppGoverned = { ...nonPlayer, nppAutonomyLevel: "v1" as const };
+    expect(electionSeriesForWorld(nppGoverned).some((spec) => spec.countryId === "RU")).toBe(true);
+    expect(electionSeriesForWorld(nppGoverned).some((spec) => spec.countryId === "DD")).toBe(true);
+
+    for (const countryId of ["RU", "DD"] as const) {
+      const playerCountry = createWorld({ seed: `player-${countryId}`, playerName: "Tester", countryId, era: "1953" });
+      playerCountry.nppAutonomyLevel = "off";
+      expect(electionSeriesForWorld(playerCountry).some((spec) => spec.countryId === countryId)).toBe(true);
+    }
+  });
+
   it("spawns only the source-initialized UK devolved executives and persists their result", () => {
     const world = createWorld({ seed: "uk-executives", playerName: "Tester", countryId: "UK", era: "2019" });
     const endTurn = getCycleAnchors(cycleContextForWorld(world)).governorStateSenate;
