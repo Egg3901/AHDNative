@@ -26,6 +26,7 @@ import { TrendChart } from "./TrendChart";
 import { UnionManagementPanel } from "./UnionManagementPanel";
 import type { UnionManagementView } from "../game/unionManagement";
 import { DetailQuery } from "./DetailQuery";
+import { NationalCompanyManagementPanel } from "./NationalCompanyManagementPanel";
 import { StateOwnershipPanel } from "./StateOwnershipPanel";
 import { NationalizeWizard } from "./NationalizeWizard";
 
@@ -798,6 +799,7 @@ function CompanyDetail({
   const [officialView, setOfficialView] = useState(false);
   const registerAvailable = listing.nationalCountryId !== undefined && loadStateOwnership !== undefined;
   const nationalization = markets.nationalization?.countryId === listing.nationalCountryId ? markets.nationalization : undefined;
+  const nationalCompanyManagement = markets.nationalCompanyManagement?.countryId === listing.nationalCountryId ? markets.nationalCompanyManagement : undefined;
   const loadRegister = useCallback(() => loadStateOwnership!(listing.nationalCountryId), [loadStateOwnership, listing.nationalCountryId]);
   useEffect(() => { setCompanyTab(initialCompanyTab); setOfficialView(false); }, [listing.id, initialCompanyTab]);
   const [shares, setShares] = useState("");
@@ -884,7 +886,7 @@ function CompanyDetail({
     {(["overview", "register", ...(nationalization && officialView ? ["nationalize"] as const : [])] as const).map(tab => <button type="button" role="tab" aria-selected={companyTab === tab}
       key={tab} className={`ahd-btn ahd-btn-sm ${companyTab === tab ? "" : "ahd-btn-ghost"}`} onClick={() => setCompanyTab(tab)}>{tab === "overview" ? "Overview" : tab === "register" ? "Register" : "Nationalize"}</button>)}
   </div>;
-  const roleToggle = registerAvailable && nationalization && <div role="group" aria-label="National Corporation view" style={{ display: "flex", gap: "0.5rem" }}>
+  const roleToggle = registerAvailable && (nationalization || nationalCompanyManagement) && <div role="group" aria-label="National Corporation view" style={{ display: "flex", gap: "0.5rem" }}>
     <button type="button" className="ahd-btn ahd-btn-sm" aria-pressed={!officialView} onClick={() => { setOfficialView(false); if (companyTab === "nationalize") setCompanyTab("overview"); }}>Public</button>
     <button type="button" className="ahd-btn ahd-btn-sm" aria-pressed={officialView} onClick={() => setOfficialView(true)}>Official</button>
   </div>;
@@ -921,6 +923,7 @@ function CompanyDetail({
       {companyHeroView}
       {roleToggle}
       {companyTabs}
+      {officialView && nationalCompanyManagement && <NationalCompanyManagementPanel view={nationalCompanyManagement} busy={busy} onAction={onAction} />}
 
       <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Company</h2>

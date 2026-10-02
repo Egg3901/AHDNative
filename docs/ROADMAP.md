@@ -1,3 +1,21 @@
+## Pending National Corporation reorganization (#75)
+
+The official company overview now offers the source treasury-authorized split
+and merge commands. A complete industry can move into a fresh state issuer,
+including an empty claim that routes future takings. A split-off can merge into
+the primary company or another domestic state company. Existing assets retain
+their plant, workers, strategy and production state; no treasury payment or
+unowned-sector abandonment occurs. A command-economy overlay starts from actual
+sector output and capacity, using the current source adoption kernel.
+
+Two public action/save journeys and an integrated company UI journey pass.
+Actual source adoption vectors match. The published schema63 reader can load
+both split and merged saves and produce an identical complete world, including
+RNG state, after an ordinary turn and reload. Reorganization therefore retains
+schema63. The combined full gate remains pending, and #75 stays partial.
+The source contract was checked at
+[AHDGame e6803596](https://github.com/Egg3901/AHDGame/blob/e6803596013fc6302b254f29cd283aae7cf798d7/src/lib/nationalization/restructure.ts).
+
 ## Pending primary National Corporation routing (#75)
 
 The first executive taking now creates the source financial holding company:
@@ -18,7 +36,7 @@ pending; this adds no accepted closure. Current source was checked at
 
 All four original #75 acceptance groups remain unchecked. The no-issuer country
 entry still needs the source nationalization hub with real pending takings and
-auctions; restructuring actions, strategic/monopoly and legislative takings,
+auctions; strategic/monopoly and legislative takings,
 notice/cure, national planning, state operations and special courts remain active.
 
 ## Pending election, career government and paid-taking integration

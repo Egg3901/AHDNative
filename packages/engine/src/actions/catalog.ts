@@ -90,6 +90,8 @@ export type ActionId =
   | "setCorporationCompensation"
   | "setCorporateSectorStrategy"
   | "nationalizeCorporation"
+  | "splitNationalCorporation"
+  | "mergeNationalCorporation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
@@ -755,6 +757,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: 0,
     systems: ["nationalization/state-ownership"],
     status: "available",
+  },
+  splitNationalCorporation: {
+    id: "splitNationalCorporation", name: "Split National Corporation",
+    description: "As the authorized treasury official, move a complete industry into a new state corporation or claim its future routing.",
+    baseCost: 0, cooldown: 0, fundCost: 0, systems: ["nationalization/state-ownership"], status: "available",
+  },
+  mergeNationalCorporation: {
+    id: "mergeNationalCorporation", name: "Merge National Corporation",
+    description: "As the authorized treasury official, merge a split-off's assets into another domestic National Corporation.",
+    baseCost: 0, cooldown: 0, fundCost: 0, systems: ["nationalization/state-ownership"], status: "available",
   },
   // ── W31 crisis action hooks ─────────────────────────────────────
   // Crisis responses where mainline gives players crisis interaction decision
