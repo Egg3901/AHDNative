@@ -4,8 +4,45 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { cycleContextForWorld, electionSeriesForWorld } from "./orchestration.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
+import { getUkCommonsSeats } from "../electionEngine/resolution/constants.js";
 
 describe("source country governor election families", () => {
+  it("spawns source-sized UK Commons races per region and preserves them through save/reload", () => {
+    for (const era of ["1953", "1979", "1991", "2019"] as const) {
+      const world = createWorld({ seed: `uk-commons-${era}`, playerName: "Tester", countryId: "UK", era });
+      const seats = getUkCommonsSeats(`${era}-default`);
+      const specs = electionSeriesForWorld(world).filter((spec) => spec.countryId === "UK" && spec.electionType === "commons");
+      expect(specs.map((spec) => [spec.state, spec.totalSeats]).sort()).toEqual(Object.entries(seats).sort());
+      expect(specs.reduce((sum, spec) => sum + spec.totalSeats, 0)).toBe(era === "1953" ? 625 : 650);
+      advanceTurn(world);
+      const races = world.elections.filter((election) => election.countryId === "UK" && election.electionType === "commons");
+      expect(races).toHaveLength(12);
+      expect(races.every((race) => race.state && race.totalSeats === seats[race.state])).toBe(true);
+      expect(races.some((race) => race.state === undefined)).toBe(false);
+      if (era === "1953") {
+        for (const race of races) {
+          race.tally = Object.fromEntries(race.candidates.map((candidate, index) => [candidate.id, index === 0 ? 100 : 10]));
+        }
+        world.meta.turn = races[0]!.endTurn - 1;
+        advanceTurn(world);
+        const resolved = world.elections.filter((election) => election.countryId === "UK" && election.electionType === "commons" && election.status === "resolved");
+        expect(resolved).toHaveLength(12);
+        expect(resolved.reduce((sum, race) => sum + race.totalSeats, 0)).toBe(625);
+        expect(world.politicians.filter((politician) => politician.countryId === "UK" && politician.chamberKey === "commons" && politician.electedState !== undefined).length).toBeGreaterThan(0);
+        const restored = deserializeSave(serializeSave(world, `uk-commons-${era}`));
+        for (const race of resolved) {
+          expect(restored.elections.find((saved) => saved.id === race.id)).toEqual(JSON.parse(JSON.stringify(race)));
+        }
+        expect(restored.politicians.filter((politician) => politician.countryId === "UK" && politician.chamberKey === "commons" && politician.electedState !== undefined)).toEqual(
+          JSON.parse(JSON.stringify(world.politicians.filter((politician) => politician.countryId === "UK" && politician.chamberKey === "commons" && politician.electedState !== undefined))),
+        );
+      } else {
+        const restored = deserializeSave(serializeSave(world, `uk-commons-${era}`));
+        expect(restored.elections.filter((election) => election.countryId === "UK" && election.electionType === "commons")).toEqual(JSON.parse(JSON.stringify(races)));
+      }
+    }
+  });
+
   it("spawns only the source-initialized UK devolved executives and persists their result", () => {
     const world = createWorld({ seed: "uk-executives", playerName: "Tester", countryId: "UK", era: "2019" });
     const endTurn = getCycleAnchors(cycleContextForWorld(world)).governorStateSenate;

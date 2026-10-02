@@ -7,7 +7,7 @@ import {
   type ElectionPlan,
 } from "../electionEngine/resolution/electionSpawning.js";
 import type { CycleAnchorContext } from "../electionEngine/resolution/cycleAnchorContext.js";
-import { eraToPreset, getStartingYearForPreset } from "../electionEngine/resolution/constants.js";
+import { eraToPreset, getStartingYearForPreset, getUkCommonsSeats } from "../electionEngine/resolution/constants.js";
 import {
   resolveGeneralElectionPure,
   type CandidateInput,
@@ -166,10 +166,19 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   if (world.legislatures["US"]) {
     specs.push({ electionType: "president", countryId: "US", chamberKey: "president", totalSeats: 1 });
   }
-  // UK: commons, national list over constituencies-to-come (W39); single national record.
-  if (world.legislatures["UK"]) {
-    const commons = world.legislatures["UK"].chambers.find((c) => c.key === "commons");
-    if (commons) specs.push({ electionType: "commons", countryId: "UK", chamberKey: "commons", totalSeats: commons.seats });
+  // Source: AHDGame `ensureUKElections` creates one Commons election per UK
+  // state/region. Its active preset selects the 625-seat 1953 map or the
+  // modern 650-seat regional map; every race remains part of the Commons.
+  const ukCommons = world.legislatures["UK"]?.chambers.find((c) => c.key === "commons");
+  if (ukCommons?.elected) {
+    const seatsByRegion = getUkCommonsSeats(eraToPreset(world.meta.era));
+    for (const region of Object.values(regions)) {
+      const r = region as unknown as { id: string; countryId: string };
+      if (r.countryId !== "UK") continue;
+      const totalSeats = seatsByRegion[r.id];
+      if (totalSeats === undefined) continue;
+      specs.push({ electionType: "commons", countryId: "UK", chamberKey: "commons", state: r.id, totalSeats });
+    }
   }
   // RU: supreme soviet chambers; DD: volkskammer. Single-list national races.
   if (world.legislatures["RU"]) {
