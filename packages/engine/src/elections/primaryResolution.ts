@@ -6,7 +6,7 @@ import {
   normalizeNationalReachPresidentialPrimary,
   normalizePartyInfluencePresidentialPrimary,
 } from "../electionEngine/normalizeNPI.js";
-import type { WorldState } from "../types.js";
+import type { Politician, WorldState } from "../types.js";
 import { archiveCampaign } from "../campaigns/lifecycle.js";
 import { turnoutPoolForElection } from "./tallyAdapter.js";
 import {
@@ -28,6 +28,15 @@ import type {
 } from "./types.js";
 
 const PRIMARY_SHARE_SOFTMAX_TEMPERATURE = 8;
+
+/** Ephemeral lookup for one primary pass; retain Array.find's first match. */
+function indexPrimaryPoliticians(world: WorldState): ReadonlyMap<string, Politician> {
+  const politicians = new Map<string, Politician>();
+  for (const politician of world.politicians) {
+    if (!politicians.has(politician.id)) politicians.set(politician.id, politician);
+  }
+  return politicians;
+}
 
 /**
  * Mainline `getPrimaryWinnersForElection` applies a country government-type cap
@@ -79,10 +88,10 @@ function presidentialNationalVotes(rec: ElectionRecord, partyId: string): Record
   return votes;
 }
 
-function presidentialPosition(world: WorldState, candidate: ElectionCandidate) {
+function presidentialPosition(world: WorldState, candidate: ElectionCandidate, politicians: ReadonlyMap<string, Politician>) {
   const actor = candidate.id === "player"
     ? { ideology: world.player.policies ?? { economic: 0, social: 0 } }
-    : world.politicians.find((entry) => entry.id === candidate.id);
+    : politicians.get(candidate.id);
   return actor ? {
     candidateId: candidate.id,
     charEP: actor.ideology.economic,
@@ -93,6 +102,7 @@ function presidentialPosition(world: WorldState, candidate: ElectionCandidate) {
 
 function scoreCandidate(
   world: WorldState,
+  politicians: ReadonlyMap<string, Politician>,
   candidate: ElectionCandidate,
   hasPlayerInParty: boolean,
   stateLean?: { economic: number; social: number },
@@ -106,7 +116,7 @@ function scoreCandidate(
         politicalInfluence: world.player.politicalInfluence,
         infamy: world.player.infamy,
       }
-    : world.politicians.find((entry) => entry.id === candidate.id);
+    : politicians.get(candidate.id);
   if (!actor) return 0;
   const partyEconomic = party?.economicPosition ?? 0;
   const partySocial = party?.socialPosition ?? 0;
@@ -152,6 +162,7 @@ function primaryStandings(
   world: WorldState,
   rec: ElectionRecord,
   stateId: string | undefined = rec.state,
+  politicians: ReadonlyMap<string, Politician> = indexPrimaryPoliticians(world),
 ): Map<string, ScoredPrimaryCandidate[]> {
   const stateDemographics = stateId ? world.stateDemographics[stateId] : undefined;
   const stateLean =
@@ -175,7 +186,7 @@ function primaryStandings(
     const hasPlayerInParty = candidates.some((candidate) => !candidate.isNPP);
     const scored = candidates.map((candidate) => ({
       candidate,
-      score: scoreCandidate(world, candidate, hasPlayerInParty, stateLean, rec.countryId === "US" && rec.electionType === "president"),
+      score: scoreCandidate(world, politicians, candidate, hasPlayerInParty, stateLean, rec.countryId === "US" && rec.electionType === "president"),
       sharePct: 0,
     }));
     scored.sort((a, b) => b.score - a.score);
@@ -247,13 +258,14 @@ function registrationByPartyForRegion(world: WorldState, rec: ElectionRecord): M
 
 /** Record live standings and accrue registered-party primary ballots once per turn. */
 export function recordPrimarySnapshots(world: WorldState): void {
+  const politicians = indexPrimaryPoliticians(world);
   for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
     if (!requiresPrimaryResolution(rec) || rec.status !== "active") continue;
     if (world.meta.turn < rec.startTurn || world.meta.turn >= rec.primaryEndTurn) continue;
     if (rec.primarySnapshots?.some((snapshot) => snapshot.turn === world.meta.turn)) continue;
     if (!rec.candidates.some((candidate) => candidate.status !== "withdrawn")) continue;
 
-    const standings = primaryStandings(world, rec);
+    const standings = primaryStandings(world, rec, rec.state, politicians);
     const ballotWindow = rec.state
       ? primaryBallotWindow(rec.startTurn, rec.primaryEndTurn, rec.endTurn, world.meta.turn)
       : null;
@@ -298,6 +310,7 @@ export function recordPrimarySnapshots(world: WorldState): void {
 
 /** Resolve source-supported nomination races exactly once through persisted state. */
 export function resolvePrimaries(world: WorldState): void {
+  const politicians = indexPrimaryPoliticians(world);
   for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
     if (!requiresPrimaryResolution(rec) || rec.primaryResults || rec.status === "resolved") continue;
     if (world.meta.turn <= rec.primaryEndTurn || world.meta.turn > rec.endTurn) continue;
@@ -310,7 +323,7 @@ export function resolvePrimaries(world: WorldState): void {
     const winners = new Set<string>();
     const candidateOrder = new Map(rec.candidates.map((candidate, index) => [candidate.id, index]));
     const maxAdvancing = presidential ? 1 : primaryWinnersForElection(rec.countryId, rec.electionType);
-    for (const [partyId, entries] of primaryStandings(world, rec)) {
+    for (const [partyId, entries] of primaryStandings(world, rec, rec.state, politicians)) {
       const scored = ballotAwareStandings(entries, rec.primaryVotes, candidateOrder);
       let partyWinnerIds: string[];
       let useDelegateStanding = false;
@@ -319,7 +332,7 @@ export function resolvePrimaries(world: WorldState): void {
         const delegates = rec.primaryDelegates?.[partyId] ?? {};
         const totalDelegates = Object.values(delegates).reduce((sum, count) => sum + count, 0);
         const positions = scored.flatMap((entry) => {
-          const position = presidentialPosition(world, entry.candidate);
+          const position = presidentialPosition(world, entry.candidate, politicians);
           return position ? [position] : [];
         });
         const nomination = totalDelegates > 0
