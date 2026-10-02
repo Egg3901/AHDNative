@@ -7,6 +7,7 @@ import {
   seedBySourceFromLegacy,
   sumCabinetResiduals,
 } from "./cabinetResidual.js";
+import { labourNudgesForTurn } from "../unions/labourRelationsTurn.js";
 
 const SPENDING_KEYS: Record<string, readonly string[]> = {
   education: ["education"], healthcare: ["healthcare"],
@@ -15,6 +16,11 @@ const SPENDING_KEYS: Record<string, readonly string[]> = {
   environment: ["environment"], defense: ["defense"],
 };
 const finite = (v: unknown) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+
+function sameNumbers(a: Record<string, number>, b: Record<string, number>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+}
 
 /** Game spendingProvider: national plus local per-capita, in US-reference units. */
 function spendingFor(world: WorldState, regionId: string, countryId: string): Record<string, number> {
@@ -49,6 +55,7 @@ function enactedLevels(world: WorldState, countryId: string, regionId?: string):
 export const politicalCabinetResidualPhase: TurnPhase = {
   name: "politicalMetricsDynamics",
   run(world) {
+    const labourByCountry = labourNudgesForTurn(world, world.meta.turn);
     for (const [regionId, board] of Object.entries(world.regionalPoliticalMetrics ?? {})) {
       const region = world.regions[regionId];
       if (!region || region.countryId !== board.countryId) continue;
@@ -67,6 +74,11 @@ export const politicalCabinetResidualPhase: TurnPhase = {
         ?? seedBySourceFromLegacy(board.cabinetResiduals ?? {}, contributions);
       board.cabinetResidualsBySource = foldCabinetResidualsBySource(previous, contributions);
       board.cabinetResiduals = sumCabinetResiduals(board.cabinetResidualsBySource);
+      const labourByMetric = Object.fromEntries(labourByCountry.get(board.countryId) ?? []);
+      const labourChanged = !sameNumbers(board.labourResiduals ?? {}, labourByMetric);
+      // The provider owns dispute/settlement decay. Store its current-turn
+      // output for inspection; this is a snapshot, not another accumulator.
+      if (labourChanged) board.labourResiduals = labourByMetric;
       const national = lawTargets(board.countryId, enactedLevels(world, board.countryId));
       const regional = lawTargets(board.countryId, enactedLevels(world, board.countryId, regionId));
       // The source first observation adopts the current board as equilibrium.
@@ -113,7 +125,8 @@ export const politicalCabinetResidualPhase: TurnPhase = {
         const target = composeTarget(points, supplement, structural
           + macroResidualFor(id, lawTarget, macro, board.countryId)
           + engineTermFor(id, lawTarget, nodes, board.countryId, year)
-          + (board.cabinetResiduals[id] ?? 0));
+          + (board.cabinetResiduals[id] ?? 0)
+          + (labourByMetric[id] ?? 0));
         board.values[id] = driftStep(value, target);
       }
     }

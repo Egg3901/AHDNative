@@ -41,15 +41,15 @@ describe("executive tab reachability (#65)", () => {
     const user = userEvent.setup();
     render(<StatefulHub actions={liveActions("hos")} />);
     const tabs = screen.getByRole("tablist", { name: /filter actions by category/i });
-    expect(within(tabs).getByRole("tab", { name: /executive, 2 of 3 available/i })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /executive, 3 of 3 available/i })).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /executive/i }));
     for (const name of [/direct spending/i, /set tax rate/i]) {
       const card = screen.getByRole("article", { name });
       expect(within(card).getByRole("button", { name: /take action/i })).toBeEnabled();
     }
     const nationalization = screen.getByRole("article", { name: /nationalize/i });
-    expect(within(nationalization).getByRole("button", { name: /unavailable/i })).toBeDisabled();
-    expect(nationalization).toHaveTextContent(/no distressed domestic corporation/i);
+    expect(within(nationalization).getByRole("button", { name: /take action/i })).toBeEnabled();
+    expect(within(nationalization).getByRole("combobox", { name: /corporation for/i })).toHaveValue("US-agriculture");
     expect(screen.getByRole("article", { name: /set tax rate/i })).toHaveTextContent(/phase/i);
   });
 

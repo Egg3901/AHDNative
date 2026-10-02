@@ -1737,6 +1737,7 @@ function executeActionInner(
       corp.ceoId = "player";
       corp.ceoType = "player";
       corp.ceoVacant = false;
+      delete corp.ceoVacantSinceTurn;
       delete corp.pendingCeoId;
       return { ok: true, message: `You are now CEO of ${corp.tickerSymbol}` };
     }
@@ -1767,6 +1768,7 @@ function executeActionInner(
 
     if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "You are not the active CEO of this corporation" };
     corp.ceoVacant = true;
+    corp.ceoVacantSinceTurn = world.meta.turn;
     delete corp.pendingCeoId;
     corp.ceoVotes = [];
     return { ok: true, message: `You resigned as CEO of ${corp.tickerSymbol}; the position is vacant` };

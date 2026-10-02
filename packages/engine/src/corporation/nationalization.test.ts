@@ -45,6 +45,8 @@ describe("executive nationalization ownership transfer", () => {
     const unownedBefore = structuredClone(world.unownedSectors[poolKey]);
     const expectedRevenue = Math.round(corporation.revenue * 0.85);
     const expectedAssetRevenue = Math.round((asset.revenue ?? corporation.revenue) * 0.85);
+    const expectedStock = Math.round(asset.capitalStock! * 0.85 * 100) / 100;
+    const expectedBook = asset.capacityBookAnchor! * 0.85;
 
     const result = executeAction(world, "player", "nationalizeCorporation", {
       corporationId: corporation.id,
@@ -69,6 +71,8 @@ describe("executive nationalization ownership transfer", () => {
       owner: "corporation",
       revenue: expectedAssetRevenue,
       forSale: null,
+      capitalStock: expectedStock,
+      capacityBookAnchor: expectedBook,
     });
     expect(world.unownedSectors[poolKey]).toEqual(unownedBefore);
 
@@ -125,6 +129,8 @@ describe("executive nationalization ownership transfer", () => {
     const beforeWorkers = survivor.workers + asset.workers;
     const expectedMergedRevenue = survivor.revenue + Math.round((asset.revenue ?? corporation.revenue) * 0.85);
     const expectedNationalRevenue = existing.revenue + Math.round(corporation.revenue * 0.85);
+    const expectedMergedStock = survivor.capitalStock! + Math.round(asset.capitalStock! * 0.85 * 100) / 100;
+    const expectedMergedBook = survivor.capacityBookAnchor! + asset.capacityBookAnchor! * 0.85;
 
     const result = executeAction(world, "player", "nationalizeCorporation", {
       corporationId: corporation.id,
@@ -137,8 +143,8 @@ describe("executive nationalization ownership transfer", () => {
       corporationId: nationalId,
       revenue: expectedMergedRevenue,
       workers: beforeWorkers,
-      capitalStock: asset.capitalStock! * 2,
-      capacityBookAnchor: asset.capacityBookAnchor! * 2,
+      capitalStock: expectedMergedStock,
+      capacityBookAnchor: expectedMergedBook,
       producedUnits: 800,
       soldUnits: 500,
       realizedRevenue: 200,
