@@ -43,20 +43,30 @@ describe("source country governor election families", () => {
     }
   });
 
-  it("matches source RU/DD beta-or-NPP election liveness", () => {
-    const nonPlayer = createWorld({ seed: "ru-dd-gate-off", playerName: "Tester", countryId: "US", era: "1953" });
-    nonPlayer.nppAutonomyLevel = "off";
-    expect(electionSeriesForWorld(nonPlayer).some((spec) => spec.countryId === "RU" || spec.countryId === "DD")).toBe(false);
+  it("matches source RU/DD beta-or-NPP election liveness against pack status", () => {
+    const playable = createWorld({ seed: "ru-dd-gate-playable", playerName: "Tester", countryId: "US", era: "1953" });
+    playable.nppAutonomyLevel = "off";
+    // The 1953/1979 Native packs explicitly mark RU and DD playable; that
+    // maps to source beta/active and remains live even with global NPP off.
+    expect(playable.countries.RU?.playable).toBe(true);
+    expect(playable.countries.DD?.playable).toBe(true);
+    expect(electionSeriesForWorld(playable).some((spec) => spec.countryId === "RU")).toBe(true);
+    expect(electionSeriesForWorld(playable).some((spec) => spec.countryId === "DD")).toBe(true);
 
-    const nppGoverned = { ...nonPlayer, nppAutonomyLevel: "v1" as const };
+    // For an authored non-playable country, Native preserves the source
+    // coming-soon gate and only runs it when NPP governance is at least v1.
+    const comingSoon = {
+      ...playable,
+      countries: {
+        ...playable.countries,
+        RU: { ...playable.countries.RU!, playable: false },
+        DD: { ...playable.countries.DD!, playable: false },
+      },
+    };
+    expect(electionSeriesForWorld(comingSoon).some((spec) => spec.countryId === "RU" || spec.countryId === "DD")).toBe(false);
+    const nppGoverned = { ...comingSoon, nppAutonomyLevel: "v1" as const };
     expect(electionSeriesForWorld(nppGoverned).some((spec) => spec.countryId === "RU")).toBe(true);
     expect(electionSeriesForWorld(nppGoverned).some((spec) => spec.countryId === "DD")).toBe(true);
-
-    for (const countryId of ["RU", "DD"] as const) {
-      const playerCountry = createWorld({ seed: `player-${countryId}`, playerName: "Tester", countryId, era: "1953" });
-      playerCountry.nppAutonomyLevel = "off";
-      expect(electionSeriesForWorld(playerCountry).some((spec) => spec.countryId === countryId)).toBe(true);
-    }
   });
 
   it("spawns only the source-initialized UK devolved executives and persists their result", () => {

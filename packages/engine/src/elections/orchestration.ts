@@ -86,13 +86,16 @@ export interface SeriesSpec {
 
 export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   const specs: SeriesSpec[] = [];
-  // AHDGame RU/DD/eastern-bloc source gates are live for beta/active player
-  // countries, or for non-player countries governed by NPP at v1+. Native has
-  // no runtime country-status table: the selected playable country is its
-  // active/player-enabled equivalent; other seeded countries follow NPP v1.
-  const sourceNppCountryLive = (countryId: string): boolean =>
-    world.player.countryId === countryId ||
-    nppAutonomyLevelAtLeast(resolveNppAutonomyLevel(world.nppAutonomyLevel), "v1");
+  // AHDGame RU/DD/eastern-bloc source gates are live for beta/active countries,
+  // or for non-player countries governed by NPP at v1+. Native has no mutable
+  // countryGameStates table; its authored pack `playable` flag is the static
+  // player-enabled status, while a present non-playable country's election
+  // liveness follows the world NPP tier. Do not infer NPP governance merely
+  // from not being this save's selected country.
+  const sourceNppCountryLive = (countryId: string): boolean => {
+    const statusIsLive = world.countries[countryId]?.playable === true;
+    return statusIsLive || nppAutonomyLevelAtLeast(resolveNppAutonomyLevel(world.nppAutonomyLevel), "v1");
+  };
   const regions = world.regions ?? {};
   const cycleContext = cycleContextForWorld(world);
   const cycleAnchors = getCycleAnchors(cycleContext);
