@@ -5,6 +5,7 @@ import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCa
 import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceLogisticsSupportedSectorCount, sourceNppCapacityBuildCostAnchor, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { getEraNominalScale } from "../commodity/constants.js";
+import { getRateForCountry } from "../forex/conversion.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
@@ -316,6 +317,47 @@ describe("source NPP capacity replacement", () => {
     applyNppCapacityReplacement(resumed);
     expect(resumed.corporateSectors?.[assetId]?.buildQueue).toEqual(world.corporateSectors?.[assetId]?.buildQueue);
     expect(resumed.corporateSectors?.[assetId]?.constructionInProgressAnchor).toBe(world.corporateSectors?.[assetId]?.constructionInProgressAnchor);
+    expect(resumed.corporations[corp.id]?.liquidCapital).toBe(world.corporations[corp.id]?.liquidCapital);
+    expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
+  });
+
+  it("combines source replacement and demand-backed growth under the distinct cash rails", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-reinvestment-growth", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.liquidCapital = 100_000_000;
+    const assetId = "corporate-sector:US:manufacturing:US-manufacturing";
+    const asset = {
+      id: assetId, corporationId: corp.id, countryId: "US", stateId: null,
+      sectorType: "manufacturing" as const, capitalStock: 1_000, producedUnits: 950,
+      soldUnits: 902.5, effectiveProfitMargin: 35, revenue: 10_000,
+      plantsPnl: { turn: world.meta.turn, revenue: 10_000, inputs: 1_000, otherOpex: 0, policyCredit: 0, growth: 0, operatingCost: 1_000, totalCost: 1_000, profit: 9_000 },
+      workers: 1, representingUnionId: null, forSale: null, owner: "corporation" as const,
+    };
+    world.corporateSectors = { [assetId]: asset };
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice;
+    const cashBefore = corp.liquidCapital;
+    const fillScale = 0.5 + 0.5 * ((0.95 - 0.85) / 0.15);
+    const replacementUnits = 950 * 0.0005 * fillScale;
+    const growthUnits = Math.floor(950 * 0.5);
+    const unitCostAnchor = capacityPricePerUnitAnchor("manufacturing", corporateSectorBasePrices(world), undefined, 1953)
+      * Math.max(0.5, 1 + (world.centralBanks.US?.primeRate ?? 0) / 10) * 0.8;
+    const expectedUnits = replacementUnits + growthUnits;
+    const expectedCostAnchor = expectedUnits * unitCostAnchor;
+    applyNppCapacityReplacement(world);
+    expect(asset.buildQueue?.[0]?.unitsOrdered).toBeCloseTo(expectedUnits, 10);
+    expect(asset.buildQueue?.[0]?.costPaidAnchor).toBeCloseTo(expectedCostAnchor, 8);
+    expect(asset.constructionInProgressAnchor).toBe(Math.round(expectedCostAnchor));
+    expect(corp.liquidCapital).toBeCloseTo(cashBefore - expectedCostAnchor * getRateForCountry(world, "US"), 6);
+    expect(world.corporateCashLedger?.[0]?.type).toBe("corp_capacity_build");
+    validateCorporateCashLedger(world.corporateCashLedger);
+
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    world.meta.turn += 1;
+    resumed.meta.turn += 1;
+    applyNppCapacityReplacement(world);
+    applyNppCapacityReplacement(resumed);
+    expect(resumed.corporateSectors?.[assetId]).toEqual(world.corporateSectors?.[assetId]);
     expect(resumed.corporations[corp.id]?.liquidCapital).toBe(world.corporations[corp.id]?.liquidCapital);
     expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
   });

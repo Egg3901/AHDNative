@@ -33,6 +33,15 @@ const NPP_FOUNDING_DEPLOY_FRACTION = 0.6;
 const NPP_FOUNDING_HEADROOM_SHARE = 0.5;
 const NPP_MAX_BUILD_UNITS_PER_ORDER = 10_000_000;
 const NPP_EXTRACTION_FOUNDING_MAX_FACILITIES = 8;
+const NPP_REINVEST_MAX_QUEUE_DEPTH = 20;
+const NPP_REINVEST_MAX_GROWTH_QUEUE_DEPTH = 2;
+const NPP_REINVEST_MIN_FILL = 0.85;
+const NPP_REINVEST_AGGRESSION = 1;
+const NPP_REINVEST_MAINTENANCE_CASH_SHARE = 0.25;
+const NPP_GROWTH_DEPLOY_FRACTION = 0.5;
+const NPP_GROWTH_MIN_SHORTAGE = 0.85;
+const NPP_GROWTH_MIN_UTILIZATION = 0.85;
+const NPP_GROWTH_MAX_STEP_OF_RUN = 0.5;
 const EXTRACTION_OUTPUT_SCALE: Partial<Record<(typeof EXTRACTABLE_RESOURCES)[number], number>> = {
   rare_earth: 2.5, natural_gas: 2, iron: 1.8, timber: 1.6, oil: 1.4,
 };
@@ -333,36 +342,81 @@ export function sourceExtractionHeadroomByRegion(world: WorldState): Map<string,
   return headroomByRegion;
 }
 
-/** Source NPP physical replacement leg. Growth/founding use separate pool and pricing inputs. */
+/** Source NPP incumbent replacement and discretionary growth capacity legs. */
 export function applyNppCapacityReplacement(world: WorldState): void {
   const year = Number(world.meta.date.slice(0, 4));
-  const prices = corporateSectorBasePrices(world);
-  for (const asset of Object.values(corporateSectorAssets(world)).sort((a, b) => a.id.localeCompare(b.id))) {
+  const extractionHeadroom = sourceExtractionHeadroomByRegion(world);
+  const assets = Object.values(corporateSectorAssets(world)).sort((a, b) => a.id.localeCompare(b.id));
+  const stateControlled = new Set(assets.filter((row) => {
+    const owner = world.corporations[row.corporationId];
+    return Boolean(owner && isCorpStateOwned(owner) && row.stateId);
+  }).map((row) => `${row.stateId}:${row.sectorType}`));
+  const ordersByCorp = new Map<string, number>();
+  for (const asset of assets) {
     const corp = world.corporations[asset.corporationId];
     if (!corp || corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
+    if ((ordersByCorp.get(corp.id) ?? 0) >= 4) continue;
     const capitalStock = asset.capitalStock ?? 0;
     const produced = asset.producedUnits ?? 0;
     const sold = asset.soldUnits ?? 0;
     const fill = produced > 0 ? sold / produced : 0;
     const queue = asset.buildQueue ?? [];
-    if (!(capitalStock > 0) || !(produced > 0) || fill < 0.85 || queue.length >= 20) continue;
-    // Game suppresses replacement when two or more orders are already active.
-    if (queue.length >= 2) continue;
-    const productionCapacity = capitalStock;
+    if (!(capitalStock > 0) || !(produced > 0) || fill < NPP_REINVEST_MIN_FILL || queue.length >= NPP_REINVEST_MAX_QUEUE_DEPTH) continue;
+    if (asset.stateId && stateControlled.has(`${asset.stateId}:${asset.sectorType}`)) continue;
+    const productionCapacity = asset.operatingCapacityUnits ?? capitalStock;
     const utilization = productionCapacity > 0 ? Math.min(1, Math.max(0, produced / productionCapacity)) : 0;
     const runUnits = capitalStock * utilization;
     const buildCycle = BUILD_TURNS[asset.sectorType] ?? 48;
     const lastOrderTurn = queue.reduce((latest, order) => Math.max(latest, order.startTurn), Number.NEGATIVE_INFINITY);
     const accrualTurns = Number.isFinite(lastOrderTurn) ? Math.min(buildCycle, Math.max(0, world.meta.turn - lastOrderTurn)) : 1;
-    const fillScale = 0.5 + 0.5 * Math.min(1, Math.max(0, (fill - 0.85) / 0.15));
-    const units = runUnits * 0.0005 * accrualTurns * fillScale;
+    const fillScale = 0.5 + 0.5 * Math.min(1, Math.max(0, (fill - NPP_REINVEST_MIN_FILL) / (1 - NPP_REINVEST_MIN_FILL)));
+    // Native currently persists only world-global commodity prices. Game's
+    // source decision uses the plant's state price signal when that market is
+    // available, then falls back to the country/global resolver. Keep this
+    // explicit fallback rather than deriving a synthetic regional market.
+    const shortage = sourceSectorShortageScores(world, asset.sectorType);
+    const strandedDecayScale = shortage.mean <= NPP_GROWTH_MIN_SHORTAGE ? 0.5 : 1;
+    const replacementUnits = queue.length >= NPP_REINVEST_MAX_GROWTH_QUEUE_DEPTH
+      ? 0
+      : runUnits * 0.0005 * accrualTurns * fillScale * strandedDecayScale * NPP_REINVEST_AGGRESSION;
+    const criticalShortage = shortage.peak >= 1.6;
+    // Game's sp.isProfitable is based on realized sector P&L, not its nominal
+    // margin. Older saves without this source P&L evidence do not get treated
+    // as profitable by default.
+    const profitable = asset.plantsPnl !== undefined && asset.plantsPnl.profit > 0;
+    const canGrow = (profitable || criticalShortage)
+      && queue.length < NPP_REINVEST_MAX_GROWTH_QUEUE_DEPTH
+      && shortage.mean > NPP_GROWTH_MIN_SHORTAGE
+      && utilization >= NPP_GROWTH_MIN_UTILIZATION;
+    const facilityUnits = FOUNDING_STARTER_UNITS[asset.sectorType] ?? 0;
+    const depositHeadroom = asset.sectorType === "extraction"
+      ? Math.max(0, Math.min(1, extractionHeadroom.get(asset.stateId ?? "") ?? 1))
+      : 1;
+    const growthCapUnits = asset.sectorType === "extraction"
+      ? Math.floor(runUnits * NPP_GROWTH_MAX_STEP_OF_RUN * depositHeadroom)
+      : Math.max(facilityUnits, Math.floor(runUnits * NPP_GROWTH_MAX_STEP_OF_RUN));
+    const rate = getRateForCountry(world, corp.countryId);
+    const eraScale = getEraNominalScale(world.meta.era);
+    const cashFloorAnchor = Math.max(Math.max(1, Math.round(125_000 * eraScale)), Math.round(250_000 * eraScale * (CEO_ARCHETYPE_MODIFIERS[corp.archetype]?.cashFloorMult ?? 1)));
+    const cashLocal = Math.max(0, corp.liquidCapital);
+    const growthBudgetLocal = Math.max(0, cashLocal - anchorToLocal(cashFloorAnchor, rate)) * NPP_GROWTH_DEPLOY_FRACTION;
+    const unitGrowthLocal = sourceNppCapacityBuildCostAnchor(world, corp, asset, 1, year) * rate;
+    const affordableGrowthUnits = canGrow && unitGrowthLocal > 0
+      ? Math.floor(Math.min(growthBudgetLocal / unitGrowthLocal, growthCapUnits, NPP_MAX_BUILD_UNITS_PER_ORDER))
+      : 0;
+    const growthUnits = affordableGrowthUnits >= facilityUnits && growthCapUnits >= facilityUnits
+      ? affordableGrowthUnits
+      : 0;
+    const units = replacementUnits + growthUnits;
     if (!(units > 0)) continue;
 
     const costAnchor = sourceNppCapacityBuildCostAnchor(world, corp, asset, units, year);
     const costLocal = anchorToLocal(costAnchor, getRateForCountry(world, corp.countryId));
-    const cashLocal = Math.max(0, corp.liquidCapital);
-    // Source replacement rail: <=25% of current cash and a strictly positive remainder.
-    if (!(costLocal > 0) || costLocal > cashLocal * 0.25 || cashLocal - costLocal <= 0) continue;
+    const cashFloorLocal = anchorToLocal(cashFloorAnchor, rate);
+    const affordable = growthUnits > 0
+      ? cashLocal - costLocal >= cashFloorLocal
+      : costLocal <= Math.max(0, cashLocal) * NPP_REINVEST_MAINTENANCE_CASH_SHARE && cashLocal - costLocal > 0;
+    if (!(costLocal > 0) || !affordable) continue;
     const cashBefore = corp.liquidCapital;
     const cashAfter = cashBefore - costLocal;
     if (!(cashAfter < cashBefore)) continue;
@@ -376,5 +430,22 @@ export function applyNppCapacityReplacement(world: WorldState): void {
     corp.liquidCapital = cashAfter;
     const row = makeNppCapacityCashRecord({ corp, world, sector: asset, units, costLocal, cashDeltaLocal: cashAfter - cashBefore, costAnchor, onlineTurn });
     if (row) (world.corporateCashLedger ??= []).push(row);
+    ordersByCorp.set(corp.id, (ordersByCorp.get(corp.id) ?? 0) + 1);
   }
+}
+
+/** Current-source sectorShortageScore/sectorPeakShortageScore at Native's global-price resolution. */
+function sourceSectorShortageScores(world: WorldState, sectorType: CorporationType): { mean: number; peak: number } {
+  let weighted = 0;
+  let totalWeight = 0;
+  let peak = 0;
+  for (const [commodity, rate] of Object.entries(SOURCE_DEFAULT_OPERATING_SUPPLY[sectorType])) {
+    const row = world.commodityPrices[commodity];
+    if (!(rate! > 0) || !row || !(row.basePrice > 0) || !Number.isFinite(row.globalPrice / row.basePrice)) continue;
+    const ratio = row.globalPrice / row.basePrice;
+    weighted += rate! * ratio;
+    totalWeight += rate!;
+    peak = Math.max(peak, ratio);
+  }
+  return { mean: totalWeight > 0 ? weighted / totalWeight : 1, peak };
 }
