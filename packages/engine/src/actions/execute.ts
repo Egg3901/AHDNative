@@ -70,6 +70,7 @@ import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { splitNationalCorporation, mergeNationalCorporation } from "../corporation/nationalReorganization.js";
 import { foundPlayerCorporation } from "../corporation/playerFounding.js";
+import { expandPlayerCorporationSector } from "../corporation/playerSectorExpansion.js";
 import type { CorporationType } from "../corporation/types.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
@@ -88,6 +89,7 @@ export type ExecuteActionParams = {
   count?: number;
   amount?: number; // for convertCash
   corporationName?: string;
+  corporationId?: string;
   tickerSymbol?: string;
   sectorType?: CorporationType;
   startingCapital?: number;
@@ -489,6 +491,19 @@ function executeActionInner(
     });
     return result.ok
       ? { ok: true, message: `Founded ${world.corporations[result.corporationId]!.name} (${world.corporations[result.corporationId]!.tickerSymbol}) with ${result.startingCapital} in starting capital.` }
+      : { ok: false, error: result.error };
+  }
+  if (actionId === "expandCorporationSector") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can expand a corporation" };
+    const corporation = world.corporations[params.corporationId ?? ""];
+    if (!corporation) return { ok: false, error: "expandCorporationSector requires a valid corporationId" };
+    const result = expandPlayerCorporationSector(world, {
+      corporationId: corporation.id,
+      regionId: params.regionId ?? "",
+      sectorType: params.sectorType ?? corporation.sectorType,
+    });
+    return result.ok
+      ? { ok: true, message: `Expanded ${corporation.tickerSymbol} into ${params.regionId}; first capacity comes online on turn ${result.onlineTurn}.` }
       : { ok: false, error: result.error };
   }
 
@@ -2604,6 +2619,9 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "foundCorporation":
       return params.corporationName && params.tickerSymbol && params.sectorType
         ? null : "foundCorporation requires corporationName, tickerSymbol, and sectorType";
+    case "expandCorporationSector":
+      return params.corporationId && params.regionId
+        ? null : "expandCorporationSector requires corporationId and regionId";
     case "canvass":
     case "organize":
     case "pressureBoost":

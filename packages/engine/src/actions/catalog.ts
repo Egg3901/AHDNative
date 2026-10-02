@@ -107,6 +107,7 @@ export type ActionId =
   | "launchProspect"
   | "expandRegionalExtraction"
   | "foundCorporation"
+  | "expandCorporationSector"
   | "issueExtractionContract"
   | "acceptExtractionContract"
   | "declineExtractionContract"
@@ -916,6 +917,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["corporations"],
+    status: "available",
+  },
+  expandCorporationSector: {
+    id: "expandCorporationSector",
+    name: "Expand Corporation into a Region",
+    description: "Pay the source entry fee and a priced first-facility order to enter a recorded regional market as the active corporation CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "regional-markets"],
     status: "available",
   },
   issueExtractionContract: {
