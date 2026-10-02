@@ -4,6 +4,7 @@ import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { playerNationalInfluenceGain } from "../actions/playerInfluence.js";
+import { proposalNpiCost } from "./proposalCosts.js";
 import { getLaw } from "./catalog.js";
 import type { Bill } from "./types.js";
 
@@ -201,5 +202,77 @@ describe("Germany national tax laws (#287)", () => {
     expect(world.bills.at(-1)?.proposalNpiCost).toBeUndefined();
     expect(world.player.actions).toBe(100);
     expect(world.player.nationalInfluence).toBe(30);
+  });
+
+  it("earns a Bundestag seat through the public career election path and votes each available tax row into effect", () => {
+    let world = createWorld({ seed: "career-check", playerName: "P", countryId: "DE", era: "2019", mode: "career" });
+    expect(executeAction(world, "player", "joinParty", { partyId: "DE_SPD" }).ok).toBe(true);
+    advanceTurn(world);
+    const election = world.elections.find((candidate) =>
+      candidate.countryId === "DE" &&
+      candidate.electionType === "bundestag" &&
+      candidate.state === world.player.homeRegionId,
+    );
+    expect(election).toBeDefined();
+    expect(election?.status).toBe("active");
+    expect(executeAction(world, "player", "declareCandidacy", { electionId: election!.id }).ok).toBe(true);
+    // The source-created race is retained; only its long calendar is shortened
+    // so this ordinary-turn test reaches its authentic candidate resolver quickly.
+    election!.primaryEndTurn = world.meta.turn + 1;
+    election!.endTurn = world.meta.turn + 3;
+    for (let i = 0; i < 5 && election!.status !== "resolved"; i++) advanceTurn(world);
+    expect(election!.status).toBe("resolved");
+    expect(election!.candidates.some((candidate) => candidate.id === "player")).toBe(true);
+    expect(world.player.legislativeSeat).toEqual({
+      countryId: "DE",
+      chamberKey: "bundestag",
+      regionId: world.player.homeRegionId,
+    });
+    // A well-resourced legal player: authority still comes from the resolved
+    // race, while public commands debit their normal AP and NPI prices below.
+    world.player.actions = 200;
+    world.player.nationalInfluence = 100;
+    const careerBills: Array<{ id: string; lawId: (typeof DE_TAX_LAWS)[number]; before: number; selected: number; taxType: keyof NonNullable<typeof world.budgets.DE>["taxRates"] }> = [];
+
+    for (const id of DE_TAX_LAWS) {
+      const law = getLaw(id)!;
+      const policy = law.taxPolicy!;
+      const taxType = policy.taxType as keyof NonNullable<typeof world.budgets.DE>["taxRates"];
+      const beforeRate = world.budgets.DE!.taxRates[taxType];
+      const option = [...(policy.options ?? [])]
+        .filter((candidate) => candidate.rate !== beforeRate && candidate.economic > 0)
+        .sort((a, b) => Math.abs(a.economic) - Math.abs(b.economic) || Math.abs(a.rate - beforeRate) - Math.abs(b.rate - beforeRate))[0];
+      expect(option, id).toBeDefined();
+      const sponsored = executeAction(world, "player", "sponsorBill", { catalogId: id, taxRate: option!.rate });
+      expect(sponsored.ok, `${id}: ${sponsored.ok ? "" : sponsored.error}`).toBe(true);
+      let bill = world.bills.at(-1)!;
+      expect(bill.status, id).toBe("proposed");
+      advanceTurn(world);
+      expect(bill.status, id).toBe("active");
+      expect(bill.currentChamber, id).toBe("bundestag");
+      expect(executeAction(world, "player", "voteOnBill", { billId: bill.id, vote: "for" }).ok, id).toBe(true);
+      expect(bill.votes.player, id).toBe("for");
+      expect(sponsored.changes?.actions).toBe(-10);
+      if (proposalNpiCost(law) > 0) expect(sponsored.changes?.nationalInfluence).toBe(-proposalNpiCost(law));
+      careerBills.push({ id: bill.id, lawId: id, before: beforeRate, selected: option!.rate, taxType });
+      advanceTurn(world); // the native sponsor cooldown expires on its authored later turn
+    }
+    for (let i = 0; i < 8 && careerBills.some((entry) => {
+      const bill = world.bills.find((candidate) => candidate.id === entry.id)!;
+      return bill.status !== "signed" && bill.status !== "failed";
+    }); i++) advanceTurn(world);
+    for (const entry of careerBills) {
+      const bill = world.bills.find((candidate) => candidate.id === entry.id)!;
+      const id = entry.lawId;
+      expect(bill.status, id).toBe("signed");
+      expect(bill.voteSnapshot?.votes.player, id).toBe("for");
+      const currentRate = world.budgets.DE!.taxRates[entry.taxType];
+      const phaseIn = world.budgets.DE!.taxRatePhaseIn?.[entry.taxType];
+      expect(currentRate !== entry.before || phaseIn === entry.selected, id).toBe(true);
+      expect(bill.selectedRate, id).toBe(entry.selected);
+    }
+    const restored = deserializeSave(serializeSave(world));
+    expect(restored.player.legislativeSeat).toEqual(world.player.legislativeSeat);
+    expect(restored.enactedLaws).toEqual(world.enactedLaws);
   });
 });

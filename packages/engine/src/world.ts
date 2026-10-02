@@ -1,5 +1,6 @@
 import { rngFromSeed } from "./rng.js";
 import { assignUsSeatGeography, assignRegionalSeatGeography } from "./elections/seatGeography.js";
+import { assignSourceHomeStates } from "./elections/sourceHomeState.js";
 import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
@@ -1197,6 +1198,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   seatSingleplayerHeadOfGovernment(world);
   assignUsSeatGeography(world);
   assignRegionalSeatGeography(world);
+  assignSourceHomeStates(world);
   // W12: charter the financial-sector NPC corp of every playable country as
   // a retail bank. Mutates world.corporations in place, same post-
   // construction-mutation pattern as assignUsSeatGeography above.
@@ -1562,7 +1564,7 @@ function seedBudgets(
     gdp: number;
     currencyCode: string;
     taxBaseRatios: { taxableIncome: number; corporateProfits: number; wagesAndSalaries: number; importValue: number; taxableSales: number };
-    taxRates: { incomeTax: number; domesticCorporateTax: number; foreignCorporateTax: number; payrollTax: number; tariffs: number; salesTax: number };
+    taxRates: { incomeTax: number; domesticCorporateTax: number; foreignCorporateTax: number; payrollTax: number; tariffs: number; salesTax: number; solidaritySurcharge?: number };
     otherRevenue: number;
     debt: { principal: number; interestRate: number; ceiling: number };
     creditRating: string;
@@ -1598,10 +1600,16 @@ function seedBudgets(
       payrollTax: rr(b.taxRates.payrollTax, taxBases.wagesAndSalaries),
       tariffs: rr(b.taxRates.tariffs, taxBases.importValue),
       salesTax: rr(b.taxRates.salesTax, taxBases.taxableSales),
+      ...(typeof b.taxRates.solidaritySurcharge === "number"
+        ? { solidaritySurcharge: Math.round(rr(b.taxRates.incomeTax, taxBases.taxableIncome) * (b.taxRates.solidaritySurcharge / 100)) }
+        : {}),
+      ...(typeof b.taxRates.solidaritySurcharge === "number"
+        ? { solidaritySurcharge: Math.round(rr(b.taxRates.incomeTax, taxBases.taxableIncome) * (b.taxRates.solidaritySurcharge / 100)) }
+        : {}),
       other: Math.round(b.otherRevenue),
       total: 0,
     };
-    revenue.total = revenue.incomeTax + revenue.domesticCorporateTax + revenue.foreignCorporateTax + revenue.payrollTax + revenue.tariffs + revenue.salesTax + revenue.other;
+    revenue.total = revenue.incomeTax + revenue.domesticCorporateTax + revenue.foreignCorporateTax + revenue.payrollTax + revenue.tariffs + revenue.salesTax + (revenue.solidaritySurcharge ?? 0) + revenue.other;
 
     const byCategory: Record<string, number> = {};
     for (const [k, v] of Object.entries(b.baselineSpendingByCategory)) byCategory[k] = Math.round(v);

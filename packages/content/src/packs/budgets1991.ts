@@ -54,14 +54,14 @@ export const BUDGETS_1991: BudgetSeed[] = [
     economicFactors: { gdpGrowth: 3.4, wageGrowth: 4, inflationRate: 3.3, tradeGrowth: 2 },
   },
   {
-    // taxRates: incomeTax: de_income_tax_rate option[7] = 50; domesticCorporateTax: de_domestic_corporate_tax_rate option[9] = 25; foreignCorporateTax: de_foreign_corporate_tax_rate option[8] = 22; payrollTax: de_payroll_social_insurance option[4] = 16; tariffs: de_customs_tariff_rate option[0] = 0; salesTax: de_vat_rate option[3] = 10; PORT-STUB budget/extraTaxLines (laws): solidaritySurcharge:de_solidarity_surcharge
+    // taxRates: incomeTax: de_income_tax_rate option[7] = 50; domesticCorporateTax: de_domestic_corporate_tax_rate option[9] = 25; foreignCorporateTax: de_foreign_corporate_tax_rate option[8] = 22; payrollTax: de_payroll_social_insurance option[4] = 16; tariffs: de_customs_tariff_rate option[0] = 0; salesTax: de_vat_rate option[3] = 10; solidaritySurcharge: de_solidarity_surcharge option[3] = 2
     countryId: "DE",
     fiscalYear: 1991,
     population: 80_000_000,
     gdp: 1_600_000_000_000,
     currencyCode: "EUR",
     taxBaseRatios: {"taxableIncome":0.48,"corporateProfits":0.11,"wagesAndSalaries":0.5,"importValue":0.22,"taxableSales":0.4},
-    taxRates: {"incomeTax":50,"domesticCorporateTax":25,"foreignCorporateTax":22,"payrollTax":16,"tariffs":0,"salesTax":10},
+    taxRates: {"incomeTax":50,"domesticCorporateTax":25,"foreignCorporateTax":22,"payrollTax":16,"tariffs":0,"salesTax":10,"solidaritySurcharge":2},
     otherRevenue: 60_000_000_000,
     debt: { principal: 600_000_000_000, interestRate: 0.085, ceiling: 750_000_000_000 },
     creditRating: "AAA",
