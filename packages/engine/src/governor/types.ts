@@ -72,16 +72,14 @@ export interface GovernorOrder {
   status: "active" | "expired" | "superseded";
 }
 
-/**
- * Totally stubbed governor endorsement - solo has no active office endorsement ledger.
- * Kept as a typed marker so queueBill-style future wiring has a named blocker.
- */
+/** Election-scoped endorsement record consumed by presidential vote accumulation. */
 export interface GovernorEndorsement {
   id: string;
   stateId: string;
-  electionId: string;
   candidateId: string;
-  endorsedBy: string;
+  endorsedById: string;
   createdAtTurn: number;
+  withdrawnAtTurn?: number | undefined;
+  withdrawnReason?: "manual" | "election_ended" | "candidate_inactive" | "governor_left_office" | undefined;
   isActive: boolean;
 }

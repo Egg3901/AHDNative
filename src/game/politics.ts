@@ -326,6 +326,17 @@ export interface PoliticsPresidentialView {
   /** Majority of the actual college (`electoralMajorityFor`), never a hardcoded 270. */
   majorityThreshold: number;
   electors: PoliticsPresidentialElectorView[];
+  /** Source governor-office endorsement actions available to this player, if any. */
+  governorActions?: Array<{
+    actionId: "governorEndorsePresidentialCandidate" | "withdrawGovernorEndorsement";
+    electionId: string;
+    stateId: string;
+    candidateId: string;
+    candidateName: string;
+    endorsementId?: string;
+    available: boolean;
+    disabledReason?: string;
+  }>;
   /** Per-state accumulation, sorted by state id; empty when no per-state tallies. */
   states: PoliticsPresidentialStateView[];
   resolved: boolean;
@@ -1149,6 +1160,30 @@ function projectPresidential(
   const nameOf = (id: string) =>
     candidates.find((candidate) => candidate.id === id)?.name
     ?? politicianName(world, id) ?? id;
+  const governorActions: NonNullable<PoliticsPresidentialView["governorActions"]> = [];
+  if (election.status === "active") {
+    for (const office of Object.values(world.governors)) {
+      if (office.countryId !== world.player.countryId || office.governorId !== "player" || !office.governorParty) continue;
+      const prior = election.governorEndorsements?.find((row) => row.isActive && row.stateId === office.stateId);
+      if (prior?.endorsedById === "player") {
+        governorActions.push({
+          actionId: "withdrawGovernorEndorsement", electionId: election.id, stateId: office.stateId,
+          candidateId: prior.candidateId, candidateName: nameOf(prior.candidateId), endorsementId: prior.id,
+          available: true,
+        });
+        continue;
+      }
+      for (const candidate of election.candidates) {
+        if ((candidate.status ?? "active") !== "active" || candidate.partyId !== office.governorParty) continue;
+        const available = !prior && office.gubernatorialActions >= 1;
+        governorActions.push({
+          actionId: "governorEndorsePresidentialCandidate", electionId: election.id, stateId: office.stateId,
+          candidateId: candidate.id, candidateName: nameOf(candidate.id), available,
+          ...(!available ? { disabledReason: prior ? "This governor already endorsed a candidate in this race." : "Insufficient governor office action points." } : {}),
+        });
+      }
+    }
+  }
   const electors: PoliticsPresidentialElectorView[] = election.candidates
     .map((candidate) => ({
       candidateId: candidate.id,
@@ -1194,6 +1229,7 @@ function projectPresidential(
     totalElectoralVotes: ec?.totalEv ?? 0,
     majorityThreshold: ec ? electoralMajorityFor(ec.totalEv) : 0,
     electors,
+    governorActions,
     states,
     resolved: election.status === "resolved",
     winnerId,

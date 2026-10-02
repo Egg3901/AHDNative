@@ -63,6 +63,8 @@ export type ActionId =
   | "influenceNpp"
   | "recruitCaucusNpp"
   | "endorse"
+  | "governorEndorsePresidentialCandidate"
+  | "withdrawGovernorEndorsement"
   | "sponsorBill"
   | "voteOnBill"
   | "proposePmAppointment"
@@ -462,6 +464,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["endorsement/support"],
+    status: "available",
+  },
+  governorEndorsePresidentialCandidate: {
+    id: "governorEndorsePresidentialCandidate",
+    name: "Governor Endorsement",
+    description: "As the sitting governor, endorse a same-party candidate in an active presidential race. Costs one gubernatorial office action point.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
+    status: "available",
+  },
+  withdrawGovernorEndorsement: {
+    id: "withdrawGovernorEndorsement",
+    name: "Withdraw Governor Endorsement",
+    description: "Withdraw your active presidential endorsement as its sitting governor.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
     status: "available",
   },
   sponsorBill: {

@@ -171,7 +171,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v55: source primary waves, delegates and campaign history.
 // v56: corporate strategy-transition state.
 // v57: source paid-taking tiers, confidence history and actual ownership concentration.
-export const SCHEMA_VERSION = 57;
+// v58: presidential unit ruleset and election-scoped governor endorsement ledger.
+export const SCHEMA_VERSION = 58;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
