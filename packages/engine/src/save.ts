@@ -3264,6 +3264,13 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Historical actions have no reconstructable history. Preserve absence.
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
+  // v53 is reserved for the source-backed nationalization eligibility
+  // contract. Older schemas first take its own migration, then v54 below.
+  if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
+  // Political labour snapshots change the next-turn regional board. Keep
+  // absent history absent; the version bump makes older readers refuse new
+  // saves rather than silently retaining a snapshot they cannot consume.
+  if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
