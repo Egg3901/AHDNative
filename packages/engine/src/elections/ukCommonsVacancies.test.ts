@@ -80,7 +80,9 @@ describe("UK Commons vacancy plumbing", () => {
       homeRegionId: "LON",
       policies: { economic: -2, social: -3 },
       wealth: "high",
-      stats: { charisma: 10, debate: 10, energy: 10, fundraising: 10, businessAcumen: 10, statecraft: 10, intellect: 10 },
+      // The public creator requires exactly 28 stat points. This legal build
+      // prioritizes campaign charisma and Commons debate capacity.
+      stats: { charisma: 10, debate: 10, energy: 3, fundraising: 1, businessAcumen: 1, statecraft: 1, intellect: 2 },
     });
     advanceTurn(world);
     const regular = world.elections.find((election) => election.countryId === "UK" && election.electionType === "commons" && election.state === "LON");
