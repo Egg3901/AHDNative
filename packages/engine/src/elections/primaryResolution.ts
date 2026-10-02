@@ -55,7 +55,11 @@ export function primaryWinnersForElection(countryId: string, electionType: strin
   return governmentType ? PRIMARY_WINNERS_BY_GOVERNMENT_TYPE[governmentType] : 1;
 }
 
-/** Presidential delegate conventions remain a separate source-backed gap. */
+/**
+ * A US presidential record without a distinct primary window uses the general
+ * election lifecycle. Records with a primary window, including presidential
+ * stagger races and non-US nomination races, require the persisted transition.
+ */
 export function requiresPrimaryResolution(rec: ElectionRecord): boolean {
   return !(rec.countryId === "US" && rec.electionType === "president") || rec.primaryEndTurn > rec.startTurn;
 }
@@ -286,7 +290,7 @@ export function recordPrimarySnapshots(world: WorldState): void {
   }
 }
 
-/** Resolve eligible US down-ballot primaries exactly once through persisted state. */
+/** Resolve source-supported nomination races exactly once through persisted state. */
 export function resolvePrimaries(world: WorldState): void {
   for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
     if (!requiresPrimaryResolution(rec) || rec.primaryResults || rec.status === "resolved") continue;
