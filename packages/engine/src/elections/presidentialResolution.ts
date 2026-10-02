@@ -70,7 +70,7 @@ function targetOffice(world: WorldState, id: string): { partyId: string } | unde
   return pol ? { partyId: pol.partyId } : undefined;
 }
 
-function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
+export function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
   const countryId = rec.countryId;
 
   const characters: ContingentCharacterInput[] = world.politicians.map((p) => ({
@@ -83,6 +83,7 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
     _id: "player",
     // "independent" fallback (never bare `undefined` — exactOptionalPropertyTypes).
     party: world.player.partyId ?? "independent",
+    ...(world.player.policies ? { policies: world.player.policies } : {}),
     currentOffice: null,
   });
 
@@ -100,11 +101,28 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
       party: p.partyId,
       characterId: p.id,
       isNPP: false,
+      ...(p.seatsHeld !== undefined ? { seatsHeld: p.seatsHeld } : {}),
     }));
-  // NOTE: a player-held House seat is intentionally excluded from the
-  // contingent House delegation ballot — `player.legislativeSeat` records
-  // chamberKey/countryId but not the held state (pre-existing gap, out of
-  // scope here), so there is no delegation to place the player's vote in.
+  // A career player enters the House delegation only when the actual winning
+  // race stored a region. Do not invent a state for legacy or at-large seats.
+  const playerHouseSeat = world.player.legislativeSeat;
+  const playerHouseState = playerHouseSeat?.regionId;
+  if (
+    playerHouseSeat?.countryId === countryId &&
+    playerHouseSeat.chamberKey === "house" &&
+    playerHouseState &&
+    playerHouseState !== "DC" &&
+    world.regions[playerHouseState]?.countryId === countryId
+  ) {
+    houseOfficials.push({
+      _id: "player",
+      state: playerHouseState,
+      party: world.player.partyId ?? "independent",
+      characterId: "player",
+      isNPP: false,
+      ...(playerHouseSeat.seatsHeld !== undefined ? { seatsHeld: playerHouseSeat.seatsHeld } : {}),
+    });
+  }
 
   const senateOfficials: ElectedOfficialInput[] = world.politicians
     .filter((p) => p.countryId === countryId && p.chamberKey === "senate")
@@ -114,6 +132,7 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
       party: p.partyId,
       characterId: p.id,
       isNPP: false,
+      ...(p.seatsHeld !== undefined ? { seatsHeld: p.seatsHeld } : {}),
     }));
   if (
     world.player.legislativeSeat != null &&
@@ -125,6 +144,9 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
       party: world.player.partyId ?? "independent",
       characterId: "player",
       isNPP: false,
+      ...(world.player.legislativeSeat.seatsHeld !== undefined
+        ? { seatsHeld: world.player.legislativeSeat.seatsHeld }
+        : {}),
     });
   }
 
