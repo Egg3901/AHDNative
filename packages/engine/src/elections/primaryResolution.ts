@@ -207,14 +207,20 @@ export function projectedPrimarySharesByParty(
 function ballotAwareStandings(
   entries: ScoredPrimaryCandidate[],
   primaryVotes: Readonly<Record<string, number>> | undefined,
+  candidateOrder?: ReadonlyMap<string, number>,
 ): ScoredPrimaryCandidate[] {
   const candidateIds = entries.map((entry) => entry.candidate.id);
   const ballotScores = scoreByPrimaryVotes(candidateIds, primaryVotes);
   const ballotShares = ballotSharesWithinParty(candidateIds, primaryVotes);
   if (!ballotScores || !ballotShares) return entries;
   return [...entries]
+    // AHDGame's primary resolver sorts ballot-ranked candidates by their
+    // ballot total alone. Stable sort preserves the source candidate-query
+    // order on an exact ballot tie; the score-ranked standing is not a
+    // secondary tiebreak once ballots exist.
     .sort((a, b) =>
-      (ballotScores[b.candidate.id] ?? 0) - (ballotScores[a.candidate.id] ?? 0) || b.score - a.score,
+      (ballotScores[b.candidate.id] ?? 0) - (ballotScores[a.candidate.id] ?? 0) ||
+      (candidateOrder?.get(a.candidate.id) ?? 0) - (candidateOrder?.get(b.candidate.id) ?? 0),
     )
     .map((entry) => ({ ...entry, sharePct: ballotShares.get(entry.candidate.id) ?? entry.sharePct }));
 }
@@ -302,9 +308,10 @@ export function resolvePrimaries(world: WorldState): void {
     const byParty: Record<string, PrimaryResultEntry[]> = {};
     const conventionResults: NonNullable<ElectionRecord["primaryConventionResults"]> = {};
     const winners = new Set<string>();
+    const candidateOrder = new Map(rec.candidates.map((candidate, index) => [candidate.id, index]));
     const maxAdvancing = presidential ? 1 : primaryWinnersForElection(rec.countryId, rec.electionType);
     for (const [partyId, entries] of primaryStandings(world, rec)) {
-      const scored = ballotAwareStandings(entries, rec.primaryVotes);
+      const scored = ballotAwareStandings(entries, rec.primaryVotes, candidateOrder);
       let partyWinnerIds: string[];
       let useDelegateStanding = false;
       if (presidential) {
