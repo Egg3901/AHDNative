@@ -83,6 +83,34 @@ describe("resolveNominationForParty", () => {
     expect(res!.ballots![1].tallies.a).toBe(900);
   });
 
+  it("uses the reference 70/30 ideological and coalition affinity when a coalition substrate exists", () => {
+    const res = resolveNominationForParty({
+      partyCandidates: [{ candidateId: "a" }, { candidateId: "b" }, { candidateId: "c" }],
+      partyDelegates: { a: 900, b: 850, c: 800 },
+      family: "dem",
+      enriched: enrichedFor([
+        { candidateId: "a", ...CENTRE, party: "A" },
+        { candidateId: "b", ...CENTRE, party: "B" },
+        { candidateId: "c", ...CENTRE, party: "C" },
+      ]),
+      partyGroupFavorabilityByKey: new Map([
+        ["A:urban", 1], ["A:rural", 0],
+        ["B:urban", 0], ["B:rural", 1],
+        ["C:urban", 0], ["C:rural", 1],
+      ]),
+      ruleset: { conventionEnabled: true },
+      now: NOW,
+    });
+
+    // Source suspendEndorseAffinity: ideology=1, orthogonal coalition cosine=0
+    // C/B share the rural coalition vector, so their affinity is 1.00. C/A
+    // are orthogonal: cosine 0 remaps to .5, yielding .85 after the 70/30
+    // blend. C's 800 delegates divide by weights 1.00 (b) and .85 (a): the
+    // source largest-remainder allocation is 432 to b and 368 to a.
+    expect(res!.ballots![1]!.tallies.b).toBe(1282);
+    expect(res!.ballots![1]!.tallies.a).toBe(1268);
+  });
+
   it("lets an eliminated candidate's endorsement tip a symmetric release", () => {
     // a and b are equidistant from centrist c, so affinity alone splits c's
     // delegates evenly and the id-tiebreak would seat b. c endorsing a shifts
