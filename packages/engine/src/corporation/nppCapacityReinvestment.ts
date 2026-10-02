@@ -3,6 +3,7 @@ import type { WorldState } from "../types.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
 import { makeNppCapacityCashRecord } from "./corporateCashLedger.js";
+import { isCorpStateOwned } from "../bonds/corporateBonds.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -18,7 +19,7 @@ export function applyNppCapacityReplacement(world: WorldState): void {
   const prices = corporateSectorBasePrices(world);
   for (const asset of Object.values(corporateSectorAssets(world)).sort((a, b) => a.id.localeCompare(b.id))) {
     const corp = world.corporations[asset.corporationId];
-    if (!corp || corp.suspended || corp.countryOwnerId || corp.isNationalCorporation || (corp.ceoType ?? "npp") !== "npp") continue;
+    if (!corp || corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
     const capitalStock = asset.capitalStock ?? 0;
     const produced = asset.producedUnits ?? 0;
     const sold = asset.soldUnits ?? 0;
@@ -47,6 +48,9 @@ export function applyNppCapacityReplacement(world: WorldState): void {
     const cashLocal = Math.max(0, corp.liquidCapital);
     // Source replacement rail: <=25% of current cash and a strictly positive remainder.
     if (!(costLocal > 0) || costLocal > cashLocal * 0.25 || cashLocal - costLocal <= 0) continue;
+    const cashBefore = corp.liquidCapital;
+    const cashAfter = cashBefore - costLocal;
+    if (!(cashAfter < cashBefore)) continue;
     const onlineTurn = world.meta.turn + Math.max(1, buildCycle);
     const order = { unitsOrdered: units, costPaidAnchor: costAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true };
 
@@ -54,9 +58,8 @@ export function applyNppCapacityReplacement(world: WorldState): void {
     // world mutation; the ledger is emitted only for the cash write that landed.
     asset.buildQueue = [...queue, order];
     asset.constructionInProgressAnchor = (asset.constructionInProgressAnchor ?? 0) + Math.round(costAnchor);
-    const cashBefore = corp.liquidCapital;
-    corp.liquidCapital -= costLocal;
-    const row = makeNppCapacityCashRecord({ corp, world, sector: asset, units, costLocal, cashDeltaLocal: corp.liquidCapital - cashBefore, costAnchor, onlineTurn });
+    corp.liquidCapital = cashAfter;
+    const row = makeNppCapacityCashRecord({ corp, world, sector: asset, units, costLocal, cashDeltaLocal: cashAfter - cashBefore, costAnchor, onlineTurn });
     if (row) (world.corporateCashLedger ??= []).push(row);
   }
 }

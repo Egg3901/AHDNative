@@ -58,7 +58,7 @@ describe("source NPP capacity replacement", () => {
     applyNppCapacityReplacement(world);
     expect(world.corporateSectors[assetId]?.buildQueue).toBeUndefined();
     base.soldUnits = 800;
-    corp.isNationalCorporation = true;
+    corp.ownershipState = "stateOwned";
     applyNppCapacityReplacement(world);
     expect(world.corporateSectors[assetId]?.buildQueue).toBeUndefined();
   });
