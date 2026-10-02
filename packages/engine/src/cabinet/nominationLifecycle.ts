@@ -16,6 +16,7 @@
  */
 
 import type { WorldState } from "../types.js";
+import { heldSeatCount } from "../government/seatWeights.js";
 import type { CabinetConfirmationTally, CabinetNomination } from "./types.js";
 import { cabinetPositionsForCountry } from "./constants.js";
 import { initialMinisterialActionFields } from "./ministerialActionPool.js";
@@ -242,9 +243,9 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
         const draw = rng();
         const vote = nppCabinetVote(holder.partyId, nom.nomineeParty ?? undefined, presidentParty, draw);
         nom.votes[key] = vote;
-        if (vote === "for") nom.votesFor += 1;
-        else if (vote === "against") nom.votesAgainst += 1;
-        else nom.votesAbstain += 1;
+        if (vote === "for") nom.votesFor += heldSeatCount(holder);
+        else if (vote === "against") nom.votesAgainst += heldSeatCount(holder);
+        else nom.votesAbstain += heldSeatCount(holder);
         // House side for VP nominations — use house holders
         newVotes++;
       }
@@ -260,9 +261,9 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
           const vote = nppCabinetVote(holder.partyId, nom.nomineeParty ?? undefined, presidentParty, draw);
           if (!nom.houseVotes) nom.houseVotes = {};
           nom.houseVotes[key] = vote;
-          nom.houseVotesFor = (nom.houseVotesFor ?? 0) + (vote === "for" ? 1 : 0);
-          nom.houseVotesAgainst = (nom.houseVotesAgainst ?? 0) + (vote === "against" ? 1 : 0);
-          nom.houseVotesAbstain = (nom.houseVotesAbstain ?? 0) + (vote === "abstain" ? 1 : 0);
+          nom.houseVotesFor = (nom.houseVotesFor ?? 0) + (vote === "for" ? heldSeatCount(holder) : 0);
+          nom.houseVotesAgainst = (nom.houseVotesAgainst ?? 0) + (vote === "against" ? heldSeatCount(holder) : 0);
+          nom.houseVotesAbstain = (nom.houseVotesAbstain ?? 0) + (vote === "abstain" ? heldSeatCount(holder) : 0);
         }
       }
       applyCabinetNominationTally(nom, computeCabinetNominationTally(world, nom));

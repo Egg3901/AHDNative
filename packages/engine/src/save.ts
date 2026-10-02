@@ -177,6 +177,13 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  const weightedPlayer = world["player"];
+  const weightedSeat = isRecord(weightedPlayer) ? weightedPlayer["legislativeSeat"] : undefined;
+  const weightedOfficials = world["politicians"];
+  if ((isRecord(weightedSeat) && hasOwn(weightedSeat, "seatsHeld")) ||
+    (Array.isArray(weightedOfficials) && weightedOfficials.some(official => isRecord(official) && hasOwn(official, "seatsHeld")))) {
+    return { ok: false, error: "Weighted elected seats cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
   const partyWhips = world["partyWhips"];
   if (Array.isArray(partyWhips) && partyWhips.some((whip) => isRecord(whip) && typeof whip["stateId"] === "string" && whip["stateId"].length > 0)) {
     return { ok: false, error: `Home-state party whip behavior cannot be projected to the schema 42 turn reader. Keep this Native save.` };
@@ -974,6 +981,18 @@ function assertCurrentWorldState(world: WorldState): void {
       }
       seenVacancyIds.add(vacancy["id"]);
     }
+  }
+
+  const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>
+    holder["seatsHeld"] === undefined ||
+    (Number.isSafeInteger(holder["seatsHeld"]) && (holder["seatsHeld"] as number) >= 1);
+  const playerSeat = player["legislativeSeat"];
+  if (isRecord(playerSeat) && !hasValidSeatWeight(playerSeat)) {
+    throw new Error("Not a valid save file: invalid player seat weight");
+  }
+  const politicians = value["politicians"];
+  if (Array.isArray(politicians) && politicians.some(p => isRecord(p) && !hasValidSeatWeight(p))) {
+    throw new Error("Not a valid save file: invalid politician seat weight");
   }
 
   const pricingState = value["centralBankPricingPhaseIn"];
@@ -3481,10 +3500,31 @@ export function deserializeSave(raw: string): WorldState {
   // absent history absent; the version bump makes older readers refuse new
   // saves rather than silently retaining a snapshot they cannot consume.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
-  // Schema 63 adds source UK devolution institution state. Legacy absence is
-  // preserved: initial institutions remain derivable from the authored era,
-  // and no policy history or regional office activation is invented at load.
+  // v55: source primary waves, delegates and campaign history remain absent
+  // until their actual producers run.
+  if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
+  // v56: strategy-transition state is absent until the source transition.
+  if (save.schemaVersion < 56) save.world.meta.schemaVersion = 56;
+  // v57: paid-taking and ownership continuation remains absent on old saves.
+  if (save.schemaVersion < 57) save.world.meta.schemaVersion = 57;
+  // v58: legacy elections retain absent ruleset stamps and endorsement rows.
+  if (save.schemaVersion < 58) save.world.meta.schemaVersion = 58;
+  // v59: preserve absent enacted union-law history.
+  if (save.schemaVersion < 59) save.world.meta.schemaVersion = 59;
+  // v61: preserve historical absence of non-Irish PM appointment records.
+  if (save.schemaVersion < 61) save.world.meta.schemaVersion = 61;
+  // v62: preserve absent union-law and underground continuation.
+  if (save.schemaVersion < 62) save.world.meta.schemaVersion = 62;
+  // v63: preserve absent source primary-corporation identity.
   if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
+  // v64: preserve absent legacy seat weights as one. Historical winner
+  // weights cannot be reconstructed from previously redistributed rosters.
+  // Earlier readers must refuse weighted offices they cannot continue.
+  if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
+  // v65: source UK devolved institutions and Northern Ireland conflict state
+  // remain absent on legacy saves; initial institutions derive from authored
+  // era data, and no policy or conflict history is invented during loading.
+  if (save.schemaVersion < 65) save.world.meta.schemaVersion = 65;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

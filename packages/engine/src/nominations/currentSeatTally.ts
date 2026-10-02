@@ -1,4 +1,5 @@
 import type { WorldState } from "../types.js";
+import { heldSeatCount } from "../government/seatWeights.js";
 
 export type NominationVote = "for" | "against" | "abstain";
 
@@ -20,15 +21,16 @@ function currentSeatVoterKeys(
   world: WorldState,
   countryId: string,
   chamber: "senate" | "house",
-): Set<string> {
+  nppPrefix: "pol_" | "npp_",
+): Map<string, number> {
   const matchesChamber = chamber === "senate" ? isSenateChamber : isHouseChamber;
-  const keys = new Set(
+  const keys = new Map<string, number>(
     world.politicians
       .filter((politician) => politician.countryId === countryId && matchesChamber(politician.chamberKey))
-      .map((politician) => `pol_${politician.id}`),
+      .map((politician) => [`${nppPrefix}${politician.id}`, heldSeatCount(politician)]),
   );
   const playerSeat = world.player.legislativeSeat;
-  if (playerSeat?.countryId === countryId && matchesChamber(playerSeat.chamberKey)) keys.add("player");
+  if (playerSeat?.countryId === countryId && matchesChamber(playerSeat.chamberKey)) keys.set("player", heldSeatCount(playerSeat));
   return keys;
 }
 
@@ -37,14 +39,16 @@ export function tallyCurrentSeatVotes(
   countryId: string,
   votes: Record<string, NominationVote>,
   chamber: "senate" | "house" = "senate",
+  nppPrefix: "pol_" | "npp_" = "pol_",
 ): NominationTally {
-  const eligibleKeys = currentSeatVoterKeys(world, countryId, chamber);
+  const eligibleKeys = currentSeatVoterKeys(world, countryId, chamber, nppPrefix);
   const tally = { votesFor: 0, votesAgainst: 0, votesAbstain: 0 };
   for (const [key, vote] of Object.entries(votes)) {
-    if (!eligibleKeys.has(key)) continue;
-    if (vote === "for") tally.votesFor++;
-    else if (vote === "against") tally.votesAgainst++;
-    else tally.votesAbstain++;
+    const weight = eligibleKeys.get(key);
+    if (weight === undefined) continue;
+    if (vote === "for") tally.votesFor += weight;
+    else if (vote === "against") tally.votesAgainst += weight;
+    else tally.votesAbstain += weight;
   }
   return tally;
 }
