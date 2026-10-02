@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { advanceTurn, createWorld, deserializeSave, projectSaveToV42, serializeSave } from "./index.js";
+import { advanceTurn, createWorld, SCHEMA_VERSION, deserializeSave, projectSaveToV42, serializeSave } from "./index.js";
 
 const recorded = () => deserializeSave(gunzipSync(readFileSync(new URL("../../../fixtures/native-fresh-pre-ceo-source.save.json.gz", import.meta.url))).toString("utf8"));
 
@@ -33,7 +33,7 @@ describe("source political boards at the public save boundary", () => {
     expect(loaded.politicalCabinetContributions).toBeUndefined();
     // Schema51 marks the first reader that can continue the new recorded
     // dynamics. Older readers reject it instead of freezing unknown state.
-    expect(JSON.parse(serializeSave(loaded, "2026-10-01T00:00:00.000Z")).schemaVersion).toBe(51);
+    expect(JSON.parse(serializeSave(loaded, "2026-10-01T00:00:00.000Z")).schemaVersion).toBe(SCHEMA_VERSION);
   });
   it("refuses malformed or out-of-scale recorded political scores before continuation", () => {
     const saved = JSON.parse(serializeSave(createWorld({ era: "2019", countryId: "UK", seed: "political-save", playerName: "Alex" }), "2026-10-01T00:00:00.000Z"));

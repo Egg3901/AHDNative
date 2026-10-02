@@ -62,6 +62,7 @@ export class GameClient {
   caucusManagement() { return this.send<CaucusManagementView>({ type: "caucusManagement" }); }
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }
+  stateOwnership(countryId?: string) { return this.send<import("./stateOwnership").StateOwnershipView>({ type: "stateOwnership", countryId }); }
   unionManagement() { return this.send<UnionManagementView>({ type: "unionManagement" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
   politicalMetrics() { return this.send<PoliticalMetricsView>({ type: "politicalMetrics" }); }
