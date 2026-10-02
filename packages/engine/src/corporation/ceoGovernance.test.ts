@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { executeAction } from "../actions/execute.js";
-import { createWorld } from "../world.js";
+import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { reconcileCeoAppointment } from "./ceoGovernance.js";
 import { deserializeSave, serializeSave } from "../save.js";
 
@@ -144,7 +144,7 @@ describe("corporation CEO governance", () => {
       delete corp.brandColor;
     }
     const migrated = deserializeSave(JSON.stringify(raw));
-    expect(migrated.meta.schemaVersion).toBe(51);
+    expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(migrated.corporations["UK-media"]?.headquartersRegionId).toBe("LON");
     expect(migrated.corporations["US-media"]?.headquartersRegionId).toBe("DC");
     expect(migrated.corporations["US-media"]).toMatchObject({ name: "Daily Media", brandColor: "#06b6d4" });
@@ -170,7 +170,7 @@ describe("corporation CEO governance", () => {
     }
 
     const migrated = deserializeSave(JSON.stringify(raw));
-    expect(migrated.meta.schemaVersion).toBe(51);
+    expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(migrated.corporations["US-media"]).toMatchObject({
       headquartersRegionId: "DC",
       name: "Daily Media",
