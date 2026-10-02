@@ -64,7 +64,7 @@ import {
   type CorporationLabourFactors,
 } from "./corporationLabour.js";
 import { syncSourceRegionalSectorReceipts } from "./sourceRegionalSectorSeed.js";
-import { corporatePlantsRealizationRatio, runCorporatePlantProductionTurn } from "./plantProduction.js";
+import { corporatePlantsRealizationRatio, runCorporatePlantProductionTurn, sourceCorpDailyGrossRevenueLocal } from "./plantProduction.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng } from "./rdInnovationRng.js";
 import { applyNppSourceStrategyRetools, strategyTransitionMarginModifier } from "./strategyRetooling.js";
@@ -438,7 +438,13 @@ export const corporationTurnPhase: TurnPhase = {
     const year = Number(world.meta.date.slice(0, 4));
     for (const corp of Object.values(world.corporations)) {
       const fx = world.exchangeRates?.[corp.countryId]?.rate ?? 1;
-      unlockNppCorporationTech(world, corp, year, nppCorporationCashFloorLocal(corp, world.meta.era, fx));
+      unlockNppCorporationTech(
+        world,
+        corp,
+        year,
+        nppCorporationCashFloorLocal(corp, world.meta.era, fx),
+        sourceCorpDailyGrossRevenueLocal(world, corp.id),
+      );
     }
     trackPlayerCorporationDistress(world);
     runCorporateRdInnovations(world);

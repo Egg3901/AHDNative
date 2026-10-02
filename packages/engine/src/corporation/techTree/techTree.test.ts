@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../../world.js";
 import { advanceTurn } from "../../engine.js";
 import { deserializeSave, serializeSave } from "../../save.js";
-import { corporatePlantProductionPhase, technologyOutputUnitsMultiplier } from "../plantProduction.js";
+import { corporatePlantProductionPhase, sourceCorpDailyGrossRevenueLocal, technologyOutputUnitsMultiplier } from "../plantProduction.js";
 import { corporateSectorBasePrices, SOURCE_DEFAULT_OPERATING_SUPPLY } from "../plantCapacity.js";
 import { getSectorTechEffects, getTreeForType } from "./selectors.js";
 import { foundingTechState, unlockNppCorporationTech } from "./nppUnlock.js";
@@ -40,6 +40,25 @@ describe("source corporate technology state", () => {
     expect(corp.liquidCapital).toBe(100_000);
     expect(corp.rdScore).toBe(100);
     expect(corp.unlockedTechNodeIds).not.toContain("energy-1950-1");
+  });
+
+  it("prices NPP technology from source daily receipts with the owned-capacity floor", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-tech-daily-gross", playerName: "Alex" });
+    const corporation = world.corporations["US-energy"]!;
+    corporation.revenue = 7_000;
+    const assetId = "corporate-sector:US:energy:US-energy";
+    world.corporateSectors = { [assetId]: {
+      id: assetId, corporationId: corporation.id, countryId: "US", stateId: null,
+      sectorType: "energy", capitalStock: 0, realizedRevenue: 7_000, workers: 1,
+      representingUnionId: null, forSale: null, owner: "corporation",
+    } };
+    expect(sourceCorpDailyGrossRevenueLocal(world, corporation.id)).toBe(1_000);
+
+    world.corporateSectors[assetId]!.capitalStock = 10_000;
+    const prices = corporateSectorBasePrices(world);
+    const capacityBasis = 10_000 / Object.entries(SOURCE_DEFAULT_OPERATING_SUPPLY.energy)
+      .reduce((sum, [commodity, rate]) => sum + rate! / prices[commodity as keyof typeof prices]!, 0);
+    expect(sourceCorpDailyGrossRevenueLocal(world, corporation.id)).toBeCloseTo(Math.max(1_000, capacityBasis), 8);
   });
 
   it("applies a researched output-rate effect to physical supply and resumes identically", () => {

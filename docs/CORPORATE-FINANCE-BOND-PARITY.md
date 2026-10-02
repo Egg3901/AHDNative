@@ -111,9 +111,11 @@ but its formula and all named cost legs are not yet complete or independently
 matched end-to-end. Native still lacks Game's labour-market staffing and wage
 mode/minimum-wage inputs, market-dominance compliance inputs, disaster financial
 legs, full policy modifier stack, landed-price premiums and production-policy
-input multiplier wiring. Game `origin/main` is now `7ab3cc75`; reviewed source
-changes to NPP capacity writeback and founding/reinvestment cash ledgers are
-not yet ported or verified by the older NPP cash policy. Full #107 remains open
+input multiplier wiring. The current Game source's issuer-currency daily gross
+revenue/capacity floor for NPP tech pricing and its cash reserve are now wired
+into the Native tech chooser with direct source-shaped tests. Game
+`origin/main` is `7ab3cc75`; its newer founding/reinvestment/tech cash-writeback
+ledger witnesses are not represented in Native state. Full #107 remains open
 for those gaps and for plan gravity, caretaker/CEO lifecycle, snapshot,
 insolvency, and integrated public-turn acceptance.
 

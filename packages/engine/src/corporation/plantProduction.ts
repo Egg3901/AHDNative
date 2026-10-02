@@ -516,6 +516,41 @@ export function corporatePlantsRealizationRatio(world: WorldState, corporationId
   return nominal > 0 ? Math.max(0, Math.min(1, realized / nominal)) : 1;
 }
 
+/** Game corpDailyGrossRevenueLocalFromSectors / sectorEconomicScale, in issuer currency. */
+export function sourceCorpDailyGrossRevenueLocal(world: WorldState, corporationId: string): number {
+  const corporation = world.corporations[corporationId];
+  if (!corporation) return 0;
+  const prices = corporateSectorBasePrices(world);
+  const issuerFx = getRateForCountry(world, corporation.countryId);
+  let anchorBasis = 0;
+  let foundAsset = false;
+  for (const asset of Object.values(corporateSectorAssets(world))) {
+    if (asset.corporationId !== corporationId) continue;
+    foundAsset = true;
+    const selected = asset.strategyId !== undefined && asset.strategyId !== "standard";
+    const strategy = selected || asset.transitionFromStrategyId
+      ? effectiveSectorStrategyRates(asset, world.meta.turn)
+      : { supply: SOURCE_DEFAULT_OPERATING_SUPPLY[asset.sectorType] };
+    let yieldPerCapacity = 0;
+    for (const [rawCommodity, rate] of Object.entries(strategy.supply)) {
+      const price = prices[rawCommodity as CommodityType];
+      if ((rate ?? 0) > 0 && Number.isFinite(price) && price! > 0) yieldPerCapacity += rate! / price!;
+    }
+    const mixPrice = yieldPerCapacity > 0 ? 1 / yieldPerCapacity : 0;
+    const stock = Number.isFinite(asset.capitalStock) ? Math.max(0, asset.capitalStock ?? 0) : 0;
+    const persistedRevenue = asset.realizedRevenue ?? asset.revenue ?? corporation.revenue;
+    const realizedDailyLocal = Number.isFinite(persistedRevenue)
+      ? Math.max(0, persistedRevenue ?? 0) / DAYS_PER_TURN
+      : 0;
+    // Source sectorEconomicScale is max(daily receipts, capitalStock × RPU).
+    const localScale = Math.max(realizedDailyLocal, stock * mixPrice);
+    const hostFx = getRateForCountry(world, asset.countryId);
+    if (localScale > 0 && Number.isFinite(hostFx) && hostFx > 0) anchorBasis += localScale / hostFx;
+  }
+  if (!foundAsset) return Number.isFinite(corporation.revenue) ? Math.max(0, corporation.revenue / DAYS_PER_TURN) : 0;
+  return Number.isFinite(issuerFx) && issuerFx > 0 ? anchorBasis * issuerFx : anchorBasis;
+}
+
 function postureFor(asset: CorporateSectorAsset, demand: number, supply: number): number {
   const lastSold = asset.soldFraction;
   if (typeof lastSold === "number" && Number.isFinite(lastSold)) {
