@@ -24,15 +24,33 @@ import { calculateSubsidyCostForCountry, SECTOR_SUBSIDIES_SPENDING_KEY } from ".
 import { getTurnInYear, FISCAL_YEAR_START_TURN_IN_YEAR, TURNS_PER_YEAR } from "./fiscalYear.js";
 import { advanceTaxRatePhaseIn } from "./taxRatePhaseIn.js";
 
+function sourcePipelineGdpGrowth(world: import("../types.js").WorldState, countryId: string): number {
+  const national = world.nationalMetrics?.[countryId]?.["economic.gdpGrowth"]?.value;
+  if (typeof national === "number" && Number.isFinite(national)) return national;
+
+  let weighted = 0;
+  let totalGdp = 0;
+  for (const region of Object.values(world.regions)) {
+    if (region.countryId !== countryId || !Number.isFinite(region.gdp) || (region.gdp ?? 0) <= 0) continue;
+    const growth = world.regionalMetrics?.[region.id]?.["economic.gdpGrowth"]?.value;
+    if (typeof growth !== "number" || !Number.isFinite(growth)) continue;
+    weighted += growth * (region.gdp ?? 0);
+    totalGdp += region.gdp ?? 0;
+  }
+  return totalGdp > 0 ? weighted / totalGdp : 2.5;
+}
+
 // ── Fiscal base growth ──────────────────────────────────────────────
 // Source: src/lib/turn/fiscalBaseGrowth.ts — per-turn slice of wage/trade/gdp growth
 export const fiscalBaseGrowthPhase: TurnPhase = {
   name: "fiscalBaseGrowth",
   run(world) {
-    // Grows each country's taxBases by one per-turn slice of its economicFactors.
-    // Factors are read from the country's budget.economicFactors (seeded from
-    // NATIONAL_BUDGET_SEED_CONFIGS_1953), mirroring mainline's metricEngine read.
+    // Source runs processFiscalBaseGrowth after computeNationalMetrics. Refresh
+    // GDP growth from the just-aggregated metric-engine output before taking one
+    // per-turn slice; retaining the seeded budget factor here would disconnect
+    // the TFP -> regional growth -> national growth -> tax-base path.
     for (const budget of Object.values(world.budgets ?? {})) {
+      budget.economicFactors.gdpGrowth = sourcePipelineGdpGrowth(world, budget.countryId);
       const before = budget.taxBases;
       const after = applyPerTurnGrowthToFederalBases(before, budget.economicFactors);
       // Round to nearest unit to keep JSON stable

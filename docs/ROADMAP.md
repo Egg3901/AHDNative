@@ -1,7 +1,7 @@
 ## Current parity count and ownership correction, 2026-10-02
 
-Current GitHub state: **54 open from 63: 41 partial, 8 not started, 3 deferred, 2 blocked**.
-Nine verified closures: #308, #297, #51, #110, #111, #299, #115, #286 and #287.
+Current GitHub state: **53 open from 63: 40 partial, 8 not started, 3 deferred, 2 blocked**.
+Ten verified closures: #308, #297, #51, #110, #111, #299, #115, #286, #287 and #40.
 Source plants audit reopened #298/#211; parent #211 is 6/7. #75 is partial,
 with all four broad original criteria unchecked.
 
@@ -32,6 +32,16 @@ actual 320px/390px SP decree/replacement/budget/resume journeys pass. #286 and
 #287 are closed, with original criteria checked and incomplete labels removed.
 [Evidence](DE-CN-TAX-LAW-CAREER-EVIDENCE-286-287.md). Parent #101 is 4/7;
 its broader catalog, unavailable inventory and NPC agenda scope remain open.
+
+The complete source TFP input gate is verified: [PR #726](https://github.com/Egg3901/AHDNative/pull/726)
+merged `8d4b43d` after exact `dbde733` passed the
+[full gate](https://github.com/Egg3901/AHDNative/actions/runs/36955828005).
+All 17 supported country/era seeds feed all six inputs. Four political-board
+leaves evolve through the real source dynamics; R&D intensity and urbanization
+retain their source seed-only behavior. Current GDP growth reaches fiscal bases
+and receipts after aggregation. Public saved treatment/control and actual
+320px/390px education-spending/registry/resume flows pass. #40 is closed;
+[GROWTH-PARITY.md](GROWTH-PARITY.md) records the evidence. Wider #106 remains open.
 
 # AHDNative roadmap
 
