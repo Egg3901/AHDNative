@@ -387,12 +387,13 @@ describe("UK Commons vacancy plumbing", () => {
         ),
       );
     }
-    // This must replay the previously observed legal public-action journey
-    // exactly before its input trace is accepted as source-comparison data.
+    // This must replay the observed legal public-action journey exactly before
+    // its input trace is accepted as source-comparison data. The current
+    // integrated candidate slate is independently source-checked turn by turn.
     expect({
       turn: world.meta.turn,
       playerVotes: regular!.tally.player,
-    }).toEqual({ turn: 123, playerVotes: 91142 });
+    }).toEqual({ turn: 123, playerVotes: 128114 });
     const topVotes = [...Object.entries(regular!.tally)]
       .sort(([, a], [, b]) => b - a)
       .slice(0, 12);
@@ -511,6 +512,7 @@ describe("UK Commons vacancy plumbing", () => {
       regionId: "NIR",
     });
     const heldSeats = world.player.legislativeSeat!.seatsHeld ?? 1;
+    expect(heldSeats).toBe(3);
     expect(executeAction(world, "player", "resignCommonsSeat", {}).ok).toBe(
       true,
     );
