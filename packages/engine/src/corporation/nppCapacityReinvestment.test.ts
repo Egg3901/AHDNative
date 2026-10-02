@@ -2,10 +2,19 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 
 describe("source NPP capacity replacement", () => {
+  it("converts local unowned revenue into source standard-mix headroom units", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-headroom-fx", playerName: "Alex" });
+    world.exchangeRates!["US"]!.rate = 2;
+    const pool = { countryId: "US", sectorType: "manufacturing" as const, revenue: 2_000_000 };
+    // Independent Game formula: anchor revenue × Σ(default supply / modern base price) × eraUnitScale.
+    const sourceUnits = 1_000_000 * (0.4 / 800 + 0.2 / 400) * 69.76744186046511;
+    expect(sourceUnownedHeadroomUnits(world, pool)).toBeCloseTo(sourceUnits, 6);
+  });
+
   it("writes a source-sized replacement order with the matching cash debit and resumes identically", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-capacity-replacement", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;

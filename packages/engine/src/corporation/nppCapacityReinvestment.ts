@@ -1,9 +1,11 @@
 import { anchorToLocal, getRateForCountry } from "../forex/conversion.js";
 import type { WorldState } from "../types.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
-import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
+import { capacityPricePerUnitAnchor, corporateSectorBasePrices, SOURCE_DEFAULT_OPERATING_SUPPLY } from "./plantCapacity.js";
 import { makeNppCapacityCashRecord } from "./corporateCashLedger.js";
 import { isCorpStateOwned } from "../bonds/corporateBonds.js";
+import { localToAnchor } from "../forex/conversion.js";
+import type { UnownedSectorState } from "../economy/types.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -12,6 +14,23 @@ const BUILD_TURNS: Record<string, number> = {
   construction: 48, healthcare: 48, agriculture: 48, logistics: 36,
   entertainment: 24, media: 24, financial: 24, technology: 24, retail: 12,
 };
+
+/** Game market.unownedHeadroomUnits: source standard-mix implied units. */
+export function sourceUnownedHeadroomUnits(world: WorldState, pool: UnownedSectorState): number {
+  if (!(Number.isFinite(pool.revenue) && pool.revenue > 0)) return 0;
+  const revenueAnchor = localToAnchor(pool.revenue, getRateForCountry(world, pool.countryId));
+  // Use Native's authored default strategy mix for the unowned market. Its
+  // base-price table is already era-adjusted, algebraically equal to Game's
+  // modern COMMODITY_BASE_PRICES multiplied by eraUnitScale in impliedOutputUnits.
+  const prices = corporateSectorBasePrices(world);
+  const defaultSupply = SOURCE_DEFAULT_OPERATING_SUPPLY[pool.sectorType];
+  let unitsPerAnchor = 0;
+  for (const [commodity, rate] of Object.entries(defaultSupply)) {
+    const price = prices[commodity as keyof typeof prices];
+    if ((rate ?? 0) > 0 && Number.isFinite(price) && (price ?? 0) > 0) unitsPerAnchor += rate! / price!;
+  }
+  return Number.isFinite(unitsPerAnchor * revenueAnchor) ? unitsPerAnchor * revenueAnchor : 0;
+}
 
 /** Source NPP physical replacement leg. Growth/founding use separate pool and pricing inputs. */
 export function applyNppCapacityReplacement(world: WorldState): void {
