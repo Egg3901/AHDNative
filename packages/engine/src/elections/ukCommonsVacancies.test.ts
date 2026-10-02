@@ -4,7 +4,7 @@ import { executeAction } from "../actions/execute.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { scheduleUkCommonsByElections } from "./ukCommonsVacancies.js";
-import { seatHolders } from "./orchestration.js";
+import { recomputeComposition, seatHolders } from "./orchestration.js";
 import {
   governmentFormationPhase,
   governmentVacancyWatcherPhase,
@@ -27,6 +27,54 @@ describe("UK Commons vacancy plumbing", () => {
       "do not hold a UK Commons seat",
     );
     expect(world.ukCommonsVacancies).toBeUndefined();
+  });
+
+  it("crosses the floor through the public action and records the exact weighted Commons vacancy", () => {
+    const world = createWorld({ seed: "commons-defection-action", playerName: "UK MP", countryId: "UK", era: "2019" });
+    world.player.actions = 0;
+    expect(executeAction(world, "player", "joinParty", { partyId: "UK_LAB" }).ok).toBe(true);
+    world.player.legislativeSeat = { countryId: "UK", chamberKey: "commons", regionId: "LON", seatsHeld: 3 };
+
+    const result = executeAction(world, "player", "defectCommonsSeat", { partyId: "UK_CON" });
+
+    expect(result.ok).toBe(true);
+    expect(world.player.partyId).toBe("UK_CON");
+    expect(world.player.legislativeSeat).toBeNull();
+    expect(world.ukCommonsVacancies).toEqual([expect.objectContaining({
+      countryId: "UK",
+      regionId: "LON",
+      formerHolderId: "player",
+      seats: 3,
+      reason: "defection",
+      status: "open",
+    })]);
+    const restored = deserializeSave(serializeSave(world, "commons-defection-action"));
+    expect(restored.ukCommonsVacancies).toEqual(world.ukCommonsVacancies);
+    expect(restored.player.partyId).toBe("UK_CON");
+  });
+
+  it("turns an existing retired Commons office into a weighted vacancy on the ordinary watcher", () => {
+    const world = createWorld({ seed: "commons-retirement-watcher", playerName: "UK MP", countryId: "UK", era: "2019" });
+    const holder = world.politicians.find((politician) => politician.countryId === "UK" && politician.chamberKey === "commons")!;
+    holder.electedState = "LON";
+    holder.seatsHeld = 4;
+    holder.retiredAt = "2019-01-01T00:00:00.000Z";
+    recomputeComposition(world, "UK", "commons");
+    const beforePartySeats = world.legislatures.UK!.chambers.find((chamber) => chamber.key === "commons")!.composition.seatsByParty[holder.partyId] ?? 0;
+
+    advanceTurn(world);
+    expect(world.meta.turn).toBe(1);
+
+    expect(holder.chamberKey).toBe("");
+    expect(world.ukCommonsVacancies).toEqual([expect.objectContaining({
+      formerHolderId: holder.id,
+      regionId: "LON",
+      seats: 4,
+      reason: "retirement",
+      status: "scheduled",
+    })]);
+    expect(world.legislatures.UK!.chambers.find((chamber) => chamber.key === "commons")!.composition.seatsByParty[holder.partyId] ?? 0).toBe(beforePartySeats - 4);
+    expect(deserializeSave(serializeSave(world, "commons-retirement-watcher")).ukCommonsVacancies).toEqual(world.ukCommonsVacancies);
   });
 
   it("schedules a grouped regional vacancy with the source carve and leaves other regional MPs seated", () => {

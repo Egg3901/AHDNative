@@ -97,7 +97,7 @@ describe("source country governor election families", () => {
       (election) => election.countryId === "UK" && election.electionType === "governor" && election.status === "resolved",
     );
     expect(resolved.map((election) => election.state).sort()).toEqual(["LON", "NIR", "SCO", "WAL"]);
-    for (const race of resolved) expect(world.governors[race.state!]!.governorId).toBe(race.winners[0]);
+    for (const race of resolved) expect(world.governors[race.state!]!.governorId).toBe(race.winners![0]);
 
     const restored = deserializeSave(serializeSave(world, "uk-executive-parity"));
     for (const race of resolved) {
@@ -229,7 +229,7 @@ describe("source country governor election families", () => {
       expect(race!.state).toBeTruthy();
       expect(race!.winners).toHaveLength(1);
       expect(Object.values(race!.tally).some((votes) => votes > 0), `${countryId} ordinary turn tally should receive votes`).toBe(true);
-      expect(world.governors[race!.state!]!.governorId).toBe(race!.winners[0]);
+      expect(world.governors[race!.state!]!.governorId).toBe(race!.winners![0]);
     }
 
     const restored = deserializeSave(serializeSave(world, "country-governor-parity"));

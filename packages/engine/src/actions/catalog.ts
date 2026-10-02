@@ -74,6 +74,7 @@ export type ActionId =
   | "declareCandidacy"
   | "withdrawCandidacy"
   | "resignCommonsSeat"
+  | "defectCommonsSeat"
   | "contestPartyLeadership"
   | "votePartyLeadership"
   | "issuePartyWhip"
@@ -588,6 +589,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["elections", "ukCommonsVacancies"],
+    status: "available",
+  },
+  defectCommonsSeat: {
+    id: "defectCommonsSeat",
+    name: "Defect from the Commons",
+    description: "Cross the floor to another UK party and vacate your recorded Commons office for a by-election.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections", "ukCommonsVacancies", "parties"],
     status: "available",
   },
   contestPartyLeadership: {

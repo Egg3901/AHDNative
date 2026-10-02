@@ -4,7 +4,8 @@ import type { GovernmentState } from "./types.js";
 import { isRecordedSingleplayerHeadOfGovernment, seatSingleplayerHeadOfGovernment } from "./singleplayerHeadOfGovernment.js";
 import type { Chamber, WorldState } from "../types.js";
 import { computeFormation, selectPm } from "./formation.js";
-import { cancelUkCommonsSpecialsForSnap, scheduleUkCommonsByElections } from "../elections/ukCommonsVacancies.js";
+import { cancelUkCommonsSpecialsForSnap, scheduleUkCommonsByElections, vacateRetiredUkCommonsOfficials } from "../elections/ukCommonsVacancies.js";
+import { recomputeComposition } from "../elections/orchestration.js";
 import { liveChamberSeatsByParty } from "./seatWeights.js";
 import {
   GOVERNMENT_CHAMBER_BY_COUNTRY,
@@ -315,6 +316,7 @@ export const governmentVacancyWatcherPhase: TurnPhase = {
 export const ukCommonsVacancyWatcherPhase: TurnPhase = {
   name: "ukCommonsVacancyWatcher",
   run(world) {
+    if (vacateRetiredUkCommonsOfficials(world) > 0) recomputeComposition(world, "UK", "commons");
     scheduleUkCommonsByElections(world);
   },
 };

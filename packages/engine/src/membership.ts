@@ -179,6 +179,19 @@ export function canJoinParty(world: WorldState, partyId: string): JoinResult {
 export function joinParty(world: WorldState, partyId: string): JoinResult {
   const check = canJoinParty(world, partyId);
   if (!check.ok) return check;
+  return movePartyMembership(world, partyId);
+}
+
+/** Source Commons defection command changes party without running generic join cooldowns. */
+export function defectParty(world: WorldState, partyId: string): JoinResult {
+  const party = world.parties[partyId];
+  if (!party) return { ok: false, error: `Party not found: ${partyId}` };
+  if (party.countryId !== world.player.countryId) return { ok: false, error: `Party ${partyId} belongs to ${party.countryId}, player is in ${world.player.countryId}` };
+  if (world.player.partyId === partyId) return { ok: false, error: `Already a member of ${partyId}` };
+  return movePartyMembership(world, partyId);
+}
+
+function movePartyMembership(world: WorldState, partyId: string): JoinResult {
   const player = world.player;
   const oldPartyId = player.partyId;
   // Decrement old party memberCount if leaving

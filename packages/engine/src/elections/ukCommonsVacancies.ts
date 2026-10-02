@@ -17,7 +17,7 @@ export interface UkCommonsVacancy {
   formerHolderId: string;
   /** Source vacancy.seats preserves the departed regional office weight. */
   seats?: number;
-  reason: "resignation";
+  reason: "death" | "retirement" | "defection" | "resignation" | "recall" | "removal";
   vacatedTurn: number;
   status: UkCommonsVacancyStatus;
   electionId?: string;
@@ -25,30 +25,89 @@ export interface UkCommonsVacancy {
   filledTurn?: number;
 }
 
-/** The only live departure producer in Native is the player's public resignation action. */
-export function resignUkCommonsSeat(world: WorldState): { ok: true; vacancy: UkCommonsVacancy } | { ok: false; error: string } {
+function hasActiveCandidacy(world: WorldState): boolean {
+  return world.elections.some((election) =>
+    election.status !== "resolved" && election.status !== "cancelled" &&
+    election.candidates.some((candidate) => candidate.id === "player" && candidate.status !== "withdrawn"),
+  );
+}
+
+export function vacatePlayerCommonsSeat(
+  world: WorldState,
+  reason: "resignation" | "defection",
+): { ok: true; vacancy: UkCommonsVacancy } | { ok: false; error: string } {
   const seat = world.player.legislativeSeat;
   if (!seat || seat.countryId !== "UK" || seat.chamberKey !== "commons") {
     return { ok: false, error: "You do not hold a UK Commons seat." };
   }
   const regionId = seat.regionId;
   if (!regionId) return { ok: false, error: "Your Commons seat has no recorded regional office." };
+  if (hasActiveCandidacy(world)) return { ok: false, error: "Cannot leave the Commons while actively running in an election." };
   const vacancies = world.ukCommonsVacancies ?? (world.ukCommonsVacancies = []);
   const existing = vacancies.find((vacancy) => vacancy.formerHolderId === "player" && vacancy.status === "open");
   if (existing) return { ok: false, error: "This Commons office already has an open vacancy." };
   const vacancy: UkCommonsVacancy = {
-    id: `commons-vacancy:${regionId}:player:${world.meta.turn}`,
+    id: `commons-vacancy:${regionId}:player:${world.meta.turn}:${reason}`,
     countryId: "UK",
     regionId,
     formerHolderId: "player",
     seats: heldSeatCount(seat),
-    reason: "resignation",
+    reason,
     vacatedTurn: world.meta.turn,
     status: "open",
   };
   vacancies.push(vacancy);
   world.player.legislativeSeat = null;
   return { ok: true, vacancy };
+}
+
+/** Public source counterpart to resignCommonsSeat. */
+export function resignUkCommonsSeat(world: WorldState): { ok: true; vacancy: UkCommonsVacancy } | { ok: false; error: string } {
+  return vacatePlayerCommonsSeat(world, "resignation");
+}
+
+/** Source counterpart to defectCommonsSeat: change party and vacate the exact held office. */
+export function validateUkCommonsDefection(world: WorldState, toPartyId: string): { ok: true } | { ok: false; error: string } {
+  const seat = world.player.legislativeSeat;
+  if (!seat || seat.countryId !== "UK" || seat.chamberKey !== "commons" || !seat.regionId) {
+    return { ok: false, error: "You do not hold a UK Commons seat." };
+  }
+  const target = world.parties[toPartyId];
+  if (!target || target.countryId !== "UK") return { ok: false, error: "Choose an existing UK party." };
+  if (toPartyId === world.player.partyId) return { ok: false, error: "Choose a different party to defect to." };
+  if (hasActiveCandidacy(world)) return { ok: false, error: "Cannot defect while actively running in an election." };
+  if (world.ukCommonsVacancies?.some((vacancy) => vacancy.formerHolderId === "player" && vacancy.status === "open")) {
+    return { ok: false, error: "This Commons office already has an open vacancy." };
+  }
+
+  return { ok: true };
+}
+
+/** Retired seated NPPs have a source-held office; tombstone it and preserve its exact weight. */
+export function vacateRetiredUkCommonsOfficials(world: WorldState): number {
+  let vacated = 0;
+  const vacancies = world.ukCommonsVacancies ?? (world.ukCommonsVacancies = []);
+  for (const politician of world.politicians) {
+    if (politician.countryId !== "UK" || politician.chamberKey !== "commons" || politician.retiredAt == null || !politician.electedState) continue;
+    if (vacancies.some((vacancy) => vacancy.formerHolderId === politician.id)) continue;
+    const regionId = politician.electedState;
+    vacancies.push({
+      id: `commons-vacancy:${regionId}:${politician.id}:${world.meta.turn}:retirement`,
+      countryId: "UK",
+      regionId,
+      formerHolderId: politician.id,
+      seats: heldSeatCount(politician),
+      reason: "retirement",
+      vacatedTurn: world.meta.turn,
+      status: "open",
+    });
+    politician.chamberKey = "";
+    politician.electedState = undefined;
+    delete politician.seatsHeld;
+    vacated += 1;
+  }
+  if (vacated === 0 && vacancies.length === 0) delete world.ukCommonsVacancies;
+  return vacated;
 }
 
 export function closeUkCommonsVacancies(world: WorldState, vacancyIds: readonly string[], soleWinnerId?: string): void {

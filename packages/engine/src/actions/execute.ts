@@ -78,7 +78,7 @@ import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
 import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
 import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeacePoll } from "../livingConflict/northernIreland.js";
-import { resignUkCommonsSeat } from "../elections/ukCommonsVacancies.js";
+import { resignUkCommonsSeat, validateUkCommonsDefection, vacatePlayerCommonsSeat } from "../elections/ukCommonsVacancies.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 
 export type ExecuteActionParams = {
@@ -641,6 +641,18 @@ function executeActionInner(
     if (!result.ok) return result;
     recomputeComposition(world, "UK", "commons");
     return { ok: true, message: `You resigned from your ${result.vacancy.regionId} Commons office; a by-election is now due.` };
+  }
+  if (actionId === "defectCommonsSeat") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player can defect from the Commons." };
+    const partyId = params.partyId ?? "";
+    const eligibility = validateUkCommonsDefection(world, partyId);
+    if (!eligibility.ok) return eligibility;
+    const membership = Membership.defectParty(world, partyId);
+    if (!membership.ok) return membership;
+    const result = vacatePlayerCommonsSeat(world, "defection");
+    if (!result.ok) return result;
+    recomputeComposition(world, "UK", "commons");
+    return { ok: true, message: `You defected; your former ${result.vacancy.regionId} Commons office is due for a by-election.` };
   }
 
   if (actionId === "fundraise") {
@@ -2630,6 +2642,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.niPollSide && params.units !== undefined ? null : "campaignNorthernIrelandPeacePoll requires niPollSide and units";
     case "resignCommonsSeat":
       return null;
+    case "defectCommonsSeat":
+      return params.partyId ? null : "defectCommonsSeat requires partyId";
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null

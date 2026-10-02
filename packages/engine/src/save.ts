@@ -983,7 +983,7 @@ function assertCurrentWorldState(world: WorldState): void {
     const seenVacancyIds = new Set<string>();
     for (const vacancy of ukCommonsVacancies) {
       if (!isRecord(vacancy) || Object.keys(vacancy).some((key) => !["id", "countryId", "regionId", "formerHolderId", "seats", "reason", "vacatedTurn", "status", "electionId", "filledById", "filledTurn"].includes(key)) ||
-        typeof vacancy["id"] !== "string" || typeof vacancy["regionId"] !== "string" || vacancy["countryId"] !== "UK" || typeof vacancy["formerHolderId"] !== "string" || vacancy["reason"] !== "resignation" || !Number.isInteger(vacancy["vacatedTurn"]) || !["open", "scheduled", "filled", "subsumed"].includes(String(vacancy["status"])) ||
+        typeof vacancy["id"] !== "string" || typeof vacancy["regionId"] !== "string" || vacancy["countryId"] !== "UK" || typeof vacancy["formerHolderId"] !== "string" || !["death", "retirement", "defection", "resignation", "recall", "removal"].includes(String(vacancy["reason"])) || !Number.isInteger(vacancy["vacatedTurn"]) || !["open", "scheduled", "filled", "subsumed"].includes(String(vacancy["status"])) ||
         (vacancy["seats"] !== undefined && (!Number.isSafeInteger(vacancy["seats"]) || (vacancy["seats"] as number) < 1)) ||
         seenVacancyIds.has(vacancy["id"]) ||
         (vacancy["status"] === "scheduled" && typeof vacancy["electionId"] !== "string") ||
