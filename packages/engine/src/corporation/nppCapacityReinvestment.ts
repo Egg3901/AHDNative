@@ -351,11 +351,23 @@ export function applyNppCapacityReplacement(world: WorldState): void {
     const owner = world.corporations[row.corporationId];
     return Boolean(owner && isCorpStateOwned(owner) && row.stateId);
   }).map((row) => `${row.stateId}:${row.sectorType}`));
-  const ordersByCorp = new Map<string, number>();
+  const candidates: Array<{
+    asset: CorporateSectorAsset;
+    corp: Corporation;
+    queue: NonNullable<CorporateSectorAsset["buildQueue"]>;
+    units: number;
+    growthUnits: number;
+    costAnchor: number;
+    costLocal: number;
+    cashFloorLocal: number;
+    buildCycle: number;
+    fill: number;
+    headroomUnits: number;
+    rankScore: number;
+  }> = [];
   for (const asset of assets) {
     const corp = world.corporations[asset.corporationId];
     if (!corp || corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
-    if ((ordersByCorp.get(corp.id) ?? 0) >= 4) continue;
     const capitalStock = asset.capitalStock ?? 0;
     const produced = asset.producedUnits ?? 0;
     const sold = asset.soldUnits ?? 0;
@@ -409,28 +421,52 @@ export function applyNppCapacityReplacement(world: WorldState): void {
       : 0;
     const units = replacementUnits + growthUnits;
     if (!(units > 0)) continue;
-
     const costAnchor = sourceNppCapacityBuildCostAnchor(world, corp, asset, units, year);
-    const costLocal = anchorToLocal(costAnchor, getRateForCountry(world, corp.countryId));
+    const costLocal = anchorToLocal(costAnchor, rate);
     const cashFloorLocal = anchorToLocal(cashFloorAnchor, rate);
-    const affordable = growthUnits > 0
-      ? cashLocal - costLocal >= cashFloorLocal
-      : costLocal <= Math.max(0, cashLocal) * NPP_REINVEST_MAINTENANCE_CASH_SHARE && cashLocal - costLocal > 0;
-    if (!(costLocal > 0) || !affordable) continue;
-    const cashBefore = corp.liquidCapital;
-    const cashAfter = cashBefore - costLocal;
-    if (!(cashAfter < cashBefore)) continue;
-    const onlineTurn = world.meta.turn + Math.max(1, buildCycle);
-    const order = { unitsOrdered: units, costPaidAnchor: costAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true };
+    const pool = asset.stateId
+      ? Object.values(world.unownedSectors).find((row) => row.countryId === asset.countryId && row.regionId === asset.stateId && row.sectorType === asset.sectorType)
+      : undefined;
+    const headroomUnits = pool ? sourceUnownedHeadroomUnits(world, pool) : 0;
+    candidates.push({ asset, corp, queue, units, growthUnits, costAnchor, costLocal, cashFloorLocal, buildCycle, fill, headroomUnits, rankScore: fill * (headroomUnits + units) });
+  }
 
-    // Apply the physical queue, CIP, cash debit, and witness as one synchronous
-    // world mutation; the ledger is emitted only for the cash write that landed.
-    asset.buildQueue = [...queue, order];
-    asset.constructionInProgressAnchor = (asset.constructionInProgressAnchor ?? 0) + Math.round(costAnchor);
-    corp.liquidCapital = cashAfter;
-    const row = makeNppCapacityCashRecord({ corp, world, sector: asset, units, costLocal, cashDeltaLocal: cashAfter - cashBefore, costAnchor, onlineTurn });
-    if (row) (world.corporateCashLedger ??= []).push(row);
-    ordersByCorp.set(corp.id, (ordersByCorp.get(corp.id) ?? 0) + 1);
+  // Game ranks every eligible sector before writing up to four orders for an
+  // issuer. Native lacks the source fragile-market intervention signals, so
+  // those candidates currently have zero intervention priority; the second
+  // source sort key, sell-through × (unowned headroom + order units), is exact.
+  const byCorporation = new Map<string, typeof candidates>();
+  for (const candidate of candidates) {
+    const group = byCorporation.get(candidate.corp.id) ?? [];
+    group.push(candidate);
+    byCorporation.set(candidate.corp.id, group);
+  }
+  for (const group of byCorporation.values()) {
+    group.sort((a, b) => b.rankScore - a.rankScore || a.asset.id.localeCompare(b.asset.id));
+    let placed = 0;
+    for (const candidate of group) {
+      if (placed >= 4) break; // source NPP_REINVEST_MAX_SECTORS_PER_TURN
+      const { asset, corp, queue, units, growthUnits, costAnchor, costLocal, cashFloorLocal, buildCycle } = candidate;
+      const cashLocal = Math.max(0, corp.liquidCapital);
+      const affordable = growthUnits > 0
+        ? cashLocal - costLocal >= cashFloorLocal
+        : costLocal <= cashLocal * NPP_REINVEST_MAINTENANCE_CASH_SHARE && cashLocal - costLocal > 0;
+      if (!(costLocal > 0) || !affordable) continue;
+      const cashBefore = corp.liquidCapital;
+      const cashAfter = cashBefore - costLocal;
+      if (!(cashAfter < cashBefore)) continue;
+      const onlineTurn = world.meta.turn + Math.max(1, buildCycle);
+      const order = { unitsOrdered: units, costPaidAnchor: costAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true };
+
+      // Apply the physical queue, CIP, cash debit, and witness as one synchronous
+      // world mutation; the ledger is emitted only for the cash write that landed.
+      asset.buildQueue = [...queue, order];
+      asset.constructionInProgressAnchor = (asset.constructionInProgressAnchor ?? 0) + Math.round(costAnchor);
+      corp.liquidCapital = cashAfter;
+      const row = makeNppCapacityCashRecord({ corp, world, sector: asset, units, costLocal, cashDeltaLocal: cashAfter - cashBefore, costAnchor, onlineTurn });
+      if (row) (world.corporateCashLedger ??= []).push(row);
+      placed += 1;
+    }
   }
 }
 

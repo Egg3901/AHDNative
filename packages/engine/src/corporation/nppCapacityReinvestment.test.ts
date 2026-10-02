@@ -362,6 +362,32 @@ describe("source NPP capacity replacement", () => {
     expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
   });
 
+  it("ranks all eligible sector orders before applying the source four-order issuer limit", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-reinvestment-rank", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.liquidCapital = 1_000_000_000;
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice;
+    const fills = [0.86, 0.88, 0.92, 0.96, 1];
+    const regionIds = ["VA", "NY", "CA", "TX", "OH"];
+    world.corporateSectors = Object.fromEntries(fills.map((fill, index) => {
+      const id = `ranked-plant-${index}`;
+      return [id, {
+        id, corporationId: corp.id, countryId: "US", stateId: regionIds[index],
+        sectorType: "manufacturing" as const, capitalStock: 1_000, operatingCapacityUnits: 1_000,
+        producedUnits: 1_000, soldUnits: fill * 1_000, revenue: 10_000,
+        plantsPnl: { turn: world.meta.turn, revenue: 10_000, inputs: 1_000, otherOpex: 0, policyCredit: 0, growth: 0, operatingCost: 1_000, totalCost: 1_000, profit: 9_000 },
+        workers: 1, representingUnionId: null, forSale: null, owner: "corporation" as const,
+      }];
+    }));
+
+    applyNppCapacityReplacement(world);
+
+    expect(Object.values(world.corporateSectors!).filter((asset) => (asset.buildQueue?.length ?? 0) > 0).map((asset) => asset.id).sort())
+      .toEqual(["ranked-plant-1", "ranked-plant-2", "ranked-plant-3", "ranked-plant-4"]);
+    expect(world.corporateCashLedger).toHaveLength(4);
+  });
+
   it("does not replace an underfilled, state-owned, or doubly queued asset", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-capacity-replacement-gates", playerName: "Alex" });
     const corp = world.corporations["US-energy"]!;
