@@ -1,4 +1,9 @@
 import { snapTaxRate } from "./taxRate";
+import { isCorpStateOwned } from "../../packages/engine/src/bonds/corporateBonds";
+import { nationalizationBillSponsorGate } from "../../packages/engine/src/legislation/nationalizationBills";
+import { nationalizationCompensation } from "../../packages/engine/src/corporation/nationalizationCompensation";
+import { anchorToLocal, getRateForCountry } from "../../packages/engine/src/forex/conversion";
+import { FIRST_PROVISION_NPI_COST } from "../../packages/engine/src/legislation/proposalCosts";
 /**
  * LegislationDetails: detached legislature detail/query DTO.
  *
@@ -121,6 +126,14 @@ export interface LegislationProposalDetails {
   baselineLevel?: number;
   levels?: LegislationLevelView[];
   taxPolicy?: LegislationTaxPolicyView;
+  nationalizationTargets?: Array<{
+    corporationId: string;
+    name: string;
+    ownerKind: "npc" | "player";
+    currency: string;
+    compensationLocal: number;
+    noticeTurns: number;
+  }>;
   targets: { metricId: string; weight: number; higherBetter?: boolean }[];
   effect?: {
     economy?: Partial<Record<"gdp" | "growthRate" | "inflationRate" | "unemploymentRate" | "outputGap", number>>;
@@ -308,6 +321,29 @@ export function buildLegislationDetails(
       sponsorNpiCost: nationalInfluenceCost,
     });
     });
+
+  if (legConfig?.chambers.some(chamber => chamber.elected)) {
+    const gate = nationalizationBillSponsorGate(world);
+    const assets = Object.values(world.corporateSectors ?? {});
+    proposals.push({
+      id: "state_ownership.nationalize", title: "State ownership",
+      description: "Nationalize a whole corporation by a fair-value state-ownership bill. The corporation is dissolved when the taking completes.",
+      kind: "state_ownership", category: "state ownership", allowedScope: "national", targets: [],
+      sponsorAvailable: gate.ok,
+      ...(!gate.ok ? { sponsorDisabledReason: gate.error } : {}),
+      sponsorCost: BILL_PROPOSE_ACTION_COST, sponsorNpiCost: FIRST_PROVISION_NPI_COST,
+      nationalizationTargets: Object.values(world.corporations)
+        .filter(corp => corp.countryId === countryId && !isCorpStateOwned(corp))
+        .sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id) || a.id.localeCompare(b.id))
+        .map(corp => ({
+          corporationId: corp.id, name: corp.name ?? corp.tickerSymbol ?? corp.id,
+          ownerKind: corp.nationalizationOwnerKind ?? "npc",
+          currency: world.budgets[countryId]?.currencyCode ?? "USD",
+          compensationLocal: Math.round(anchorToLocal(nationalizationCompensation(world, corp, assets.filter(asset => asset.corporationId === corp.id), "fair").payoutAnchor, getRateForCountry(world, countryId))),
+          noticeTurns: corp.nationalizationOwnerKind === "player" ? 48 : 0,
+        })),
+    });
+  }
 
   const voteGate = (
     billCountryId: string,

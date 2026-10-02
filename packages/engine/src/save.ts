@@ -54,6 +54,7 @@ import { validatePoliticalState } from "./politicalMetrics/validate.js";
 import { validateNationalizationEligibilityState } from "./corporation/nationalizationEligibility.js";
 import { validateNationalCorporations } from "./corporation/nationalCorporation.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
+import { validatePendingNationalizations } from "./corporation/pendingNationalizations.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -181,6 +182,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  if (hasOwn(world, "pendingNationalizations")) {
+    return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
   const weightedPlayer = world["player"];
   const weightedSeat = isRecord(weightedPlayer) ? weightedPlayer["legislativeSeat"] : undefined;
   const weightedOfficials = world["politicians"];
@@ -3685,6 +3689,9 @@ export function deserializeSave(raw: string): WorldState {
   // weights cannot be reconstructed from previously redistributed rosters.
   // Earlier readers must refuse weighted offices they cannot continue.
   if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
+  // v65: state-ownership bill targets and legislative ledger authority.
+  // Historical absence remains absent; an older reader cannot enact these bills.
+  if (save.schemaVersion < 65) save.world.meta.schemaVersion = 65;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3749,6 +3756,7 @@ export function deserializeSave(raw: string): WorldState {
   validateBankingState(save.world);
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
+  validatePendingNationalizations(save.world);
   validateNationalizationEligibilityState(save.world);
   validateNationalCorporations(save.world);
   validateCanvassState(save.world);

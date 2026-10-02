@@ -32,6 +32,8 @@ export interface WorldState {
   meta: WorldMeta;
   /** Source acquisition history. Older worlds preserve the absence of history. */
   stateOwnershipLedger?: import("./corporation/stateOwnershipLedger.js").StateOwnershipEntry[];
+  /** Source notice history; absent in genuine historical saves. */
+  pendingNationalizations?: import("./corporation/pendingNationalizations.js").PendingNationalization[];
   /**
    * Optional source gameConfig rollout anchor. It is written lazily on the
    * first financial phase so untouched and historical saves retain their

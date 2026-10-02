@@ -14,9 +14,9 @@ export function projectStateOwnership(world: WorldState, countryId = world.playe
     .map(entry => ({
       ...entry,
       firm: entry.formerCorpName,
-      pathLabel: "Executive",
+      pathLabel: entry.method === "legislative" ? "Legislative" : entry.method === "supermajority" ? "Supermajority" : "Executive",
       tierLabel: entry.tier === "fair" ? "Fair value" : entry.tier === "discounted" ? "Discounted" : "Seizure",
-      triggerLabel: entry.triggers[0] === "npc" ? "NPC-owned" : "Financial distress",
+      triggerLabel: ({ npc: "NPC-owned", unowned: "Unowned", distress: "Financial distress", strategic: "Strategic sector", monopoly: "Monopoly", supermajority: "Supermajority" })[entry.triggers[0]!],
       // Source registerView renders a zero seizure payout as missing, while
       // the summary correctly includes a zero compensation total.
       compensationLocal: entry.compensationAnchor > 0 ? Math.round(anchorToLocal(entry.compensationAnchor, rate)) : null,

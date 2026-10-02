@@ -183,7 +183,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v63: source primary National Corporation identity and cross-sector routing.
 // v64: allocated seatsHeld weights must survive winner, ballot and government
 // continuation; older readers count one vote per office and must refuse them.
-export const SCHEMA_VERSION = 64;
+// v65: legislative taking targets and player notice deadlines affect future
+// ownership and consequences; the schema-64 reader cannot continue them.
+export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

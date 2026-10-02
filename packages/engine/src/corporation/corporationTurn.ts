@@ -33,6 +33,7 @@
  */
 
 import { trackPlayerCorporationDistress } from "./nationalizationEligibility.js";
+import { resolvePendingLegislativeNationalizations } from "./pendingNationalizations.js";
 import type { TurnPhase } from "../phases/types.js";
 import type { Corporation } from "./types.js";
 import type { PlayerCharacter } from "../types.js";
@@ -373,6 +374,7 @@ export const corporationTurnPhase: TurnPhase = {
     // results are written. A chosen method therefore starts affecting output
     // on the next turn, rather than changing the production just settled.
     applyNppSourceStrategyRetools(world);
+    resolvePendingLegislativeNationalizations(world);
     trackPlayerCorporationDistress(world);
     runCorporateRdInnovations(world);
     syncSourceRegionalSectorReceipts(world);

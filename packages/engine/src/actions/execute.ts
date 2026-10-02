@@ -74,6 +74,7 @@ import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
+import { proposeNationalizationBill } from "../legislation/nationalizationBills.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
 import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
@@ -445,6 +446,11 @@ function executeActionInner(
   }
 
   // Campaign presence is charged to the active campaign's own source pools,
+  if (actionId === "sponsorBill" && params.catalogId === "state_ownership.nationalize") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can sponsor a state-ownership bill." };
+    return proposeNationalizationBill(world, params);
+  }
+
   // not to the character. Resolve it before generic player AP/accounting.
   if (actionId === "buildStatePresence") {
     const result = buildStatePresence(world, actorId, params.regionId);
@@ -2566,7 +2572,7 @@ function executeActionInner(
       actor.actions += cost;
       return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
     }
-    if (params.tier !== "seizure" && params.tier !== "discounted" && params.tier !== "fair") {
+    if (params.tier !== "seizure" && params.tier !== "discounted") {
       actor.actions += cost;
       return { ok: false, error: "Choose a valid nationalization compensation tier." };
     }
@@ -2704,7 +2710,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "mergeNationalCorporation":
       return typeof params.sectorType === "string" && (params.intoCorpId === undefined || typeof params.intoCorpId === "string") && (params.countryId === undefined || typeof params.countryId === "string") ? null : "mergeNationalCorporation requires sectorType and an optional target issuer";
     case "nationalizeCorporation":
-      return params.corporationId && (params.tier === "seizure" || params.tier === "discounted" || params.tier === "fair")
+      if (params.tier === "fair") return "Fair-value nationalization requires a passed state-ownership bill.";
+      return params.corporationId && (params.tier === "seizure" || params.tier === "discounted")
         ? null
         : "nationalizeCorporation requires corporationId and a valid compensation tier";
     case "voteCeo":
