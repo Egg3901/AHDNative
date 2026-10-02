@@ -326,6 +326,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       error: `RPG stats are disabled in this ruleset. Schema 42 always applies RPG stats; keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
+  if (world["frontierEntryExperimentEnabled"] === true) {
+    return { ok: false, error: `Frontier-entry experiment state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   if (hasOwn(world, "bankingLaws") || hasOwn(world, "bankPropTradingEnabled")) {
     return { ok: false, error: `Banking policies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
@@ -582,7 +585,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const sectorAssets = world["corporateSectors"];
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
     isRecord(asset) && (
-      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied", "plantsPnl", "otherOpexPerUnitAnchor", "plantsUpkeepMarginBasisAnchor", "effectiveProfitMargin"].some(field => hasOwn(asset, field)) ||
+      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied", "plantsPnl", "otherOpexPerUnitAnchor", "plantsUpkeepMarginBasisAnchor", "effectiveProfitMargin", "mothballed"].some(field => hasOwn(asset, field)) ||
       (hasOwn(asset, "strategyId") && asset["strategyId"] !== undefined && asset["strategyId"] !== "standard")
     ),
   );
@@ -3786,6 +3789,9 @@ export function deserializeSave(raw: string): WorldState {
   validateNationalizationEligibilityState(save.world);
   validateNationalCorporations(save.world);
   validateCanvassState(save.world);
+  if (save.world.frontierEntryExperimentEnabled !== undefined && typeof save.world.frontierEntryExperimentEnabled !== "boolean") {
+    throw new Error("Frontier-entry experiment flag must be boolean");
+  }
   for (const corporation of Object.values(save.world.corporations)) validateNppStrategyState(corporation.nppStrategy);
   for (const [corporationId, corporation] of Object.entries(save.world.corporations)) {
     if (corporation.isPrivate !== undefined && typeof corporation.isPrivate !== "boolean") throw new Error(`Corporation ${corporationId} has invalid private-company state`);

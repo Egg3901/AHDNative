@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceLogisticsSupportedSectorCount, sourceNppCapacityBuildCostAnchor, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceFrontierHasPositiveLocalUse, sourceFrontierMarketIsUncovered, sourceFrontierPacingOpportunity, SOURCE_FRONTIER_ENTRY_SUPPLY, sourceLogisticsSupportedSectorCount, sourceNppCapacityBuildCostAnchor, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { getRateForCountry } from "../forex/conversion.js";
@@ -10,6 +10,87 @@ import { corporateSectorAssets, type CorporateSectorAsset } from "./corporateSec
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 describe("source NPP capacity replacement", () => {
+  it("matches the source frontier predicate and uses only observed local demand", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-frontier-use", playerName: "Alex" });
+    world.corporateSectors = {};
+    const { commodity, rate } = SOURCE_FRONTIER_ENTRY_SUPPLY.manufacturing[0]!;
+    world.plantMarketDemand = {
+      external: {}, corporateInputs: {},
+      corporateInputsByState: { VA: { [commodity]: 120 } },
+    };
+    expect(sourceFrontierHasPositiveLocalUse(world, "VA", "manufacturing")).toBe(true);
+    expect(sourceFrontierMarketIsUncovered(world, "VA", "manufacturing")).toBe(true);
+    world.corporateSectors = {
+      inactive: {
+        id: "inactive", corporationId: "US-manufacturing", countryId: "US", stateId: "VA", sectorType: "manufacturing",
+        workers: 1, representingUnionId: null, forSale: null, owner: "corporation", mothballed: true,
+      } as CorporateSectorAsset,
+    };
+    expect(sourceFrontierMarketIsUncovered(world, "VA", "manufacturing")).toBe(true);
+    world.corporateSectors.inactive!.mothballed = false;
+    expect(sourceFrontierMarketIsUncovered(world, "VA", "manufacturing")).toBe(false);
+    const sourceVector = {
+      reason: "cohort_ineligible", uncoveredMarket: true, positiveLocalUse: true,
+      profitable: true, marginPct: 18, marginFloorPct: 15,
+    } as const;
+    expect(sourceFrontierPacingOpportunity(sourceVector)).toBe(true);
+    expect(sourceFrontierPacingOpportunity({ ...sourceVector, reason: "unprofitable" })).toBe(false);
+    expect(sourceFrontierPacingOpportunity({ ...sourceVector, uncoveredMarket: false })).toBe(false);
+    expect(sourceFrontierPacingOpportunity({ ...sourceVector, positiveLocalUse: false })).toBe(false);
+    expect(sourceFrontierPacingOpportunity({ ...sourceVector, profitable: false })).toBe(false);
+    expect(sourceFrontierPacingOpportunity({ ...sourceVector, marginPct: 14.99 })).toBe(false);
+    world.plantMarketDemand.corporateInputsByState = { VA: { [commodity]: 0 } };
+    expect(sourceFrontierHasPositiveLocalUse(world, "VA", "manufacturing")).toBe(false);
+    delete world.plantMarketDemand.corporateInputsByState;
+    expect(sourceFrontierHasPositiveLocalUse(world, "VA", "manufacturing")).toBe(false);
+    expect(rate).toBeGreaterThan(0);
+  });
+
+  it("uses the opt-in frontier slot only for the source cohort miss with measured local use", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-frontier-slot", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.liquidCapital = 100_000_000;
+    corp.profitMargin = 35;
+    corp.effectiveProfitMargin = 35;
+    world.meta.turn = 1;
+    const { commodity } = SOURCE_FRONTIER_ENTRY_SUPPLY.manufacturing[0]!;
+    world.plantMarketDemand = { external: {}, corporateInputs: {}, corporateInputsByState: { VA: { [commodity]: 10_000, food: 10_000 } } };
+    world.corporateSectors = {
+      prior: {
+        id: "prior", corporationId: corp.id, countryId: "US", stateId: "NY", sectorType: "manufacturing",
+        workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+        plantsPnl: { turn: 0, revenue: 2, inputs: 0, otherOpex: 0, policyCredit: 0, growth: 0, operatingCost: 0, totalCost: 0, profit: 2 },
+      } as CorporateSectorAsset,
+    };
+    const agriculture = world.corporations["US-agriculture"]!;
+    agriculture.suspended = false;
+    agriculture.liquidCapital = 100_000_000;
+    agriculture.profitMargin = 35;
+    agriculture.effectiveProfitMargin = 35;
+    world.corporateSectors["prior-agriculture"] = {
+      id: "prior-agriculture", corporationId: agriculture.id, countryId: "US", stateId: "NY", sectorType: "agriculture",
+      workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+      plantsPnl: { turn: 0, revenue: 2, inputs: 0, otherOpex: 0, policyCredit: 0, growth: 0, operatingCost: 0, totalCost: 0, profit: 2 },
+    } as CorporateSectorAsset;
+    world.unownedSectors = {
+      "US:VA:manufacturing": { countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 50_000_000 },
+      "US:VA:agriculture": { countryId: "US", sectorType: "agriculture", regionId: "VA", revenue: 50_000_000 },
+    };
+    expect(findSourceNppEntryCandidate(world, corp)?.pool.regionId).toBe("VA");
+    applyNppSourceFounding(world);
+    expect(world.corporateSectors?.["corporate-sector:US:manufacturing:US-manufacturing:VA"]).toBeUndefined();
+
+    world.frontierEntryExperimentEnabled = true;
+    applyNppSourceFounding(world);
+    const founded = Object.values(world.corporateSectors ?? {}).filter((asset) => asset.stateId === "VA");
+    expect(founded).toHaveLength(1);
+    expect(founded[0]?.sectorType).toMatch(/agriculture|manufacturing/);
+    const foundingRows = world.corporateCashLedger?.filter((row) => row.type === "corp_sector_founding") ?? [];
+    expect(foundingRows).toHaveLength(1);
+    expect(foundingRows[0]?.amount).toBeLessThan(0);
+  });
+
   it("prices a replacement with source local and national dominance, prime, host and expansion legs", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-build-price", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;

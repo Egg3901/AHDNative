@@ -84,6 +84,8 @@ export interface WorldState {
    * which both validate the effective `v4` default.
    */
   nppAutonomyLevel?: import("./nppAutonomyLevel.js").NppAutonomyLevel;
+  /** Source GameState.frontierEntryExperimentEnabled; absent is fail-closed. */
+  frontierEntryExperimentEnabled?: boolean;
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;

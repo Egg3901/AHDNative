@@ -154,6 +154,8 @@ export interface CorporateSectorAsset {
   strikeCooldownUntilTurn?: number | null;
   forSale: { priceAnchor: number } | null;
   owner: CorporateSectorOwner;
+  /** Source CorporateSector.mothballed; absent means the asset is live. */
+  mothballed?: boolean;
 }
 
 /**
@@ -310,6 +312,9 @@ export function validateCorporateSectorAssets(
     validateSectorPlantCapital(asset);
     validateSectorStrategy(asset);
     validateSectorPlantPnl(asset);
+    if (asset.mothballed !== undefined && typeof asset.mothballed !== "boolean") {
+      throw new Error(`Corporate sector ${asset.id} has invalid mothballed state`);
+    }
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);

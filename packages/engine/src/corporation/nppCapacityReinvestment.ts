@@ -15,7 +15,7 @@ import { CEO_ARCHETYPE_MODIFIERS, DEFAULT_PROFIT_MARGIN } from "./constants.js";
 import { COMMODITY_BASE_PRICES, EXTRACTABLE_RESOURCES } from "../commodity/constants.js";
 import { getSectorStrategy } from "./plantCapacity.js";
 import { strategyLevers } from "./nppCorpStrategy.js";
-import { effectiveSectorCapacity } from "./strategyRetooling.js";
+import { effectiveSectorCapacity, sourceCorporateStrategyStaggerEligible } from "./strategyRetooling.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -49,6 +49,79 @@ const EXTRACTION_OUTPUT_SCALE: Partial<Record<(typeof EXTRACTABLE_RESOURCES)[num
 };
 const SOURCE_SPRAWL_SECTOR_THRESHOLD = 15;
 const SOURCE_LOGISTICS_MAX_SPRAWL_EFFECT = 200;
+
+/** AHDGame SECTOR_SUPPLY at 24d8a1b (the exact output commodities observed by the experiment). */
+export const SOURCE_FRONTIER_ENTRY_SUPPLY: Readonly<Record<string, readonly { commodity: string; rate: number }[]>> = {
+  manufacturing: [{ commodity: "steel", rate: 0.4 }, { commodity: "building_materials", rate: 0.2 }],
+  technology: [{ commodity: "electronics", rate: 0.35 }, { commodity: "software", rate: 0.35 }],
+  energy: [{ commodity: "energy", rate: 0.65 }],
+  chemical_industries: [{ commodity: "chemicals", rate: 0.5 }, { commodity: "plastics", rate: 0.25 }],
+  healthcare: [{ commodity: "healthcare_services", rate: 0.5 }],
+  agriculture: [{ commodity: "food", rate: 0.5 }],
+  automobiles: [{ commodity: "vehicles", rate: 0.5 }],
+  financial: [{ commodity: "financial_services", rate: 0.5 }],
+  media: [{ commodity: "advertising", rate: 0.5 }],
+  defense: [{ commodity: "vehicles", rate: 0.2 }, { commodity: "electronics", rate: 0.15 }, { commodity: "ordnance", rate: 0.1 }],
+  real_estate: [{ commodity: "real_estate_services", rate: 0.45 }],
+  construction: [{ commodity: "construction_services", rate: 0.45 }],
+  telecommunications: [{ commodity: "software", rate: 0.2 }, { commodity: "network_services", rate: 0.4 }],
+  entertainment: [{ commodity: "advertising", rate: 0.2 }, { commodity: "entertainment_services", rate: 0.4 }],
+  retail: [{ commodity: "retail", rate: 0.5 }],
+  logistics: [{ commodity: "freight", rate: 0.45 }, { commodity: "consulting_services", rate: 0.25 }],
+  extraction: [
+    { commodity: "iron", rate: 0.4 }, { commodity: "coal", rate: 0.3 }, { commodity: "oil", rate: 0.14 },
+    { commodity: "rare_earth", rate: 0.27 }, { commodity: "natural_gas", rate: 0.24 }, { commodity: "timber", rate: 0.2 },
+  ],
+};
+
+/** Source frontierEntryExperiment.rules.ts: only this pacing miss can be relaxed. */
+export function sourceFrontierPacingOpportunity(args: {
+  reason: string;
+  uncoveredMarket: boolean;
+  positiveLocalUse: boolean;
+  profitable: boolean;
+  marginPct: number;
+  marginFloorPct: number;
+}): boolean {
+  return args.reason === "cohort_ineligible" && args.uncoveredMarket === true &&
+    args.positiveLocalUse === true && args.profitable === true &&
+    Number.isFinite(args.marginPct) && Number.isFinite(args.marginFloorPct) &&
+    args.marginPct >= args.marginFloorPct;
+}
+
+export function sourceFrontierHasPositiveLocalUse(
+  world: WorldState,
+  regionId: string,
+  sectorType: CorporationType,
+): boolean {
+  const demandBook = world.plantMarketDemand;
+  if (!demandBook) return false;
+  const demandMaps = [
+    demandBook.householdDemandByState,
+    demandBook.governmentDemandByState,
+    demandBook.corporateInputsByState,
+  ];
+  for (const { commodity, rate } of SOURCE_FRONTIER_ENTRY_SUPPLY[sectorType] ?? []) {
+    if (!(rate > 0)) continue;
+    let observed = false;
+    let total = 0;
+    for (const map of demandMaps) {
+      const regional = map?.[regionId];
+      const amount = regional?.[commodity];
+      if (typeof amount !== "number") continue;
+      observed = true;
+      if (Number.isFinite(amount)) total += amount;
+    }
+    if (observed && total > 0) return true;
+  }
+  return false;
+}
+
+export function sourceFrontierMarketIsUncovered(world: WorldState, regionId: string, sectorType: CorporationType): boolean {
+  return !Object.values(corporateSectorAssets(world)).some((asset) =>
+    asset.stateId === regionId && asset.sectorType === sectorType && asset.mothballed !== true,
+  );
+}
 
 /** Game getLogisticsSupportedSectorCount: source footprint limit for NPP entry. */
 export function sourceLogisticsSupportedSectorCount(logisticsStrength: number | undefined): number {
@@ -109,6 +182,8 @@ export function applyNppSourceFounding(world: WorldState): void {
   const scale = getEraNominalScale(world.meta.era);
   const entryFeeBaseAnchor = Math.round(100_000 * scale);
   const assets = corporateSectorAssets(world);
+  const enteredCohorts = new Set<string>();
+  const enteredControllers = new Set<string>();
   const year = Number(world.meta.date.slice(0, 4));
   for (const corp of Object.values(world.corporations).sort((a, b) => a.id.localeCompare(b.id))) {
     if (corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
@@ -127,6 +202,26 @@ export function applyNppSourceFounding(world: WorldState): void {
     // blended sector mean: one healthy output must not be hidden by a glut in
     // a co-product when the other leg still has buyers.
     if (candidate.peakShortageScore > 0 && candidate.peakShortageScore <= 0.85) continue;
+    const ordinaryCohortEligible = sourceCorporateStrategyStaggerEligible(corp.id, world.meta.turn);
+    const cohortKey = `${corp.countryId}\u0000${candidate.pool.regionId}`;
+    // This Native model has no persisted parent-control field; until that
+    // source dependency exists, the actual issuer is the controlling entity.
+    const controllerKey = corp.id;
+    const issuerAssets = Object.values(assets).filter((asset) => asset.corporationId === corp.id);
+    const realizedProfit = issuerAssets.reduce((sum, asset) => sum + (asset.plantsPnl?.profit ?? 0), 0);
+    const profitable = issuerAssets.some((asset) => asset.plantsPnl !== undefined) && realizedProfit > 0;
+    const effectiveMargin = corp.effectiveProfitMargin ?? corp.profitMargin;
+    const frontierPacing = sourceFrontierPacingOpportunity({
+      reason: "cohort_ineligible",
+      uncoveredMarket: sourceFrontierMarketIsUncovered(world, candidate.pool.regionId, candidate.pool.sectorType),
+      positiveLocalUse: sourceFrontierHasPositiveLocalUse(world, candidate.pool.regionId, candidate.pool.sectorType),
+      profitable,
+      marginPct: effectiveMargin,
+      marginFloorPct: expansionMarginFloor,
+    });
+    const useFrontierSlot = world.frontierEntryExperimentEnabled === true && !ordinaryCohortEligible && frontierPacing;
+    if (!ordinaryCohortEligible && !useFrontierSlot) continue;
+    if (useFrontierSlot && (enteredCohorts.has(cohortKey) || enteredControllers.has(controllerKey))) continue;
     const starterUnits = FOUNDING_STARTER_UNITS[candidate.pool.sectorType] ?? 0;
     if (!(starterUnits > 0)) continue;
     const sectorType = candidate.pool.sectorType;
@@ -209,6 +304,8 @@ export function applyNppSourceFounding(world: WorldState): void {
     corp.liquidCapital = cashAfter;
     const row = makeNppFoundingCashRecord({ corp, world, sector: asset, units, costLocal: totalLocal, cashDeltaLocal: cashAfter - before, costAnchor: buildAnchor, entryFeeAnchor, onlineTurn });
     if (row) ledger.push(row);
+    enteredCohorts.add(cohortKey);
+    enteredControllers.add(controllerKey);
   }
 }
 

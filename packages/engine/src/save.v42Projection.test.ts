@@ -324,7 +324,7 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/market pressure/);
   });
 
-  it("refuses a corporate currency that schema 42 would infer differently from the issuing country", () => {
+it("refuses a corporate currency that schema 42 would infer differently from the issuing country", () => {
     const world = loadHistoricalFresh();
     world.corporations["US-manufacturing"]!.liquidCurrencyCode = "GBP";
     expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
@@ -414,6 +414,18 @@ describe("projectSaveToV42 public envelope", () => {
     if (projected.ok) throw new Error("expected relabel refusal");
     expect(projected.error).toMatch(/countryPolitics|not an authentic schema 42/i);
   });
+});
+
+it("persists the opt-in frontier experiment and refuses an enabled flag at the schema 42 reader boundary", () => {
+  const world = loadHistoricalFresh();
+  world.frontierEntryExperimentEnabled = true;
+  const contents = serializeSave(world, SAVED_AT);
+  expect(deserializeSave(contents).frontierEntryExperimentEnabled).toBe(true);
+  expect(projectSaveToV42(contents)).toMatchObject({ ok: false, error: expect.stringContaining("Frontier-entry experiment") });
+
+  const malformed = JSON.parse(contents) as { world: Record<string, unknown> };
+  malformed.world.frontierEntryExperimentEnabled = "true";
+  expect(() => deserializeSave(JSON.stringify(malformed))).toThrow("Frontier-entry experiment flag must be boolean");
 });
 
 it("rejects a malformed world even when both schema labels are 42", () => {
