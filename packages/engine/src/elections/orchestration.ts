@@ -20,6 +20,8 @@ import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
 import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
 import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS } from "../government/constants.js";
+import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
+import { UK_REGIONAL_COUNCIL_COHORT_BY_REGION } from "../electionEngine/midtermOppositionBoost.js";
 
 /**
  * W21c orchestration: turns the pure election library into live world behavior.
@@ -74,6 +76,7 @@ export interface SeriesSpec {
   countryId: string;
   chamberKey: string;
   state?: string;
+  customCycle1EndTurn?: number;
   senateClass?: 1 | 2 | 3;
   /** JP Sangiin class (1|2); rides the record's senateClass slot for ids and seat matching. */
   chamberClass?: 1 | 2;
@@ -83,6 +86,7 @@ export interface SeriesSpec {
 export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   const specs: SeriesSpec[] = [];
   const regions = world.regions ?? {};
+  const cycleAnchors = getCycleAnchors(cycleContextForWorld(world));
   // US: house per state (apportioned seats), senate per state per class.
   // Governor per state - Source: src/lib/elections/canonicalCycle.ts governor case
   // uses anchors.governorStateSenate (shared with stateSenate). Duration 192
@@ -200,6 +204,15 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
       chamberKey: spec.chamberKey,
       state: r.id,
       totalSeats: r.senateSeats,
+      ...(r.countryId === "UK" && UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id]
+        ? {
+            // Source: AHDGame `ukRegionalCouncilStagger.ts`. Five cohorts
+            // close one to five years after the Commons anchor, retaining
+            // five-year cycles while avoiding a single nationwide wipe.
+            customCycle1EndTurn:
+              cycleAnchors.ukCommons + UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id] * 48,
+          }
+        : {}),
     });
   }
   return specs;
@@ -789,6 +802,7 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
             now,
             countryId: spec.countryId,
             state: spec.state,
+            customCycle1EndTurn: spec.customCycle1EndTurn,
             senateClass: spec.senateClass,
             chamberClass: spec.chamberClass,
           } as unknown as Parameters<typeof planNextElectionForType>[0]);
