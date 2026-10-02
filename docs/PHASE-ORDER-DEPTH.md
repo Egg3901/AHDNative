@@ -219,6 +219,45 @@ imply that every source gate or country mechanic is equivalent.
 
 Native implementation and targeted evidence: [`orchestration.ts`](https://github.com/Egg3901/AHDNative/blob/e91aa7c2/packages/engine/src/elections/orchestration.ts), [`countryGovernorParity.sim.test.ts`](https://github.com/Egg3901/AHDNative/blob/e91aa7c2/packages/engine/src/elections/countryGovernorParity.sim.test.ts), and the source-era anchors in [`canonicalCycle.ts`](https://github.com/Egg3901/AHDNative/blob/e91aa7c2/packages/engine/src/electionEngine/resolution/canonicalCycle.ts). The UK vacancy path remains partial for weighted offices and non-player departure producers as noted above. The eastern-bloc countries remain explicitly inapplicable to current Native packs. Keep #96 open until all supported country phases and any newly in-scope election families have source witnesses and qualified gates.
 
+### Current source map — AHDGame `735caebc`, Native schema65 integration `2c7b61ca`
+
+This map supersedes the earlier `e6803596` / `e91aa7c2` checkpoint where the
+status below differs. AHDGame's country entries are election **spawners** in
+`src/lib/turn/countryPhases.ts`; ordinary timers, vote accumulation and result
+resolution then run through its shared phase registry. Native likewise
+combines country spawners into `electionTimersPhase`, and uses the shared
+`voteAccumulationPhase` / `electionResolutionPhase`. “Combined” therefore
+describes the phase seam only. The tally must still have a real source-backed
+input path, and a persisted office result must be checked separately.
+
+| Country(s) | AHDGame country election phases at `735caebc` | Native current mapping and applicability | Remaining evidence boundary |
+| --- | --- | --- | --- |
+| UK | `ukElections`, `ukRegionalCouncilElections`, `ukGovernorElections` | Twelve regional Commons series use the era seat maps. Five regional-council cohorts preserve their staggered anchors. Devolved governor series follow the policy-driven `ukDevolution` institution state. The separate NIR conflict phase controls suspension/restoration. | Integrated 1953 NIR public journey now matches all 24 immutable-source distributor turns and the 12-seat source allocator; it resigns the player's 3-seat held office, fills the 3-seat special race, then save/reloads the replacement. The RU/DD First Secretary journey currently seeds the fixture tally and advances to the resolution edge; it does not prove ordinary earned tally parity. Non-player Commons death/recall/retirement/defection producers and source tombstone backstop remain gaps. |
+| RU | `ruSupremeSovietElections`, `ruNationalitiesElections`, `ruRepublicSovietElections`, `ruGovernorElections` | Native schedules both national Soviets, republic Soviets by region, and regional First Secretary/governor races in the shared election timer. Liveness is authored pack `playable` or source-compatible NPP autonomy v1+, with era anchors; a non-selected country is not automatically treated as NPP-governed. | Current tests cover status/NPP liveness and persisted First Secretary resolution, but inject tally votes and jump the turn to the end boundary. Ordinary consecutive-turn source tally and save-to-result evidence remains required. |
+| DD | `ddVolkskammerElections`, `ddLandAssemblyElections`, `ddGovernorElections` | Native schedules the national Volkskammer, regional Land assemblies and regional First Secretary/governor races in the shared timer, under the same playable-or-NPP-v1 and era gates. | Current test proves persisted First Secretary resolution after injecting tally votes and jumping to the boundary. Ordinary consecutive-turn source tally and save-to-result evidence remains required. |
+| PL | `plSejmElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Enabling a PL pack or election status would bring the phase into scope and require its source-era schedule and save witness. |
+| CS | `csChamberOfThePeopleElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+| HU | `huNationalAssemblyElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+| RO | `roGrandNationalAssemblyElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+| BG | `bgNationalAssemblyElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+| YU | `yuFederalAssemblyElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+| UKR | `ukrSupremeSovietElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+| BLR | `blrSupremeSovietElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+| BAL | `balSupremeSovietElections` | No Native election series or current playable Native pack. Explicitly inapplicable to current supported packs. | Same future-scope condition as PL. |
+
+The source names, exact registration order, and source gates are in the
+immutable [`countryPhases.ts`](https://github.com/Egg3901/AHDGame/blob/735caebc504c51361e4d8af7d4f60b0dd932ca29/src/lib/turn/countryPhases.ts)
+and [`perpetualElections.ts`](https://github.com/Egg3901/AHDGame/blob/735caebc504c51361e4d8af7d4f60b0dd932ca29/src/lib/turn/perpetualElections.ts).
+Native's combined spawn and liveness map is
+[`orchestration.ts`](https://github.com/Egg3901/AHDNative/blob/2c7b61ca/packages/engine/src/elections/orchestration.ts);
+the shared tally boundary is
+[`tallyAdapter.ts`](https://github.com/Egg3901/AHDNative/blob/2c7b61ca/packages/engine/src/elections/tallyAdapter.ts).
+The tested integrated source-weight allocator is
+[`seatAllocation.ts`](https://github.com/Egg3901/AHDNative/blob/2c7b61ca/packages/engine/src/electionEngine/resolution/seatAllocation.ts).
+The source registry diff `afcd50c7..735caebc` changes only surviving-party
+candidacy and influence-cap UI, not election schedules, tally or allocator;
+the `0a68fee4` distributor/seat oracle used by the NIR witness remains valid.
+
 ## Native-only registered phases
 
 These do not appear as standalone AHDGame phase names. They are not silently
