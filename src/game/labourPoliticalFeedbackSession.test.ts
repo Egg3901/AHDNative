@@ -22,6 +22,7 @@ type SavedWorld = {
     values: Record<string, number>;
     labourResiduals?: Record<string, number>;
   }>;
+  corporations?: Record<string, unknown>;
   corporateSectors?: Record<string, { strikeStartedAtTurn?: number | null }>;
 };
 
