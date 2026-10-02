@@ -68,6 +68,7 @@ import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
+import { splitNationalCorporation, mergeNationalCorporation } from "../corporation/nationalReorganization.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
@@ -138,6 +139,8 @@ export type ExecuteActionParams = {
   sectorId?: string;
   strategyId?: string;
   tier?: "fair" | "discounted" | "seizure";
+  newCorpName?: string;
+  intoCorpId?: string;
   shares?: number;
   // W13 bonds
   bondId?: string;
@@ -467,6 +470,9 @@ function executeActionInner(
     const result = withdrawPresidentialGovernorEndorsement(world, params.electionId!, params.endorsementId!);
     return result.ok ? { ok: true, message: "Governor endorsement withdrawn." } : result;
   }
+
+  if (actionId === "splitNationalCorporation") return splitNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.newCorpName!);
+  if (actionId === "mergeNationalCorporation") return mergeNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.intoCorpId);
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
@@ -2693,6 +2699,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.corpId && params.shares !== undefined && Number.isInteger(params.shares) && params.shares > 0
         ? null
         : `${actionId} requires corpId and a positive integer shares amount`;
+    case "splitNationalCorporation":
+      return typeof params.sectorType === "string" && typeof params.newCorpName === "string" && (params.countryId === undefined || typeof params.countryId === "string") ? null : "splitNationalCorporation requires sectorType and newCorpName";
+    case "mergeNationalCorporation":
+      return typeof params.sectorType === "string" && (params.intoCorpId === undefined || typeof params.intoCorpId === "string") && (params.countryId === undefined || typeof params.countryId === "string") ? null : "mergeNationalCorporation requires sectorType and an optional target issuer";
     case "nationalizeCorporation":
       return params.corporationId && (params.tier === "seizure" || params.tier === "discounted" || params.tier === "fair")
         ? null
