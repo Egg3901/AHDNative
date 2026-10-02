@@ -593,8 +593,8 @@ describe("ActionsHub", () => {
     const user = userEvent.setup();
     const nationalize: ActionView = {
       id: "nationalizeCorporation",
-      name: "Nationalize Distressed Corporation",
-      description: "Seize a distressed domestic issuer.",
+      name: "Nationalize Corporation",
+      description: "Nationalize an eligible domestic issuer.",
       cost: 0,
       available: true,
       requires: "corporation",
@@ -614,7 +614,7 @@ describe("ActionsHub", () => {
       />,
     );
     const card = screen.getByRole("article", {
-      name: /nationalize distressed corporation/i,
+      name: /^nationalize corporation$/i,
     });
     await user.selectOptions(
       within(card).getByRole("combobox", { name: /corporation for/i }),
@@ -622,7 +622,7 @@ describe("ActionsHub", () => {
     );
     await user.click(
       within(card).getByRole("button", {
-        name: /take action: nationalize distressed corporation/i,
+        name: /take action: nationalize corporation/i,
       }),
     );
     expect(onAction).toHaveBeenCalledWith("nationalizeCorporation", {
@@ -737,11 +737,15 @@ describe("ActionsHub", () => {
       />,
     );
     const card = screen.getByRole("article", {
-      name: /nationalize distressed corporation/i,
+      name: /^nationalize corporation$/i,
     });
+    await user.selectOptions(
+      within(card).getByRole("combobox", { name: /corporation for/i }),
+      corporation.id,
+    );
     await user.click(
       within(card).getByRole("button", {
-        name: /take action: nationalize distressed corporation/i,
+        name: /take action: nationalize corporation/i,
       }),
     );
     expect(actionResult).toMatchObject({ ok: true });
