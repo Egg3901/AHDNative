@@ -20,6 +20,8 @@
  *    policyDefaults {economic, social} (exact, then nearest by L1 distance,
  *    = findMatchedOption); foreignCorporateTax mirrors domestic when its law
  *    is unset; taxRateOverrides apply last.
+ *  - DE solidaritySurcharge is retained as a jurisdiction-specific FederalTaxRates key;
+ *    its revenue is a percentage of calculated income-tax receipts.
  *  - Legislation types: src/lib/seeds/reference/legislationTypes.ts (US, UK),
  *    src/lib/seeds/{ru,dd,jp,de,ie,cn,br}/{c}LegislationTypes.ts.
  * The 1953 pack keeps its hand-authored budgets (same field set).
@@ -39,7 +41,7 @@ import { brLegislationTypes } from "@/lib/seeds/br/brLegislationTypes";
 
 const OUT = path.resolve(import.meta.dirname, "../src/packs");
 const TAX_TYPES = ["incomeTax", "domesticCorporateTax", "foreignCorporateTax", "payrollTax", "tariffs", "salesTax"] as const;
-type TaxType = (typeof TAX_TYPES)[number];
+type TaxType = (typeof TAX_TYPES)[number] | "solidaritySurcharge";
 type Opt = { rate?: number; economic?: number; social?: number };
 type LT = { _id: string; policyOptions?: Opt[] };
 type Cfg = {
@@ -76,16 +78,16 @@ function findMatchedOption(options: Opt[] | undefined, economic: number, social:
 }
 
 function deriveTaxRates(cfg: Cfg): { rates: Record<TaxType, number>; notes: string[] } {
-  const rates: Record<TaxType, number> = { incomeTax: 0, domesticCorporateTax: 0, foreignCorporateTax: 0, payrollTax: 0, tariffs: 0, salesTax: 0 };
+  const rates: Record<TaxType, number> = { incomeTax: 0, domesticCorporateTax: 0, foreignCorporateTax: 0, payrollTax: 0, tariffs: 0, salesTax: 0, solidaritySurcharge: 0 };
   const notes: string[] = [];
   if (cfg.seedTaxRatesOverride) { notes.push("seedTaxRatesOverride verbatim"); return { rates: { ...rates, ...cfg.seedTaxRatesOverride } as Record<TaxType, number>, notes }; }
   const extraLaws: string[] = [];
   for (const [taxType, lawId] of Object.entries(cfg.taxPolicyIds) as Array<[TaxType, string | undefined]>) {
     if (!lawId) continue;
-    // Mainline's taxPolicyIds carry country-specific dials beyond AHDClient's six
-    // revenue lines (DE solidaritySurcharge, CN LVAT / urban maintenance / stamp
-    // duty, IE property / USC / CGT / excise): PORT-STUB budget/extraTaxLines.
-    if (!(TAX_TYPES as readonly string[]).includes(taxType)) { extraLaws.push(`${taxType}:${lawId}`); continue; }
+    // Mainline's taxPolicyIds carry country-specific dials beyond the common
+    // six revenue lines. DE solidaritySurcharge is modeled below; CN and IE
+    // extra lines remain PORT-STUB budget/extraTaxLines.
+    if (!(TAX_TYPES as readonly string[]).includes(taxType) && taxType !== "solidaritySurcharge") { extraLaws.push(`${taxType}:${lawId}`); continue; }
     const lt = typesById.get(lawId);
     if (!lt) { notes.push(`${taxType}: law ${lawId} not in mainline seeds -> 0`); continue; }
     const idx = cfg.policyOptionOverrides?.[lt._id];
@@ -98,12 +100,12 @@ function deriveTaxRates(cfg: Cfg): { rates: Record<TaxType, number>; notes: stri
   if (cfg.taxRateOverrides) {
     const extras: string[] = [];
     for (const [k, v] of Object.entries(cfg.taxRateOverrides)) {
-      if ((TAX_TYPES as readonly string[]).includes(k)) rates[k as TaxType] = v as number;
+      if ((TAX_TYPES as readonly string[]).includes(k) || k === "solidaritySurcharge") rates[k as TaxType] = v as number;
       else extras.push(`${k}=${v}`);
     }
     notes.push(`taxRateOverrides applied: ${JSON.stringify(cfg.taxRateOverrides)}`);
-    // Country-specific dials beyond AHDClient's six-key BudgetTaxRates (DE
-    // solidaritySurcharge, CN LVAT/urban maintenance/stamp duty, IE property/
+    // Country-specific dials beyond AHDClient's six-key BudgetTaxRates (CN
+    // LVAT/urban maintenance/stamp duty, IE property/
     // USC/CGT/excise) have no revenue line in budget/revenue.ts: PORT-STUB.
     if (extras.length) notes.push(`PORT-STUB budget/extraTaxLines: ${extras.join(", ")}`);
   }
@@ -137,7 +139,7 @@ for (const [era, countries] of Object.entries(PLAYABLE)) {
       `    gdp: ${fmtNum(cfg.gdp)},`,
       `    currencyCode: ${JSON.stringify(cfg.currencyCode)},`,
       `    taxBaseRatios: ${JSON.stringify(cfg.taxBaseRatios)},`,
-      `    taxRates: ${JSON.stringify(rates)},`,
+      `    taxRates: ${JSON.stringify(Object.fromEntries(Object.entries(rates).filter(([key, value]) => key !== "solidaritySurcharge" || cfg.taxPolicyIds.solidaritySurcharge || value !== 0)))},`,
       `    otherRevenue: ${fmtNum(cfg.otherRevenue)},`,
       `    debt: { principal: ${fmtNum(cfg.debt.principal)}, interestRate: ${cfg.debt.interestRate}, ceiling: ${fmtNum(cfg.debt.ceiling)} },`,
       `    creditRating: ${JSON.stringify(cfg.creditRating)},`,
