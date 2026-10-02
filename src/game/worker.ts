@@ -51,10 +51,14 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "unionCommand": {
         const result = command.op === "organize"
           ? session.organizeUnion(command.unionId)
+          : command.op === "organizeUnderground"
+            ? session.organizeUnionUnderground(command.unionId, command.mode)
           : command.op === "organizeSector"
             ? session.organizeUnionSector(command.unionId, command.assetId)
             : command.op === "dues"
               ? session.setUnionDues(command.unionId, command.duesPerWorkerAnnual)
+              : command.op === "contributions"
+                ? session.setUnionPoliticalContributions(command.unionId, command.politicalContributionPct)
           : command.op === "vote"
             ? session.castUnionLeadershipVote(command.unionId)
             : command.op === "accept"

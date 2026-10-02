@@ -1,12 +1,11 @@
 /**
  * #323 union processing after corporation labor output.
  *
- * Pinned source: AHDGame e364c0495
- *   src/simulation/phases/turnPhaseNames.ts
- *     corporationTurn (5) < unionsTurn (6) < nppUnionBehavior (7) < …
- *     < pensionTurn (15) < macroCountryTurn (17)
- *   src/lib/turn/unions/index.ts processUnionsTurn
- *     (labour-relations leg FIRST, then decay, adoption, dues loop)
+ * Current source: AHDGame cb66acdf
+ *   src/simulation/phases/turnPhaseNames.ts keeps corporationTurn before
+ *     unionsTurn and nppUnionBehavior; the union processor follows corp output.
+ *   src/lib/turn/unions/index.ts calls processUndergroundTurn during the union
+ *     phase, so ban detection/exposure resolves after same-turn corporation labor.
  *
  * Every test below drives a PUBLIC boundary — `advanceTurn` (which runs
  * TURN_PHASES in registry order), the exported phase objects, the
