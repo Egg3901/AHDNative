@@ -92,6 +92,7 @@ export type ExecuteActionParams = {
   corporationId?: string;
   tickerSymbol?: string;
   sectorType?: CorporationType;
+  secondarySectorType?: CorporationType;
   startingCapital?: number;
   partyId?: string;
   caucusId?: string;
@@ -487,6 +488,7 @@ function executeActionInner(
       name: params.corporationName ?? "",
       tickerSymbol: params.tickerSymbol ?? "",
       sectorType: params.sectorType!,
+      ...(params.secondarySectorType ? { secondarySectorType: params.secondarySectorType } : {}),
       startingCapital: params.startingCapital,
     });
     return result.ok

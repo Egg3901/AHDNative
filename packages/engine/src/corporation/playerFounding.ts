@@ -10,6 +10,7 @@ export type FoundPlayerCorporationInput = {
   name: string;
   tickerSymbol: string;
   sectorType: CorporationType;
+  secondarySectorType?: CorporationType;
   startingCapital?: number;
 };
 
@@ -24,6 +25,8 @@ export function foundPlayerCorporation(world: WorldState, input: FoundPlayerCorp
   if (name.length < 2 || name.length > 60) return { ok: false, error: "Corporation name must be 2–60 characters" };
   if (!/^[A-Z]{1,5}$/.test(tickerSymbol)) return { ok: false, error: "Ticker must be 1–5 letters (A–Z)" };
   if (!(CORPORATION_TYPES as readonly string[]).includes(input.sectorType)) return { ok: false, error: "Unknown corporation sector type" };
+  if (input.secondarySectorType !== undefined && !(CORPORATION_TYPES as readonly string[]).includes(input.secondarySectorType)) return { ok: false, error: "Unknown secondary corporation sector type" };
+  if (input.secondarySectorType === input.sectorType) return { ok: false, error: "Secondary sector must be different from the primary sector" };
   if (Object.values(world.corporations).some((corp) => corp.name?.toLocaleLowerCase() === name.toLocaleLowerCase())) return { ok: false, error: "A corporation with that name already exists" };
   if (Object.values(world.corporations).some((corp) => corp.tickerSymbol === tickerSymbol)) return { ok: false, error: "That ticker symbol is already taken" };
   const hqRegionId = world.player.homeRegionId;
@@ -56,6 +59,7 @@ export function foundPlayerCorporation(world: WorldState, input: FoundPlayerCorp
   if (world.corporations[id]) return { ok: false, error: "That corporation identity is already in use" };
   const initialSharePrice = Math.max(MIN_SHARE_PRICE, Math.round((corpStartingCapital / CEO_INITIAL_SHARES) * 100) / 100 || DEFAULT_SHARE_PRICE);
   const corporation = structuredClone(template);
+  delete corporation.secondarySectorType;
   delete corporation.soe;
   delete corporation.countryOwnerId;
   delete corporation.isNationalCorporation;
@@ -67,6 +71,7 @@ export function foundPlayerCorporation(world: WorldState, input: FoundPlayerCorp
     headquartersRegionId: hqRegionId, ceoId: "player", ceoType: "player", ceoVacant: false,
     ceoSalaryPerTurn: 0, nationalizationOwnerKind: "player", ownershipState: "private",
     sectorType: input.sectorType, revenue: 0, targetGrowthRate: template.targetGrowthRate,
+    ...(input.secondarySectorType ? { secondarySectorType: input.secondarySectorType } : {}),
     currentGrowthRate: 0, currentGrowthCost: 0, profitMargin: 35, effectiveProfitMargin: 35,
     liquidCapital: corpStartingCapital, foundingRevenue: corpStartingCapital, foundedAtTurn: world.meta.turn,
     insolventSinceTurn: null, reincorporationCount: 0, totalShares: CEO_INITIAL_SHARES,

@@ -214,6 +214,21 @@ describe("source NPP capacity replacement", () => {
     expect(shortageCandidate?.peakShortageScore).toBe(2);
   });
 
+  it("uses the source secondary sector tier after critical and primary candidates", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-secondary-entry-tier", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    corp.headquartersRegionId = "DC";
+    corp.secondarySectorType = "agriculture";
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice;
+    world.unownedSectors = {
+      "US:VA:agriculture": { countryId: "US", sectorType: "agriculture", regionId: "VA", revenue: 1_000_000 },
+      "US:MD:retail": { countryId: "US", sectorType: "retail", regionId: "MD", revenue: 20_000_000 },
+      // The primary match exists, but outside the live geographic frontier.
+      "US:CA:manufacturing": { countryId: "US", sectorType: "manufacturing", regionId: "CA", revenue: 50_000_000 },
+    };
+    expect(findSourceNppEntryCandidate(world, corp)?.pool).toMatchObject({ regionId: "VA", sectorType: "agriculture" });
+  });
+
   it("writes a source-sized replacement order with the matching cash debit and resumes identically", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-capacity-replacement", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;

@@ -14,12 +14,13 @@ describe("source player corporation founding", () => {
     const baseline = Math.round(1_000_000 * scale);
     const cashBefore = world.player.cash;
     const result = executeAction(world, "player", "foundCorporation", {
-      corporationName: "Northstar Works", tickerSymbol: "NSW", sectorType: "manufacturing", startingCapital: baseline,
+      corporationName: "Northstar Works", tickerSymbol: "NSW", sectorType: "manufacturing", secondarySectorType: "agriculture", startingCapital: baseline,
     });
     expect(result.ok, JSON.stringify(result)).toBe(true);
     const corp = Object.values(world.corporations).find((row) => row.tickerSymbol === "NSW")!;
     expect(corp).toMatchObject({
       name: "Northstar Works", countryId: "US", headquartersRegionId: world.player.homeRegionId,
+      secondarySectorType: "agriculture",
       ceoId: "player", ceoType: "player", nationalizationOwnerKind: "player",
       ownershipState: "private", liquidCapital: Math.round(baseline * rate),
       totalShares: 10_000_000, publicFloat: 0,

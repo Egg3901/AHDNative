@@ -102,6 +102,8 @@ export interface Corporation {
   countryId: string;
   /** Authored seed HQ region; absent when the source capital region is not in the loaded era. */
   headquartersRegionId?: string;
+  /** Source Corporation.secondaryType; absent on legacy issuers and single-type foundings. */
+  secondarySectorType?: CorporationType;
   /** Which v50 source identity values were filled only to migrate a legacy save. */
   legacyProjectionDefaults?: {
     name?: true;

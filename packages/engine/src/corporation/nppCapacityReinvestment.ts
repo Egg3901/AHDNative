@@ -287,7 +287,11 @@ export function findSourceNppEntryCandidate(world: WorldState, corp: Corporation
   const search = frontierCandidates.length > 0 ? frontierCandidates : candidates;
   const critical = search.filter((candidate) => candidate.peakShortageScore >= 1.6);
   const primary = critical.length > 0 ? critical : search.filter((candidate) => candidate.pool.sectorType === corp.sectorType);
-  return [...(primary.length > 0 ? primary : search)].sort((a, b) => b.rankScore - a.rankScore || a.pool.regionId.localeCompare(b.pool.regionId) || a.pool.sectorType.localeCompare(b.pool.sectorType))[0] ?? null;
+  const secondary = primary.length > 0 || !corp.secondarySectorType
+    ? []
+    : search.filter((candidate) => candidate.pool.sectorType === corp.secondarySectorType);
+  return [...(primary.length > 0 ? primary : secondary.length > 0 ? secondary : search)]
+    .sort((a, b) => b.rankScore - a.rankScore || a.pool.regionId.localeCompare(b.pool.regionId) || a.pool.sectorType.localeCompare(b.pool.sectorType))[0] ?? null;
 }
 
 /** Game computeExtractionHeadroomByState over Native's saved regional deposit records. */
