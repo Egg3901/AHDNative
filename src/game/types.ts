@@ -315,6 +315,7 @@ export interface GameScreenProps {
   onIssueCabinetOrder?: (input: import("./cabinetOffice").IssueCabinetOrderInput) => void;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
+  loadStateOwnership?: (countryId?: string) => Promise<import("./stateOwnership").StateOwnershipView>;
   loadUnionManagement?: () => Promise<import("./unionManagement").UnionManagementView>;
   loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
   loadWorldOverview: () => Promise<WorldOverviewView>;

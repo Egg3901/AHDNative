@@ -1,5 +1,56 @@
 # AHDNative roadmap
 
+## State ownership register and seized cash, 2026-10-02 (#75 partial)
+
+The National Budget ownership entry opens the actual National Corporation with
+Register selected. Real executive-taking history, current holdings, assumed
+unmatured debt and shareholder totals survive ordinary turns and normal reload.
+Company links and Back restore Register, then Budget. Seized donor cash goes
+once to treasury; new state issuers start at zero while existing issuers keep
+their cash. Schema 52 preserves absent historical ledgers and refuses malformed
+records or unsupported older-reader exports.
+
+[Source vectors, player checks and remaining acceptance](STATE-OWNERSHIP-REGISTER-75.md)
+record two public action/save cases, four engine save cases, seven UI cases and
+the actual 320px/390px worker action/two-resume browser flow. Full nationalization
+eligibility, notice, compensation, auctions, political consequences, national
+planning and special-court journeys remain #75. No full #75 acceptance group
+is checked by this register slice. #298/#211/#510/#122 are reference only.
+
+## Qualified ownership and political consumers, 2026-10-02
+
+Current verified count: **54 open, down from 63**, with 40 partial, 9 not started,
+3 deferred and 2 blocked. Nine confirmed night closures: #308, #297, #51,
+#110, #111, #299, #115, #298 and #211. The corporate-sector program is 7/7
+complete; selected country-law parent #101 remains 2/7.
+
+[PR #717](https://github.com/Egg3901/AHDNative/pull/717) merged `5272adf`
+after exact `bca894a` passed the [full gate](https://github.com/Egg3901/AHDNative/actions/runs/36940398495).
+Canonical source SP government records now authorize distressed domestic taking;
+foreign targets refuse atomically. All original #298 criteria are checked and
+closed, as are all seven #211 children. [Source authority](SINGLEPLAYER-HOS-AUTHORITY.md)
+and [ownership conservation](SECESSION-NATIONALIZATION-OWNERSHIP-298.md)
+retain public action/ordinary-turn/save/reload and independent source evidence.
+Full auction/notice/compensation/register, command-planning and special-court
+surfaces remain #75. Germany/China SP tax proposals immediately enact by source
+decree; exact source career ballot producers and final qualification remain
+before #286/#287 closure.
+
+[PR #722](https://github.com/Egg3901/AHDNative/pull/722) merged `4811964`
+after exact `1fe8098` passed the [full gate](https://github.com/Egg3901/AHDNative/actions/runs/36940543025).
+The [political board consumers](POLITICAL-BOARD-CONSUMERS.md) now persist source
+snapshots/residuals, real regional boards and actual earned US order effects.
+Independent London 53.6 to 53.858844 and source contribution/residual vectors match;
+actual 320px/390px order/normalturn/save/relaunch/category/metric/region/Back flows
+pass. #105/#263/#510 remain partial for full country/role journeys, unmapped
+providers and history/driver/comparison/governance depth. Source main is cb66acdf;
+Client main is 799a9920. TFP fiscal/law consumers and full primary resolution remain
+active. No physical-device, whole-game, MP gameplay or current Client interchange
+completion claim.
+
+Earlier dated checkpoints below are historical; this checkpoint owns current
+counts and dispositions.
+
 ## Current tariff and commodity flow checkpoint, 2026-10-01 (#77 partial)
 
 [PR #720](https://github.com/Egg3901/AHDNative/pull/720) merged at `ce6f4a9`
