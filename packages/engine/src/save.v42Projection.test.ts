@@ -72,10 +72,15 @@ function parseProjected(contents: string): {
 }
 
 it("refuses SOE production independently of the regional metric guard", () => {
-  const world = createWorld(WORLD_OPTS);
-  // The separate default-world test verifies the earlier TFP refusal.
+  // Start from the historical, otherwise-projectable envelope so newer
+  // corporation tech state cannot mask the SOE consumer refusal.
+  const world = loadHistoricalFresh();
   world.regionalMetrics = {};
-  expect(world.corporations["RU-manufacturing"]!.soe).toBeDefined();
+  const seeded = createWorld(WORLD_OPTS).corporations["RU-manufacturing"]!;
+  const soeCorp = world.corporations["RU-manufacturing"]!;
+  expect(seeded.soe).toBeDefined();
+  soeCorp.soe = structuredClone(seeded.soe!);
+  delete soeCorp.legacySoeProjection;
   const result = projectSaveToV42(serializeSave(world, SAVED_AT));
   expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/SOE|Gosbank|command-economy/) });
 });
