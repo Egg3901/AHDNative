@@ -21,6 +21,7 @@ export type GameCommand =
   | { type: "selectConstituency"; constituencyId: string }
   | { type: "worldFeatureFlags"; flags: Partial<WorldFeatureFlags> }
   | { type: "politics" }
+  | { type: "politicalMetrics" }
   | { type: "markets" }
   | { type: "unionManagement" }
   | { type: "regions"; query?: RegionsQuery }

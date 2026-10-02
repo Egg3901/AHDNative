@@ -51,6 +51,8 @@ export function runCorporatePlantProductionTurn(
   const sellers: PlantSeller[] = [];
   const offersByCommodity = new Map<CommodityType, PlantOffer[]>();
   const currentSupplyByCommodity = new Map<CommodityType, number>();
+  const currentSupplyByCountry = new Map<string, Map<CommodityType, number>>();
+  const currentSupplyByState = new Map<string, Map<CommodityType, number>>();
   const sectorPosture = new Map<string, number>();
   const soldByAssetCommodity = new Map<string, Map<CommodityType, number>>();
 
@@ -147,6 +149,14 @@ export function runCorporatePlantProductionTurn(
       const offer: PlantOffer = { assetId: asset.id, corporationId: corporation.id, commodity, units, rate: rates[commodity] ?? 0, posture };
       offersByCommodity.set(commodity, [...(offersByCommodity.get(commodity) ?? []), offer]);
       currentSupplyByCommodity.set(commodity, (currentSupplyByCommodity.get(commodity) ?? 0) + units);
+      const countrySupply = currentSupplyByCountry.get(asset.countryId) ?? new Map<CommodityType, number>();
+      countrySupply.set(commodity, (countrySupply.get(commodity) ?? 0) + units);
+      currentSupplyByCountry.set(asset.countryId, countrySupply);
+      if (asset.stateId && world.regions[asset.stateId] && !world.regions[asset.stateId]!.corporationHeadquartersOnly) {
+        const stateSupply = currentSupplyByState.get(asset.stateId) ?? new Map<CommodityType, number>();
+        stateSupply.set(commodity, (stateSupply.get(commodity) ?? 0) + units);
+        currentSupplyByState.set(asset.stateId, stateSupply);
+      }
     }
 
     // Source plants-capacity order: the recorded plant stock and paid basis
@@ -254,6 +264,12 @@ export function runCorporatePlantProductionTurn(
   // The next turn and price phase read the measured physical output, never
   // revenue-derived nameplate units. This is the source lagged-supply contract.
   world.plantMarketDemand!.corporateOutputSupply = Object.fromEntries(currentSupplyByCommodity);
+  world.plantMarketDemand!.corporateOutputSupplyByCountry = Object.fromEntries(
+    [...currentSupplyByCountry.entries()].map(([countryId, supply]) => [countryId, Object.fromEntries(supply)]),
+  );
+  world.plantMarketDemand!.corporateOutputSupplyByState = Object.fromEntries(
+    [...currentSupplyByState.entries()].map(([stateId, supply]) => [stateId, Object.fromEntries(supply)]),
+  );
   for (const [commodity, row] of Object.entries(world.commodityPrices)) {
     const key = commodity as CommodityType;
     const externalSupply = world.plantMarketDemand!.externalSupply?.[key]

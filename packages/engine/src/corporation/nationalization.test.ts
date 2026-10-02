@@ -152,13 +152,33 @@ describe("executive nationalization ownership transfer", () => {
     expect(restored.unownedSectors[poolKey]).toEqual(unownedBefore);
   });
 
-  it("rejects a Head-of-State mode identity even when the seeded office says president", () => {
+  it("accepts a permanent Head-of-State identity only when its canonical executive record seats the player", () => {
     const { world, corporation } = distressedPrivateWorld("hos");
     const result = executeAction(world, "player", "nationalizeCorporation", {
       corporationId: corporation.id,
       tier: "seizure",
     });
-    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/sitting head of government/i) });
+    expect(result).toMatchObject({ ok: true });
+    expect(world.corporations[corporation.id]).toBeUndefined();
+    expect(world.corporations["NAT-US-media"]?.ownershipState).toBe("stateOwned");
+
+    const invalid = distressedPrivateWorld("hos");
+    invalid.world.executives.US!.presidentId = "US-1";
+    const refused = executeAction(invalid.world, "player", "nationalizeCorporation", {
+      corporationId: invalid.corporation.id,
+      tier: "seizure",
+    });
+    expect(refused).toMatchObject({ ok: false, error: expect.stringMatching(/sitting head of government/i) });
+    expect(invalid.world.corporations[invalid.corporation.id]).toBe(invalid.corporation);
+  });
+
+  it("refuses a non-player actor even when the player holds the canonical HoS office", () => {
+    const { world, corporation } = distressedPrivateWorld("hos");
+    const result = executeAction(world, "US-1", "nationalizeCorporation", {
+      corporationId: corporation.id,
+      tier: "seizure",
+    });
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/only the sitting head/i) });
     expect(world.corporations[corporation.id]).toBe(corporation);
   });
 

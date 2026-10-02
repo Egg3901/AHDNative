@@ -2,7 +2,7 @@ import type { CatalogEntry } from "./catalog.js";
 /**
  * JP legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.
  * Generator: packages/content/scripts/generateCatalogs.ts
- * Source: src/lib/seeds/jp/jpLegislationTypes.ts (63 types),
+ * Source: src/lib/countries/jp/data/jpLegislationTypes.ts (63 types),
  * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),
  * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the
  * generator header for the mapping rules and the PORT-STUB convention.
@@ -87,7 +87,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     description: "Sets Japan's consumption tax rate (equivalent to VAT)",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 25, step: 1, baselineRate: 10, options: [{"id":"jp_consumption_tax_opt_0","rate":0,"economic":-5,"social":0,"effectDirection":-1},{"id":"jp_consumption_tax_opt_1","rate":3,"economic":-4,"social":0,"effectDirection":-1},{"id":"jp_consumption_tax_opt_2","rate":5,"economic":-3,"social":0,"effectDirection":-1},{"id":"jp_consumption_tax_opt_3","rate":8,"economic":-2,"social":0,"effectDirection":-1},{"id":"jp_consumption_tax_opt_4","rate":9,"economic":-1,"social":0,"effectDirection":-1},{"id":"jp_consumption_tax_opt_5","rate":10,"economic":0,"social":0,"effectDirection":0},{"id":"jp_consumption_tax_opt_6","rate":13,"economic":1,"social":0,"effectDirection":1},{"id":"jp_consumption_tax_opt_7","rate":15,"economic":2,"social":0,"effectDirection":1},{"id":"jp_consumption_tax_opt_8","rate":18,"economic":3,"social":0,"effectDirection":1},{"id":"jp_consumption_tax_opt_9","rate":22,"economic":4,"social":0,"effectDirection":1},{"id":"jp_consumption_tax_opt_10","rate":25,"economic":5,"social":0,"effectDirection":1}] },
+    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 25, step: 1, baselineRate: 10, options: [{"id":"jp_consumption_tax_opt_0","rate":0,"effectDirection":-1,"economic":-5,"social":0},{"id":"jp_consumption_tax_opt_1","rate":3,"effectDirection":-1,"economic":-4,"social":0},{"id":"jp_consumption_tax_opt_2","rate":5,"effectDirection":-1,"economic":-3,"social":0},{"id":"jp_consumption_tax_opt_3","rate":8,"effectDirection":-1,"economic":-2,"social":0},{"id":"jp_consumption_tax_opt_4","rate":9,"effectDirection":-1,"economic":-1,"social":0},{"id":"jp_consumption_tax_opt_5","rate":10,"effectDirection":0,"economic":0,"social":0},{"id":"jp_consumption_tax_opt_6","rate":13,"effectDirection":1,"economic":1,"social":0},{"id":"jp_consumption_tax_opt_7","rate":15,"effectDirection":1,"economic":2,"social":0},{"id":"jp_consumption_tax_opt_8","rate":18,"effectDirection":1,"economic":3,"social":0},{"id":"jp_consumption_tax_opt_9","rate":22,"effectDirection":1,"economic":4,"social":0},{"id":"jp_consumption_tax_opt_10","rate":25,"effectDirection":1,"economic":5,"social":0}] },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.4},{"metricId":"economic.foodSecurity","weight":-0.3}],
     status: "available",
   },

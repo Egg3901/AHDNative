@@ -72,7 +72,7 @@ export interface WorldGovernmentView {
   unrest: number | null;
   /** GovernmentState values, when a government has been formed. */
   status: "pending" | "formed" | null;
-  formationType: "majority" | "coalition" | "minority" | null;
+  formationType: "majority" | "coalition" | "minority" | "admin" | null;
   confidence: number | null;
   governingParty: WorldPartyRef | null;
   headOfGovernment: WorldOfficialView | null;

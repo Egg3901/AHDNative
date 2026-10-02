@@ -73,6 +73,7 @@ import {
   fomcNominationsPhase,
 } from "../centralBank/phases.js";
 import { corporationTurnPhase } from "../corporation/corporationTurn.js";
+import { corporateTradeSnapshotPhase } from "../trade/corporateTrade.js";
 import { recomputeSharePricesPhase } from "../market/recomputeSharePrices.js";
 import {
   campaignSpendResetPhase,
@@ -136,6 +137,7 @@ import { recordWorldHistoryPhase } from "../history/phases.js";
 import { nuclearProductionPhase, coldWarTensionPhase } from "../coldWar/phases.js";
 import { internationalOrganizationsPhase } from "../internationalOrgs/phases.js";
 import { warsTurnPhase } from "../wars/phases.js";
+import { politicalCabinetResidualPhase } from "../politicalMetrics/phases.js";
 import { ministerialOrdersPhase } from "../ministerialOrders/phases.js";
 import { policyEffectsPhase } from "../policyEffects/phases.js";
 import { resolveProspectsPhase } from "../extraction/prospecting.js";
@@ -220,6 +222,11 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   nppBehaviorPhase,
   billLifecyclePhase,
   commodityPricesPhase,
+  // Saved route receipts use the current turn's applied commodity-price
+  // anchor, matching Game's valueTradeSnapshot after pricing. This projection
+  // is RNG-free and consumes the measured supply already captured by
+  // corporationTurn, so its placement does not shift the RNG stream.
+  corporateTradeSnapshotPhase,
   contractSettlementPhase,
   // Elections run at the end of the ported subset for now: inserting them at
   // mainline's absolute position would shift the shared rng stream under every
@@ -528,6 +535,10 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // append-only convention). Relative order mirrors mainline exactly:
   // independenceDesireDrift BEFORE referendumLifecycle, "so a settled
   // No-vote dampens the just-updated desire value" (mainline's own comment).
+  // Game political dynamics completes in the state-effects batch before
+  // referendum actuation transfers jurisdictions. It consumes the previous
+  // cabinet snapshot before ministerialOrders replaces it below.
+  politicalCabinetResidualPhase,
   independenceDesireDriftPhase,
   referendumLifecyclePhase,
   // W6 metric engine cluster at END before newsMaintenance — ordering deviation:

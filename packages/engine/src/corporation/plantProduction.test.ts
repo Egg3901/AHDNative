@@ -158,6 +158,32 @@ describe("plants-tier corporate production", () => {
     expect(world.commodityPrices.steel!.globalDemand).toBe(41_000);
   });
 
+  it("retains physical corporate output and input legs at the real asset region before country rollup", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plants-regional-trade-ledger", playerName: "Alex" });
+    const region = Object.values(world.regions).find(row => row.countryId === "US" && !row.corporationHeadquartersOnly)!;
+    const id = `corporate-sector:US:manufacturing:${region.id}`;
+    world.corporations = { ["US-manufacturing"]: world.corporations["US-manufacturing"]! };
+    world.corporateSectors = { [id]: {
+      id, corporationId: "US-manufacturing", countryId: "US", stateId: region.id,
+      sectorType: "manufacturing", capitalStock: 100_000, workers: 1,
+      representingUnionId: null, forSale: null, owner: "corporation",
+    } };
+
+    corporatePlantProductionPhase.run(world);
+
+    const regionalSupply = world.plantMarketDemand!.corporateOutputSupplyByState![region.id]!;
+    const nationalSupply = world.plantMarketDemand!.corporateOutputSupplyByCountry!.US!;
+    for (const [commodity, units] of Object.entries(regionalSupply)) {
+      expect(units).toBeGreaterThan(0);
+      expect(nationalSupply[commodity]).toBeCloseTo(units!, 9);
+    }
+    const regionalInput = world.plantMarketDemand!.corporateInputsByState![region.id]!;
+    const nationalInput = world.plantMarketDemand!.corporateInputsByCountry!.US!;
+    for (const [commodity, units] of Object.entries(regionalInput)) {
+      expect(nationalInput[commodity]).toBeCloseTo(units!, 9);
+    }
+  });
+
   it("replays production, realized receipts and depreciated book through public turn/save/reload", () => {
     const options = { era: "1953", countryId: "US", seed: "plants-public-replay", playerName: "Alex" } as const;
     const firstTurn = createWorld(options);

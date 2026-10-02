@@ -11,7 +11,7 @@ import type { UnionManagementView } from "./unionManagement";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
 import type { HallOfFameQuery, HallOfFameView } from "./hallOfFame";
 import type { WorldOverviewView } from "./worldOverview";
-import type { PoliticsView } from "./politics";
+import type { PoliticsView, PoliticalMetricsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
 import type { ActionOutcome } from "./notifications";
 import type { EraChoice, CreationChoices, GameView, NewGameOptions } from "./types";
@@ -64,6 +64,7 @@ export class GameClient {
   markets() { return this.send<MarketsView>({ type: "markets" }); }
   unionManagement() { return this.send<UnionManagementView>({ type: "unionManagement" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
+  politicalMetrics() { return this.send<PoliticalMetricsView>({ type: "politicalMetrics" }); }
   profile() { return this.send<ProfileView>({ type: "profile" }); }
   profileDestination() { return this.send<"profile" | "imperial">({ type: "profileDestination" }); }
   imperialProfile() { return this.send<import("./profileTypes").ImperialProfileView | null>({ type: "imperialProfile" }); }

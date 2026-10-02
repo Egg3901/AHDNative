@@ -147,7 +147,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadUnionManagement, loadLegislation, loadPolitics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadUnionManagement, loadLegislation, loadPolitics, loadPoliticalMetrics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // #510 bounded return stack: detail routes remember the chain of browse
@@ -918,7 +918,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "politicalMetrics" && (world.capabilityNav?.metricsAvailable === false ? (
             <MetricsUnavailable title="Political metrics" secondaryLabel="Go to elections" onWorldSettings={() => go("worldSettings")} onSecondary={() => go("elections")} />
           ) : (
-            <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />
+            <PoliticsRoute load={loadPolitics} loadMetrics={loadPoliticalMetrics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />
           ))}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} contextKey={newsStorageKey} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
