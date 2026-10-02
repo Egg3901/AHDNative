@@ -19,12 +19,12 @@ describe("executive controls session slice (#65/#93)", () => {
       expect(action.available).toBe(true);
       expect(action.cost).toBeGreaterThan(0);
     }
-    // The canonical US presidential office is seated at creation; this fresh
-    // world is disabled only because it has no distressed issuer to target.
-    expect(executive.find((action) => action.id === "nationalizeCorporation")).toMatchObject({
-      available: false,
-      disabledReason: expect.stringMatching(/no distressed domestic corporation/i),
-    });
+    // The seated US president can take a solvent NPC-founded domestic firm.
+    // Source player-founded firms have separate recorded distress clocks.
+    const nationalize = executive.find((action) => action.id === "nationalizeCorporation")!;
+    expect(nationalize).toMatchObject({ available: true, cost: 0, requires: "corporation" });
+    expect(nationalize.choices?.some((choice) => choice.id === "US-media")).toBe(true);
+    expect(nationalize.choices?.every((choice) => choice.id.startsWith("US-"))).toBe(true);
     const tax = executive.find((action) => action.id === "adjustTaxRate")!;
     expect(tax.requires).toBe("taxRate");
     expect(tax.prerequisite).toMatch(/phase/i);

@@ -693,8 +693,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   nationalizeCorporation: {
     id: "nationalizeCorporation",
-    name: "Nationalize Distressed Corporation",
-    description: "As the elected head of government, seize a distressed domestic corporation into state ownership. The emergency seizure tier pays no shareholder compensation and applies the source transition haircut.",
+    name: "Nationalize Corporation",
+    description: "As the sitting head of government, seize an NPC-owned domestic corporation or a player firm past the source distress grace into state ownership. The emergency seizure tier pays no shareholder compensation and applies the source transition haircut.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,

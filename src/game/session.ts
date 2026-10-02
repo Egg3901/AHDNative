@@ -69,12 +69,12 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "poll", category: "intelligence" },
   { id: "pollLarge", category: "intelligence" },
   { id: "debatePrep", category: "intelligence" },
-  { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting elected head of government and a distressed domestic issuer." },
+  { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting elected head of government and an eligible domestic issuer." },
 ];
 const HOS_ACTIONS: typeof ACTIONS = [
   { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
   { id: "adjustTaxRate", requires: "taxRate", category: "executive", prerequisite: "Phases in from the next turn boundary, like enacted tax law." },
-  { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting head of government and a distressed domestic issuer." },
+  { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting head of government and an eligible domestic issuer." },
 ];
 
 /**
