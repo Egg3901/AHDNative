@@ -35,11 +35,26 @@ describe("state ownership at the public save boundary (#75)", () => {
     for (const ledger of [null, {}, [null], [recordedEntry, recordedEntry],
       [{ ...recordedEntry, countryId: "UNKNOWN" }], [{ ...recordedEntry, debtAnchor: -1 }],
       [{ ...recordedEntry, shareholdersSettled: 1.5 }], [{ ...recordedEntry, turn: saved.world.meta.turn + 1 }],
-      [{ ...recordedEntry, tier: "fair" }], [{ ...recordedEntry, compensationAnchor: 1 }],
+      [{ ...recordedEntry, tier: "free" }], [{ ...recordedEntry, compensationAnchor: 1 }],
+      [{ ...recordedEntry, tier: "fair", compensationAnchor: -1 }],
+      [{ ...recordedEntry, tier: "discounted", compensationAnchor: null }],
       [{ ...recordedEntry, triggers: [] }], [{ ...recordedEntry, sectorTypes: [] }],
     ]) {
       saved.world.stateOwnershipLedger = ledger;
       expect(() => deserializeSave(JSON.stringify(saved))).toThrow(/Invalid state ownership/);
+    }
+  });
+
+  it("persists source paid-tier records and retains absent history when migrating schema53", () => {
+    const saved = JSON.parse(serializeSave(deserializeSave(historicalDocument()), SAVED_AT));
+    saved.schemaVersion = 53;
+    saved.world.meta.schemaVersion = 53;
+    expect(deserializeSave(JSON.stringify(saved)).stateOwnershipLedger).toBeUndefined();
+    for (const tier of ["fair", "discounted"] as const) {
+      const current = JSON.parse(serializeSave(deserializeSave(JSON.stringify(saved)), SAVED_AT));
+      current.world.stateOwnershipLedger = [{ ...recordedEntry, tier, compensationAnchor: tier === "fair" ? 330000 : 165000 }];
+      const world = deserializeSave(JSON.stringify(current));
+      expect(deserializeSave(serializeSave(world, SAVED_AT)).stateOwnershipLedger).toEqual(current.world.stateOwnershipLedger);
     }
   });
 
