@@ -331,7 +331,11 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // budgets remain unavailable in this solo model.
   for (const provision of bill.provisions) {
     if (provision.type === "union_law") {
-      applyUnionLawProvision(world, bill.countryId, provision);
+      applyUnionLawProvision(world, bill.countryId, {
+        type: "union_law",
+        bias: provision.bias,
+        banAction: provision.banAction,
+      });
       continue;
     }
     if (provision.type === "tariff") {

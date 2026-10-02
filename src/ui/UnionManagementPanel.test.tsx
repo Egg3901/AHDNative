@@ -110,7 +110,7 @@ describe("UnionManagementPanel", () => {
       else if (command.op === "accept") session.acceptUnionLeadership(command.unionId);
       else if (command.op === "call") session.callUnionBargaining(command.unionId, command.employerId, command.terms);
       else if (command.op === "move") session.moveUnionBargaining(command.campaignId, command.action, command.terms);
-      else session.castUnionRatificationBallot(command.campaignId, command.vote);
+      else if (command.op === "ratify") session.castUnionRatificationBallot(command.campaignId, command.vote);
     };
     const { rerender } = render(
       <UnionManagementPanel state={session.unionManagement()} busy={false} onCommand={dispatch} />,
