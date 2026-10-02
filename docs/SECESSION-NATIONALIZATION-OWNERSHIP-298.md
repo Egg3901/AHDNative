@@ -1,12 +1,12 @@
 # Current plants correction, 2026-10-02
 
 #298 and parent #211 were reopened after independently executing current Game's
-`absorbSectorIntoNatCorp` and finding Native's missing15% capacity/paid-basis
+`absorbSectorIntoNatCorp` and finding Native's missing 15% capacity/paid-basis
 haircut. Source-preserving HOG authority and secession remain delivered; the
 first combined #298 criterion awaits this correction's final qualified merge.
 See [eligibility and plants evidence](NATIONALIZATION-ELIGIBILITY-75.md).
 Actual public reparent/merge cases fail on the old full stock, then pass with
-source850/170000 and2850/770000, intact construction/queues, ordinary turn/save
+source 850/170000 and 2850/770000, intact construction/queues, ordinary turn/save
 and reload. No broader #75 compensation/auction/court closure claim.
 
 The dated earlier checkpoints below retain their original evidence boundaries.

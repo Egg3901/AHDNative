@@ -57,13 +57,13 @@ auction/creation producer must also deliver that player ownership journey.
 Canonical Game's actual `absorbSectorIntoNatCorp` was extracted unchanged and
 executed in four capital/plants and reparent/merge cases. Under plants the
 15% transition haircut applies to built capacity and its paid basis, while
-already-paid construction transfers whole. The oracle gives donor stock1000
-and book200000 ->850/170000; merging into stock2000/book600000 gives
-2850/770000. The merged paid construction is50000, with orders landing9 then20
+already-paid construction transfers whole. The oracle gives donor stock 1000
+and book 200000 ->850/170000; merging into stock 2000/book 600000 gives
+2850/770000. The merged paid construction is 50000, with orders landing 9 then 20
 and the earlier ramp preserved. Below plants the source writes no plant fields;
 Native's active plant model uses the plants result.
 
-Two public GameSession taking cases first failed at1000 vs850 and3000 vs2850.
+Two public GameSession taking cases first failed at 1000 vs 850 and 3000 vs 2850.
 They then passed with the corrected haircut, full construction/queue transfer,
 ordinary production/depreciation, save and reload. Existing acquisition tests
 now capture the source post-haircut expectation before mutable asset transfer.
