@@ -401,6 +401,35 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
         </div>
       ) : null}
 
+      {query.enactedLaws?.length ? (
+        <div className="ahd-card ahd-card-pad" aria-label="Current laws">
+          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Current enacted laws</h3>
+          <div style={{ display: "grid", gap: "0.55rem", marginTop: "0.45rem" }}>
+            {query.enactedLaws.map((law) => (
+              <div key={`${law.id}:${law.regionId ?? "national"}`} className="ahd-card ahd-card-pad" aria-label={`Enacted law ${law.title}`}>
+                <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{law.title}</div>
+                <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.15rem" }}>
+                  {law.scope === "regional" ? `Regional · ${law.regionId ?? "unknown region"}` : "National"} · enacted turn {law.enactedAtTurn}
+                </div>
+                {law.id === "ie_vat_rate" && query.proposals.some((entry) =>
+                  entry.id === law.id && entry.taxPolicy?.options?.some((option) => option.rate === 0),
+                ) ? (
+                  <button
+                    type="button"
+                    className="ahd-btn ahd-btn-sm"
+                    onClick={() => onAction("sponsorBill", { catalogId: law.id, taxRate: 0, ...(chamberKey ? { originChamber: chamberKey } : {}) })}
+                    disabled={busy || !query.proposals.find((entry) => entry.id === law.id)?.sponsorAvailable}
+                    aria-label={`Propose 0% VAT: ${law.title}`}
+                  >
+                    Propose 0% VAT
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Available legislation</h3>
         {query.proposals.length === 0 ? (
@@ -519,7 +548,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
               </button>
               <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
                 {proposal.sponsorCost > 0
-                  ? `Cost ${proposal.sponsorCost} actions + ${proposal.sponsorNpiCost} national influence`
+                  ? `Cost ${proposal.sponsorCost} actions${proposal.sponsorNpiCost > 0 ? ` + ${proposal.sponsorNpiCost} national influence` : ""}`
                   : "Free"}
               </span>
               {!proposal.sponsorAvailable ? (

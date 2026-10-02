@@ -99,4 +99,12 @@ export interface GovernmentState {
    * future consequence system to read.
    */
   confidence: number;
+  /** Source `GovernmentFormation.governingAgenda`; authored only for an eligible NPC head. */
+  governingAgenda?: import("./directives.js").PersistedGoverningAgenda;
+  /** Source `GovernmentFormation.fiscalStance`; authored only for an eligible NPC head. */
+  fiscalStance?: import("./directives.js").PersistedFiscalStance;
+  /** Source V5 bounded standing goals, present only when autonomy is v5. */
+  governingGoals?: import("./directives.js").PersistedGoverningGoals;
+  /** Native identity corresponding to source `pmNppId`; prevents stale PM directives being reused. */
+  directivesForPmId?: string;
 }

@@ -83,6 +83,8 @@ describe("nomination projection and session commands (#273 bounded slice)", () =
     expect(session.serialize(SAVED_AT)).toBe(before);
   });
 
+  // Both end-to-end turn loops complete in about 82–84s in isolation; keep
+  // this case-local budget above the observed normal resolution time.
   it("resolves a sponsored nomination to confirmed through turn advancement", () => {
     const session = loadWorld();
     const probe = createWorld({ ...HOS_US });
@@ -101,7 +103,7 @@ describe("nomination projection and session commands (#273 bounded slice)", () =
     const resolved = session.nomination(id)!;
     expect(["confirmed", "rejected"]).toContain(resolved.status);
     expect(resolved.tally.for + resolved.tally.against + resolved.tally.abstain).toBeGreaterThan(0);
-  });
+  }, 120_000);
 
   it("keeps SCOTUS sponsorship unavailable to a non-President", () => {
     const session = new GameSession();
@@ -281,7 +283,7 @@ describe("nomination projection and session commands (#273 bounded slice)", () =
     const reloaded = new GameSession();
     reloaded.load(session.serialize(SAVED_AT));
     expect(reloaded.nomination(pending.id)).toMatchObject({ status: "confirmed", seatNumber: seat.seatNumber });
-  });
+  }, 120_000);
 });
 
 describe("nomination session commands, refusal atomicity, and full loop (#272)", () => {

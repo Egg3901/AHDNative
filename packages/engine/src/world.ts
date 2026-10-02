@@ -159,7 +159,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v48: interbank loan book (world.interbankLoans); see save.ts.
 // v49: source-authored corporation HQ region identity; see save.ts.
 // v50: deterministic local corporation name and brand identity; see save.ts.
-// v51: source political boards and lagged cabinet driver state; see save.ts.
+// v51: source NPP government agenda and political boards/lagged cabinet
+// driver state; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
@@ -1006,6 +1007,35 @@ export function createWorld(options: NewWorldOptions): WorldState {
   }
   const stateResourceCapacities = seedStateResourceCapacities(regionIdsByCountry, pack.era.id);
 
+  // AHDGame's authored IE governmentFormation seed is present at the 1991 and
+  // 2019 Irish starts in `src/lib/countries/ie/data/ieGovernmentFormation.ts`:
+  // pending, no Taoiseach, and Dáil Éireann's 160 seats / 81-seat majority.
+  // Keep that real pending state so the shared source legislation freeze is
+  // active before Native's first government-formation turn.
+  const governments: WorldState["governments"] = {};
+  const initialDail = legislatures.IE?.chambers.find((chamber) => chamber.key === "dail");
+  if (initialDail) {
+    governments.IE = {
+      countryId: "IE",
+      chamberKey: "dail",
+      status: "pending",
+      formationType: null,
+      governingPartyId: null,
+      coalitionPartyIds: null,
+      pmPoliticianId: null,
+      totalSeatsSupporting: 0,
+      majorityThreshold: 81,
+      totalSeats: 160,
+      seatsByParty: {},
+      lostMajority: false,
+      formedTurn: null,
+      snapElectionsUsed: 0,
+      lastSnapElectionTurn: null,
+      pmVacancyDeadlineTurn: null,
+      confidence: 0,
+    };
+  }
+
   const world: WorldState = {
     meta: {
       schemaVersion: SCHEMA_VERSION,
@@ -1070,14 +1100,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
     nationalPartyElections: [],
     nationalCommitteeElections: [],
     coalitions: [],
-    // W23: parliamentary government state is lazily created by
-    // government/phases.ts governmentFormationPhase on its first run per
-    // country, not seeded here - mirrors how elections/orchestration.ts
-    // lazily spawns the first ElectionRecord rather than world.ts hardcoding
-    // one, so the formation logic has exactly one code path (no
-    // seed-vs-runtime duplication) for both a fresh world and a country that
-    // is created without a legislature this era.
-    governments: {},
+    // W23: IE begins from its source-authored pending Dáil government; other
+    // parliamentary records remain lazily created by governmentFormationPhase.
+    governments,
+    pmAppointmentVotes: [],
     cabinetMembers: [],
     cabinetNominations: [],
     supremeCourtSeats: [],
