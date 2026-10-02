@@ -95,6 +95,8 @@ export interface PartyWhip {
   billId: string;
   partyId: string;
   countryId: string;
+  /** Present for a home-region party instruction; absent means national scope. */
+  stateId?: string;
   chamber: string;
   direction: PartyWhipDirection;
   mode: PartyWhipMode;

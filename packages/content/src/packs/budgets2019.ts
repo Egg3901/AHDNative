@@ -54,14 +54,14 @@ export const BUDGETS_2019: BudgetSeed[] = [
     economicFactors: { gdpGrowth: 0.6, wageGrowth: 1, inflationRate: 0.5, tradeGrowth: 0.3 },
   },
   {
-    // taxRates: incomeTax: de_income_tax_rate option[5] = 42; domesticCorporateTax: de_domestic_corporate_tax_rate option[5] = 15; foreignCorporateTax: de_foreign_corporate_tax_rate option[5] = 15; payrollTax: de_payroll_social_insurance option[5] = 20; tariffs: de_customs_tariff_rate option[0] = 0; salesTax: de_vat_rate option[5] = 19; PORT-STUB budget/extraTaxLines (laws): solidaritySurcharge:de_solidarity_surcharge
+    // taxRates: incomeTax: de_income_tax_rate option[5] = 42; domesticCorporateTax: de_domestic_corporate_tax_rate option[5] = 15; foreignCorporateTax: de_foreign_corporate_tax_rate option[5] = 15; payrollTax: de_payroll_social_insurance option[5] = 20; tariffs: de_customs_tariff_rate option[0] = 0; salesTax: de_vat_rate option[5] = 19; solidaritySurcharge: de_solidarity_surcharge option[5] = 5.5
     countryId: "DE",
     fiscalYear: 2020,
     population: 84_400_000,
     gdp: 4_500_000_000_000,
     currencyCode: "EUR",
     taxBaseRatios: {"taxableIncome":0.46,"corporateProfits":0.11,"wagesAndSalaries":0.44,"importValue":0.34,"taxableSales":0.5},
-    taxRates: {"incomeTax":42,"domesticCorporateTax":15,"foreignCorporateTax":15,"payrollTax":20,"tariffs":0,"salesTax":19},
+    taxRates: {"incomeTax":42,"domesticCorporateTax":15,"foreignCorporateTax":15,"payrollTax":20,"tariffs":0,"salesTax":19,"solidaritySurcharge":5.5},
     otherRevenue: 90_000_000_000,
     debt: { principal: 2_450_000_000_000, interestRate: 0.028, ceiling: 3_000_000_000_000 },
     creditRating: "AAA",

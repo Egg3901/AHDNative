@@ -1,4 +1,6 @@
 export type { SeedPack, EraSeed, CountrySeed, EconomySeed, StateSeed, PartySeed, LegislatureSeed, ChamberSeed, ChamberCompositionSeed, SectorSeed } from "./types.js";
+export { NPP_HOME_REGION_SEATS } from "./packs/nppHomeRegionSeats.js";
+export type { NppHomeRegionSeatSeed } from "./packs/nppHomeRegionSeats.js";
 export { US_STATE_DEMOGRAPHICS_1953 } from "./packs/usStateDemographics1953.js";
 export type { StateDemographicsSeed } from "./packs/usStateDemographics1953.js";
 export { validatePack } from "./validate.js";

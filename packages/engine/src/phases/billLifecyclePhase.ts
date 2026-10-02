@@ -3,13 +3,13 @@ import type { WorldRng } from "../rng.js";
 import type { WorldState } from "../types.js";
 import { processBillLifecycle, processStateBillTimers } from "../legislation/billLifecycle.js";
 import { ideologyVote } from "../legislation/billVoteLogic.js";
+import { isEligibleNppBillVoter, isFederalBillVoteWindowOpen, resolveNppBillVote } from "../npp/voteDecision.js";
 
 /**
  * NPC auto-voting pass before lifecycle closes: every politician with a seat
- * in the voting chamber who hasn't yet voted casts a deterministic ideology
- * vote. This mirrors mainline nppBehavior billVoting's catch-up pass, but
- * simplified for solo (no whip resolution needed beyond party-line already in
- * ideologyVote).
+ * in the voting chamber who hasn't yet voted uses the same source cross-pressure
+ * resolver as nppBehavior. State bills keep the legacy voter until their source
+ * state-legislature model is ported.
  *
  * Runs inside the same phase before lifecycle resolution so bills that opened
  * this turn also get immediate NPC votes.
@@ -27,6 +27,7 @@ function autoVote(world: WorldState, rng: WorldRng): void {
 
   for (const bill of world.bills) {
     if (bill.status !== "active" && bill.status !== "active_other" && bill.status !== "veto_override") continue;
+    if (!isFederalBillVoteWindowOpen(world, bill)) continue;
     const chamberKey = bill.currentChamber;
     const targetVotesField = bill.status === "active_other" ? "otherChamberVotes" : bill.status === "veto_override" ? "vetoOverrideVotes" : "votes";
     const voteMap = (bill as unknown as Record<string, Record<string, string>>)[targetVotesField] ?? {};
@@ -36,16 +37,15 @@ function autoVote(world: WorldState, rng: WorldRng): void {
     for (const pol of world.politicians) {
       if (pol.countryId !== bill.countryId) continue;
       if (pol.chamberKey !== chamberKey) continue;
+      if (!isEligibleNppBillVoter(world, bill, pol)) continue;
       const key = pol.id;
       if (key in voteMap) continue;
       // Skip if already voted in this phase (player vote may have used same id prefix)
-      const vote = ideologyVote(pol, bill, {
-        sponsorPartyId: bill.sponsorPartyId,
-        endorsedPartyIds: endorsedPartyIdsByCountry.get(pol.countryId),
-        rng,
-      });
-      // veto_override does not allow abstain in mainline (defaults to against)
-      const finalVote = bill.status === "veto_override" && vote === "abstain" ? "against" as const : vote;
+      // Federal bills use the same source cross-pressure resolver in the
+      // lifecycle catch-up pass as in nppBehavior. This path catches bills
+      // which became active after that phase ran; retaining ideologyVote here
+      // would silently restore chance-based voting for their first ballot.
+      const finalVote = resolveNppBillVote(world, bill, pol);
       voteMap[key] = finalVote;
     }
     // Write back

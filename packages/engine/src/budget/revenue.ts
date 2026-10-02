@@ -2,9 +2,10 @@
  * Federal revenue calculation.
  * Source: src/lib/budget/revenue.ts calculateFederalRevenue (pure core)
  *
- * Revenue = sum(taxRate% * taxBase) + other.
- * Other and lawRevenue (enterprise) are PORT-STUB at 0 beyond `other`.
- * Tariffs, solidarity surcharge, CN/IE surcharges are deferred (rate undefined => 0).
+ * Revenue = sum(taxRate% * taxBase) + jurisdiction-specific lines + other.
+ * Germany's solidarity surcharge is calculated from income-tax receipts,
+ * matching AHDGame's calculateFederalRevenue. Other unported jurisdictional
+ * lines remain deferred.
  */
 
 import type { BudgetRevenue, BudgetTaxBases, BudgetTaxRates } from "./types.js";
@@ -25,9 +26,12 @@ export function calculateBudgetRevenue(
   const payrollTax = r(taxRates.payrollTax, taxBases.wagesAndSalaries);
   const tariffs = r(taxRates.tariffs, taxBases.importValue);
   const salesTax = r(taxRates.salesTax, taxBases.taxableSales);
+  const solidaritySurcharge = typeof taxRates.solidaritySurcharge === "number"
+    ? Math.round(incomeTax * (taxRates.solidaritySurcharge / 100))
+    : undefined;
   const otherSafe = Number.isFinite(other) ? Math.round(other) : 0;
 
-  const total = incomeTax + domesticCorporateTax + foreignCorporateTax + payrollTax + tariffs + salesTax + otherSafe;
+  const total = incomeTax + domesticCorporateTax + foreignCorporateTax + payrollTax + tariffs + salesTax + (solidaritySurcharge ?? 0) + otherSafe;
 
   return {
     incomeTax,
@@ -36,6 +40,7 @@ export function calculateBudgetRevenue(
     payrollTax,
     tariffs,
     salesTax,
+    ...(solidaritySurcharge === undefined ? {} : { solidaritySurcharge }),
     other: otherSafe,
     total,
   };

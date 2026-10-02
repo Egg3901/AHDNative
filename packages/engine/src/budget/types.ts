@@ -17,7 +17,7 @@ export interface BudgetTaxBases {
   taxableSales: number;
 }
 
-// Source: src/lib/db/types/budget.ts FederalTaxRates (federal subset; no CN/DE/IE surcharges — deferred)
+// Source: AHDGame src/lib/db/types/budget.ts FederalTaxRates (federal subset)
 export interface BudgetTaxRates {
   incomeTax: number; // percent 0..100
   domesticCorporateTax: number;
@@ -25,6 +25,8 @@ export interface BudgetTaxRates {
   payrollTax: number;
   tariffs: number;
   salesTax: number;
+  /** DE rate applied to calculated income-tax receipts, not the income base. */
+  solidaritySurcharge?: number;
 }
 
 // Source: src/lib/db/types/budget.ts FederalRevenue (subset)
@@ -35,6 +37,8 @@ export interface BudgetRevenue {
   payrollTax: number;
   tariffs: number;
   salesTax: number;
+  /** Present only in authored DE budgets; earned on income-tax receipts. */
+  solidaritySurcharge?: number;
   other: number;
   total: number;
 }
