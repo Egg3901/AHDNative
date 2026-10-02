@@ -1,0 +1,65 @@
+import { describe, expect, it } from "vitest";
+import { createWorld } from "../world.js";
+import { deserializeSave, serializeSave } from "../save.js";
+import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
+import { applyNppCapacityReplacement } from "./nppCapacityReinvestment.js";
+import { validateCorporateCashLedger } from "./corporateCashLedger.js";
+
+describe("source NPP capacity replacement", () => {
+  it("writes a source-sized replacement order with the matching cash debit and resumes identically", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-capacity-replacement", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    const assetId = "corporate-sector:US:manufacturing:US-manufacturing";
+    corp.liquidCapital = 10_000_000;
+    world.corporateSectors = { [assetId]: {
+      id: assetId, corporationId: corp.id, countryId: "US", stateId: null,
+      sectorType: "manufacturing", capitalStock: 1_000, producedUnits: 800,
+      soldUnits: 760, workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+    } };
+    const asset = world.corporateSectors[assetId]!;
+    const cashBefore = corp.liquidCapital;
+    const listPrice = capacityPricePerUnitAnchor("manufacturing", corporateSectorBasePrices(world), undefined, 1953);
+
+    // Game reinvest.test vector: 1,000 nameplate, 800 produced, 95% sell-through,
+    // one-turn accrual. Source: runUnits * 0.0005 * accrual * fillScale.
+    const expectedUnits = 1_000 * 0.8 * 0.0005 * (0.5 + 0.5 * ((0.95 - 0.85) / 0.15));
+    const expectedAnchorCost = expectedUnits * listPrice;
+    applyNppCapacityReplacement(world);
+
+    expect(asset.buildQueue).toHaveLength(1);
+    expect(asset.buildQueue?.[0]).toMatchObject({ unitsOrdered: expectedUnits, costPaidAnchor: expectedAnchorCost, startTurn: world.meta.turn });
+    expect(asset.constructionInProgressAnchor).toBe(Math.round(expectedAnchorCost));
+    expect(corp.liquidCapital).toBeLessThan(cashBefore);
+    const row = world.corporateCashLedger?.[0];
+    expect(row).toMatchObject({
+      type: "corp_capacity_build", corporationId: corp.id, amount: corp.liquidCapital - cashBefore,
+      meta: { ledgerKey: row?.id, sectorId: assetId, sectorType: "manufacturing", units: expectedUnits, costAnchor: expectedAnchorCost },
+    });
+    validateCorporateCashLedger(world.corporateCashLedger);
+
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    resumed.meta.turn += 1;
+    world.meta.turn += 1;
+    applyNppCapacityReplacement(world);
+    applyNppCapacityReplacement(resumed);
+    expect(resumed.corporateSectors?.[assetId]?.buildQueue).toEqual(world.corporateSectors?.[assetId]?.buildQueue);
+    expect(resumed.corporateSectors?.[assetId]?.constructionInProgressAnchor).toBe(world.corporateSectors?.[assetId]?.constructionInProgressAnchor);
+    expect(resumed.corporations[corp.id]?.liquidCapital).toBe(world.corporations[corp.id]?.liquidCapital);
+    expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
+  });
+
+  it("does not replace an underfilled, state-owned, or doubly queued asset", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-capacity-replacement-gates", playerName: "Alex" });
+    const corp = world.corporations["US-energy"]!;
+    const assetId = "corporate-sector:US:energy:US-energy";
+    corp.liquidCapital = 10_000_000;
+    const base = { id: assetId, corporationId: corp.id, countryId: "US", stateId: null, sectorType: "energy" as const, capitalStock: 1_000, producedUnits: 800, soldUnits: 600, workers: 1, representingUnionId: null, forSale: null, owner: "corporation" as const };
+    world.corporateSectors = { [assetId]: base };
+    applyNppCapacityReplacement(world);
+    expect(world.corporateSectors[assetId]?.buildQueue).toBeUndefined();
+    base.soldUnits = 800;
+    corp.isNationalCorporation = true;
+    applyNppCapacityReplacement(world);
+    expect(world.corporateSectors[assetId]?.buildQueue).toBeUndefined();
+  });
+});

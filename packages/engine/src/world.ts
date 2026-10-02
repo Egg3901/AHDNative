@@ -181,7 +181,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v62: union-law, underground organizing, detection, and ban-strike continuation
 // must not be accepted by the schema-61 reader, which cannot consume that state.
 // v63: source primary National Corporation identity and cross-sector routing.
-export const SCHEMA_VERSION = 63;
+// v64: source NPP physical replacement orders and their cash-write witnesses.
+export const SCHEMA_VERSION = 64;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

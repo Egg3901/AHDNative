@@ -4,7 +4,7 @@ import type { Corporation } from "./types.js";
 /** Source financialTxLog row for a successful NPP technology cash write. */
 export interface CorporateCashLedgerRecord {
   id: string;
-  type: "corp_tech_unlock";
+  type: "corp_tech_unlock" | "corp_capacity_build";
   turn: number;
   corporationId: string;
   corporationName: string;
@@ -13,12 +13,38 @@ export interface CorporateCashLedgerRecord {
   currencyCode: string;
   meta: {
     ledgerKey: string;
-    nodeId: string;
-    nodeName: string;
-    decadeId: string;
-    lane: string;
-    slot: number;
-    rdCost: number;
+    nodeId?: string;
+    nodeName?: string;
+    decadeId?: string;
+    lane?: string;
+    slot?: number;
+    rdCost?: number;
+    sectorId?: string;
+    sectorType?: string;
+    units?: number;
+    costAnchor?: number;
+    onlineTurn?: number;
+  };
+}
+
+export function makeNppCapacityCashRecord(input: {
+  corp: Corporation;
+  world: WorldState;
+  sector: { id: string; sectorType: string };
+  units: number;
+  costLocal: number;
+  cashDeltaLocal?: number;
+  costAnchor: number;
+  onlineTurn: number;
+}): CorporateCashLedgerRecord | undefined {
+  if (!(Number.isFinite(input.costLocal) && input.costLocal > 0 && Number.isFinite(input.costAnchor) && input.costAnchor > 0 && input.units > 0)) return undefined;
+  const turn = input.world.meta.turn;
+  const id = `capacity-build:${input.corp.id}:${input.sector.id}:t${turn}`;
+  return {
+    id, type: "corp_capacity_build", turn, corporationId: input.corp.id,
+    corporationName: input.corp.name || "Corporation", amount: input.cashDeltaLocal ?? -input.costLocal,
+    currencyCode: input.world.budgets?.[input.corp.countryId]?.currencyCode ?? "USD",
+    meta: { ledgerKey: id, sectorId: input.sector.id, sectorType: input.sector.sectorType, units: input.units, costAnchor: input.costAnchor, onlineTurn: input.onlineTurn },
   };
 }
 
@@ -66,14 +92,15 @@ export function validateCorporateCashLedger(value: unknown): void {
     const meta = row["meta"];
     if (meta === null || typeof meta !== "object" || Array.isArray(meta)) throw new Error("Invalid corporate cash ledger metadata");
     const details = meta as Record<string, unknown>;
-    const identity = [row["corporationId"], details["nodeId"], row["turn"]];
+    const isCapacity = row["type"] === "corp_capacity_build";
+    const identity = [row["corporationId"], isCapacity ? details["sectorId"] : details["nodeId"], row["turn"]];
     const expectedId = typeof identity[0] === "string" && typeof identity[1] === "string" && Number.isInteger(identity[2])
-      ? corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
+      ? isCapacity ? `capacity-build:${identity[0]}:${identity[1]}:t${identity[2]}` : corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
       : "";
     if (!expectedId || row["id"] !== expectedId || details["ledgerKey"] !== expectedId || ids.has(expectedId)) {
       throw new Error("Invalid corporate cash ledger identity");
     }
-    if (row["type"] !== "corp_tech_unlock" || typeof identity[2] !== "number" || (identity[2] as number) < 0) {
+    if ((row["type"] !== "corp_tech_unlock" && !isCapacity) || typeof identity[2] !== "number" || (identity[2] as number) < 0) {
       throw new Error(`Invalid corporate cash ledger type or turn for ${expectedId}`);
     }
     if (typeof row["amount"] !== "number" || !Number.isFinite(row["amount"]) || row["amount"] >= 0) {
@@ -85,10 +112,10 @@ export function validateCorporateCashLedger(value: unknown): void {
     for (const key of ["corporationName"] as const) {
       if (typeof row[key] !== "string" || row[key].length === 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
-    for (const key of ["nodeName", "decadeId", "lane"] as const) {
+    for (const key of (isCapacity ? ["sectorType"] : ["nodeName", "decadeId", "lane"]) as string[]) {
       if (typeof details[key] !== "string" || details[key].length === 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
-    for (const key of ["slot", "rdCost"] as const) {
+    for (const key of (isCapacity ? ["units", "costAnchor", "onlineTurn"] : ["slot", "rdCost"]) as string[]) {
       if (typeof details[key] !== "number" || !Number.isFinite(details[key]) || details[key] < 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
     ids.add(expectedId);

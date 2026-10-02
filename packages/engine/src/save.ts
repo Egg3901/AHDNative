@@ -3667,6 +3667,9 @@ export function deserializeSave(raw: string): WorldState {
   // v63: primary/split-off ownership routing needs the new consumer.
   // Preserve historical absence of primary flags and sector assignments.
   if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
+  // v64: NPP replacement orders and their cash-write witnesses are consumed
+  // by the public corporation turn. Their historical absence stays absent.
+  if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

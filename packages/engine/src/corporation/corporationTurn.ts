@@ -68,6 +68,7 @@ import { corporatePlantsRealizationRatio, runCorporatePlantProductionTurn, sourc
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng } from "./rdInnovationRng.js";
 import { applyNppSourceStrategyRetools, strategyTransitionMarginModifier } from "./strategyRetooling.js";
+import { applyNppCapacityReplacement } from "./nppCapacityReinvestment.js";
 import { unlockNppCorporationTech } from "./techTree/nppUnlock.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { assembleSourcePlantPnl } from "./physicalPlantCosts.js";
@@ -435,6 +436,7 @@ export const corporationTurnPhase: TurnPhase = {
     // results are written. A chosen method therefore starts affecting output
     // on the next turn, rather than changing the production just settled.
     applyNppSourceStrategyRetools(world);
+    applyNppCapacityReplacement(world);
     const year = Number(world.meta.date.slice(0, 4));
     for (const corp of Object.values(world.corporations)) {
       const fx = world.exchangeRates?.[corp.countryId]?.rate ?? 1;

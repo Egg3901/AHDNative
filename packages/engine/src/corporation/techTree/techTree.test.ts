@@ -141,7 +141,7 @@ describe("source corporate technology state", () => {
       delete corp.techDecadeChosenTurn;
     }
     const restored = deserializeSave(JSON.stringify(raw));
-    expect(restored.meta.schemaVersion).toBe(62);
+    expect(restored.meta.schemaVersion).toBe(64);
     expect(restored.corporations["US-energy"]!.unlockedTechNodeIds).toBeUndefined();
     expect(restored.corporations["US-energy"]!.techDecadeLane).toBeUndefined();
     expect(restored.corporateCashLedger).toBeUndefined();
@@ -168,17 +168,18 @@ describe("source corporate technology state", () => {
     expect(acquired).toHaveLength(1);
     expect(acquired[0]).toBe("energy-1950-1");
     const cashRows = world.corporateCashLedger ?? [];
-    expect(cashRows).toHaveLength(1);
-    expect(cashRows[0]).toMatchObject({
+    const techRows = cashRows.filter((row) => row.type === "corp_tech_unlock");
+    expect(techRows).toHaveLength(1);
+    expect(techRows[0]).toMatchObject({
       id: `tech-unlock:${corp.id}:energy-1950-1:t${world.meta.turn}`,
       type: "corp_tech_unlock",
       turn: world.meta.turn,
       corporationId: corp.id,
       amount: expect.any(Number),
       currencyCode: "USD",
-      meta: { ledgerKey: cashRows[0]!.id, nodeId: "energy-1950-1", rdCost: expect.any(Number) },
+      meta: { ledgerKey: techRows[0]!.id, nodeId: "energy-1950-1", rdCost: expect.any(Number) },
     });
-    expect(cashRows[0]!.amount).toBeLessThan(0);
+    expect(techRows[0]!.amount).toBeLessThan(0);
     validateCorporateCashLedger(cashRows);
     const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     expect(resumed.corporateCashLedger).toEqual(cashRows);
