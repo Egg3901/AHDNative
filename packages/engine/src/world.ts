@@ -1,5 +1,6 @@
 import { rngFromSeed } from "./rng.js";
 import { assignUsSeatGeography, assignRegionalSeatGeography } from "./elections/seatGeography.js";
+import { assignSourceHomeStates } from "./elections/sourceHomeState.js";
 import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
@@ -1194,6 +1195,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   seatSingleplayerHeadOfGovernment(world);
   assignUsSeatGeography(world);
   assignRegionalSeatGeography(world);
+  assignSourceHomeStates(world);
   // W12: charter the financial-sector NPC corp of every playable country as
   // a retail bank. Mutates world.corporations in place, same post-
   // construction-mutation pattern as assignUsSeatGeography above.

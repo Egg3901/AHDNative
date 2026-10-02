@@ -174,6 +174,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  const partyWhips = world["partyWhips"];
+  if (Array.isArray(partyWhips) && partyWhips.some((whip) => isRecord(whip) && typeof whip["stateId"] === "string" && whip["stateId"].length > 0)) {
+    return { ok: false, error: `Home-state party whip behavior cannot be projected to the schema 42 turn reader. Keep this Native save.` };
+  }
   // The pinned v42 turn reader has no corporate issuer servicing, buyback or
   // settlement path. Keeping an issuer row as an opaque extension would retain
   // bytes but freeze coupons/default/maturity consequences in that reader.

@@ -128,6 +128,27 @@ describe("projectSaveToV42 public envelope", () => {
     });
   });
 
+  it("refuses a state-scoped party whip because the v42 voter ignores its home-region scope", () => {
+    const world = loadHistoricalFresh();
+    world.partyWhips = [{
+      id: "state-whip-v42-guard",
+      billId: "bill-state-whip-v42-guard",
+      partyId: "US_DEM",
+      countryId: "US",
+      stateId: "AL",
+      chamber: "house",
+      direction: "against",
+      mode: "hard",
+      issuedAtTurn: world.meta.turn,
+      issuerId: "state-chair",
+      issuerRole: "chair",
+    }];
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Home-state party whip behavior"),
+    });
+  });
+
   it("projects the historical pre-control 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
     const world = loadHistoricalFresh();
     expect(world.player.homeRegionId).toBe("AL");

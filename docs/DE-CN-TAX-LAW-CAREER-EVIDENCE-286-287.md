@@ -15,18 +15,19 @@ resolver to grant the seat. The test shortens only the generated election
 calendar. It does not inject a legislative seat or enactment vote. The elected
 player then uses `sponsorBill`, `voteOnBill`, and ordinary `advanceTurn` calls.
 The immutable voting-contract files `npp/crossPressure.ts`, `npp/billVoting.ts`,
-`nppAutonomy/oppositionBehavior.ts`, and `singleplayerDifficulty/rules/behavior.ts`
-have identical blobs at this pin and current Game `698a2e8`. The current
-`parliamentaryGovernment.ts` gained unrelated office-analytics writes; its
-`tallySeatsByParty` implementation used here is unchanged.
+`npp/whipResolution.ts`, `nppAutonomy/oppositionBehavior.ts`, and
+`singleplayerDifficulty/rules/behavior.ts` have identical blobs at this pin and
+current Game `cb66acd`. The current `parliamentaryGovernment.ts` gained
+unrelated office-analytics writes; its `tallySeatsByParty` implementation used
+here is unchanged.
 
 | Acceptance | Evidence | Remaining |
 | --- | --- | --- |
 | #287: exact bounded DE tax identities, options, defaults, directions | `deExecutableSlice.test.ts` checks all seven available national tax rows and authored ladders/directions. The 2019 `solidaritySurcharge` baseline is now 5.5%; 1991 is 2%, per source option index 5 and 3. | Other DE laws retain their source subsystem blockers. |
-| #287: proposal, vote, enactment and effect for released rows | The career test earns a real Bundestag seat, publicly sponsors all seven selected rows, records the player's vote, advances to signing and verifies the changed rate or its active phase-in. It verifies AP/NPI debits. Federal NPC votes now use the shared source cross-pressure resolver in `npp/voteDecision.ts` from both normal NPP behavior and the bill-lifecycle activation catch-up. | This does not port the Game agenda producer/sponsor selector, national-address party/category effect, source home-state identity, or caucus whip path. |
+| #287: proposal, vote, enactment and effect for released rows | The career test earns a real Bundestag seat, publicly sponsors all seven selected rows, records the player's vote, advances to signing and verifies the changed rate or its active phase-in. It verifies AP/NPI debits. Federal NPC votes use shared source cross-pressure from normal NPP behavior and lifecycle catch-up. Recorded whips follow source `homeState` precedence: a matching state-party whip wins, and home-state party leadership suppresses the national whip. Fresh playable DE-2019 holders receive source region assignments without changing politician IDs or party membership. | Existing Native saves have no source homeState provenance and are not silently reconstructed from current seats. DE-1991 seat data exists in Game, but Native correctly rejects that country/era as unplayable. Native also lacks a state-party whip issuer action. Game agenda/sponsor selection, national-address party/category effect, and caucus whip remain unported. |
 | #287: supported replacement/repeal and save/reload | Existing DE VAT lifecycle test replaces and repeals the active law, observes each phase-in step, and compares continued state after save/reload. The career test round-trips the final seat, bills and enacted laws. | No broader DE law coverage is claimed. |
 | #286: exact bounded CN tax identities, options and source defaults | `cnExecutableSlice.test.ts` checks VAT, enterprise income, individual income, social insurance and tariff rows against their source ladders and political directions. | The other 57 CN catalog rows remain explicitly blocked by their named missing subsystem/effect. Planned-economy reform remains outside this slice. |
-| #286: proposal, vote, enactment and effect for all five released rows | The career test earns a real NPC-delegate seat through the generated election and resolver, then submits, votes and advances each tax row through signing and budget rate/phase-in effect. It selects source-authored negative-economic alternatives and asserts an independently Game-executed CN VAT voter vector in the normal turn. | This does not port the Game agenda producer/sponsor selector, national-address party/category effect, source home-state identity, or caucus whip path. |
+| #286: proposal, vote, enactment and effect for all five released rows | The career test earns a real NPC-delegate seat through the generated election and resolver, then submits, votes and advances each tax row through signing and budget rate/phase-in effect. It selects source-authored negative-economic alternatives and asserts an independently Game-executed CN VAT voter vector in the normal turn. Fresh playable CN-1991/2019 NPC rosters carry each source seat row's `state` into Native NPP `homeState`; the consumer then applies source local-whip precedence. | Existing Native saves lack source homeState provenance and are not rewritten from elected seats. Native has no state-whip issuer action; caucus whips, national-address effect, and agenda-driven sponsorship remain unsupported. |
 | #286: source AP/NPI cost, tariff exemption, refusal/refund and replacement | Existing CN executable-slice coverage checks cost quotes/debits, unaffordable atomic refusal, once-only capped refunds, tariff influence exemption, replacement, and save/reload of the ramp. The corrected `smoke/china-national-tax-laws.spec.ts` direct-decree journey passed on PR #717 source-authority head `14a375b8`. It uses Legislature, observes the budget receipt/rate, replaces the law, saves/reloads at 320px and 390px, and asserts zero recorded votes for source HoS decrees. This follow-on changes only CN test coverage, not that production path. | Root is rerunning the full smoke on the latest PR #717 head; hosted gate and merge remain pending. |
 
 ## Germany solidarity-surcharge budget line
@@ -80,14 +81,21 @@ and FOR for a CN_CDL voter with economic ideology -3, donor level 3, loyalty
 which the removed randomized voter would have voted AGAINST, then asserts the
 source FOR result.
 
-Remaining differences are real: Native does not persist Game's NPP `homeState`
-identity or national-address party/category agenda effect, has no caucus-whip
-resolver, and stores only national party whips; Game resolves a matching
-home-state party whip first and only uses a national whip when there is no
-state-party leadership. Native also has not ported Game's governing-agenda
-producer, urgency, or agenda-driven sponsor selection. This evidence therefore
-supports the selected tax-law player journeys and the described
-cross-pressure inputs, not complete NPC agenda/voter parity or issue closure.
+Remaining differences are real: fresh playable DE-2019 and CN-1991/2019 worlds
+persist Game `homeState` from the source reset rows. The generator expands
+each source `seatsHeld` into Native's one-politician-per-seat representation;
+IDs, parties, existing ballots and elected seat locations are not rewritten.
+`sourceHomeState.test.ts` checks exact independently executed DE/CN vectors
+and round-trips those fields. Legacy Native saves predate this identity and
+are deliberately not reattributed from their current `electedState`. Native
+still has no action that issues a state-party or caucus bill whip. Its voter
+consumer chooses a recorded matching local whip first; if none exists, it
+suppresses national instruction while the home-state party has a chair or
+vice-chair, and otherwise uses the national whip. Game's governing-agenda
+producer, urgency, national address effect, and agenda-driven sponsor
+selection remain unported. This supports source home-region inputs in fresh
+selected-law worlds; it does not establish complete NPC agenda/voter parity or
+issue closure.
 
 The root `npm run build` passed through `tsc --noEmit` and the Vite production
 build on the current voter implementation (scheduled job

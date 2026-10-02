@@ -719,6 +719,8 @@ export interface Politician {
   chamberKey: string;
   /** US state whose seat is held (house/senate). */
   electedState?: string | undefined;
+  /** Source NPP homeState; independent of electedState when an officeholder moves or loses their seat. */
+  homeState?: string | undefined;
   /** UK constituency held by this official, when the election has one seat. */
   constituencyId?: string | undefined;
   constituency?: string | undefined;

@@ -7,14 +7,29 @@ import { computeCrossPressureForces, type CrossPressurePartyWhip } from "./cross
 
 type PartyWhip = NonNullable<WorldState["partyWhips"]>[number];
 
-function currentPartyWhip(world: WorldState, partyId: string, bill: Bill): PartyWhip | undefined {
-  return (world.partyWhips ?? [])
+function currentPartyWhip(world: WorldState, voter: Politician, bill: Bill): PartyWhip | undefined {
+  const matchingWhips = (world.partyWhips ?? [])
     .filter((whip) => whip.billId === bill.id
-      && whip.partyId === partyId
+      && whip.partyId === voter.partyId
       && whip.countryId === bill.countryId
       && whip.chamber === bill.currentChamber
       && whip.issuedAtTurn <= world.meta.turn)
-    .sort((a, b) => b.issuedAtTurn - a.issuedAtTurn || b.id.localeCompare(a.id))[0];
+    .sort((a, b) => b.issuedAtTurn - a.issuedAtTurn || b.id.localeCompare(a.id));
+
+  // Game resolves a home-state party whip before the national party whip.
+  // When no state whip is recorded, national instructions are suppressed if
+  // that home-state party has a chair or vice-chair. Native seeds `homeState`
+  // from Game's authored region/party seat rows; it is independent from the
+  // current elected seat so later movement and unseating do not rewrite home.
+  const homeRegionId = voter.homeState;
+  const homeRegion = homeRegionId ? world.regions[homeRegionId] : undefined;
+  if (homeRegionId && homeRegion?.countryId === bill.countryId) {
+    const homeStateWhip = matchingWhips.find((whip) => whip.stateId === homeRegionId);
+    if (homeStateWhip) return homeStateWhip;
+    const stateParty = world.partyRegions[`${homeRegionId}:${voter.partyId}`];
+    if (stateParty?.chairId || stateParty?.viceChairId) return undefined;
+  }
+  return matchingWhips.find((whip) => whip.stateId === undefined);
 }
 
 function currentOpposition(
@@ -53,7 +68,7 @@ function currentOpposition(
 
 /** Resolve one ordinary federal NPP ballot from the source cross-pressure inputs. */
 export function resolveNppBillVote(world: WorldState, bill: Bill, voter: Politician): "for" | "against" | "abstain" {
-  const recordedWhip = currentPartyWhip(world, voter.partyId, bill);
+  const recordedWhip = currentPartyWhip(world, voter, bill);
   // Native's explicit abstain whip is a public extension; Game party whips only
   // express for/against, so keep the existing instruction's direct semantics.
   if (recordedWhip?.direction === "abstain") return "abstain";

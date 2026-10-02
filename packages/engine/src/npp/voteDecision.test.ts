@@ -1,9 +1,98 @@
 import { describe, expect, it } from "vitest";
+import { advanceTurn } from "../engine.js";
 import { billLifecyclePhase } from "../phases/billLifecyclePhase.js";
 import type { WorldRng } from "../rng.js";
+import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 
 describe("source NPP federal vote consumer", () => {
+  it("suppresses a national whip when the voter's home-region party has leadership", () => {
+    const makeWhipWorld = (stateLeader: boolean, includeStateWhip: boolean) => {
+      let world = createWorld({ seed: "source-home-region-whip", playerName: "Player", countryId: "US", era: "2019" });
+      world.player.countryId = "US";
+      world.nppAutonomyLevel = "v0";
+      const voter = world.politicians.find((politician) => politician.countryId === "CN" && politician.chamberKey === "npc")!;
+      voter.partyId = "CN_CDL";
+      voter.ideology = { economic: 0, social: 0 };
+      voter.donorBaseLevel = 0;
+      voter.personality = { loyalty: 100, ambition: 50, stubbornness: 0 };
+      const homeRegion = voter.homeState!;
+      expect(world.regions[homeRegion]?.countryId).toBe("CN");
+      world.partyRegions[`${homeRegion}:CN_CDL`]!.chairId = stateLeader ? "regional-chair" : null;
+      world.politicians = [voter];
+      world.bills.push({
+        id: "source-home-region-whip-bill",
+        title: "Neutral bill",
+        summary: "Home-region whip precedence",
+        countryId: "CN",
+        category: "economic",
+        originChamber: "npc",
+        currentChamber: "npc",
+        status: "active",
+        provisions: [],
+        sponsorId: "player",
+        sponsorName: "Player",
+        sponsorPartyId: "CN_CCP",
+        votes: {},
+        votesFor: 0,
+        votesAgainst: 0,
+        votesAbstain: 0,
+        proposedAtTurn: world.meta.turn,
+        votingEndsOnTurn: world.meta.turn + 3,
+        filibusterInvocations: [],
+        updatedAtTurn: world.meta.turn,
+      });
+      world.partyWhips = [{
+        id: "national-whip",
+        billId: "source-home-region-whip-bill",
+        partyId: "CN_CDL",
+        countryId: "CN",
+        chamber: "npc",
+        direction: "for",
+        mode: "hard",
+        issuedAtTurn: world.meta.turn,
+        issuerId: "player",
+        issuerRole: "chair",
+      }];
+      if (includeStateWhip) {
+        world.partyWhips.push({
+          id: "home-region-whip",
+          billId: "source-home-region-whip-bill",
+          partyId: "CN_CDL",
+          countryId: "CN",
+          stateId: homeRegion,
+          chamber: "npc",
+          direction: "against",
+          mode: "hard",
+          issuedAtTurn: world.meta.turn,
+          issuerId: "regional-chair",
+          issuerRole: "chair",
+        });
+      }
+      world = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+      return { world, voterId: voter.id, homeState: homeRegion };
+    };
+
+    // Game resolveWhipForNPP skips the national whip while this home-state
+    // party has a chair. With no other force, the source verdict abstains.
+    const suppressed = makeWhipWorld(true, false);
+    advanceTurn(suppressed.world);
+    expect(suppressed.world.bills[0]!.votes[suppressed.voterId]).toBe("abstain");
+    expect(suppressed.world.politicians.find((politician) => politician.id === suppressed.voterId)?.homeState).toBe(suppressed.homeState);
+
+    // Without state leadership, the same recorded national whip applies.
+    const national = makeWhipWorld(false, false);
+    advanceTurn(national.world);
+    expect(national.world.bills[0]!.votes[national.voterId]).toBe("for");
+    expect(national.world.politicians.find((politician) => politician.id === national.voterId)?.homeState).toBe(national.homeState);
+
+    // A recorded home-region whip outranks the national instruction.
+    const local = makeWhipWorld(true, true);
+    advanceTurn(local.world);
+    expect(local.world.bills[0]!.votes[local.voterId]).toBe("against");
+    expect(local.world.politicians.find((politician) => politician.id === local.voterId)?.homeState).toBe(local.homeState);
+  });
+
   it("uses source cross-pressure for open bills in lifecycle catch-up", () => {
     const world = createWorld({ seed: "source-catchup-vote", playerName: "Player", countryId: "CN", era: "2019" });
     const sourceVoter = world.politicians.find((politician) => politician.countryId === "CN" && politician.chamberKey === "npc")!;
