@@ -18,7 +18,7 @@ describe("source National Corporation compensated-taking flow (#75)", () => {
     const onAction = vi.fn(async (id: string, params?: GameActionParams) => session.act(id, params).ok);
     function LiveCompany() {
       const [markets, setMarkets] = useState(() => session.markets());
-      return <MarketsPanel markets={markets} initialId="NAT-US-media" busy={false}
+      return <MarketsPanel markets={markets} initialId="NAT-US" busy={false}
         loadStateOwnership={async country => session.stateOwnership(country)}
         onAction={async (id, params) => {
           const ok = await onAction(id, params);

@@ -180,7 +180,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v61: country-scoped parliamentary player appointments beyond the Irish-only reader.
 // v62: union-law, underground organizing, detection, and ban-strike continuation
 // must not be accepted by the schema-61 reader, which cannot consume that state.
-export const SCHEMA_VERSION = 62;
+// v63: source primary National Corporation identity and cross-sector routing.
+export const SCHEMA_VERSION = 63;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

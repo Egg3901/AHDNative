@@ -771,7 +771,7 @@ describe("ActionsHub", () => {
         unownedSectors: Record<string, unknown>;
       };
     };
-    const nationalId = `NAT-${corporation.countryId}-${corporation.sectorType}`;
+    const nationalId = `NAT-${corporation.countryId}`;
     expect(saved.world.corporations[corporation.id]).toBeUndefined();
     expect(saved.world.corporations[nationalId]).toMatchObject({
       ownershipState: "stateOwned",
