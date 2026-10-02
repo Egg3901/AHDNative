@@ -73,6 +73,8 @@ import { foundPlayerCorporation } from "../corporation/playerFounding.js";
 import { expandPlayerCorporationSector } from "../corporation/playerSectorExpansion.js";
 import { buyCorporateSectorForSale } from "../corporation/corporateSectorAcquire.js";
 import { castCorporationRelocationVote, openCorporationRelocationVote } from "../corporation/relocationVotes.js";
+import { relocatePlayerWithCorporation } from "../corporation/relocatePlayerWithCorporation.js";
+import { relocateCorporateHeadquarters } from "../corporation/relocateCorporateHeadquarters.js";
 import type { CorporationType } from "../corporation/types.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
@@ -525,6 +527,18 @@ function executeActionInner(
     if (found.kind !== "player") return { ok: false, error: "Only the player can vote on corporate relocation" };
     const result = castCorporationRelocationVote(world, params.corporationId ?? "", params.relocationChoice ?? "no");
     return result.ok ? { ok: true, message: `Recorded ${params.relocationChoice} on the corporate relocation vote (${result.status}).` } : result;
+  }
+  if (actionId === "relocatePlayerWithCorporation") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player CEO can relocate with a corporation" };
+    const result = relocatePlayerWithCorporation(world, params.corporationId ?? "", params.regionId ?? "");
+    return result.ok ? { ok: true, message: `Relocated with the corporation for ${result.cost} and started a 72-turn cooldown.` } : result;
+  }
+  if (actionId === "relocateCorporateHeadquarters") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player CEO can relocate corporate headquarters" };
+    const result = relocateCorporateHeadquarters(world, params.corporationId ?? "", params.regionId ?? "");
+    return result.ok
+      ? { ok: true, message: `Relocated headquarters for ${result.cost}${result.ceoVacated ? "; CEO position is now vacant" : ""}.` }
+      : result;
   }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
@@ -2651,6 +2665,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "voteCorporateRelocation":
       return params.corporationId && params.relocationChoice
         ? null : "voteCorporateRelocation requires corporationId and relocationChoice";
+    case "relocatePlayerWithCorporation":
+      return params.corporationId && params.regionId
+        ? null : "relocatePlayerWithCorporation requires corporationId and regionId";
+    case "relocateCorporateHeadquarters":
+      return params.corporationId && params.regionId
+        ? null : "relocateCorporateHeadquarters requires corporationId and regionId";
     case "canvass":
     case "organize":
     case "pressureBoost":

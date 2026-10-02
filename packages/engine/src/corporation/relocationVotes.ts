@@ -65,6 +65,7 @@ export function openCorporationRelocationVote(
     deadlineTurn: turn + VOTE_WINDOW_TURNS,
     destinationRegionId,
     destinationCountryId: destination.countryId,
+    sourceCountryId: corporation.countryId,
     passThreshold: sourceRelocationVoteThreshold(corporation.countryId),
     eligibleSharesAtOpen: shares,
     votes: [],
@@ -150,6 +151,7 @@ export function validateCorporateRelocationVote(value: unknown, corporationId: s
       !Number.isSafeInteger(vote["deadlineTurn"]) || (vote["deadlineTurn"] as number) <= (vote["proposedTurn"] as number) ||
       typeof vote["destinationRegionId"] !== "string" || !vote["destinationRegionId"] ||
       typeof vote["destinationCountryId"] !== "string" || !vote["destinationCountryId"] ||
+      typeof vote["sourceCountryId"] !== "string" || !vote["sourceCountryId"] ||
       typeof vote["passThreshold"] !== "number" || !Number.isFinite(vote["passThreshold"]) || vote["passThreshold"] <= 0 || vote["passThreshold"] > 1 ||
       typeof vote["eligibleSharesAtOpen"] !== "number" || !Number.isFinite(vote["eligibleSharesAtOpen"]) || vote["eligibleSharesAtOpen"] <= 0 ||
       !Array.isArray(vote["votes"])) {

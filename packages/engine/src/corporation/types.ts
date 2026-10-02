@@ -207,6 +207,7 @@ export interface Corporation {
     deadlineTurn: number;
     destinationRegionId: string;
     destinationCountryId: string;
+    sourceCountryId: string;
     passThreshold: number;
     eligibleSharesAtOpen: number;
     votes: Array<{ voterId: "player" | "npc"; choice: "yes" | "no" }>;

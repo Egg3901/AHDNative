@@ -354,6 +354,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       error: "player.homeRegionId is not a nullable string. Schema 42 cannot store that identity",
     };
   }
+  if (hasOwn(player, "lastRelocatedTurn")) {
+    return { ok: false, error: `Player relocation cooldown cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   // Issue #334: schema 42 has no difficulty axis. An absent or normal
   // axis projects cleanly (dropped below; absent reloads as the identical
   // default); any other axis cannot round-trip and is refused, same class
@@ -911,6 +914,11 @@ function assertCurrentWorldState(world: WorldState): void {
     (player["homeRegionId"] !== null && typeof player["homeRegionId"] !== "string")
   ) {
     throw new Error("Not a valid save file: invalid world state");
+  }
+  const lastRelocatedTurn = player["lastRelocatedTurn"];
+  if (lastRelocatedTurn !== undefined &&
+      (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
+    throw new Error("Not a valid save file: invalid player relocation turn");
   }
 
   const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>

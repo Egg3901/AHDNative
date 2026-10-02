@@ -111,6 +111,8 @@ export type ActionId =
   | "buyCorporateSector"
   | "openCorporateRelocationVote"
   | "voteCorporateRelocation"
+  | "relocatePlayerWithCorporation"
+  | "relocateCorporateHeadquarters"
   | "issueExtractionContract"
   | "acceptExtractionContract"
   | "declineExtractionContract"
@@ -964,6 +966,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["extraction/contracts"],
+    status: "available",
+  },
+  relocatePlayerWithCorporation: {
+    id: "relocatePlayerWithCorporation",
+    name: "Relocate with Corporation",
+    description: "Move to a source-authored region with your corporation as CEO, paying source market-cap relocation costs and starting the 72-turn personal cooldown.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "forex"],
+    status: "available",
+  },
+  relocateCorporateHeadquarters: {
+    id: "relocateCorporateHeadquarters",
+    name: "Relocate Corporate Headquarters",
+    description: "Move headquarters as CEO for 7% of domestic market capitalization; public companies require a passed relocation vote.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "corporation/governance", "forex"],
     status: "available",
   },
   acceptExtractionContract: {

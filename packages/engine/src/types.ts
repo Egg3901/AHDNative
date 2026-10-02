@@ -1029,6 +1029,8 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** Source character-relocation cooldown anchor; absent means never relocated. */
+  lastRelocatedTurn?: number;
   /** Source CharacterStateOrg rows keyed by US state. */
   primaryStateOrganizations?: Record<string, PrimaryStateOrganization>;
   /** One normalized UK office constituency selection, valid only in its saved region. */
