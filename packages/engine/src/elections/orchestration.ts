@@ -18,7 +18,7 @@ import { realAccumulate } from "./tallyAdapter.js";
 import { ensureCampaignsForElection, archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
-import { closeUkCommonsVacancies, scheduleUkCommonsByElections } from "./ukCommonsVacancies.js";
+import { closeUkCommonsVacancies } from "./ukCommonsVacancies.js";
 import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
 import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS, UK_DEVOLVED_GOVERNOR_REGIONS } from "../government/constants.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
@@ -868,9 +868,9 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
       if (vacancy) winnerByVacancy.set(vacancy.id, winnerId);
     });
     closeUkCommonsVacancies(world, rec.vacancyIds, winnerByVacancy);
-  } else if (rec.countryId === "UK" && rec.electionType === "commons" && rec.state) {
+  } else if (rec.countryId === "UK" && ["commons", "snap_commons"].includes(rec.electionType) && (rec.state || rec.electionType === "snap_commons")) {
     for (const vacancy of world.ukCommonsVacancies ?? []) {
-      if (vacancy.regionId !== rec.state || (vacancy.status !== "open" && vacancy.status !== "scheduled")) continue;
+      if ((rec.state && vacancy.regionId !== rec.state) || (vacancy.status !== "open" && vacancy.status !== "scheduled")) continue;
       vacancy.status = "subsumed";
       delete vacancy.electionId;
     }
@@ -970,8 +970,6 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
     };
     world.elections.push(rec);
   }
-
-  scheduleUkCommonsByElections(world);
 
   // Status transitions + candidate fill on activation (sorted for determinism).
   for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {

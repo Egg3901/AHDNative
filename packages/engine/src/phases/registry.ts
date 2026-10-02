@@ -89,7 +89,7 @@ import {
   coalitionDisbandPhase,
   leadershipElectionsPhase,
 } from "../intraparty/phases.js";
-import { governmentFormationPhase, governmentVacancyWatcherPhase } from "../government/phases.js";
+import { governmentFormationPhase, governmentVacancyWatcherPhase, ukCommonsVacancyWatcherPhase } from "../government/phases.js";
 import { nppGovernmentDirectivesPhase } from "../government/directives.js";
 import { pmAppointmentPhase } from "../government/pmAppointment.js";
 import { impeachmentLifecyclePhase } from "../impeachment/phases.js";
@@ -315,6 +315,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   nppGovernmentDirectivesPhase,
   pmAppointmentPhase,
   governmentVacancyWatcherPhase,
+  ukCommonsVacancyWatcherPhase,
   // W24 presidential succession/impeachment cluster at END before
   // newsMaintenance - same rng-stream-stability rule as every other tail
   // cluster above (mainline runs impeachmentLifecycle/presidentialSuccession

@@ -947,7 +947,8 @@ function assertCurrentWorldState(world: WorldState): void {
       if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > max) throw new Error(`Not a valid save file: invalid Northern Ireland track ${key}`);
     }
     for (const key of ["phaseTurns", "totalTurns", "lastProcessedTurn", "lastInteractionTurn"]) {
-      if (!Number.isInteger(niConflict[key]) || (niConflict[key] as number) < -1) throw new Error("Not a valid save file: invalid Northern Ireland living-conflict clock");
+      const min = key === "lastInteractionTurn" ? -24 : -1;
+      if (!Number.isInteger(niConflict[key]) || (niConflict[key] as number) < min) throw new Error("Not a valid save file: invalid Northern Ireland living-conflict clock");
     }
     if (niConflict["decision"] !== undefined && (!isRecord(niConflict["decision"]) || !["peace_initiative", "agreement_implementation"].includes(String(niConflict["decision"]["interaction"])) || typeof niConflict["decision"]["nodeId"] !== "string" || !Number.isInteger(niConflict["decision"]["nodeIndex"]) || !Number.isInteger(niConflict["decision"]["openedTurn"]) || !Number.isInteger(niConflict["decision"]["deadlineTurn"]))) {
       throw new Error("Not a valid save file: invalid Northern Ireland conflict decision");

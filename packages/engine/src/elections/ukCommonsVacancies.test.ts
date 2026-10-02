@@ -7,6 +7,7 @@ import { rngFromSeed } from "../rng.js";
 import { runElectionResolution, runVoteAccumulation } from "./orchestration.js";
 import { scheduleUkCommonsByElections } from "./ukCommonsVacancies.js";
 import { seatHolders } from "./orchestration.js";
+import { governmentFormationPhase, triggerSnapElection } from "../government/phases.js";
 
 describe("UK Commons vacancy plumbing", () => {
   it("does not invent a held regional Commons office for an unelected player", () => {
@@ -38,7 +39,20 @@ describe("UK Commons vacancy plumbing", () => {
     expect(restored.elections.find((election) => election.id === special!.id)).toEqual(JSON.parse(JSON.stringify(special)));
   });
 
-  it("carries a public LON candidate through real tally, resignation, special resolution, and save", () => {
+  it("cancels live Commons specials and reopens their claimed vacancies on a snap", () => {
+    const world = createWorld({ seed: "commons-snap-cancels-special", playerName: "UK MP", countryId: "UK", era: "2019" });
+    world.ukCommonsVacancies = [{ id: "vacancy-snap", countryId: "UK", regionId: "LON", formerHolderId: "former", reason: "resignation", vacatedTurn: 0, status: "open" }];
+    scheduleUkCommonsByElections(world);
+    const special = world.elections.find((election) => election.electionType === "special_commons")!;
+
+    governmentFormationPhase.run(world, undefined as never);
+    triggerSnapElection(world, "UK", "commons", world.governments.UK!);
+
+    expect(world.elections.find((election) => election.id === special.id)?.status).toBe("cancelled");
+    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ status: "open" })]);
+  });
+
+  it("carries a public LON candidate through its real tally, resignation, source snap gate, and save", () => {
     const world = createWorld({
       seed: "commons-public-player-office-probe",
       playerName: "UK MP",
@@ -73,20 +87,13 @@ describe("UK Commons vacancy plumbing", () => {
 
     advanceTurn(world);
     const special = world.elections.find((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === "LON");
-    expect(special, JSON.stringify({ turn: world.meta.turn, preIteration: world.meta.preIteration, vacancy: world.ukCommonsVacancies, ukRaces: world.elections.filter((election) => election.countryId === "UK" && election.state === "LON").map(({ electionType, status, startTurn, primaryEndTurn, endTurn, cycle }) => ({ electionType, status, startTurn, primaryEndTurn, endTurn, cycle })) })).toMatchObject({ totalSeats: 1, byElectionCarve: expect.any(Number), vacancyIds: [world.ukCommonsVacancies![0]!.id] });
-    expect(executeAction(world, "player", "declareCandidacy", { electionId: special!.id }).ok).toBe(true);
-    special!.primaryEndTurn = world.meta.turn;
-    world.meta.turn = special!.primaryEndTurn + 1;
-    runVoteAccumulation(world, rngFromSeed("commons-public-special-ballot"));
-    special!.endTurn = world.meta.turn + 1;
-    world.meta.turn = special!.endTurn;
-    runElectionResolution(world);
-    expect(special!.status).toBe("resolved");
-    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ status: "filled", filledById: "player" })]);
-    expect(world.player.legislativeSeat).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
+    const snap = world.elections.find((election) => election.countryId === "UK" && election.electionType === "snap_commons");
+    expect(special).toBeUndefined();
+    expect(snap).toBeDefined();
+    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ regionId: "LON", formerHolderId: "player", status: "open" })]);
     const restored = deserializeSave(serializeSave(world, "commons-public-player-office-probe"));
     expect(restored.ukCommonsVacancies).toEqual(world.ukCommonsVacancies);
-    expect(restored.player.legislativeSeat).toEqual(world.player.legislativeSeat);
-    expect(restored.elections.find((election) => election.id === special!.id)).toEqual(JSON.parse(JSON.stringify(special)));
+    expect(restored.player.legislativeSeat).toBeNull();
+    expect(restored.elections.find((election) => election.id === snap!.id)).toEqual(JSON.parse(JSON.stringify(snap)));
   });
 });

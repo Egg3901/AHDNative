@@ -58,6 +58,23 @@ export function closeUkCommonsVacancies(world: WorldState, vacancyIds: readonly 
   }
 }
 
+/** Source snap dissolutions cancel live UK Commons specials and reopen their claimed vacancies. */
+export function cancelUkCommonsSpecialsForSnap(world: WorldState, countryId: string, chamberKey: string): void {
+  if (countryId !== "UK" || chamberKey !== "commons") return;
+  const cancelled = new Set<string>();
+  for (const election of world.elections) {
+    if (election.countryId !== "UK" || election.electionType !== "special_commons" || (election.status !== "active" && election.status !== "upcoming")) continue;
+    election.status = "cancelled";
+    cancelled.add(election.id);
+  }
+  for (const vacancy of world.ukCommonsVacancies ?? []) {
+    if (vacancy.status === "scheduled" && vacancy.electionId && cancelled.has(vacancy.electionId)) {
+      vacancy.status = "open";
+      delete vacancy.electionId;
+    }
+  }
+}
+
 /** Native equivalent of the source's shared status/watcher gate for UK vacancies. */
 export function scheduleUkCommonsByElections(world: WorldState): void {
   const vacancies = world.ukCommonsVacancies;
@@ -90,7 +107,7 @@ export function scheduleUkCommonsByElections(world: WorldState): void {
       }
       continue;
     }
-    const fillsFirst = world.elections.some((election) => election.countryId === "UK" && election.state === regionId && ["commons", "snap_commons"].includes(election.electionType) && (election.status === "active" || election.status === "upcoming") && election.endTurn <= world.meta.turn + UK_COMMONS_BY_ELECTION_TOTAL_TURNS);
+    const fillsFirst = world.elections.some((election) => election.countryId === "UK" && (election.state === regionId || (election.electionType === "snap_commons" && election.state === undefined)) && ["commons", "snap_commons"].includes(election.electionType) && (election.status === "active" || election.status === "upcoming") && election.endTurn <= world.meta.turn + UK_COMMONS_BY_ELECTION_TOTAL_TURNS + 1);
     if (fillsFirst) {
       continue;
     }
