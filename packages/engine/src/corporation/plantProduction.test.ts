@@ -46,6 +46,7 @@ describe("plants-tier corporate production", () => {
     const expectedStock = 22_982_142.85714286;
     const expectedMixWeight = 0.5;
     world.corporations = { ["US-manufacturing"]: world.corporations["US-manufacturing"]! };
+    world.corporations["US-manufacturing"]!.unlockedTechNodeIds = [];
     world.corporateSectors = { [id]: {
       id,
       corporationId: "US-manufacturing",
@@ -278,6 +279,48 @@ describe("plants-tier corporate production", () => {
     runCorporationTurn(corp, 30, { outputFactor: 1, marginModifierPP: 0, strikeActive: false }, undefined, true);
     expect(corp.revenue).toBe(receipts);
     expect(corp.earningsHistory.length).toBe(earningsBefore + 1);
+  });
+
+  it("settles physical input cost and per-asset profitability on the public turn and retains it after reload", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "asset-pnl-public", playerName: "Alex" });
+    const corpId = "US-manufacturing";
+    world.corporations[corpId]!.profitMargin = 20;
+    world.corporations[corpId]!.effectiveProfitMargin = 20;
+    world.corporations[corpId]!.unlockedTechNodeIds = [];
+    world.corporations = { [corpId]: world.corporations[corpId]! };
+    const id = `corporate-sector:US:manufacturing:${corpId}`;
+    world.corporateSectors = {
+      [id]: {
+        id, corporationId: corpId, countryId: "US", stateId: null,
+        sectorType: "manufacturing", capitalStock: 1_000, capacityBookAnchor: 50_000,
+        workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+      },
+    };
+
+    advanceTurn(world);
+
+    const settled = world.corporateSectors[id]!;
+    expect(settled.plantsPnl?.turn).toBe(world.meta.turn);
+    expect(settled.plantsPnl?.revenue).toBe(settled.realizedRevenue);
+    expect(settled.plantsPnl?.inputs).toBeGreaterThan(0);
+    expect(settled.plantsPnl?.profit).toBeCloseTo(
+      settled.plantsPnl!.revenue - settled.plantsPnl!.totalCost,
+      8,
+    );
+    expect(settled.effectiveProfitMargin).toBeCloseTo(
+      Math.min(100, 100 * (1 - settled.plantsPnl!.operatingCost / settled.plantsPnl!.revenue)),
+      8,
+    );
+    expect(settled.effectiveProfitMargin).toBeCloseTo(20, 8);
+
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    expect(resumed.corporateSectors?.[id]).toEqual(settled);
+
+    advanceTurn(world);
+    advanceTurn(resumed);
+    expect(resumed.corporateSectors?.[id]?.plantsPnl).toEqual(world.corporateSectors?.[id]?.plantsPnl);
+    expect(resumed.corporateSectors?.[id]?.effectiveProfitMargin).toBe(world.corporateSectors?.[id]?.effectiveProfitMargin);
+    expect(resumed.corporateSectors?.[id]?.plantsPnl?.turn).toBe(resumed.meta.turn);
   });
 
   it("bounds calibrated demand at 1.5x supply in post-calibration units", () => {

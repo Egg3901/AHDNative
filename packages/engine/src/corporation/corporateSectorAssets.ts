@@ -79,6 +79,22 @@ export interface CorporateSectorAsset {
   realizedRevenue?: number;
   /** Actual fill fraction by produced commodity. */
   soldByCommodity?: Partial<Record<CommodityType, number>>;
+  /** Source physical operating statement, in Native local currency per turn. */
+  plantsPnl?: {
+    turn: number;
+    revenue: number;
+    inputs: number;
+    otherOpex: number;
+    policyCredit: number;
+    growth: number;
+    operatingCost: number;
+    totalCost: number;
+    profit: number;
+  };
+  /** Held residual operating cost per output unit, calibrated at first output. */
+  otherOpexPerUnitAnchor?: number;
+  /** Operating margin derived from this asset's recorded physical costs. */
+  effectiveProfitMargin?: number;
   /** Staffed headcount, derived from recorded revenue (#296). */
   workers: number;
   /** Seeded-union owner for the (countryId, sectorType) pair, or null when unrepresented (#296). */
@@ -282,9 +298,33 @@ export function validateCorporateSectorAssets(
     validateSectorLaborRelations(asset);
     validateSectorPlantCapital(asset);
     validateSectorStrategy(asset);
+    validateSectorPlantPnl(asset);
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
+  }
+}
+
+/** Schema-60 source P&L fields are either wholly absent or fully finite. */
+export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
+  if (asset.plantsPnl !== undefined) {
+    const pnl = asset.plantsPnl;
+    if (!pnl || !Number.isInteger(pnl.turn) || pnl.turn < 0) {
+      throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L turn`);
+    }
+    for (const field of ["revenue", "inputs", "otherOpex", "policyCredit", "growth", "operatingCost", "totalCost", "profit"] as const) {
+      if (typeof pnl[field] !== "number" || !Number.isFinite(pnl[field])) {
+        throw new Error(`Corporate sector ${asset.id} has an invalid plant P&L ${field}`);
+      }
+    }
+  }
+  for (const [field, value] of [
+    ["otherOpexPerUnitAnchor", asset.otherOpexPerUnitAnchor],
+    ["effectiveProfitMargin", asset.effectiveProfitMargin],
+  ] as const) {
+    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+      throw new Error(`Corporate sector ${asset.id} has an invalid ${field}`);
+    }
   }
 }
 

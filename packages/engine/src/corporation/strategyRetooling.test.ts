@@ -63,6 +63,7 @@ describe("corporation strategy transition source vectors", () => {
     const asset = Object.values(corporateSectorAssets(world)).find(row => row.corporationId === corp.id)!;
     asset.capitalStock = 10_000;
     asset.capacityBookAnchor = 1_000_000;
+    asset.otherOpexPerUnitAnchor = 154;
     world.player.cash = Math.max(world.player.cash, corp.sharePrice * 10 + 1);
     expect(executeAction(world, "player", "buyShares", { corpId: corp.id, shares: 10 }).ok).toBe(true);
     expect(executeAction(world, "player", "voteCeo", { corpId: corp.id, candidateId: "player" }).ok).toBe(true);
@@ -75,6 +76,7 @@ describe("corporation strategy transition source vectors", () => {
     });
     expect(result.ok).toBe(true);
     expect(asset.capitalStock).toBeCloseTo(6_875, 8);
+    expect(asset.otherOpexPerUnitAnchor).toBeCloseTo(154 / 0.6875, 8);
     expect(asset.capacityBookAnchor).toBe(1_000_000);
     expect(effectiveSectorStrategyRates(asset, world.meta.turn + 6)).toMatchObject({
       supply: { steel: 0.475, building_materials: 0.1 },

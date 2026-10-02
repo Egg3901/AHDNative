@@ -169,7 +169,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v54-v55: reserved union and primary state writers.
 // v56: corporate strategy-transition state.
 // v57: source paid-taking tiers, confidence history and actual ownership concentration.
-export const SCHEMA_VERSION = 57;
+// v60: persisted per-asset plant P&L and corporate tech-tree continuation.
+export const SCHEMA_VERSION = 60;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

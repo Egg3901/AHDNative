@@ -526,6 +526,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // Preserve the earlier market/governance refusal before checking R&D.
   for (const [corpId, value] of Object.entries(corporations)) {
     if (!isRecord(value)) continue;
+    if (Array.isArray(value["unlockedTechNodeIds"]) || value["techDecadeLane"] !== undefined || value["techDecadeChosenTurn"] !== undefined ||
+      value["marketingStrength"] !== undefined || value["logisticsStrength"] !== undefined) {
+      return { ok: false, error: `Corporation ${corpId} has technology-tree state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
     const rdAmounts = ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain"].map((field) => value[field]);
     const hasNonzeroRdState = rdAmounts.some((amount) =>
       amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
@@ -540,7 +544,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const sectorAssets = world["corporateSectors"];
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
     isRecord(asset) && (
-      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied"].some(field => hasOwn(asset, field)) ||
+      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied", "plantsPnl", "otherOpexPerUnitAnchor", "effectiveProfitMargin"].some(field => hasOwn(asset, field)) ||
       (hasOwn(asset, "strategyId") && asset["strategyId"] !== undefined && asset["strategyId"] !== "standard")
     ),
   );
@@ -3285,6 +3289,8 @@ export function deserializeSave(raw: string): WorldState {
   // Paid tiers and their political/ownership continuation require the new
   // reader. No historical acquisitions or confidence records are invented.
   if (save.schemaVersion < 57) save.world.meta.schemaVersion = 57;
+  // P&L and technology history is absent from old saves; preserve that absence.
+  if (save.schemaVersion < 60) save.world.meta.schemaVersion = 60;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

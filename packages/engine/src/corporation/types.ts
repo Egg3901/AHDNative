@@ -126,6 +126,15 @@ export interface Corporation {
   rdBudgetPerTurn?: number;
   /** Source R&D productivity score, decayed and advanced from paid spend. */
   rdScore?: number;
+  /** Source corporate tech-tree unlocks, preserved across Native saves. */
+  unlockedTechNodeIds?: string[];
+  /** First committed research lane for each source tech decade. */
+  techDecadeLane?: Record<string, "generic" | "sector">;
+  /** Turn on which each decade lane was committed. */
+  techDecadeChosenTurn?: Record<string, number>;
+  /** Source one-time technology grants accumulated by unlocked nodes. */
+  marketingStrength?: number;
+  logisticsStrength?: number;
   /** R&D cash actually charged last turn, in local currency per Native turn. */
   lastRdSpendPerTurn?: number;
   /** Plant stock added by the latest R&D breakthrough, in source output units/day. */

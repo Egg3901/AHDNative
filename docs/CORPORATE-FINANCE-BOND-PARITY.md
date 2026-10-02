@@ -97,6 +97,20 @@ command-economy plan/reform gravity remain unported. The R&D innovation stream
 adds sector capacity only; no national TFP effect is claimed. Extraction R&D
 still lacks the full source action, facility and regional prerequisite flow.
 
+The active #107 worktree now adds a schema-60 asset P&L record and the pinned
+Game sector tech tree, including NPP one-node-per-turn selection after
+settlement, RD/cash debits, lane and unlock persistence, and consumption of
+production-rate, input-rate, price, margin, growth and strategy-unlock effects.
+The bounded save/replay coverage is green (29 focused tests before the latest
+output-multiplier assertion refinement). The asset statement currently includes
+sales, recipe inputs, a calibrated residual operating-cost line, policy credit
+and growth allocation. That residual is a bridge, not Game's completed source
+formula. Source labor staffing/wages, upkeep, regulatory compliance, financial
+legs, landed input premiums and production-policy input scaling still need
+matched Native state and source-output vectors; full #107 remains open until
+those legs and the modifier, CEO/caretaker, plan-gravity, snapshot/insolvency
+and public-turn acceptance criteria pass together.
+
 ## Finance and macro integration
 
 Source savings/bank deposit accrual now runs after corporation/union writes and
