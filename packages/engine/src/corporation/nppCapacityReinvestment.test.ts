@@ -72,6 +72,32 @@ describe("source NPP capacity replacement", () => {
     expect(world.corporateCashLedger).toHaveLength(1);
   });
 
+  it("uses the source CEO-archetype entry margin floor except for critical shortages", () => {
+    const makeWorld = (archetype: "aggressive" | "cautious") => {
+      const world = createWorld({ era: "1953", countryId: "US", seed: `npp-margin-floor-${archetype}`, playerName: "Alex" });
+      const corp = world.corporations["US-manufacturing"]!;
+      for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+      corp.liquidCapital = 100_000_000;
+      corp.profitMargin = 12;
+      corp.effectiveProfitMargin = 12;
+      corp.archetype = archetype;
+      for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice;
+      world.unownedSectors = {
+        "US:VA:manufacturing": { countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 50_000_000 },
+      };
+      return world;
+    };
+    const aggressive = makeWorld("aggressive");
+    applyNppSourceFounding(aggressive);
+    expect(aggressive.corporateSectors?.[`corporate-sector:US:manufacturing:US-manufacturing:VA`]).toBeDefined();
+    expect(15 * CEO_ARCHETYPE_MODIFIERS.aggressive.expansionMinMarginMult).toBe(10.5);
+
+    const cautious = makeWorld("cautious");
+    applyNppSourceFounding(cautious);
+    expect(cautious.corporateSectors?.[`corporate-sector:US:manufacturing:US-manufacturing:VA`]).toBeUndefined();
+    expect(15 * CEO_ARCHETYPE_MODIFIERS.cautious.expansionMinMarginMult).toBe(19.5);
+  });
+
   it("uses Game's deposit-value headroom and founds a source-bounded extraction plant", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-extraction-entry", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;

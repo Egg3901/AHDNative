@@ -109,7 +109,8 @@ export function applyNppSourceFounding(world: WorldState): void {
     if (!candidate) continue;
     // Current-source entry evaluation allows critical shortages to bypass the
     // backward-looking margin gate; otherwise the issuer must meet its 15% floor.
-    if (candidate.peakShortageScore < 1.6 && (corp.effectiveProfitMargin ?? corp.profitMargin) < 15) continue;
+    const expansionMarginFloor = 15 * (CEO_ARCHETYPE_MODIFIERS[corp.archetype]?.expansionMinMarginMult ?? 1);
+    if (candidate.peakShortageScore < 1.6 && (corp.effectiveProfitMargin ?? corp.profitMargin) < expansionMarginFloor) continue;
     // Game's ordinary-entry glut gate uses the peak output ratio, not the
     // blended sector mean: one healthy output must not be hidden by a glut in
     // a co-product when the other leg still has buyers.
