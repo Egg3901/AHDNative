@@ -98,6 +98,9 @@ describe("enacted union law state", () => {
     expect(ban.ok).toBe(true);
     expect(world.budgets.US?.unionsBanned).toBe(true);
     expect(union.suspended).toBe(true);
+    expect(world.crises).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "union_ban_general_strike", countryIds: ["US"], status: "active" }),
+    ]));
     expect(labourFactorsForCorporation(world, asset.corporationId, loadCorporationLabourState(world, world.meta.turn))).toMatchObject({
       outputFactor: 1,
       strikeActive: false,
@@ -109,6 +112,7 @@ describe("enacted union law state", () => {
     expect(loaded.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(loaded.budgets.US?.unionsBanned).toBe(true);
     expect(loaded.unions[union.id]?.suspended).toBe(true);
+    expect(loaded.crises.find((crisis) => crisis.kind === "union_ban_general_strike")?.status).toBe("active");
     const loadedAsset = Object.values(corporateSectorAssets(loaded)).find((row) => row.id === asset.id)!;
     const strikeResult = stepCorporateSectorStrikes(loaded, loaded.meta.turn + 1, loadCorporationLabourState(loaded, loaded.meta.turn + 1));
     expect(loadedAsset.unionization).toBe(17);
@@ -120,6 +124,7 @@ describe("enacted union law state", () => {
     expect(repeal.ok).toBe(true);
     expect(loaded.budgets.US?.unionsBanned).toBe(false);
     expect(loaded.unions[union.id]?.suspended).toBe(false);
+    expect(loaded.crises.find((crisis) => crisis.kind === "union_ban_general_strike")?.status).toBe("resolved");
     expect(loadedAsset.unionization).toBe(17);
   });
 

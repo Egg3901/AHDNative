@@ -1816,6 +1816,8 @@ export interface CrisisRecord {
   effects: Array<{ type: string; value: number; effectType: "flat" | "tick" | "decay" }>;
   status: "active" | "resolved";
   endTurn?: number;
+  /** Source union-ban general strike's once-per-turn underground extension guard. */
+  lastUndergroundExtensionTurn?: number;
   wireMessageOnStart: string;
   wireMessageOnEnd: string;
   playerResponse?: string | null;

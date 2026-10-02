@@ -10,6 +10,7 @@
 import type { WorldState } from "../types.js";
 import { STRIKE_UNIONIZATION_THRESHOLD } from "./bargaining.js";
 import { repealUndergroundConversion, undergroundStrength } from "./underground.js";
+import { resolveUnionBanStrike, triggerUnionBanStrike } from "./unionBanStrike.js";
 
 export const UNION_LAW_BIAS_MIN = -50;
 export const UNION_LAW_BIAS_MAX = 50;
@@ -77,6 +78,8 @@ export function applyUnionLawProvision(
         organizer.updatedAtTurn = world.meta.turn;
       }
     }
+    if (banned) triggerUnionBanStrike(world, countryId);
+    else resolveUnionBanStrike(world, countryId);
     return;
   }
 

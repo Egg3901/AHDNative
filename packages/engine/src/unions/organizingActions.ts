@@ -4,6 +4,7 @@ import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import { createUnionOrganizer, unionOrganizers, unionStrength } from "./organizers.js";
 import type { Union } from "./types.js";
 import { UNDERGROUND_ACTION_COST, isUnionExposed, resolveUndergroundDrive, undergroundHeat, undergroundStrength, type UndergroundDriveMode } from "./underground.js";
+import { extendUnionBanStrikeFromUnderground } from "./unionBanStrike.js";
 
 export const ORGANIZE_ACTION_COST = 5;
 export const ORGANIZE_STRENGTH_GAIN = 10;
@@ -75,6 +76,12 @@ export function organizeUnionUndergroundAction(world: WorldState, unionId: strin
   organizer.undergroundStrength = Math.max(0, organizer.undergroundStrength ?? 0) + result.strengthGain;
   organizer.lastUndergroundDriveTurn = world.meta.turn;
   organizer.updatedAtTurn = world.meta.turn;
+  const crisisExtended = extendUnionBanStrikeFromUnderground(
+    world,
+    union.countryId,
+    union.undergroundStrength,
+    mode,
+  );
   return {
     undergroundStrength: union.undergroundStrength,
     status: union.exposedUntilTurn != null && world.meta.turn <= union.exposedUntilTurn
@@ -83,6 +90,7 @@ export function organizeUnionUndergroundAction(world: WorldState, unionId: strin
     heatText: union.heat >= 60 ? "hot" as const : union.heat >= 15 ? "warm" as const : "cold" as const,
     strengthGain: result.strengthGain,
     actionsSpent: UNDERGROUND_ACTION_COST,
+    crisisExtended,
   };
 }
 

@@ -178,7 +178,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // older readers must refuse these saves instead of treating the budget fields
 // as inert extensions.
 // v61: country-scoped parliamentary player appointments beyond the Irish-only reader.
-export const SCHEMA_VERSION = 61;
+// v62: union-law, underground organizing, detection, and ban-strike continuation
+// must not be accepted by the schema-61 reader, which cannot consume that state.
+export const SCHEMA_VERSION = 62;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

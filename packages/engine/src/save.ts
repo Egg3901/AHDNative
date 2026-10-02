@@ -3654,6 +3654,10 @@ export function deserializeSave(raw: string): WorldState {
   // Earlier readers only understood Irish PM votes. No appointment history
   // can be reconstructed; existing Irish records continue unchanged.
   if (save.schemaVersion < 61) save.world.meta.schemaVersion = 61;
+  // v62: the schema-61 reader predates union law and underground continuation.
+  // Keep historical law/drive/crisis fields absent; the version barrier is
+  // what prevents that reader from silently loading state it cannot consume.
+  if (save.schemaVersion < 62) save.world.meta.schemaVersion = 62;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3701,6 +3705,15 @@ export function deserializeSave(raw: string): WorldState {
   validateGovernmentDirectives(save.world);
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
+  for (const crisis of save.world.crises) {
+    if (
+      crisis.lastUndergroundExtensionTurn !== undefined &&
+      (!Number.isSafeInteger(crisis.lastUndergroundExtensionTurn) ||
+        crisis.lastUndergroundExtensionTurn < 0 || crisis.lastUndergroundExtensionTurn > save.world.meta.turn)
+    ) {
+      throw new Error(`Crisis ${crisis.id} has an invalid underground extension turn`);
+    }
+  }
   validatePresidentialPrimaryLedger(save.world);
   validatePresidentialGeneralMechanics(save.world);
   validatePrimaryStateOrganizations(save.world);

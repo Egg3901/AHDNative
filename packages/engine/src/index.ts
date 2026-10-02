@@ -194,6 +194,14 @@ export * from "./unions/underground.js";
 export { processUndergroundTurn } from "./unions/undergroundTurn.js";
 export type { SetUnionPoliticalContributionsResult } from "./unions/contributionActions.js";
 export { applyUnionLawProvision, clampUnionLawBias, lawAdjustedUnionizationThreshold, STRIKE_LAW_THRESHOLD_WEIGHT } from "./unions/unionLaws.js";
+export {
+  extendUnionBanStrikeFromUnderground,
+  hasActiveUnionBanStrike,
+  triggerUnionBanStrike,
+  UNION_BAN_STRIKE_DURATION_TURNS,
+  UNDERGROUND_CRISIS_EXTENSION_LIMIT,
+  UNION_BAN_STRIKE_KIND,
+} from "./unions/unionBanStrike.js";
 export type { UnionLawProvision } from "./unions/unionLaws.js";
 export { averageAnnualWage, duesIncomePerTurn, maxDuesForWage, unionMembers } from "./unions/dues.js";
 export { representedSectorsForUnion } from "./unions/sectorAggregation.js";
