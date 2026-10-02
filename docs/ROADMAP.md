@@ -1,6 +1,6 @@
 ## Current parity count and ownership correction, 2026-10-02
 
-Current GitHub state: **53 open from 63: 40 partial, 8 not started, 3 deferred, 2 blocked**.
+Current GitHub state: **54 open from 63: 41 partial, 8 not started, 3 deferred, 2 blocked**.
 Ten verified closures: #308, #297, #51, #110, #111, #299, #115, #286, #287 and #40.
 Source plants audit reopened #298/#211; parent #211 is 6/7. #75 is partial,
 with all four broad original criteria unchecked.
@@ -42,6 +42,20 @@ retain their source seed-only behavior. Current GDP growth reaches fiscal bases
 and receipts after aggregation. Public saved treatment/control and actual
 320px/390px education-spending/registry/resume flows pass. #40 is closed;
 [GROWTH-PARITY.md](GROWTH-PARITY.md) records the evidence. Wider #106 remains open.
+
+
+Irish VAT [PR #724](https://github.com/Egg3901/AHDNative/pull/724) merged
+`8138063` after exact `798e0a1` passed the
+[full gate](https://github.com/Egg3901/AHDNative/actions/runs/36957264821).
+The actual Native proposal/vote/enactment/phase-in/replacement/repeal and
+320px/390px worker/save/resume flow is verified. #284 remains partial for the
+complete source NPP agenda/urgency and a reference-playable Irish career;
+57 other law rows retain named blockers. Automatic closure was reversed.
+
+The current source audit reopened #98 for missing live ME/NE district handling,
+VP home-state and real governor-endorsement producers/modifiers. Its four
+original acceptance groups remain unchecked. The work is active; an earlier
+closure did not establish those mechanics. Current open count includes #98.
 
 # AHDNative roadmap
 
