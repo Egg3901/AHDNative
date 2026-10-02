@@ -166,9 +166,10 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // schema 46 bytes.
 // v52: durable state-ownership action history; older readers cannot record continuation.
 // v53: nationalization origin and grace history.
-// v54-v55: reserved for accepted union/political state writers on the shared branch.
-// v56: corporate strategy-transition state; older readers cannot continue an active retool.
-export const SCHEMA_VERSION = 56;
+// v54-v55: reserved union and primary state writers.
+// v56: corporate strategy-transition state.
+// v57: source paid-taking tiers, confidence history and actual ownership concentration.
+export const SCHEMA_VERSION = 57;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

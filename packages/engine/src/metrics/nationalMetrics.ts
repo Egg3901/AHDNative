@@ -21,14 +21,13 @@
  *    mirrors for economic/governance; other families fall back to 0 and are
  *    marked stale until state-level metric evolution lands.
  *  - TFP basket leaves: the six exact AHDGame tfpBasket paths
- *    (demographics/laborForce.ts TFP_METRIC_PATHS, e.g.
- *    economic.rdIntensity / population.urbanizationRate) ARE aggregated here
- *    from the recorded per-region policy rows in WorldState.regionalMetrics
- *    (schema v45), population-weighted, gated by isMetricActive. That mirrors
- *    mainline nationalMetrics.ts, whose every metric is a weighted aggregate of
- *    regional values. createWorld seeds playable country/era rows from the
- *    Game pin (metrics/tfpSeed.ts). Countries without a ported seed stay absent.
- *    We never invent a national stand-in for a missing regional input.
+ *    (demographics/laborForce.ts TFP_METRIC_PATHS) are aggregated from
+ *    population-weighted regional inputs and gated by isMetricActive. The four
+ *    metrics projected from Game's regional political board use the current
+ *    board conversion when that source board exists; R&D intensity and
+ *    urbanization, plus boardless legacy saves, use their recorded regional
+ *    metric rows. This keeps the source authority and does not invent a
+ *    national stand-in for a missing regional input.
  *  - Enacted-law/flagship-law lists for law-weighted signals: E02_LEGISLATION_LAW_TAGS
  *  - FTA/tariff pressure for cost-of-living: E03_TARIFF_FTA_COVERAGE (see inflationRecalc)
  *
@@ -43,6 +42,7 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { isMetricActive } from "./metricActivation.js";
+import { legacyPoliticalHalfFromBoard } from "../politicalMetrics/sourceRuntime.mjs";
 
 export type MetricValue = { value: number };
 
@@ -61,6 +61,17 @@ export const METRIC_CATEGORIES = [
 ] as const;
 
 export const GDP_WEIGHTED_METRICS = new Set<string>(["gdpGrowth"]);
+
+// Game's macro phase reads these four TFP inputs from the current regional
+// political board through politicalInputs.legacyUnit(). Only R&D intensity and
+// urbanization remain in the macro metric store. The Native national macro
+// keeps the same source values by aggregating the projected regional inputs.
+const POLITICAL_TFP_PATHS = new Set<string>([
+  TFP_METRIC_PATHS.workforceSkill,
+  TFP_METRIC_PATHS.transportEfficiency,
+  TFP_METRIC_PATHS.broadbandAccess,
+  TFP_METRIC_PATHS.powerGridReliability,
+]);
 
 function currentYearFromDate(date: string): number | null {
   const y = Number(date.slice(0, 4));
@@ -112,13 +123,12 @@ export function computeNationalMetricsForCountry(
   }
 
   // ── TFP basket leaves (the six exact AHDGame tfpBasket paths) ────────────
-  // Mainline's nationalMetrics.ts aggregates every metric from
-  // population-weighted per-region values. createWorld seeds playable
-  // country/era rows from the Game pin (metrics/tfpSeed.ts); regional-scope
-  // policy/ministerial writes persist in WorldState.regionalMetrics (schema
-  // v45). This aggregates whatever
-  // is actually recorded — population-weighted, and era-gated exactly like the
-  // economic family above. No synthetic seeds and no national stand-in: when no
+  // Mainline's macro phase reads four leaves from the current political board
+  // through legacyUnit; R&D intensity and urbanization are macro-metric roots.
+  // The Native end-of-turn aggregate applies that same board conversion to the
+  // four board-backed leaves, and uses recorded regional metric rows for the
+  // two roots or when loading a world without source board state. Values remain
+  // population-weighted and era-gated. No synthetic national stand-in: when no
   // region records a leaf it stays absent and macroCountryTurn falls back to
   // TFP_REFERENCE_INPUTS (TFP_BASELINE 1.2).
   const countryRegionIds = Object.values(world.regions)
@@ -130,7 +140,20 @@ export function computeNationalMetricsForCountry(
     let weightedSum = 0;
     let weightTotal = 0;
     for (const regionId of countryRegionIds) {
-      const value = world.regionalMetrics?.[regionId]?.[path]?.value;
+      let value: number | undefined;
+      if (POLITICAL_TFP_PATHS.has(path)) {
+        const board = world.regionalPoliticalMetrics?.[regionId];
+        if (board?.countryId === countryId) {
+          const [category, metricId] = path.split(".");
+          const sourceMetrics = legacyPoliticalHalfFromBoard(board.values, {
+            countryId,
+            ...(year !== null ? { year } : {}),
+          });
+          const projected = category && metricId ? sourceMetrics?.[category]?.[metricId]?.value : undefined;
+          if (typeof projected === "number" && Number.isFinite(projected)) value = projected;
+        }
+      }
+      value ??= world.regionalMetrics?.[regionId]?.[path]?.value;
       if (typeof value !== "number" || !Number.isFinite(value)) continue;
       const weight = world.regions[regionId]?.population ?? 0;
       if (!(weight > 0)) continue;

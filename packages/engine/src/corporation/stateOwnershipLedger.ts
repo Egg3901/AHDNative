@@ -9,12 +9,15 @@ export interface StateOwnershipEntry {
   kind: "nationalize_whole";
   method: "executive";
   triggers: ["distress"] | ["npc"];
-  tier: "seizure";
+  tier: "fair" | "discounted" | "seizure";
   formerCorpName: string;
   sectorTypes: string[];
   compensationAnchor: number;
   debtAnchor: number;
   shareholdersSettled: number;
+  /** Older acquisition records retain their original absence. */
+  confidenceBefore?: number;
+  confidenceAfter?: number;
   turn: number;
 }
 
@@ -40,16 +43,23 @@ export function validateStateOwnershipLedger(world: WorldState): void {
     if (typeof row.id !== "string" || !row.id || ids.has(row.id)
       || typeof row.countryId !== "string" || !world.countries[row.countryId]
       || typeof row.nationalCorporationId !== "string" || !row.nationalCorporationId
-      || row.kind !== "nationalize_whole" || row.method !== "executive" || row.tier !== "seizure"
+      || row.kind !== "nationalize_whole" || row.method !== "executive" || (row.tier !== "seizure" && row.tier !== "discounted" && row.tier !== "fair")
       || !Array.isArray(row.triggers) || row.triggers.length !== 1 || (row.triggers[0] !== "distress" && row.triggers[0] !== "npc")
       || typeof row.formerCorpName !== "string" || !row.formerCorpName
       || !Array.isArray(row.sectorTypes) || row.sectorTypes.length === 0 || !row.sectorTypes.every(value => typeof value === "string" && value.length > 0)
-      || row.compensationAnchor !== 0
+      || typeof row.compensationAnchor !== "number" || !Number.isFinite(row.compensationAnchor) || row.compensationAnchor < 0
+      || (row.tier === "seizure" && row.compensationAnchor !== 0)
       || typeof row.debtAnchor !== "number" || !Number.isFinite(row.debtAnchor) || row.debtAnchor < 0
       || !Number.isInteger(row.shareholdersSettled) || (row.shareholdersSettled as number) < 0
       || !Number.isInteger(row.turn) || (row.turn as number) < 0 || (row.turn as number) > world.meta.turn) {
       throw new Error("Invalid state ownership record");
     }
+    for (const key of ["confidenceBefore", "confidenceAfter"]) {
+      if (Object.hasOwn(row, key) && (typeof row[key] !== "number" || !Number.isFinite(row[key]) || (row[key] as number) < 0 || (row[key] as number) > 100)) {
+        throw new Error("Invalid state ownership confidence record");
+      }
+    }
+    if (Object.hasOwn(row, "confidenceBefore") !== Object.hasOwn(row, "confidenceAfter")) throw new Error("Invalid state ownership confidence record");
     ids.add(row.id);
   }
 }

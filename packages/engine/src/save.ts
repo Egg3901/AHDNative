@@ -3277,14 +3277,14 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
   // No creator or grace history is invented for earlier Native issuers.
   if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
-  // v54 and v55 are owned by the accepted union and primary slices. Their
-  // optional records remain absent on saves that did not author them.
+  // Reserved union and primary stores keep their recorded absence.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
   if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
-  // v55 -> v56: sector strategy transitions add turn-dependent corporate
-  // production state. Preserve absent transition fields; validation below
-  // rejects malformed present values. Schema 53 readers reject v56 saves.
+  // Source strategy transitions are absent until an actual retool is ordered.
   if (save.schemaVersion < 56) save.world.meta.schemaVersion = 56;
+  // Paid tiers and their political/ownership continuation require the new
+  // reader. No historical acquisitions or confidence records are invented.
+  if (save.schemaVersion < 57) save.world.meta.schemaVersion = 57;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

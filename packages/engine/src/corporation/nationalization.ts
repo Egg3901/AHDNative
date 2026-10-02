@@ -6,7 +6,8 @@ import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "../government/constants.js";
 import { isRecordedSingleplayerHeadOfGovernment } from "../government/singleplayerHeadOfGovernment.js";
 import { executiveTakingEligibility } from "./nationalizationEligibility.js";
-import { assumedDebtAnchor } from "./stateOwnershipLedger.js";
+import { nationalizationCompensation, settleNationalizationCompensation, indicativeNationalizationCompensation, type CompensationTier } from "./nationalizationCompensation.js";
+import { applyExecutiveTakingConsequences } from "./nationalizationConsequences.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
 export const NATIONALIZATION_REVENUE_KEEP = 0.85;
@@ -64,6 +65,17 @@ export function nationalizationTargets(world: WorldState): Array<{ id: string; l
     .map((corporation) => ({ id: corporation.id, label: corporation.name ?? corporation.tickerSymbol ?? corporation.id }));
 }
 
+/** Source wizard target details and its indicative discounted quote. */
+export function nationalizationTargetDetails(world: WorldState) {
+  const assets = Object.values(corporateSectorAssets(world));
+  return nationalizationTargets(world).map(target => {
+    const donor = world.corporations[target.id]!;
+    return { id: target.id, ownerKind: donor.nationalizationOwnerKind ?? "npc",
+      sectorCount: assets.filter(asset => asset.corporationId === donor.id).length,
+      discountedIndicativeLocal: indicativeNationalizationCompensation(donor) };
+  });
+}
+
 export function nationalizationUnavailableReason(world: WorldState): string | undefined {
   if (!isRecordedSittingHeadOfGovernment(world, world.player.countryId)) {
     return "Only the sitting head of government may order an executive nationalization.";
@@ -85,6 +97,7 @@ export function nationalizeDistressedCorporation(
   world: WorldState,
   corporationId: string,
   actorId: string,
+  tier: CompensationTier = "seizure",
 ): NationalizationResult {
   if (actorId !== "player" || !isRecordedSittingHeadOfGovernment(world, world.player.countryId)) {
     return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
@@ -116,7 +129,8 @@ export function nationalizeDistressedCorporation(
   }
 
   const keep = NATIONALIZATION_REVENUE_KEEP;
-  const debtAnchor = assumedDebtAnchor(world, donor.id);
+  const compensation = nationalizationCompensation(world, donor, absorbedAssetIds.map(id => assets[id]!), tier);
+  const debtAnchor = compensation.debtAnchor;
   const sectorTypes = [...new Set(absorbedAssetIds.map(id => assets[id]!.sectorType))];
   const countryName = world.countries[donor.countryId]?.name ?? donor.countryId;
   const national = existingNational ?? {
@@ -155,11 +169,7 @@ export function nationalizeDistressedCorporation(
   national.countryOwnerId = donor.countryId;
   national.ownershipState = "stateOwned";
   national.assignedSectorTypes = [...new Set([...(national.assignedSectorTypes ?? []), donor.sectorType])];
-  // Both stores use this domestic country's local currency. Source credits
-  // the treasury once, rounded to whole units, and leaves existing SOE cash.
-  if (Number.isFinite(donor.liquidCapital) && donor.liquidCapital > 0) {
-    treasury.treasuryBalance += Math.round(donor.liquidCapital);
-  }
+  settleNationalizationCompensation(world, donor, tier, compensation.payoutAnchor);
 
   for (const assetId of absorbedAssetIds) {
     const asset = assets[assetId]!;
@@ -189,7 +199,7 @@ export function nationalizeDistressedCorporation(
     }
   }
   for (const bond of Object.values(world.bonds)) {
-    if (bond.issuerType === "corporation" && bond.corporationId === donor.id) {
+    if (bond.issuerType === "corporation" && bond.corporationId === donor.id && !bond.matured) {
       bond.corporationId = nationalCorporationId;
     }
   }
@@ -199,6 +209,7 @@ export function nationalizeDistressedCorporation(
   national.foundingRevenue += Math.round(donor.foundingRevenue * keep);
   national.currentGrowthCost += Math.round(donor.currentGrowthCost * keep);
   world.corporations[nationalCorporationId] = national;
+  const consequences = applyExecutiveTakingConsequences(world, donor.countryId, eligibility.triggers, tier, compensation.valuationAnchor, compensation.payoutAnchor);
   const ledger = world.stateOwnershipLedger ??= [];
   ledger.push({
     id: `taking-${donor.countryId}-${world.meta.turn}-${ledger.length}-${donor.id}`,
@@ -207,12 +218,13 @@ export function nationalizeDistressedCorporation(
     kind: "nationalize_whole",
     method: "executive",
     triggers: eligibility.triggers,
-    tier: "seizure",
+    tier,
     formerCorpName: donor.name ?? donor.tickerSymbol ?? donor.id,
     sectorTypes,
-    compensationAnchor: 0,
+    compensationAnchor: compensation.payoutAnchor,
     debtAnchor,
     shareholdersSettled: donor.shareholders.length,
+    ...consequences,
     turn: world.meta.turn,
   });
   return {
