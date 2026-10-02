@@ -903,6 +903,98 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid world state");
   }
 
+  const ukDevolution = value["ukDevolution"];
+  if (ukDevolution !== undefined) {
+    const expectedRegions = ["LON", "NIR", "SCO", "WAL"];
+    if (
+      !isRecord(ukDevolution) ||
+      ukDevolution["_id"] !== "UK" ||
+      !isRecord(ukDevolution["regions"]) ||
+      Object.keys(ukDevolution["regions"]).sort().join(",") !== expectedRegions.join(",") ||
+      Object.keys(ukDevolution).some((key) => !["_id", "regions", "lastPolicyBillId", "northernIrelandPeace"].includes(key)) ||
+      (ukDevolution["lastPolicyBillId"] !== undefined &&
+        (typeof ukDevolution["lastPolicyBillId"] !== "string" || ukDevolution["lastPolicyBillId"].length === 0))
+    ) {
+      throw new Error("Not a valid save file: invalid UK devolution institution state");
+    }
+    const niPeace = ukDevolution["northernIrelandPeace"];
+    if (niPeace !== undefined && (
+      !isRecord(niPeace) ||
+      Object.keys(niPeace).some((key) => !["posture", "changedTurn", "assemblyFirstCycle", "assemblyFirstElectionEndTurn"].includes(key)) ||
+      !["unsettled", "power_sharing", "suspended"].includes(String(niPeace["posture"])) ||
+      !Number.isInteger(niPeace["changedTurn"]) || (niPeace["changedTurn"] as number) < 0 ||
+      (niPeace["assemblyFirstCycle"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstCycle"]) || (niPeace["assemblyFirstCycle"] as number) < 1)) ||
+      (niPeace["assemblyFirstElectionEndTurn"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstElectionEndTurn"]) || (niPeace["assemblyFirstElectionEndTurn"] as number) < 0))
+    )) {
+      throw new Error("Not a valid save file: invalid Northern Ireland peace posture");
+    }
+    if (niPeace !== undefined) {
+      for (const field of ["assemblyFirstCycle", "assemblyFirstElectionEndTurn"]) {
+        const fieldValue = niPeace[field];
+        if (fieldValue !== undefined && (!Number.isInteger(fieldValue) || (fieldValue as number) < 0)) {
+          throw new Error("Not a valid save file: invalid Northern Ireland peace institution anchor");
+        }
+      }
+    }
+    for (const regionId of expectedRegions) {
+      const institution = ukDevolution["regions"][regionId];
+      if (
+        !isRecord(institution) ||
+        Object.keys(institution).some((key) => !["active", "firstCycle", "firstElectionEndTurn"].includes(key)) ||
+        typeof institution["active"] !== "boolean" ||
+        !Number.isInteger(institution["firstCycle"]) ||
+        (institution["firstCycle"] as number) < 1 ||
+        (institution["firstElectionEndTurn"] !== undefined &&
+          (!Number.isInteger(institution["firstElectionEndTurn"]) || (institution["firstElectionEndTurn"] as number) < 0))
+      ) {
+        throw new Error(`Not a valid save file: invalid UK devolution institution state for ${regionId}`);
+      }
+    }
+  }
+
+  const niConflict = value["northernIrelandConflict"];
+  if (niConflict !== undefined) {
+    const phases = ["armed_stalemate", "backchannels", "ceasefire", "multiparty_talks", "agreement", "power_sharing", "fragile_settlement"];
+    const trackKeys = ["violence", "settlementMomentum", "legitimacy", "unionistConsent", "nationalistConsent", "decommissioning", "institutionalStability", "domesticConsent", "referendumRatification", "ratificationAuthorization", "ratificationFailureCount"];
+    if (!isRecord(niConflict) || niConflict["_id"] !== "northern_ireland" || niConflict["hasOpened"] !== true || !phases.includes(String(niConflict["phase"])) || niConflict["phaseLevel"] !== phases.indexOf(String(niConflict["phase"])) + 1 || !["active", "negotiating", "ceasefire", "settled", "closed"].includes(String(niConflict["status"])) || !isRecord(niConflict["tracks"]) || Object.keys(niConflict["tracks"]).sort().join(",") !== trackKeys.sort().join(",")) {
+      throw new Error("Not a valid save file: invalid Northern Ireland living-conflict state");
+    }
+    for (const key of trackKeys) {
+      const n = niConflict["tracks"][key];
+      const max = key === "referendumRatification" ? 1 : key === "ratificationAuthorization" || key === "ratificationFailureCount" ? 2 : 100;
+      if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > max) throw new Error(`Not a valid save file: invalid Northern Ireland track ${key}`);
+    }
+    for (const key of ["phaseTurns", "totalTurns", "lastProcessedTurn", "lastInteractionTurn"]) {
+      const min = key === "lastInteractionTurn" ? -24 : -1;
+      if (!Number.isInteger(niConflict[key]) || (niConflict[key] as number) < min) throw new Error("Not a valid save file: invalid Northern Ireland living-conflict clock");
+    }
+    if (niConflict["decision"] !== undefined && (!isRecord(niConflict["decision"]) || !["peace_initiative", "agreement_implementation"].includes(String(niConflict["decision"]["interaction"])) || typeof niConflict["decision"]["nodeId"] !== "string" || !Number.isInteger(niConflict["decision"]["nodeIndex"]) || !Number.isInteger(niConflict["decision"]["openedTurn"]) || !Number.isInteger(niConflict["decision"]["deadlineTurn"]))) {
+      throw new Error("Not a valid save file: invalid Northern Ireland conflict decision");
+    }
+  }
+  const niPoll = value["northernIrelandPeacePoll"];
+  if (niPoll !== undefined && (!isRecord(niPoll) || typeof niPoll["id"] !== "string" || niPoll["kind"] !== "peace_agreement" || !["campaigning", "completed"].includes(String(niPoll["status"])) || typeof niPoll["agreementKey"] !== "string" || !Number.isInteger(niPoll["openedTurn"]) || !Number.isInteger(niPoll["closesTurn"]) || typeof niPoll["yesShare"] !== "number" || !Number.isFinite(niPoll["yesShare"]) || niPoll["yesShare"] < 0 || niPoll["yesShare"] > 100 || !isRecord(niPoll["campaignSpendUnits"]) || !isRecord(niPoll["campaignSpendUnits"]) || typeof niPoll["campaignSpendUnits"]["yes"] !== "number" || typeof niPoll["campaignSpendUnits"]["no"] !== "number" || !Array.isArray(niPoll["cohortBaseline"]))) {
+    throw new Error("Not a valid save file: invalid Northern Ireland peace poll");
+  }
+
+  const ukCommonsVacancies = value["ukCommonsVacancies"];
+  if (ukCommonsVacancies !== undefined) {
+    if (!Array.isArray(ukCommonsVacancies)) throw new Error("Not a valid save file: invalid UK Commons vacancy ledger");
+    const seenVacancyIds = new Set<string>();
+    for (const vacancy of ukCommonsVacancies) {
+      if (!isRecord(vacancy) || Object.keys(vacancy).some((key) => !["id", "countryId", "regionId", "formerHolderId", "seats", "reason", "vacatedTurn", "status", "electionId", "filledById", "filledTurn"].includes(key)) ||
+        typeof vacancy["id"] !== "string" || typeof vacancy["regionId"] !== "string" || vacancy["countryId"] !== "UK" || typeof vacancy["formerHolderId"] !== "string" || vacancy["reason"] !== "resignation" || !Number.isInteger(vacancy["vacatedTurn"]) || !["open", "scheduled", "filled", "subsumed"].includes(String(vacancy["status"])) ||
+        (vacancy["seats"] !== undefined && (!Number.isSafeInteger(vacancy["seats"]) || (vacancy["seats"] as number) < 1)) ||
+        seenVacancyIds.has(vacancy["id"]) ||
+        (vacancy["status"] === "scheduled" && typeof vacancy["electionId"] !== "string") ||
+        (vacancy["status"] === "filled" && ((vacancy["filledById"] !== undefined && typeof vacancy["filledById"] !== "string") || !Number.isInteger(vacancy["filledTurn"]))) ||
+        (vacancy["status"] !== "filled" && (vacancy["filledById"] !== undefined || vacancy["filledTurn"] !== undefined))) {
+        throw new Error("Not a valid save file: invalid UK Commons vacancy entry");
+      }
+      seenVacancyIds.add(vacancy["id"]);
+    }
+  }
+
   const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>
     holder["seatsHeld"] === undefined ||
     (Number.isSafeInteger(holder["seatsHeld"]) && (holder["seatsHeld"] as number) >= 1);
@@ -3685,9 +3777,10 @@ export function deserializeSave(raw: string): WorldState {
   // weights cannot be reconstructed from previously redistributed rosters.
   // Earlier readers must refuse weighted offices they cannot continue.
   if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
-  // v65: source statehood admission requires the original starting preset
-  // and annual evaluation guard. Preserve a previously recorded preset; for
-  // older saves infer only from existing geography and current era.
+  // v65: source statehood admission and UK devolved/conflict continuation.
+  // Older readers must refuse this combined grammar. Preserve the source
+  // preset/annual guard for statehood; do not invent UK policy or conflict
+  // history for older saves.
   if (save.schemaVersion < 65) {
     save.world.meta.schemaVersion = 65;
     const regions = save.world.regions;

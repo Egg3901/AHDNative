@@ -33,6 +33,8 @@ export interface CatalogEntry {
   category: string;
   allowedScope: "national" | "regional" | "both";
   baselineLevel?: 0 | 1 | 2 | 3 | 4;
+  /** Exact per-option political directions where the source law's ladder is not the shared five-step shape. */
+  optionEffectDirections?: readonly (-1 | 0 | 1)[];
   levels?: CatalogLawLevel[];
   taxPolicy?: {
     scope: "federal" | "state";
@@ -131,7 +133,7 @@ export function resolveCatalogPolicyOption(
   const index = Number(policyOptionId.slice(1));
   if (!Number.isSafeInteger(index) || index < 0 || index >= entry.levels.length) return null;
   const level = entry.levels[index];
-  const effectDirection = POLICY_EFFECT_DIRECTION_LADDER[index];
+  const effectDirection = entry.optionEffectDirections?.[index] ?? POLICY_EFFECT_DIRECTION_LADDER[index];
   if (!level || effectDirection === undefined) return null;
   return { id: policyOptionId, index, level, effectDirection };
 }
@@ -166,6 +168,69 @@ export function policyOptionIntensity(
 // economy/party/support. Rest are stubbed as unavailable.
 
 const AVAILABLE: CatalogEntry[] = [
+  // Source: AHDGame cb66 `uk_devolution_local_powers` (seven policy options).
+  // The option-specific direction array preserves the law's three expansion,
+  // neutral settlement and three restriction/abolition rungs.
+  {
+    id: "uk_devolution_local_powers",
+    countryId: "UK",
+    kind: "primary",
+    title: "Devolution and Local Powers Act",
+    description: "Regional autonomy, devolved powers, and the balance between Westminster and regions.",
+    category: "governance",
+    allowedScope: "national",
+    baselineLevel: 3,
+    optionEffectDirections: [1, 1, 1, 0, -1, -1, -1],
+    targets: [
+      { metricId: "governance.devolutionSatisfaction", weight: 1 },
+      { metricId: "governance.governmentTransparency", weight: 0.3 },
+      { metricId: "social.civicParticipation", weight: 0.3 },
+    ],
+    status: "available",
+    levels: [
+      { name: "Maximum Devolution Act", description: "Devolve all domestic policy to regional governments and create a federal structure." },
+      { name: "Enhanced Devolution Act", description: "Expand regional tax, welfare, and borrowing powers." },
+      { name: "Devolution Extension Act", description: "Extend devolved planning, transport, and local decision-making powers." },
+      { name: "Devolution Settlement Act", description: "Maintain the established balance between Westminster and regional governments." },
+      { name: "Westminster Primacy Act", description: "Reassert Westminster authority and reduce regional autonomy." },
+      { name: "Devolution Rollback Act", description: "Return most devolved powers to Westminster." },
+      { name: "Abolish Devolution Act", description: "Eliminate devolved governments and centralize domestic policy." },
+    ],
+  },
+  {
+    id: "uk_northern_ireland_peace",
+    countryId: "UK",
+    kind: "primary",
+    title: "Northern Ireland Settlement Ratification Act",
+    description: "A Westminster bill authorizing the negotiated Northern Ireland settlement and its institutions.",
+    category: "northern_ireland_peace",
+    allowedScope: "national",
+    baselineLevel: 0,
+    optionEffectDirections: [0, 1],
+    targets: [],
+    status: "available",
+    levels: [
+      { name: "Withhold ratification", description: "Do not authorize the settlement in Westminster." },
+      { name: "Ratify the agreement", description: "Authorize the negotiated settlement and its institutions." },
+    ],
+  },
+  {
+    id: "ie_northern_ireland_peace",
+    countryId: "IE",
+    kind: "primary",
+    title: "British-Irish Agreement Ratification Act",
+    description: "A Dáil bill authorizing Ireland's commitments under the negotiated settlement.",
+    category: "northern_ireland_peace",
+    allowedScope: "national",
+    baselineLevel: 0,
+    optionEffectDirections: [0, 1],
+    targets: [],
+    status: "available",
+    levels: [
+      { name: "Withhold ratification", description: "Do not authorize Ireland's commitments." },
+      { name: "Ratify the agreement", description: "Authorize Ireland's commitments and cross-border institutions." },
+    ],
+  },
   // Source: AHDGame 96831835 src/lib/seeds/reference/legislationTypes.ts
   // resource_extraction_authority. Source has three options, so this law uses
   // a three-entry level list rather than the five-step economic posture ladder.

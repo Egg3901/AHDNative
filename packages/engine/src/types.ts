@@ -402,6 +402,19 @@ export interface WorldState {
    * unchanged on top.
    */
   governors: Record<string, import("./governor/types.js").GovernorState>;
+  /**
+   * UK devolved-executive institutions and their first election anchors.
+   * New worlds seed the authored settlement; legacy saves may omit this state
+   * and retain that absence until a national policy actually changes it.
+   * Schema v63.
+   */
+  ukDevolution?: import("./devolution/ukInstitutions.js").UKDevolutionState;
+  /** Distinct political living conflict; never merged into military `conflicts`. Schema v63. */
+  northernIrelandConflict?: import("./livingConflict/northernIreland.js").NorthernIrelandLivingConflict;
+  /** Belfast Agreement public consent poll; intentionally separate from reunification referendum actuation. */
+  northernIrelandPeacePoll?: import("./livingConflict/northernIreland.js").NorthernIrelandPeacePoll;
+  /** Source-shaped UK Commons vacancy ledger. Absent on saves predating #2886 parity work. */
+  ukCommonsVacancies?: import("./elections/ukCommonsVacancies.js").UkCommonsVacancy[];
   governorAddresses: import("./governor/types.js").GovernorAddress[];
   governorOrders: import("./governor/types.js").GovernorOrder[];
   /**

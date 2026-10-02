@@ -312,12 +312,13 @@ export function canonicalTurnsForCycle(params: CanonicalCycleParams): CanonicalC
       // UKR/BLR/BAL oblast/republic first secretaries ride the republic-soviet
       // cycle for the same reason RU's do: the regional soviets were elected on
       // the republic cycle, not on a separate schedule of their own.
-      const govAnchor =
+      const govAnchor = customCycle1EndTurn ?? (
         countryId === "RU" || countryId === "UKR" || countryId === "BLR" || countryId === "BAL"
           ? anchors.ruRepublicSoviet
           : countryId === "DD"
             ? anchors.ddVolkskammer
-            : anchors.governorStateSenate;
+            : anchors.governorStateSenate
+      );
       if (govAnchor == null) return null;
       const endTurn = cycle === 1 ? govAnchor : govAnchor + (cycle - 1) * dur.durationHours;
       return {
@@ -639,6 +640,7 @@ export function pickNextCanonicalCycle(
     minPrimaryHours = 24,
     minGeneralHours = 24,
     maxSkip = 20,
+    customCycle1EndTurn,
   } = params;
 
   // Pre-iteration "founding" cycle: while the founding phase is active, every
@@ -668,6 +670,16 @@ export function pickNextCanonicalCycle(
     const effectivePrimaryStart = Math.max(startTurn, currentTurn);
     const primaryHoursLeft = primaryEndTurn - effectivePrimaryStart;
     const generalHoursLeft = endTurn - Math.max(primaryEndTurn, currentTurn);
+
+    // Source UK devolution starts the first election at an enacted policy's
+    // explicit deadline (24 primary turns + the general window). The turn
+    // immediately after enactment consumes one primary turn before timers run,
+    // so requiring the generic full 24-turn minimum would skip cycle 1 and
+    // incorrectly schedule cycle 2. Preserve the authored first deadline when
+    // a custom anchor still leaves a positive primary window.
+    if (customCycle1EndTurn != null && cycle === 1 && primaryHoursLeft > 0 && generalHoursLeft >= minGeneralHours) {
+      return { cycle, startTurn, primaryEndTurn, endTurn };
+    }
 
     if (primaryHoursLeft >= minPrimaryHours && generalHoursLeft >= minGeneralHours) {
       return { cycle, startTurn, primaryEndTurn, endTurn };

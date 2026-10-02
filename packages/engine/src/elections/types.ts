@@ -30,7 +30,7 @@ export interface ElectionCandidate {
   campaignSuspended?: boolean | undefined;
 }
 
-export type ElectionStatus = "upcoming" | "active" | "resolved";
+export type ElectionStatus = "upcoming" | "active" | "resolved" | "cancelled";
 
 export interface PrimaryResultEntry {
   candidateId: string;
@@ -88,6 +88,12 @@ export interface ElectionRecord {
   state?: string | undefined;
   /** UK constituency identifier for a constituency-specific Commons race. */
   constituencyId?: string | undefined;
+  /** Constituencies claimed by a source regional Commons vacancy election. */
+  constituencyIds?: string[] | undefined;
+  /** Fraction of the regional electorate carved for a UK Commons by-election. */
+  byElectionCarve?: number | undefined;
+  /** Source vacancy IDs the special race claims and must close on resolution. */
+  vacancyIds?: string[] | undefined;
   /** Senate class for US senate races. */
   senateClass?: 1 | 2 | 3 | undefined;
   cycle: number;

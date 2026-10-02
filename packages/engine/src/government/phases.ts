@@ -4,6 +4,7 @@ import type { GovernmentState } from "./types.js";
 import { isRecordedSingleplayerHeadOfGovernment, seatSingleplayerHeadOfGovernment } from "./singleplayerHeadOfGovernment.js";
 import type { Chamber, WorldState } from "../types.js";
 import { computeFormation, selectPm } from "./formation.js";
+import { cancelUkCommonsSpecialsForSnap, scheduleUkCommonsByElections } from "../elections/ukCommonsVacancies.js";
 import { liveChamberSeatsByParty } from "./seatWeights.js";
 import {
   GOVERNMENT_CHAMBER_BY_COUNTRY,
@@ -96,7 +97,7 @@ function resetToPending(gov: GovernmentState, chamber: Chamber, turn: number): v
   gov.pmVacancyDeadlineTurn = turn + PM_VACANCY_DEADLINE_TURNS;
 }
 
-function createGovernment(countryId: string, chamberKey: string, chamber: Chamber, turn: number): GovernmentState {
+function createGovernment(countryId: string, chamberKey: string, chamber: Chamber, _turn: number): GovernmentState {
   const gov: GovernmentState = {
     countryId,
     chamberKey,
@@ -258,9 +259,14 @@ export function triggerSnapElection(world: WorldState, countryId: string, chambe
   const priorCycle = world.elections
     .filter((e) => e.countryId === countryId && e.chamberKey === chamberKey)
     .reduce((max, e) => Math.max(max, e.cycle), 0);
-  world.elections = world.elections.filter(
-    (e) => !(e.countryId === countryId && e.chamberKey === chamberKey && e.status !== "resolved"),
-  );
+  for (const election of world.elections) {
+    if (election.countryId === countryId && election.electionType === chamberKey && (election.status === "active" || election.status === "upcoming")) {
+      election.status = "cancelled";
+    }
+  }
+  // AHDGame's byElectionTypesFor(lowerChamberKey) includes the distinct UK
+  // special_commons family. The source watcher later reopens its vacancies.
+  cancelUkCommonsSpecialsForSnap(world, countryId, chamberKey);
 
   const snapType = SNAP_ELECTION_TYPE_BY_CHAMBER[chamberKey] ?? `snap_${chamberKey}`;
   const cycle = priorCycle + 1;
@@ -302,5 +308,13 @@ export const governmentVacancyWatcherPhase: TurnPhase = {
       if (world.meta.turn < gov.pmVacancyDeadlineTurn) continue;
       triggerSnapElection(world, countryId, chamberKey, gov);
     }
+  },
+};
+
+/** The source Commons vacancy watcher runs after government snap decisions and election resolution. */
+export const ukCommonsVacancyWatcherPhase: TurnPhase = {
+  name: "ukCommonsVacancyWatcher",
+  run(world) {
+    scheduleUkCommonsByElections(world);
   },
 };

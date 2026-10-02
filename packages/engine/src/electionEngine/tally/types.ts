@@ -233,6 +233,24 @@ export interface AccumulateVoteTurnInput {
   voteMultiplierByCandidateId?: Record<string, number>;
   /** Ordered post-campaign candidate multipliers, each rounded like the source pipeline. */
   additionalVoteMultipliersByCandidateId?: Record<string, number[]>;
+  /** Ephemeral diagnostic observer for exact pure-distributor input comparison. */
+  diagnosticObserver?: (snapshot: VoteDistributionDiagnosticSnapshot) => void;
+}
+
+export interface VoteDistributionDiagnosticSnapshot {
+  election: TallyElectionInput;
+  candidates: EnrichedCandidate[];
+  effectiveTurnPool: number;
+  totalPool: number;
+  electorate: number;
+  demographics: import("../types.js").StateDemographics;
+  categories: import("../types.js").DemographicCategory[];
+  partyOrgByParty: Array<[string, number]>;
+  options: Record<string, unknown>;
+  turnNumber: number;
+  rngState?: import("../../rng.js").RngState;
+  nativeVotesPerCandidate: Record<string, number>;
+  nativeSharesPct: Record<string, number>;
 }
 
 export interface AccumulateVoteTurnResult {

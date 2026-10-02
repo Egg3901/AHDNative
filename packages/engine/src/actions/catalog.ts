@@ -73,6 +73,7 @@ export type ActionId =
   | "invokeFilibuster"
   | "declareCandidacy"
   | "withdrawCandidacy"
+  | "resignCommonsSeat"
   | "contestPartyLeadership"
   | "votePartyLeadership"
   | "issuePartyWhip"
@@ -96,6 +97,8 @@ export type ActionId =
   | "crisisStimulus"
   | "crisisRespond"
   | "crisisMonitor"
+  | "chooseNorthernIrelandConflictOption"
+  | "campaignNorthernIrelandPeacePoll"
   // M1 (Lane 12 Head of State mode) economic-direction levers: HoS-only,
   // call existing budget pure functions (budget/spending.ts, budget/revenue.ts),
   // never new phase logic. See actions/execute.ts for the mode gate.
@@ -577,6 +580,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["elections"],
     status: "available",
   },
+  resignCommonsSeat: {
+    id: "resignCommonsSeat",
+    name: "Resign from the Commons",
+    description: "Vacate your recorded UK Commons regional office and trigger the source by-election watcher.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections", "ukCommonsVacancies"],
+    status: "available",
+  },
   contestPartyLeadership: {
     id: "contestPartyLeadership",
     name: "Contest Party Leadership",
@@ -815,6 +828,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["crisis"],
+    status: "available",
+  },
+  chooseNorthernIrelandConflictOption: {
+    id: "chooseNorthernIrelandConflictOption",
+    name: "Resolve Northern Ireland Peace Decision",
+    description: "Choose an authored, role- and country-gated position in the Northern Ireland living conflict.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["living-conflicts/northern-ireland"],
+    status: "available",
+  },
+  campaignNorthernIrelandPeacePoll: {
+    id: "campaignNorthernIrelandPeacePoll",
+    name: "Campaign on the Peace Agreement",
+    description: "Spend campaign units for or against the separate Northern Ireland peace-agreement ballot.",
+    baseCost: 1,
+    cooldown: 1,
+    fundCost: 0,
+    systems: ["living-conflicts/northern-ireland", "referendum"],
     status: "available",
   },
   // ── M1 economic-direction levers (Lane 12 Head of State mode) ─────

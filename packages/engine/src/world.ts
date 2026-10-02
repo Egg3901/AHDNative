@@ -98,7 +98,9 @@ import {
 // prior multi-wave resolver note in save.ts (see v16->v17, v27->v28, etc.).
 import { computeFormation } from "./government/formation.js";
 import { seatSingleplayerHeadOfGovernment } from "./government/singleplayerHeadOfGovernment.js";
-import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES } from "./government/constants.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES, UK_DEVOLVED_GOVERNOR_REGIONS } from "./government/constants.js";
+import { initialUKDevolutionState } from "./devolution/ukInstitutions.js";
+import { initialNorthernIrelandLivingConflict } from "./livingConflict/northernIreland.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
 // Pre-allocated v39 for M1 (Lane 12 Head of State mode). This branch point
@@ -185,7 +187,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v64: allocated seatsHeld weights must survive winner, ballot and government
 // continuation; older readers count one vote per office and must refuse them.
 // v65: annual source statehood-admission continuation and admittedYear region
-// stamps. Older readers must refuse rather than invent preset or guard state.
+// stamps, plus source UK devolution institutions and Northern Ireland conflict
+// state. Older readers must refuse these continuations.
 export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
@@ -1176,6 +1179,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
     // in packages/content). Seeded here with office AP capped so powers are
     // immediately usable once a holder seats.
     governors: seedGovernors(regions),
+    ...(countries.UK ? { ukDevolution: initialUKDevolutionState(Number(pack.era.startDate.slice(0, 4))) } : {}),
+    ...(countries.UK && initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4)))
+      ? { northernIrelandConflict: initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4))) }
+      : {}),
     governorAddresses: [],
     governorOrders: [],
     player: {
@@ -1843,6 +1850,7 @@ function seedGovernors(regions: WorldState["regions"]): WorldState["governors"] 
   const governors: WorldState["governors"] = {};
   for (const region of Object.values(regions)) {
     if (!GOVERNOR_COUNTRIES.has(region.countryId)) continue;
+    if (region.countryId === "UK" && !UK_DEVOLVED_GOVERNOR_REGIONS.has(region.id)) continue;
     governors[region.id] = {
       stateId: region.id,
       countryId: region.countryId,

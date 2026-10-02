@@ -4,6 +4,8 @@ import type { WorldState } from "../types.js";
 /** Mainline Character inputs are a bootstrap snapshot, separate from live writes. */
 export interface TurnContext {
   playerAtTurnStart: Readonly<WorldState["player"]>;
+  /** Optional ephemeral observer for source-tally diagnosis; never persisted. */
+  observeElectionTallyInput?: (snapshot: unknown) => void;
 }
 
 /**

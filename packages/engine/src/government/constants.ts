@@ -88,12 +88,16 @@ export const GOVERNMENT_CHAMBER_BY_COUNTRY: Record<string, string> = {
 
 /**
  * Countries whose regions carry an elected regional executive ("governor"
- * electionType in mainline: US governors, JP regional governors, DE
- * Minister-Presidents, CN provincial governors, BR state governors, IE
- * regional chairs). Source: COUNTRY_CONFIGS officeTypes per country and
- * perpetualElections.ts ensure{JP,CN,BR}GovernorElections / DE ministerPresident.
+ * electionType in mainline: US governors, UK devolved First Ministers / London
+ * Mayor, RU republic First Secretaries, DD Land First Secretaries, JP regional
+ * governors, DE Minister-Presidents, CN provincial governors, BR state
+ * governors, IE regional chairs). Source: countryPhases.ts plus the
+ * corresponding perpetualElections spawners.
  */
-export const GOVERNOR_COUNTRIES: ReadonlySet<string> = new Set(["US", "JP", "DE", "CN", "BR", "IE"]);
+export const GOVERNOR_COUNTRIES: ReadonlySet<string> = new Set(["US", "UK", "RU", "DD", "JP", "DE", "CN", "BR", "IE"]);
+
+/** UK offices scheduled by AHDGame's UK devolution institution calendar. */
+export const UK_DEVOLVED_GOVERNOR_REGIONS: ReadonlySet<string> = new Set(["SCO", "WAL", "NIR", "LON"]);
 
 /** Base election type this chamber's regular elections run under, keyed by GOVERNMENT_CHAMBER_BY_COUNTRY's chamberKey. */
 export const BASE_ELECTION_TYPE_BY_CHAMBER: Record<string, string> = {

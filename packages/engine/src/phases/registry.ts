@@ -90,7 +90,7 @@ import {
   coalitionDisbandPhase,
   leadershipElectionsPhase,
 } from "../intraparty/phases.js";
-import { governmentFormationPhase, governmentVacancyWatcherPhase } from "../government/phases.js";
+import { governmentFormationPhase, governmentVacancyWatcherPhase, ukCommonsVacancyWatcherPhase } from "../government/phases.js";
 import { nppGovernmentDirectivesPhase } from "../government/directives.js";
 import { pmAppointmentPhase } from "../government/pmAppointment.js";
 import { impeachmentLifecyclePhase } from "../impeachment/phases.js";
@@ -123,6 +123,7 @@ import { ledgerPreForexSnapshotPhase, forexTurnPhase } from "../forex/phases.js"
 import { eraCrossingPhase } from "./eraCrossing.js";
 import { independenceDesireDriftPhase } from "../devolution/phases.js";
 import { referendumLifecyclePhase } from "../referendum/phases.js";
+import { northernIrelandLivingConflictPhase } from "../livingConflict/phases.js";
 import { metricDecayPhase } from "../metrics/metricDecay.js";
 import { investorConfidenceDecayPhase } from "../metrics/investorConfidenceDecay.js";
 import { nationalMetricsPhase } from "../metrics/nationalMetrics.js";
@@ -319,6 +320,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   nppGovernmentDirectivesPhase,
   pmAppointmentPhase,
   governmentVacancyWatcherPhase,
+  ukCommonsVacancyWatcherPhase,
   // W24 presidential succession/impeachment cluster at END before
   // newsMaintenance - same rng-stream-stability rule as every other tail
   // cluster above (mainline runs impeachmentLifecycle/presidentialSuccession
@@ -545,6 +547,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   sourceTfpGrowthPhase,
   independenceDesireDriftPhase,
   referendumLifecyclePhase,
+  northernIrelandLivingConflictPhase,
   // W6 metric engine cluster at END before newsMaintenance — ordering deviation:
   // Mainline runs these mid-pipeline in stateEffectsAndNationalAggregationPhase:
   // metricDecay (no-op, inside policyEffects), investorConfidenceDecay, metricEngine,

@@ -77,6 +77,9 @@ import { applyBillEffects } from "../legislation/billLifecycle.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
 import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
+import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeacePoll } from "../livingConflict/northernIreland.js";
+import { resignUkCommonsSeat } from "../elections/ukCommonsVacancies.js";
+import { recomputeComposition } from "../elections/orchestration.js";
 
 export type ExecuteActionParams = {
   /** Player preference for automatic re-entry in the most recent state race. */
@@ -105,6 +108,8 @@ export type ExecuteActionParams = {
   vote?: "for" | "against" | "abstain";
   pmAppointmentVoteId?: string;
   pmVote?: "aye" | "nay";
+  niOptionId?: string;
+  niPollSide?: "yes" | "no";
   sponsorCountryId?: string;
   billTitle?: string;
   billCategory?: string;
@@ -445,6 +450,10 @@ function executeActionInner(
   ) {
     return { ok: false, error: LEGISLATION_FREEZE_MESSAGE };
   }
+  if (actionId === "sponsorBill" && ["uk_northern_ireland_peace", "ie_northern_ireland_peace"].includes(params.catalogId ?? "")) {
+    if (world.northernIrelandConflict?.phase !== "agreement") return { ok: false, error: "Northern Ireland settlement bills may be sponsored only during the authored agreement phase." };
+    if (params.policyOptionId !== "l1") return { ok: false, error: "The source peace-ratification path requires the ratify option." };
+  }
 
   // Campaign presence is charged to the active campaign's own source pools,
   // not to the character. Resolve it before generic player AP/accounting.
@@ -614,6 +623,24 @@ function executeActionInner(
         ? declineExtractionContractOffer(world, contractId)
         : revokeExtractionContract(world, contractId);
     return result.ok ? { ok: true, message: `${actionId} completed for ${contractId}.` } : result;
+  }
+
+  if (actionId === "chooseNorthernIrelandConflictOption") {
+    if (found.kind !== "player") return { ok: false, error: "Only the current country player may answer a living-conflict role decision." };
+    const result = chooseNorthernIrelandLivingConflictOption(world, actorId, params.niOptionId ?? "");
+    return result.ok ? { ok: true, message: `Recorded the Northern Ireland position ${params.niOptionId}.` } : result;
+  }
+  if (actionId === "campaignNorthernIrelandPeacePoll") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may campaign on the Northern Ireland peace-agreement ballot." };
+    const result = campaignNorthernIrelandPeacePoll(world, params.niPollSide ?? "yes", params.units ?? 0);
+    return result.ok ? { ok: true, message: `Recorded ${params.units} ${params.niPollSide} campaign units for the peace-agreement poll.` } : result;
+  }
+  if (actionId === "resignCommonsSeat") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can resign their UK Commons seat." };
+    const result = resignUkCommonsSeat(world);
+    if (!result.ok) return result;
+    recomputeComposition(world, "UK", "commons");
+    return { ok: true, message: `You resigned from your ${result.vacancy.regionId} Commons office; a by-election is now due.` };
   }
 
   if (actionId === "fundraise") {
@@ -2597,6 +2624,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "withdrawGovernorEndorsement":
       return params.electionId && params.endorsementId
         ? null : "withdrawGovernorEndorsement requires electionId and endorsementId";
+    case "chooseNorthernIrelandConflictOption":
+      return params.niOptionId ? null : "chooseNorthernIrelandConflictOption requires niOptionId";
+    case "campaignNorthernIrelandPeacePoll":
+      return params.niPollSide && params.units !== undefined ? null : "campaignNorthernIrelandPeacePoll requires niPollSide and units";
+    case "resignCommonsSeat":
+      return null;
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null
