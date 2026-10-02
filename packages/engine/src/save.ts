@@ -52,6 +52,7 @@ import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
 import { validatePoliticalState } from "./politicalMetrics/validate.js";
 import { validateNationalizationEligibilityState } from "./corporation/nationalizationEligibility.js";
+import { validateNationalCorporations } from "./corporation/nationalCorporation.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
@@ -3681,6 +3682,7 @@ export function deserializeSave(raw: string): WorldState {
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
   validateNationalizationEligibilityState(save.world);
+  validateNationalCorporations(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing

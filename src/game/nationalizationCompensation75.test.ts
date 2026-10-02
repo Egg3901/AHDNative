@@ -43,8 +43,8 @@ describe("source compensated executive taking (#75)", () => {
     expect(taken.world.player.actions).toBe(actions);
     expect(taken.world.budgets.US.treasuryBalance).toBe(treasury);
     expect(taken.world.corporations["US-media"]).toBeUndefined();
-    expect(taken.world.corporations["NAT-US-media"].liquidCapital).toBe(0);
-    expect(taken.world.bonds["source-active"].corporationId).toBe("NAT-US-media");
+    expect(taken.world.corporations["NAT-US"].liquidCapital).toBe(0);
+    expect(taken.world.bonds["source-active"].corporationId).toBe("NAT-US");
     expect(taken.world.bonds["source-matured"].corporationId).toBe("US-media");
     expect(session.stateOwnership().rows[0]).toMatchObject({ tier, compensationAnchor: payout, debtAnchor: 10000 });
     const recorded = session.stateOwnership().rows[0];

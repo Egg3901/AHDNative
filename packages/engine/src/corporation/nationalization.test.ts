@@ -55,7 +55,7 @@ describe("executive nationalization ownership transfer", () => {
 
     expect(result).toMatchObject({ ok: true });
     expect(world.corporations[corporation.id]).toBeUndefined();
-    const national = world.corporations[`NAT-${corporation.countryId}-${corporation.sectorType}`]!;
+    const national = world.corporations[`NAT-${corporation.countryId}`]!;
     expect(national).toMatchObject({
       isNationalCorporation: true,
       countryOwnerId: corporation.countryId,
@@ -166,7 +166,7 @@ describe("executive nationalization ownership transfer", () => {
     });
     expect(result).toMatchObject({ ok: true });
     expect(world.corporations[corporation.id]).toBeUndefined();
-    expect(world.corporations["NAT-US-media"]?.ownershipState).toBe("stateOwned");
+    expect(world.corporations["NAT-US"]?.ownershipState).toBe("stateOwned");
 
     const invalid = distressedPrivateWorld("hos");
     invalid.world.executives.US!.presidentId = "US-1";
