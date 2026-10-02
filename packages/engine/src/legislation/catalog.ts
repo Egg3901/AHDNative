@@ -48,6 +48,9 @@ export interface CatalogEntry {
       effectDirection?: -1 | 0 | 1;
       economic: number;
       social: number;
+      /** AHDGame cross-pressure approval inputs; absent maps produce zero district force. */
+      groupApprovals?: Record<string, number>;
+      archetypeApprovals?: Record<string, number>;
     }>;
   };
   /**

@@ -190,10 +190,23 @@ describe("cabinet ministerial-order player flow (#262)", () => {
       session.cabinetOffice().positions.find((entry) => entry.id === POSITION)?.actionsRemaining,
     ).toBe(3);
 
+    // Use the exact post-command save as the control, retaining its action
+    // spend and every previously realized value while removing only this
+    // order from the active order ledger.
+    const issuedSave = session.serialize(SAVED_AT);
+    const controlSave = JSON.parse(issuedSave) as {
+      world: { ministerialOrders: Array<{ orderId?: string }> };
+    };
+    controlSave.world.ministerialOrders = controlSave.world.ministerialOrders.filter(
+      (order) => order.orderId !== ORDER,
+    );
+    const noOrderTwin = new GameSession();
+    noOrderTwin.load(JSON.stringify(controlSave));
+    expect(noOrderTwin.cabinetOffice().positions.find((entry) => entry.id === POSITION)?.actionsRemaining).toBe(3);
+
     // The next turn applies the issued order to the real metric.
-    const metricBefore = metricOf(session);
-    expect(Number.isFinite(metricBefore)).toBe(true);
     session.advance();
+    noOrderTwin.advance();
     const applied = session.cabinetOffice();
     expect(applied.turn).toBe(25);
     expect(applied.activeOrders).toHaveLength(1);
@@ -205,7 +218,18 @@ describe("cabinet ministerial-order player flow (#262)", () => {
       world: { ministerialOrders: Array<{ orderId?: string; lastAppliedTurn?: number }> };
     };
     expect(saved.world.ministerialOrders.find((order) => order.orderId === ORDER)?.lastAppliedTurn).toBe(25);
-    expect(metricOf(session)!).toBeLessThan(metricBefore!);
+    const orderedMetric = metricOf(session);
+    const noOrderMetric = metricOf(noOrderTwin);
+    expect(Number.isFinite(orderedMetric)).toBe(true);
+    expect(Number.isFinite(noOrderMetric)).toBe(true);
+    // Game 96831835 combines the -0.03 authored order with 1.25 cabinet
+    // strength and the player's Statecraft multiplier (this source-seeded
+    // character has statecraft 6, so 1 + (6 - 5.5) * .04 = 1.02). The source
+    // span helper floors this metric's scale at 1 because (15 - 2) / 100 is
+    // below one. Thus -0.03 * 1.25 * 1.02 = -0.03825, rounded to -0.038 in
+    // the saved national metric. Compare same-turn worlds so macro
+    // recalculation is shared by the treatment and control.
+    expect(orderedMetric! - noOrderMetric!).toBeCloseTo(-0.038, 3);
 
     // Save/reload preserves the seat, the pool, and the live order.
     const before = session.cabinetOffice();
