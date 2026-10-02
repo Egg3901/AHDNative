@@ -23,6 +23,7 @@ export type GameCommand =
   | { type: "politics" }
   | { type: "politicalMetrics" }
   | { type: "markets" }
+  | { type: "stateOwnership"; countryId?: string }
   | { type: "unionManagement" }
   | { type: "regions"; query?: RegionsQuery }
   | { type: "cabinetOffice" }
