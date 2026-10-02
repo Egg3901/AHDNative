@@ -8,7 +8,7 @@ export interface StateOwnershipEntry {
   nationalCorporationId: string;
   kind: "nationalize_whole";
   method: "executive";
-  triggers: ["distress"];
+  triggers: ["distress"] | ["npc"];
   tier: "seizure";
   formerCorpName: string;
   sectorTypes: string[];
@@ -41,7 +41,7 @@ export function validateStateOwnershipLedger(world: WorldState): void {
       || typeof row.countryId !== "string" || !world.countries[row.countryId]
       || typeof row.nationalCorporationId !== "string" || !row.nationalCorporationId
       || row.kind !== "nationalize_whole" || row.method !== "executive" || row.tier !== "seizure"
-      || !Array.isArray(row.triggers) || row.triggers.length !== 1 || row.triggers[0] !== "distress"
+      || !Array.isArray(row.triggers) || row.triggers.length !== 1 || (row.triggers[0] !== "distress" && row.triggers[0] !== "npc")
       || typeof row.formerCorpName !== "string" || !row.formerCorpName
       || !Array.isArray(row.sectorTypes) || row.sectorTypes.length === 0 || !row.sectorTypes.every(value => typeof value === "string" && value.length > 0)
       || row.compensationAnchor !== 0

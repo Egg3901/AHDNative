@@ -1,7 +1,7 @@
 import type { CommodityType } from "../commodity/constants.js";
 import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 
-const ADDITIVE_FIELDS = ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "realizedRevenue"] as const;
+const ADDITIVE_FIELDS = ["capitalStock", "capacityBookAnchor", "constructionInProgressAnchor", "producedUnits", "soldUnits", "realizedRevenue"] as const;
 
 function addOptional(left: number | undefined, right: number | undefined): number | undefined {
   if (left === undefined && right === undefined) return undefined;
@@ -35,6 +35,16 @@ export function mergeCorporateSectorPhysicalLedger(target: CorporateSectorAsset,
     const total = addOptional(target[field], source[field]);
     if (total !== undefined) target[field] = total;
   }
+
+  // Source sectorTransferCapex merges paid orders in landing order and keeps
+  // the earlier production ramp. Absence remains absent for historical rows.
+  if (target.buildQueue !== undefined || source.buildQueue !== undefined) {
+    target.buildQueue = [...(target.buildQueue ?? []), ...(source.buildQueue ?? [])]
+      .sort((left, right) => left.onlineTurn - right.onlineTurn);
+  }
+  const starts = [target.plantsStartTurn, source.plantsStartTurn]
+    .filter((value): value is number => value !== undefined && Number.isFinite(value));
+  if (starts.length > 0) target.plantsStartTurn = Math.min(...starts);
 
   const mergedSoldFraction = mergeOptionalRatio(
     target.soldFraction,
