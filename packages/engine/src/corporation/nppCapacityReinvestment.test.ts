@@ -2,13 +2,69 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 describe("source NPP capacity replacement", () => {
+  it("uses Game's deposit-value headroom and founds a source-bounded extraction plant", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-extraction-entry", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.liquidCapital = 100_000_000;
+    corp.profitMargin = 35;
+    corp.effectiveProfitMargin = 35;
+    world.unownedSectors = {
+      "US:TX:extraction": { countryId: "US", sectorType: "extraction", regionId: "TX", revenue: 0 },
+    };
+    world.commodityPrices.rare_earth!.globalPrice = world.commodityPrices.rare_earth!.basePrice * 2;
+    const capacity = world.stateResourceCapacities.TX!;
+    const depositBefore = structuredClone(capacity);
+    const headroom = sourceExtractionHeadroomByRegion(world).get("TX");
+    expect(headroom).toBe(1);
+    const candidate = findSourceNppEntryCandidate(world, corp);
+    expect(candidate).toMatchObject({ pool: { regionId: "TX", sectorType: "extraction" }, extractionHeadroom: 1 });
+    const cashBefore = corp.liquidCapital;
+    applyNppSourceFounding(world);
+    const id = `corporate-sector:US:extraction:${corp.id}:TX`;
+    const asset = world.corporateSectors?.[id];
+    expect(asset?.buildQueue?.[0]?.unitsOrdered).toBeGreaterThanOrEqual(250);
+    expect(asset?.buildQueue?.[0]?.unitsOrdered).toBeLessThanOrEqual(2_000);
+    expect(asset?.revenue).toBe(0);
+    expect(world.stateResourceCapacities.TX).toEqual(depositBefore);
+    expect(world.unownedSectors["US:TX:extraction"]?.revenue).toBe(0);
+    expect(corp.liquidCapital).toBeLessThan(cashBefore);
+    validateCorporateCashLedger(world.corporateCashLedger);
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    applyNppSourceFounding(resumed);
+    expect(resumed.corporateSectors?.[id]).toEqual(asset);
+    expect(resumed.corporations[corp.id]?.liquidCapital).toBe(corp.liquidCapital);
+    expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
+  });
+
+  it("uses source weighted deposit value and existing extraction receipts", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-extraction-headroom", playerName: "Alex" });
+    const cap = world.stateResourceCapacities.TX!;
+    cap.resources = { oil: 100, coal: 200 };
+    const open = sourceExtractionHeadroomByRegion(world).get("TX");
+    expect(open).toBe(1);
+    world.corporateSectors = {
+      mine: {
+        id: "mine", corporationId: "US-extraction", countryId: "US", stateId: "TX", sectorType: "extraction",
+        strategyId: "standard", revenue: 1_000, capitalStock: 1, workers: 1,
+        representingUnionId: null, forSale: null, owner: "corporation",
+      },
+    };
+    const after = sourceExtractionHeadroomByRegion(world).get("TX");
+    const eraPrices = corporateSectorBasePrices(world);
+    const desiredOil = 1_000 * 0.14 * 1.4 / eraPrices.oil!;
+    const desiredCoal = 1_000 * 0.22 / eraPrices.coal!;
+    const expected = (Math.max(0, 100 - desiredOil) * 80 + Math.max(0, 200 - desiredCoal) * 150) / (100 * 80 + 200 * 150);
+    expect(after).toBeCloseTo(expected, 10);
+  });
+
   it("founds one located source-sized plant, debits cash and draws only that pool", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-founding", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;

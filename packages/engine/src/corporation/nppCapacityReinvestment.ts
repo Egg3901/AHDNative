@@ -12,6 +12,8 @@ import { SOURCE_STATE_ADJACENCY } from "./sourceStateAdjacency.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { NEUTRAL_STAT } from "../stats/characterStats.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
+import { COMMODITY_BASE_PRICES, EXTRACTABLE_RESOURCES } from "../commodity/constants.js";
+import { getSectorStrategy } from "./plantCapacity.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -30,6 +32,10 @@ const FOUNDING_STARTER_UNITS: Record<string, number> = {
 const NPP_FOUNDING_DEPLOY_FRACTION = 0.6;
 const NPP_FOUNDING_HEADROOM_SHARE = 0.5;
 const NPP_MAX_BUILD_UNITS_PER_ORDER = 10_000_000;
+const NPP_EXTRACTION_FOUNDING_MAX_FACILITIES = 8;
+const EXTRACTION_OUTPUT_SCALE: Partial<Record<(typeof EXTRACTABLE_RESOURCES)[number], number>> = {
+  rare_earth: 2.5, natural_gas: 2, iron: 1.8, timber: 1.6, oil: 1.4,
+};
 
 /** Source NPP greenfield entry: source candidate → located newborn asset → pool draw and cash witness. */
 export function applyNppSourceFounding(world: WorldState): void {
@@ -89,7 +95,9 @@ export function applyNppSourceFounding(world: WorldState): void {
     const entryFeeLocal = anchorToLocal(entryFeeAnchor, rate);
     const deployableLocal = Math.max(0, (cashLocal - anchorToLocal(cashFloorAnchor, rate) - entryFeeLocal) * NPP_FOUNDING_DEPLOY_FRACTION);
     const affordableUnits = unitCostAnchor > 0 ? Math.floor(deployableLocal / (unitCostAnchor * rate)) : 0;
-    const maxByMarket = candidate.headroomUnits * NPP_FOUNDING_HEADROOM_SHARE;
+    const maxByMarket = sectorType === "extraction"
+      ? starterUnits * NPP_EXTRACTION_FOUNDING_MAX_FACILITIES
+      : candidate.headroomUnits * NPP_FOUNDING_HEADROOM_SHARE;
     // Source floors the affordable size at one facility quantum, then rejects
     // if that forced starter exceeds market headroom or the source cash floor.
     const units = Math.max(starterUnits, Math.floor(Math.min(maxByMarket, affordableUnits, NPP_MAX_BUILD_UNITS_PER_ORDER)));
@@ -106,7 +114,8 @@ export function applyNppSourceFounding(world: WorldState): void {
     const onlineTurn = world.meta.turn + Math.max(1, Math.floor((BUILD_TURNS[candidate.pool.sectorType] ?? 48) / 2));
     const asset: CorporateSectorAsset = {
       id, corporationId: corp.id, countryId: corp.countryId, stateId: regionId,
-      sectorType: candidate.pool.sectorType, revenue: Math.round(candidate.pool.revenue * (units / candidate.headroomUnits)),
+      sectorType: candidate.pool.sectorType,
+      revenue: sectorType === "extraction" ? 0 : Math.round(candidate.pool.revenue * (units / candidate.headroomUnits)),
       capitalStock: 0, capacityBookAnchor: 0, workers: calculateSectorWorkers(anchorToLocal(1_000_000, rate)),
       buildQueue: [{ unitsOrdered: units, costPaidAnchor: buildAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true }],
       constructionInProgressAnchor: buildAnchor, plantsStartTurn: world.meta.turn,
@@ -118,9 +127,11 @@ export function applyNppSourceFounding(world: WorldState): void {
     };
     const before = corp.liquidCapital;
     assets[id] = asset;
-    const unitsPerAnchor = candidate.headroomUnits / localToAnchor(candidate.pool.revenue, rate);
-    const remainingAnchor = Math.max(0, candidate.headroomUnits - units);
-    candidate.pool.revenue = Math.round((remainingAnchor / unitsPerAnchor) * rate);
+    if (sectorType !== "extraction") {
+      const unitsPerAnchor = candidate.headroomUnits / localToAnchor(candidate.pool.revenue, rate);
+      const remainingAnchor = Math.max(0, candidate.headroomUnits - units);
+      candidate.pool.revenue = Math.round((remainingAnchor / unitsPerAnchor) * rate);
+    }
     corp.liquidCapital = cashAfter;
     const row = makeNppFoundingCashRecord({ corp, world, sector: asset, units, costLocal: totalLocal, cashDeltaLocal: cashAfter - before, costAnchor: buildAnchor, entryFeeAnchor, onlineTurn });
     if (row) ledger.push(row);
@@ -164,6 +175,7 @@ export function sourceExpansionFrontierStates(
 export interface SourceNppEntryCandidate {
   pool: UnownedSectorState & { regionId: string };
   headroomUnits: number;
+  extractionHeadroom: number | null;
   shortageScore: number;
   peakShortageScore: number;
   rankScore: number;
@@ -172,6 +184,7 @@ export interface SourceNppEntryCandidate {
 /** Game findBestUnownedSector's location/headroom/shortage/type-cascade core. */
 export function findSourceNppEntryCandidate(world: WorldState, corp: Corporation): SourceNppEntryCandidate | null {
   const assets = Object.values(corporateSectorAssets(world));
+  const extractionHeadroomByRegion = sourceExtractionHeadroomByRegion(world);
   const ownedByCorp = assets.filter((asset) => asset.corporationId === corp.id);
   const occupied = new Set(ownedByCorp.filter((asset) => asset.stateId).map((asset) => `${asset.stateId}:${asset.sectorType}`));
   const stateControlled = new Set(assets.filter((asset) => {
@@ -186,12 +199,14 @@ export function findSourceNppEntryCandidate(world: WorldState, corp: Corporation
     // Aggregate country pools have no locational basis. HQ-only projection
     // rows are residence facts, not markets; neither can be founded into.
     if (!region || region.countryId !== corp.countryId || region.corporationHeadquartersOnly) continue;
-    // Game uses deposit headroom instead of demand for extraction. Native has
-    // not yet ported its exact NPP extraction opportunity adapter; do not
-    // invent a deposit score from demand-side pool revenue.
-    if (pool.sectorType === "extraction") continue;
-    const headroomUnits = sourceUnownedHeadroomUnits(world, pool);
-    if (!(headroomUnits > 0)) continue;
+    const extractionHeadroom = pool.sectorType === "extraction"
+      ? extractionHeadroomByRegion.get(regionId) ?? (world.stateResourceCapacities[regionId] ? 0 : 1)
+      : null;
+    const headroomUnits = pool.sectorType === "extraction"
+      ? (FOUNDING_STARTER_UNITS.extraction ?? 250) * NPP_EXTRACTION_FOUNDING_MAX_FACILITIES
+      : sourceUnownedHeadroomUnits(world, pool);
+    const marketSize = extractionHeadroom ?? headroomUnits;
+    if (!(marketSize > 0)) continue;
     const supply = SOURCE_DEFAULT_OPERATING_SUPPLY[pool.sectorType];
     let weighted = 0;
     let totalWeight = 0;
@@ -205,8 +220,8 @@ export function findSourceNppEntryCandidate(world: WorldState, corp: Corporation
       peak = Math.max(peak, ratio);
     }
     const shortageScore = totalWeight > 0 ? weighted / totalWeight : 1;
-    const rankScore = headroomUnits * shortageScore * (regionId === corp.headquartersRegionId ? 1.3 : 1);
-    candidates.push({ pool: pool as UnownedSectorState & { regionId: string }, headroomUnits, shortageScore, peakShortageScore: peak, rankScore });
+    const rankScore = marketSize * shortageScore * (regionId === corp.headquartersRegionId ? 1.3 : 1);
+    candidates.push({ pool: pool as UnownedSectorState & { regionId: string }, headroomUnits, extractionHeadroom, shortageScore, peakShortageScore: peak, rankScore });
   }
   if (candidates.length === 0) return null;
   const frontier = sourceExpansionFrontierStates(corp, ownedByCorp);
@@ -215,6 +230,41 @@ export function findSourceNppEntryCandidate(world: WorldState, corp: Corporation
   const critical = search.filter((candidate) => candidate.peakShortageScore >= 1.6);
   const primary = critical.length > 0 ? critical : search.filter((candidate) => candidate.pool.sectorType === corp.sectorType);
   return [...(primary.length > 0 ? primary : search)].sort((a, b) => b.rankScore - a.rankScore || a.pool.regionId.localeCompare(b.pool.regionId) || a.pool.sectorType.localeCompare(b.pool.sectorType))[0] ?? null;
+}
+
+/** Game computeExtractionHeadroomByState over Native's saved regional deposit records. */
+export function sourceExtractionHeadroomByRegion(world: WorldState): Map<string, number> {
+  const assets = Object.values(corporateSectorAssets(world)).filter((asset) => asset.sectorType === "extraction" && asset.stateId);
+  const desiredByRegion = new Map<string, Partial<Record<(typeof EXTRACTABLE_RESOURCES)[number], number>>>();
+  const prices = corporateSectorBasePrices(world);
+  for (const asset of assets) {
+    const strategy = getSectorStrategy("extraction", asset.strategyId);
+    const desired = desiredByRegion.get(asset.stateId!) ?? {};
+    const revenueAnchor = localToAnchor(Math.max(0, asset.revenue ?? asset.realizedRevenue ?? 0), getRateForCountry(world, asset.countryId));
+    for (const resource of EXTRACTABLE_RESOURCES) {
+      const supplyRate = strategy.supply[resource] ?? 0;
+      const price = prices[resource];
+      if (!(supplyRate > 0) || !(price && price > 0)) continue;
+      const units = revenueAnchor * supplyRate * (EXTRACTION_OUTPUT_SCALE[resource] ?? 1) / price;
+      desired[resource] = (desired[resource] ?? 0) + units;
+    }
+    desiredByRegion.set(asset.stateId!, desired);
+  }
+  const headroomByRegion = new Map<string, number>();
+  for (const [regionId, capacity] of Object.entries(world.stateResourceCapacities)) {
+    let depositValue = 0;
+    let headroomValue = 0;
+    const desired = desiredByRegion.get(regionId) ?? {};
+    for (const resource of EXTRACTABLE_RESOURCES) {
+      const amount = capacity.resources?.[resource] ?? 0;
+      if (!(amount > 0)) continue;
+      const basePrice = COMMODITY_BASE_PRICES[resource] ?? 1;
+      depositValue += amount * basePrice;
+      headroomValue += Math.max(0, amount - (desired[resource] ?? 0)) * basePrice;
+    }
+    headroomByRegion.set(regionId, depositValue > 0 ? headroomValue / depositValue : 0);
+  }
+  return headroomByRegion;
 }
 
 /** Source NPP physical replacement leg. Growth/founding use separate pool and pricing inputs. */
