@@ -6,12 +6,16 @@ import { GameSession } from "./session";
 
 const SAVED_AT = "2026-10-02T00:00:00.000Z";
 
-function sourceWeightedWinners() {
+function sourceWeightedWinners(mergedCandidateParty = false) {
     const world = createWorld({ seed: "source-weighted-winners", playerName: "TD", countryId: "IE", era: "1991" });
     world.nppAutonomyLevel = "off";
     world.player.homeRegionId = "COR";
     expect(executeAction(world, "player", "joinParty", { partyId: "IE_FF" }).ok).toBe(true);
     const opponent = world.politicians.find(p => p.countryId === "IE" && p.partyId === "IE_FG")!;
+    if (mergedCandidateParty) {
+      world.parties.IE_OLD = { ...world.parties.IE_FG!, id: "IE_OLD", name: "Old party", mergedIntoPartyId: "IE_FG" };
+      opponent.partyId = "IE_OLD";
+    }
     // Recorded ballot fixture at the public turn boundary. Game's actual
     // allocateSeats('dail', 'COR', 10, [600, 400], 1000) returns 6 and 4.
     // This verifies allocation and continuation, not career reachability.
@@ -21,7 +25,7 @@ function sourceWeightedWinners() {
       primaryResults: { recordedAt: "1991-01-01T00:00:00.000Z", byParty: {} },
       candidates: [
         { id: "player", name: "TD", partyId: "IE_FF", isNPP: false, incumbent: false },
-        { id: opponent.id, name: opponent.name, partyId: "IE_FG", isNPP: true, incumbent: false },
+        { id: opponent.id, name: opponent.name, partyId: mergedCandidateParty ? "IE_OLD" : "IE_FG", isNPP: true, incumbent: false },
       ],
       tally: { player: 600_000_000_000, [opponent.id]: 400_000_000_000 },
       tallyState: {
@@ -38,6 +42,14 @@ function sourceWeightedWinners() {
 }
 
 describe("source multi-seat winner continuation", () => {
+  it("seats a stale pre-merge candidacy into the party that now survives", () => {
+    const { world, opponent } = sourceWeightedWinners(true);
+    expect(opponent.chamberKey).toBe("dail");
+    expect(opponent.partyId).toBe("IE_FG");
+    expect(world.legislatures.IE!.chambers.find(c => c.key === "dail")!.composition.seatsByParty.IE_FG).toBeGreaterThan(0);
+    expect(world.legislatures.IE!.chambers.find(c => c.key === "dail")!.composition.seatsByParty.IE_OLD).toBeUndefined();
+  });
+
   it("retains every allocated seat on the actual human and NPP winners through an ordinary turn and reload", () => {
     const { world, race, opponent } = sourceWeightedWinners();
     expect(race.status).toBe("resolved");

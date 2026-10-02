@@ -10,6 +10,7 @@ import {
 import { resolveContingentElection, type ContingentElectionResult } from "../electionEngine/resolution/contingentElection.js";
 import { archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { allocateElectoralVotes, electoralMajorityFor } from "./presidentialElectoralCollege.js";
+import { survivingElectionPartyId } from "./survivingParty.js";
 
 /**
  * Presidential general-election resolution — W24 port, W24b real Electoral
@@ -152,7 +153,7 @@ export function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
 
   const candidates: ContingentCandidateInput[] = rec.candidates.filter(isElectionCandidateActive).map((c) => ({
     _id: c.id,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: false,
     characterId: c.id,
     ...(c.runningMateId !== undefined ? { runningMateId: c.runningMateId } : {}),
@@ -264,8 +265,10 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
   }
 
   const winnerCand = rec.candidates.find((c) => isElectionCandidateActive(c) && c.id === winnerId);
-  const winnerParty = winnerCand?.partyId ?? targetOffice(world, winnerId)?.partyId ?? "independent";
-  const vpParty = vpPartyFor(world, vpWinnerId);
+  const rawWinnerParty = winnerCand?.partyId ?? targetOffice(world, winnerId)?.partyId ?? "independent";
+  const winnerParty = survivingElectionPartyId(world, rawWinnerParty) ?? rawWinnerParty;
+  const rawVpParty = vpPartyFor(world, vpWinnerId);
+  const vpParty = survivingElectionPartyId(world, rawVpParty) ?? rawVpParty;
 
   const exec = world.executives[rec.countryId] ?? {
     countryId: rec.countryId,

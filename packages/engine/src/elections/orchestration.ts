@@ -28,6 +28,7 @@ import {
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
 import { closeUkCommonsVacancies } from "./ukCommonsVacancies.js";
+import { survivingElectionPartyId } from "./survivingParty.js";
 import { processPresidentialPrimaryWave } from "./primaryStaggerPhase.js";
 import {
   recordPrimarySnapshots,
@@ -793,7 +794,7 @@ function applyUachtaranResolution(
     electionId: rec.id,
     ...(c.id === "player" ? { characterId: "player" } : {}),
     characterName: c.name,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: c.isNPP,
   }));
   const input: GeneralResolutionInput = {
@@ -837,7 +838,7 @@ function applyUachtaranResolution(
     world.executives[rec.countryId] = {
       countryId: rec.countryId,
       presidentId: winner.id,
-      presidentParty: winner.partyId,
+      presidentParty: survivingElectionPartyId(world, winner.partyId) ?? winner.partyId,
       termStartTurn: world.meta.turn,
       vicePresidentId: null,
       vicePresidentParty: null,
@@ -983,7 +984,7 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
     electionId: rec.id,
     ...(c.id === "player" ? { characterId: "player" } : {}),
     characterName: c.name,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: c.isNPP,
   }));
   const input: GeneralResolutionInput = {
@@ -1029,7 +1030,7 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
   const gov = world.governors[rec.state];
   if (!gov) return;
   gov.governorId = winnerId;
-  gov.governorParty = winner.partyId;
+  gov.governorParty = survivingElectionPartyId(world, winner.partyId) ?? winner.partyId;
   gov.governorName = winner.name;
   gov.termStartTurn = world.meta.turn;
   // Reset office AP on new term (fresh mandate) - capped.
@@ -1047,10 +1048,10 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
     id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
-    headline: `${label} election resolved: ${winner.name} (${winner.partyId}) wins`,
+    headline: `${label} election resolved: ${winner.name} (${survivingElectionPartyId(world, winner.partyId) ?? winner.partyId}) wins`,
     category: "Election",
     countryId: rec.countryId,
-    partyId: winner.partyId,
+    partyId: survivingElectionPartyId(world, winner.partyId) ?? winner.partyId,
     electionId: rec.id,
   });
 }
@@ -1076,7 +1077,7 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     electionId: rec.id,
     ...(c.id === "player" ? { characterId: "player" } : {}),
     characterName: c.name,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: c.isNPP,
   }));
   const input: GeneralResolutionInput = {
@@ -1126,6 +1127,8 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     if (id === "player") continue;
     const pol = world.politicians.find((p) => p.id === id);
     if (pol) {
+      const candidate = rec.candidates.find((row) => isElectionCandidateActive(row) && row.id === id);
+      if (candidate) pol.partyId = survivingElectionPartyId(world, candidate.partyId) ?? candidate.partyId;
       pol.chamberKey = rec.chamberKey;
       if (result.isMultiSeat) pol.seatsHeld = winnerSeats.get(id)!;
       else delete pol.seatsHeld;

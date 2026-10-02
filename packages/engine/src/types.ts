@@ -1323,6 +1323,8 @@ export interface Party {
   countryId: string;
   abbreviation: string;
   color: string;
+  /** Source party merger successor; stale election records resolve through this chain. */
+  mergedIntoPartyId?: string | null;
   /**
    * Party-authored logo URL (reference PoliticalParty.logoUrl, chair-uploaded
    * custom art). Seeded from the content pack; every authored pack carries
