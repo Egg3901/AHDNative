@@ -99,6 +99,7 @@ import { computeFormation } from "./government/formation.js";
 import { seatSingleplayerHeadOfGovernment } from "./government/singleplayerHeadOfGovernment.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES, UK_DEVOLVED_GOVERNOR_REGIONS } from "./government/constants.js";
 import { initialUKDevolutionState } from "./devolution/ukInstitutions.js";
+import { initialNorthernIrelandLivingConflict } from "./livingConflict/northernIreland.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
 // Pre-allocated v39 for M1 (Lane 12 Head of State mode). This branch point
@@ -1126,6 +1127,9 @@ export function createWorld(options: NewWorldOptions): WorldState {
     // immediately usable once a holder seats.
     governors: seedGovernors(regions),
     ...(countries.UK ? { ukDevolution: initialUKDevolutionState(Number(pack.era.startDate.slice(0, 4))) } : {}),
+    ...(countries.UK && initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4)))
+      ? { northernIrelandConflict: initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4))) }
+      : {}),
     governorAddresses: [],
     governorOrders: [],
     player: {

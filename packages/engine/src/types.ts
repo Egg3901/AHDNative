@@ -407,6 +407,10 @@ export interface WorldState {
    * Schema v63.
    */
   ukDevolution?: import("./devolution/ukInstitutions.js").UKDevolutionState;
+  /** Distinct political living conflict; never merged into military `conflicts`. Schema v63. */
+  northernIrelandConflict?: import("./livingConflict/northernIreland.js").NorthernIrelandLivingConflict;
+  /** Belfast Agreement public consent poll; intentionally separate from reunification referendum actuation. */
+  northernIrelandPeacePoll?: import("./livingConflict/northernIreland.js").NorthernIrelandPeacePoll;
   governorAddresses: import("./governor/types.js").GovernorAddress[];
   governorOrders: import("./governor/types.js").GovernorOrder[];
   /**

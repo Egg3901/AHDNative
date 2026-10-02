@@ -164,6 +164,28 @@ describe("source country governor election families", () => {
     expect(restored.northernIrelandPeace).toEqual(sharing.northernIrelandPeace);
   });
 
+  it("opens the 1991 living-conflict process, accepts only source roles, and applies authored expiry defaults on ordinary turns", () => {
+    const world = createWorld({ seed: "ni-conflict-source", playerName: "UK Prime Minister", countryId: "UK", era: "1991", mode: "hos" });
+    expect(world.northernIrelandConflict).toMatchObject({ phase: "armed_stalemate", phaseLevel: 1, status: "active" });
+    advanceTurn(world);
+    expect(world.northernIrelandConflict?.decision).toMatchObject({ nodeId: "uk_position", interaction: "peace_initiative" });
+    const IrishNpc = world.politicians.find((p) => p.countryId === "IE");
+    expect(IrishNpc).toBeDefined();
+    const unauthorized = executeAction(world, IrishNpc!.id, "chooseNorthernIrelandConflictOption", { niOptionId: "uk_backchannel" });
+    expect(unauthorized.ok).toBe(false);
+    const chosen = executeAction(world, "player", "chooseNorthernIrelandConflictOption", { niOptionId: "uk_backchannel" });
+    expect(chosen.ok).toBe(true);
+    expect(world.northernIrelandConflict?.decision?.nodeId).toBe("irish_position");
+    const resumed = deserializeSave(serializeSave(world, "ni-conflict-source"));
+    expect(resumed.northernIrelandConflict).toEqual(JSON.parse(JSON.stringify(world.northernIrelandConflict)));
+
+    const defaulted = createWorld({ seed: "ni-conflict-default", playerName: "UK Prime Minister", countryId: "UK", era: "1991", mode: "hos" });
+    advanceTurn(defaulted);
+    for (let i = 0; i < 6; i += 1) advanceTurn(defaulted);
+    expect(defaulted.northernIrelandConflict?.tracks).toMatchObject({ violence: 77, settlementMomentum: 13, legitimacy: 32 });
+    expect(defaulted.northernIrelandConflict?.decision?.nodeId).toBe("irish_position");
+  });
+
   it("runs and persists RU and DD First Secretary elections through the normal turn loop", () => {
     const world = createWorld({ seed: "country-governors", playerName: "Tester", countryId: "US", era: "1953" });
     const commonsAnchor = getCycleAnchors(cycleContextForWorld(world)).ukCommons;

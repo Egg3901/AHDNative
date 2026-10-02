@@ -72,6 +72,7 @@ import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/propos
 import { applyBillEffects } from "../legislation/billLifecycle.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment } from "../government/pmAppointment.js";
+import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeacePoll } from "../livingConflict/northernIreland.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -98,6 +99,8 @@ export type ExecuteActionParams = {
   vote?: "for" | "against" | "abstain";
   pmAppointmentVoteId?: string;
   pmVote?: "aye" | "nay";
+  niOptionId?: string;
+  niPollSide?: "yes" | "no";
   sponsorCountryId?: string;
   billTitle?: string;
   billCategory?: string;
@@ -430,6 +433,10 @@ function executeActionInner(
   ) {
     return { ok: false, error: LEGISLATION_FREEZE_MESSAGE };
   }
+  if (actionId === "sponsorBill" && ["uk_northern_ireland_peace", "ie_northern_ireland_peace"].includes(params.catalogId ?? "")) {
+    if (world.northernIrelandConflict?.phase !== "agreement") return { ok: false, error: "Northern Ireland settlement bills may be sponsored only during the authored agreement phase." };
+    if (params.policyOptionId !== "l1") return { ok: false, error: "The source peace-ratification path requires the ratify option." };
+  }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
@@ -569,6 +576,17 @@ function executeActionInner(
         ? declineExtractionContractOffer(world, contractId)
         : revokeExtractionContract(world, contractId);
     return result.ok ? { ok: true, message: `${actionId} completed for ${contractId}.` } : result;
+  }
+
+  if (actionId === "chooseNorthernIrelandConflictOption") {
+    if (found.kind !== "player") return { ok: false, error: "Only the current country player may answer a living-conflict role decision." };
+    const result = chooseNorthernIrelandLivingConflictOption(world, actorId, params.niOptionId ?? "");
+    return result.ok ? { ok: true, message: `Recorded the Northern Ireland position ${params.niOptionId}.` } : result;
+  }
+  if (actionId === "campaignNorthernIrelandPeacePoll") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may campaign on the Northern Ireland peace-agreement ballot." };
+    const result = campaignNorthernIrelandPeacePoll(world, params.niPollSide ?? "yes", params.units ?? 0);
+    return result.ok ? { ok: true, message: `Recorded ${params.units} ${params.niPollSide} campaign units for the peace-agreement poll.` } : result;
   }
 
   if (actionId === "fundraise") {
@@ -2452,6 +2470,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.regionId ? null : `Action ${actionId} requires a regionId`;
     case "requestReferendum":
       return params.regionId ? null : "requestReferendum requires regionId";
+    case "chooseNorthernIrelandConflictOption":
+      return params.niOptionId ? null : "chooseNorthernIrelandConflictOption requires niOptionId";
+    case "campaignNorthernIrelandPeacePoll":
+      return params.niPollSide && params.units !== undefined ? null : "campaignNorthernIrelandPeacePoll requires niPollSide and units";
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null

@@ -122,6 +122,7 @@ import { ledgerPreForexSnapshotPhase, forexTurnPhase } from "../forex/phases.js"
 import { eraCrossingPhase } from "./eraCrossing.js";
 import { independenceDesireDriftPhase } from "../devolution/phases.js";
 import { referendumLifecyclePhase } from "../referendum/phases.js";
+import { northernIrelandLivingConflictPhase } from "../livingConflict/phases.js";
 import { metricDecayPhase } from "../metrics/metricDecay.js";
 import { investorConfidenceDecayPhase } from "../metrics/investorConfidenceDecay.js";
 import { nationalMetricsPhase } from "../metrics/nationalMetrics.js";
@@ -541,6 +542,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   sourceTfpGrowthPhase,
   independenceDesireDriftPhase,
   referendumLifecyclePhase,
+  northernIrelandLivingConflictPhase,
   // W6 metric engine cluster at END before newsMaintenance — ordering deviation:
   // Mainline runs these mid-pipeline in stateEffectsAndNationalAggregationPhase:
   // metricDecay (no-op, inside policyEffects), investorConfidenceDecay, metricEngine,

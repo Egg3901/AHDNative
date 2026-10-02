@@ -197,6 +197,40 @@ const AVAILABLE: CatalogEntry[] = [
       { name: "Abolish Devolution Act", description: "Eliminate devolved governments and centralize domestic policy." },
     ],
   },
+  {
+    id: "uk_northern_ireland_peace",
+    countryId: "UK",
+    kind: "primary",
+    title: "Northern Ireland Settlement Ratification Act",
+    description: "A Westminster bill authorizing the negotiated Northern Ireland settlement and its institutions.",
+    category: "northern_ireland_peace",
+    allowedScope: "national",
+    baselineLevel: 0,
+    optionEffectDirections: [0, 1],
+    targets: [],
+    status: "available",
+    levels: [
+      { name: "Withhold ratification", description: "Do not authorize the settlement in Westminster." },
+      { name: "Ratify the agreement", description: "Authorize the negotiated settlement and its institutions." },
+    ],
+  },
+  {
+    id: "ie_northern_ireland_peace",
+    countryId: "IE",
+    kind: "primary",
+    title: "British-Irish Agreement Ratification Act",
+    description: "A Dáil bill authorizing Ireland's commitments under the negotiated settlement.",
+    category: "northern_ireland_peace",
+    allowedScope: "national",
+    baselineLevel: 0,
+    optionEffectDirections: [0, 1],
+    targets: [],
+    status: "available",
+    levels: [
+      { name: "Withhold ratification", description: "Do not authorize Ireland's commitments." },
+      { name: "Ratify the agreement", description: "Authorize Ireland's commitments and cross-border institutions." },
+    ],
+  },
   // Source: AHDGame 96831835 src/lib/seeds/reference/legislationTypes.ts
   // resource_extraction_authority. Source has three options, so this law uses
   // a three-entry level list rather than the five-step economic posture ladder.

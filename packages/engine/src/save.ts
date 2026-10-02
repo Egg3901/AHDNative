@@ -910,6 +910,14 @@ function assertCurrentWorldState(world: WorldState): void {
     )) {
       throw new Error("Not a valid save file: invalid Northern Ireland peace posture");
     }
+    if (niPeace !== undefined) {
+      for (const field of ["assemblyFirstCycle", "assemblyFirstElectionEndTurn"]) {
+        const fieldValue = niPeace[field];
+        if (fieldValue !== undefined && (!Number.isInteger(fieldValue) || (fieldValue as number) < 0)) {
+          throw new Error("Not a valid save file: invalid Northern Ireland peace institution anchor");
+        }
+      }
+    }
     for (const regionId of expectedRegions) {
       const institution = ukDevolution["regions"][regionId];
       if (
@@ -924,6 +932,30 @@ function assertCurrentWorldState(world: WorldState): void {
         throw new Error(`Not a valid save file: invalid UK devolution institution state for ${regionId}`);
       }
     }
+  }
+
+  const niConflict = value["northernIrelandConflict"];
+  if (niConflict !== undefined) {
+    const phases = ["armed_stalemate", "backchannels", "ceasefire", "multiparty_talks", "agreement", "power_sharing", "fragile_settlement"];
+    const trackKeys = ["violence", "settlementMomentum", "legitimacy", "unionistConsent", "nationalistConsent", "decommissioning", "institutionalStability", "domesticConsent", "referendumRatification", "ratificationAuthorization", "ratificationFailureCount"];
+    if (!isRecord(niConflict) || niConflict["_id"] !== "northern_ireland" || niConflict["hasOpened"] !== true || !phases.includes(String(niConflict["phase"])) || niConflict["phaseLevel"] !== phases.indexOf(String(niConflict["phase"])) + 1 || !["active", "negotiating", "ceasefire", "settled", "closed"].includes(String(niConflict["status"])) || !isRecord(niConflict["tracks"]) || Object.keys(niConflict["tracks"]).sort().join(",") !== trackKeys.sort().join(",")) {
+      throw new Error("Not a valid save file: invalid Northern Ireland living-conflict state");
+    }
+    for (const key of trackKeys) {
+      const n = niConflict["tracks"][key];
+      const max = key === "referendumRatification" ? 1 : key === "ratificationAuthorization" || key === "ratificationFailureCount" ? 2 : 100;
+      if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > max) throw new Error(`Not a valid save file: invalid Northern Ireland track ${key}`);
+    }
+    for (const key of ["phaseTurns", "totalTurns", "lastProcessedTurn", "lastInteractionTurn"]) {
+      if (!Number.isInteger(niConflict[key]) || (niConflict[key] as number) < -1) throw new Error("Not a valid save file: invalid Northern Ireland living-conflict clock");
+    }
+    if (niConflict["decision"] !== undefined && (!isRecord(niConflict["decision"]) || !["peace_initiative", "agreement_implementation"].includes(String(niConflict["decision"]["interaction"])) || typeof niConflict["decision"]["nodeId"] !== "string" || !Number.isInteger(niConflict["decision"]["nodeIndex"]) || !Number.isInteger(niConflict["decision"]["openedTurn"]) || !Number.isInteger(niConflict["decision"]["deadlineTurn"]))) {
+      throw new Error("Not a valid save file: invalid Northern Ireland conflict decision");
+    }
+  }
+  const niPoll = value["northernIrelandPeacePoll"];
+  if (niPoll !== undefined && (!isRecord(niPoll) || typeof niPoll["id"] !== "string" || niPoll["kind"] !== "peace_agreement" || !["campaigning", "completed"].includes(String(niPoll["status"])) || typeof niPoll["agreementKey"] !== "string" || !Number.isInteger(niPoll["openedTurn"]) || !Number.isInteger(niPoll["closesTurn"]) || typeof niPoll["yesShare"] !== "number" || !Number.isFinite(niPoll["yesShare"]) || niPoll["yesShare"] < 0 || niPoll["yesShare"] > 100 || !isRecord(niPoll["campaignSpendUnits"]) || !isRecord(niPoll["campaignSpendUnits"]) || typeof niPoll["campaignSpendUnits"]["yes"] !== "number" || typeof niPoll["campaignSpendUnits"]["no"] !== "number" || !Array.isArray(niPoll["cohortBaseline"]))) {
+    throw new Error("Not a valid save file: invalid Northern Ireland peace poll");
   }
 
   const pricingState = value["centralBankPricingPhaseIn"];
