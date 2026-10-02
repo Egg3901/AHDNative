@@ -307,13 +307,7 @@ export function updateNppCorporationFinancialPolicy(
     - Math.max(0, corp.lastCeoSalaryPaid ?? 0)
     - Math.max(0, corp.lastRdSpendPerTurn ?? 0);
   const margin = revenue > 0 ? income / revenue * 100 : 0;
-  const nominalScale = getEraNominalScale(era);
-  const cashFloorAnchor = Math.max(
-    Math.max(1, Math.round(125_000 * nominalScale)),
-    Math.round(250_000 * nominalScale * CEO_ARCHETYPE_MODIFIERS[corp.archetype].cashFloorMult),
-  );
-  const fx = Number.isFinite(localPerAnchor) && localPerAnchor > 0 ? localPerAnchor : 1;
-  const cashFloorLocal = cashFloorAnchor * fx;
+  const cashFloorLocal = nppCorporationCashFloorLocal(corp, era, localPerAnchor);
   let rdPct = 0;
   if (income > 0 && revenue > 0 && corp.liquidCapital > cashFloorLocal) {
     if (margin >= 25) rdPct = 0.02;
@@ -328,6 +322,17 @@ export function updateNppCorporationFinancialPolicy(
     dividendRate = Math.min(25, Math.round(base * modifiers.dividendMult));
   }
   corp.dividendRate = dividendRate;
+}
+
+/** Pinned source getNppCashFloorAnchor, converted into the issuer's currency. */
+export function nppCorporationCashFloorLocal(corp: Corporation, era: string, localPerAnchor: number): number {
+  const nominalScale = getEraNominalScale(era);
+  const cashFloorAnchor = Math.max(
+    Math.max(1, Math.round(125_000 * nominalScale)),
+    Math.round(250_000 * nominalScale * CEO_ARCHETYPE_MODIFIERS[corp.archetype].cashFloorMult),
+  );
+  const fx = Number.isFinite(localPerAnchor) && localPerAnchor > 0 ? localPerAnchor : 1;
+  return cashFloorAnchor * fx;
 }
 
 export const corporationTurnPhase: TurnPhase = {
@@ -431,7 +436,10 @@ export const corporationTurnPhase: TurnPhase = {
     // on the next turn, rather than changing the production just settled.
     applyNppSourceStrategyRetools(world);
     const year = Number(world.meta.date.slice(0, 4));
-    for (const corp of Object.values(world.corporations)) unlockNppCorporationTech(world, corp, year);
+    for (const corp of Object.values(world.corporations)) {
+      const fx = world.exchangeRates?.[corp.countryId]?.rate ?? 1;
+      unlockNppCorporationTech(world, corp, year, nppCorporationCashFloorLocal(corp, world.meta.era, fx));
+    }
     trackPlayerCorporationDistress(world);
     runCorporateRdInnovations(world);
     syncSourceRegionalSectorReceipts(world);

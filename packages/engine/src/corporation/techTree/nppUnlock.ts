@@ -9,10 +9,16 @@ import { techNodeCashCost } from "./costs.js";
  * financial settlement. One node is purchased per eligible issuer per turn;
  * the newly persisted effect is consumed by the next production turn.
  */
-export function unlockNppCorporationTech(world: WorldState, corp: Corporation, year: number): string | undefined {
+export function unlockNppCorporationTech(
+  world: WorldState,
+  corp: Corporation,
+  year: number,
+  cashReserveLocal = 0,
+): string | undefined {
   if (corp.suspended || corp.countryOwnerId || (corp.ceoType ?? "npp") !== "npp") return undefined;
   const rdScore = Number.isFinite(corp.rdScore) ? Math.max(0, corp.rdScore ?? 0) : 0;
-  const cashAvailable = Number.isFinite(corp.liquidCapital) ? Math.max(0, corp.liquidCapital) : 0;
+  const reserve = Number.isFinite(cashReserveLocal) ? Math.max(0, cashReserveLocal) : 0;
+  const cashAvailable = Number.isFinite(corp.liquidCapital) ? Math.max(0, corp.liquidCapital - reserve) : 0;
   const dailyGrossRevenueLocal = Number.isFinite(corp.revenue) ? Math.max(0, corp.revenue / 7) : 0;
   const candidates = getTreeForType(corp.sectorType)
     .map((node) => ({ node, cashCost: techNodeCashCost(node, dailyGrossRevenueLocal) }))

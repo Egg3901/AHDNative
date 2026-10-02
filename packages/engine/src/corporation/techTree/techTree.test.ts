@@ -28,6 +28,20 @@ describe("source corporate technology state", () => {
     expect(getSectorTechEffects({ type: "energy", ...corp }, "energy").marginBonusPp).toBeGreaterThan(0);
   });
 
+  it("preserves the source NPP cash floor when selecting an affordable technology", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-tech-cash-floor", playerName: "Alex" });
+    const corp = world.corporations["US-energy"]!;
+    corp.revenue = 7_000;
+    corp.liquidCapital = 100_000;
+    corp.rdScore = 100;
+    corp.unlockedTechNodeIds = foundingTechState("energy", 1953).unlockedTechNodeIds;
+
+    expect(unlockNppCorporationTech(world, corp, 1953, 99_900)).toBeUndefined();
+    expect(corp.liquidCapital).toBe(100_000);
+    expect(corp.rdScore).toBe(100);
+    expect(corp.unlockedTechNodeIds).not.toContain("energy-1950-1");
+  });
+
   it("applies a researched output-rate effect to physical supply and resumes identically", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-tech-output", playerName: "Alex" });
     const corporation = world.corporations["US-energy"]!;
