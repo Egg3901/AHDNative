@@ -118,7 +118,7 @@ function primaryCandidatesForState(world: WorldState, race: ElectionRecord, stat
         ? actor.politicalInfluence
         : candidate.id === "player"
           ? world.player.nationalInfluence ?? 0
-          : politician?.nationalInfluence ?? 0;
+          : politician?.politicalInfluence ?? 0;
       const targetedAdBonuses: Record<string, number> = {};
       const campaign = world.campaigns[campaignKey(race.id, candidate.id)];
       for (const [key, value] of Object.entries(campaign?.targetedAdModifiers ?? {})) {

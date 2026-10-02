@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
+import { deserializeSave, serializeSave } from "../save.js";
 import { rngFromSeed } from "../rng.js";
 import { fillCandidates } from "./orchestration.js";
 import type { ElectionRecord } from "./types.js";
@@ -32,6 +33,10 @@ describe("source NPP challenger home-state assignment", () => {
     expect(challengers.length).toBeGreaterThan(0);
     for (const candidate of challengers) {
       expect(world.politicians.find((politician) => politician.id === candidate.id)?.homeState).toBe("IA");
+    }
+    const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    for (const candidate of challengers) {
+      expect(resumed.politicians.find((politician) => politician.id === candidate.id)?.homeState).toBe("IA");
     }
   });
 

@@ -1,5 +1,7 @@
 import type { DemographicCategory, StateDemographics } from "../electionEngine/types.js";
 
+type PrimaryStateDemographics = Pick<StateDemographics, "categoryWeights" | "groups">;
+
 /** Source: AHDGame src/lib/turn/primaryStaggerPhase.ts, pinned cb66acdf. */
 export const PRIMARY_TURNOUT_FACTOR = 0.13;
 export const PRIMARY_TURNOUT_FLOOR = 0.05;
@@ -32,7 +34,7 @@ export function primaryTurnoutRetention(
 /** Apply the source retention curve to the already resolved live group rates. */
 export function applyPrimaryTurnoutRetention(
   turnoutByGroup: Readonly<Record<string, number>>,
-  demographics: StateDemographics,
+  demographics: PrimaryStateDemographics,
   party: PrimaryPartyPosition,
 ): Record<string, number> {
   const result: Record<string, number> = {};
@@ -53,7 +55,7 @@ export function applyPrimaryTurnoutRetention(
 /** Exact source computeTurnoutPoolFromRates math over the authored category substrate. */
 export function computeTurnoutPoolFromRates(
   statePopulation: number,
-  demographics: StateDemographics,
+  demographics: PrimaryStateDemographics,
   categories: readonly DemographicCategory[],
   turnoutByGroup: Readonly<Record<string, number>>,
 ): number {

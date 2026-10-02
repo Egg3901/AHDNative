@@ -46,14 +46,14 @@ describe("presidential primary ledger save validation", () => {
 
     const loaded = deserializeSave(JSON.stringify(doc));
 
-    expect(loaded.meta.schemaVersion).toBe(54);
+    expect(loaded.meta.schemaVersion).toBe(55);
     expect(loaded.elections).toEqual([]);
   });
 
   it("refuses a primary save from a newer ruleset", () => {
     const doc = savedRaceDoc() as { schemaVersion: number; world: { meta: { schemaVersion: number } } };
-    doc.schemaVersion = 55;
-    doc.world.meta.schemaVersion = 55;
+    doc.schemaVersion = 56;
+    doc.world.meta.schemaVersion = 56;
     expect(() => deserializeSave(JSON.stringify(doc))).toThrow(/newer version/i);
   });
   it("round-trips a source-scheduled wave and its candidate/state ledgers", () => {
