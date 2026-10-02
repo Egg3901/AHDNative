@@ -3256,6 +3256,9 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
   // No creator or grace history is invented for earlier Native issuers.
   if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
+  // Paid taking tiers cannot be read by schema53's seizure-only validator.
+  // Historical missing history stays absent; no acquisition is reconstructed.
+  if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

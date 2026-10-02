@@ -123,7 +123,7 @@ export type ExecuteActionParams = {
   // W10 markets
   corpId?: string;
   corporationId?: string;
-  tier?: "seizure";
+  tier?: "fair" | "discounted" | "seizure";
   shares?: number;
   // W13 bonds
   bondId?: string;
@@ -2398,11 +2398,11 @@ function executeActionInner(
       actor.actions += cost;
       return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
     }
-    if (params.tier !== "seizure") {
+    if (params.tier !== "seizure" && params.tier !== "discounted" && params.tier !== "fair") {
       actor.actions += cost;
-      return { ok: false, error: "Executive nationalization currently supports only the source seizure tier." };
+      return { ok: false, error: "Choose a valid nationalization compensation tier." };
     }
-    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId);
+    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId, params.tier);
     if (!result.ok) {
       actor.actions += cost;
       return result;
@@ -2516,9 +2516,9 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         ? null
         : `${actionId} requires corpId and a positive integer shares amount`;
     case "nationalizeCorporation":
-      return params.corporationId && params.tier === "seizure"
+      return params.corporationId && (params.tier === "seizure" || params.tier === "discounted" || params.tier === "fair")
         ? null
-        : "nationalizeCorporation requires corporationId and tier 'seizure'";
+        : "nationalizeCorporation requires corporationId and a valid compensation tier";
     case "voteCeo":
       return params.corpId && params.candidateId ? null : "voteCeo requires corpId and candidateId";
     case "acceptCeoAppointment":
