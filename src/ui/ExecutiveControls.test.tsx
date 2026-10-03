@@ -92,10 +92,26 @@ describe("executive tab reachability (#65)", () => {
 
   it("keeps nationalization visible but unavailable for career players", async () => {
     const user = userEvent.setup();
-    render(<StatefulHub actions={liveActions("career")} />);
+    const actions = liveActions("career");
+    const executiveActions = actions.filter((action) => action.category === "executive");
+    expect(executiveActions.map((action) => action.id).sort()).toEqual([
+      "nationalizeCorporation",
+      "openCorporateRelocationVote",
+      "relocateCorporateHeadquarters",
+      "relocatePlayerWithCorporation",
+      "voteCorporateRelocation",
+    ]);
+    expect(executiveActions.every((action) => !action.available && Boolean(action.disabledReason))).toBe(true);
+
+    render(<StatefulHub actions={actions} />);
     const tabs = screen.getByRole("tablist", { name: /filter actions by category/i });
-    const executive = within(tabs).getByRole("tab", { name: /executive, 0 of 1 available/i });
+    const executive = within(tabs).getByRole("tab", { name: /executive, 0 of 5 available/i });
     await user.click(executive);
+    for (const action of executiveActions) {
+      const card = screen.getByRole("article", { name: action.name });
+      expect(within(card).getByRole("button", { name: `Unavailable: ${action.name}` })).toBeDisabled();
+      expect(within(card).getByRole("note")).toHaveTextContent(action.disabledReason!);
+    }
     const nationalization = screen.getByRole("article", { name: /nationalize/i });
     expect(within(nationalization).getByRole("button", { name: /unavailable/i })).toBeDisabled();
     expect(nationalization).toHaveTextContent("Only the sitting head of government");
