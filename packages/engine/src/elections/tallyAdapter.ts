@@ -25,7 +25,6 @@ import { buildNationwideElectoratePreload } from "../electionEngine/nationwideEl
 import { distributeVotesByGroupLevelAllocation } from "../electionEngine/voteDistribution.js";
 import { distributeVotesBySwingFlow } from "../electionEngine/voteDistributionSwingFlow.js";
 import { CAMPAIGN_TARGETED_AD_CAP } from "../actions/campaignTargetedAd.js";
-import { policyPosition, targetedAdBonusByGroup } from "../campaigns/targetedAds.js";
 import { electoralVoteUnitsForWorld } from "./presidentialElectoralCollege.js";
 import { appliesExplicitPresidentialLean, presidentialRulesetVersionFor } from "./presidentialRuleset.js";
 import { displayLean, PRESIDENTIAL_UNIT_LEAN, presidentialLeanVoteMultiplier, sourceFallbackStateLean } from "./presidentialLean.js";
@@ -119,8 +118,6 @@ function campaignTargetedAdBonuses(
   world: WorldState,
   electionId: string,
   candidateId: string,
-  stateId: string,
-  useStandingAds: boolean,
 ): Record<string, number> | undefined {
   const campaign = world.campaigns[campaignKey(electionId, candidateId)];
   const legacy: Record<string, number> = {};
@@ -131,16 +128,7 @@ function campaignTargetedAdBonuses(
     const bonus = Math.max(0, Math.min(CAMPAIGN_TARGETED_AD_CAP, value));
     if (bonus > 0) legacy[groupId] = (legacy[groupId] ?? 0) + bonus;
   }
-  const standing = useStandingAds && candidateId === "player" && world.player.targetedAds?.length
-    ? targetedAdBonusByGroup(world, stateId, policyPosition(world.player.policies ?? { economic: 0, social: 0 }), world.player.targetedAds, world.meta.turn)
-    : {};
-  const groups = new Set([...Object.keys(legacy), ...Object.keys(standing)]);
-  const bonuses = Object.fromEntries([...groups].map((groupId) => {
-    const old = legacy[groupId] ?? 0;
-    const current = standing[groupId] ?? 0;
-    return [groupId, old > 0 && current > 0 ? (1 + old) * (1 + current) - 1 : old + current];
-  }));
-  return Object.keys(bonuses).length > 0 ? bonuses : undefined;
+  return Object.keys(legacy).length > 0 ? legacy : undefined;
 }
 
 /**
@@ -533,7 +521,7 @@ function runAccumulateCore(
   const activeCandidates = rec.candidates.filter(isElectionCandidateActive);
   const candidates: TallyCandidateInput[] = activeCandidates.map((c) => {
     const support = world.candidateSupports?.[c.id]?.support;
-    const targetedAdBonuses = campaignTargetedAdBonuses(world, rec.id, c.id, slice.stateId, rec.electionType !== "president");
+    const targetedAdBonuses = campaignTargetedAdBonuses(world, rec.id, c.id);
     return {
       _id: c.id,
       electionId: rec.id,

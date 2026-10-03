@@ -4,9 +4,10 @@ import { rngFromSeed } from "../rng.js";
 import { serializeSave } from "../save.js";
 import type { ElectionRecord } from "./types.js";
 import { realAccumulate } from "./tallyAdapter.js";
+import { campaignKey, ensureCampaignsForElection } from "../campaigns/lifecycle.js";
 
 describe("ephemeral tally input observer", () => {
-  it("feeds player economic/social policies into the non-president general ad consumer", () => {
+  it("does not invent a standing-ad consumer in the normal regional general tally", () => {
     const world = createWorld({ seed: "tally-standing-ad-policy-axes", playerName: "Player", countryId: "US", era: "1953" });
     const partyId = Object.values(world.parties).find((party) => party.countryId === "US")!.id;
     const opponent = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === partyId)!;
@@ -40,14 +41,17 @@ describe("ephemeral tally input observer", () => {
       tally: {},
     };
     world.elections = [race];
+    ensureCampaignsForElection(world, race);
+    world.campaigns[campaignKey(race.id, "player")]!.targetedAdModifiers = { "voterGroups:progressive": 0.12 };
     const snapshots: import("../electionEngine/tally/types.js").VoteDistributionDiagnosticSnapshot[] = [];
 
     expect(realAccumulate(world, rngFromSeed("standing-ad-policy-axes"), race, undefined, (snapshot) => snapshots.push(snapshot))).toBe(true);
 
-    // Independently executed Game 0538 campaignTargeting/rules.ts source vector:
-    // candidate (-1, .2), NY .35/.65 cells, and a .12 progressive flight at turn 16.
+    // Game 0538 overlays standing ads on loaded election candidates, but its
+    // normal per-region general tally never converts them into bonuses. Native
+    // retains the pre-existing persisted campaign modifier on this path.
     const playerInput = snapshots[0]!.candidates.find((candidate) => candidate.candidateId === "player")!;
-    expect(playerInput.targetedAdBonuses).toEqual({ progressive: 0.09636249097584279, moderate: 0 });
+    expect(playerInput.targetedAdBonuses).toEqual({ progressive: 0.12 });
   });
 
   it("leaves the ordinary world and RNG byte-identical when observing one real district tally", () => {
