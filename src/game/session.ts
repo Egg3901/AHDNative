@@ -30,7 +30,9 @@ import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, setJPRegionalBudgetAllocation,
   nationalizationTargets, nationalizationUnavailableReason,
+  resolveCurrentBillVote,
   isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, campaignAdTargetChoices, currentAdBonus,
+  partyWhipEligibilityError,
   quoteTargetedAds,
   isNewCharacterSelection,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
@@ -186,6 +188,8 @@ export class GameSession {
   private world?: WorldState;
   private notifications: NotificationItem[] = [];
 
+  constructor(private readonly observedClock: () => Date = () => new Date()) {}
+
   create(options: NewGameOptions): GameView {
     if (!options || typeof options.playerName !== "string" || !options.playerName.trim() || options.playerName.trim().length > 80) {
       throw new Error("Enter a player name between 1 and 80 characters.");
@@ -257,7 +261,8 @@ export class GameSession {
     const before = snapshotNotifications(source);
     const actionBefore = snapshotActionFields(source);
     const candidate = structuredClone(this.requireWorld());
-    const result = executeAction(candidate, "player", actionId, params);
+    const observedAt = this.readObservedAt();
+    const result = executeAction(candidate, "player", actionId, params, { observedAt });
     if (!result.ok) return result;
     const world = candidate;
     const drafts: NotificationDraft[] = [];
@@ -798,14 +803,22 @@ export class GameSession {
     return this.world;
   }
 
+  private readObservedAt(): string {
+    const observed = this.observedClock();
+    if (!(observed instanceof Date) || !Number.isFinite(observed.getTime())) {
+      throw new Error("The observed wall clock must return a valid Date.");
+    }
+    return observed.toISOString();
+  }
+
   private commit(candidate: WorldState, notifications = this.notifications): GameView {
-    const view = projectWorld(candidate, notifications);
+    const view = projectWorld(candidate, notifications, this.readObservedAt());
     this.world = candidate;
     this.notifications = notifications;
     return view;
   }
 
-  view(): GameView { return projectWorld(this.requireWorld(), this.notifications); }
+  view(): GameView { return projectWorld(this.requireWorld(), this.notifications, this.readObservedAt()); }
 
   /** Keeps repeated same-turn action notices distinct while staying deterministic. */
   private uniqueKey(base: string): string {
@@ -1018,7 +1031,7 @@ export function joinPartyDisabledReason(world: WorldState): string | undefined {
   return check.ok ? undefined : check.error;
 }
 
-function projectWorld(world: WorldState, notifications: NotificationItem[]): GameView {
+function projectWorld(world: WorldState, notifications: NotificationItem[], observedAt: string): GameView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
   const player = world.player;
@@ -1052,7 +1065,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       permanentHeadOfState: player.permanentHeadOfState === true,
       currentOffice: player.currentOffice?.type ?? null,
       autoRunForReelection: player.autoRunForReelection === true },
-    legislature: projectLegislature(world),
+    legislature: projectLegislature(world, observedAt),
     finance: projectFinance(world),
     resources: projectResources(world),
     nation: projectNation(world),
@@ -1409,11 +1422,11 @@ function projectWire(world: WorldState): FinanceView["wire"] {
   };
 }
 
-function projectLegislature(world: WorldState): LegislatureView {
+function projectLegislature(world: WorldState, observedAt: string): LegislatureView {
   const player = world.player;
   const seat = player.legislativeSeat;
   const chamberName = (countryId: string, key: string) => world.legislatures[countryId]?.chambers.find((c) => c.key === key)?.name ?? key;
-  const action = (id: "sponsorBill" | "voteOnBill", reason?: string): ActionView => {
+  const action = (id: "sponsorBill" | "voteOnBill" | "issuePartyWhip", reason?: string): ActionView => {
     const entry = ACTION_CATALOG[id];
     const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
     const remaining = (player.actionCooldowns[id] ?? 0) - world.meta.turn;
@@ -1498,16 +1511,26 @@ function projectLegislature(world: WorldState): LegislatureView {
         const other = !override && bill.currentChamber !== bill.originChamber;
         const votingOpen = ["active", "active_other", "veto_override"].includes(bill.status);
         const votes = other ? bill.otherChamberVotes : override ? bill.vetoOverrideVotes : bill.votes;
-        const liveTally = { for: 0, against: 0, abstain: 0 };
-        for (const vote of Object.values(votes ?? {})) liveTally[vote]++;
+        const liveTally = resolveCurrentBillVote(
+          world,
+          bill.countryId,
+          bill.currentChamber,
+          votes,
+          {
+            for: (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
+            against: (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
+            abstain: (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
+          },
+        ).totals;
         const reason = !seat ? "Win a legislative seat before voting."
           : seat.countryId !== bill.countryId || seat.chamberKey !== bill.currentChamber ? "This bill is in another chamber."
           : !votingOpen ? "Voting is not open on this bill." : undefined;
+        const whipReason = partyWhipEligibilityError(world, bill, observedAt) ?? undefined;
         return { id: bill.id, title: bill.title, status: bill.status, chamber: chamberName(bill.countryId, bill.currentChamber), chamberKey: bill.currentChamber, sponsorName: bill.sponsorName,
           votesFor: votingOpen ? liveTally.for : (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
           votesAgainst: votingOpen ? liveTally.against : (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
           votesAbstain: votingOpen ? liveTally.abstain : (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
-          playerVote: votes?.player ?? null, voting: action("voteOnBill", reason) };
+          playerVote: votes?.player ?? null, voting: action("voteOnBill", reason), hardWhip: action("issuePartyWhip", whipReason) };
       }),
   };
 }

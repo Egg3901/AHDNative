@@ -1171,12 +1171,16 @@ export interface PlayerCharacter {
    * Solo tracks as turn count (24 turns = 24h at 1 turn/hour) rather than Date.
    */
   partyJoinedTurn: number | null;
+  /** Source Character.partyJoinedAt wall clock; absent in old saves. */
+  partyJoinedAt?: string | null;
   /**
    * Turn of the last party switch (join/leave/found). Survives independent
    * stint so leave->rejoin hop does not dodge cooldown. Ports
    * Character.lastPartySwitchAt (Date) as turn count; same 24-turn window.
    */
   lastPartySwitchTurn: number | null;
+  /** Source Character.lastPartySwitchAt wall clock; absent in old saves. */
+  lastPartySwitchAt?: string | null;
   /**
    * Per-party rejoin blocks from purges. Ports Character.purgeRejoinBlocks
    * (src/lib/db/types/character.ts) with PURGE_REJOIN_COOLDOWN_TURNS = 24
@@ -1426,6 +1430,8 @@ export interface Party {
   memberCount: number;
   /** True for seeded default parties; custom parties are non-default. */
   isDefault: boolean;
+  /** Source PoliticalParty.createdAt wall clock for custom-party NPP controls. */
+  nppControlCreatedAt?: string;
   /**
    * One-party regime standing (reference PoliticalParty.regimeStatus),
    * "ruling"/"approved"/"banned"; undefined in a competitive democracy. Seeds

@@ -292,11 +292,16 @@ test("Irish PM replaces VAT through a source bill and resumes its saved fiscal p
   await page.getByRole("button", { name: "Sponsor bill", exact: true }).click();
   await expect(page.getByRole("article", { name: vatTitle, exact: true })).toHaveCount(priorBillCount + 1);
   await advanceUntilVote(page, vatTitle);
+  const replacement = page.getByRole("article", { name: vatTitle, exact: true }).first();
+  const whipFor = replacement.getByRole("button", { name: `Hard whip NPPs for on ${vatTitle}`, exact: true });
+  await expect(whipFor).toBeEnabled();
+  await whipFor.click();
+  await gameReady(page);
   await advanceUntilLatestBillSigned(page, vatTitle);
   // Completed bills are newest-first; the first card is the newly signed
   // replacement, while the last card is the older 23% enactment.
-  const replacement = page.getByRole("article", { name: vatTitle, exact: true }).first();
-  await replacement.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
+  const replacementAfterVote = page.getByRole("article", { name: vatTitle, exact: true }).first();
+  await replacementAfterVote.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
   await expect(page.getByText("Selected rate: 25%", { exact: true })).toBeVisible();
   await saveGame(page);
   await page.reload();

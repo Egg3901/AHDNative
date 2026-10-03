@@ -1077,6 +1077,25 @@ function assertCurrentWorldState(world: WorldState): void {
     }
   }
 
+  validatePartyWhipHistory(value["partyWhips"]);
+  const partyClockFields = ["partyJoinedAt", "lastPartySwitchAt"] as const;
+  for (const field of partyClockFields) {
+    const timestamp = player[field];
+    if (timestamp !== undefined && timestamp !== null && !isCanonicalIsoTimestamp(timestamp)) {
+      throw new Error(`Not a valid save file: invalid player ${field}`);
+    }
+  }
+  const parties = value["parties"];
+  if (isRecord(parties)) {
+    for (const [partyId, partyValue] of Object.entries(parties)) {
+      if (!isRecord(partyValue)) continue;
+      const timestamp = partyValue["nppControlCreatedAt"];
+      if (timestamp !== undefined && !isCanonicalIsoTimestamp(timestamp)) {
+        throw new Error(`Not a valid save file: invalid party NPP control timestamp for ${partyId}`);
+      }
+    }
+  }
+
   // Schema 68 adds source metric-engine coexistence state only to the
   // cost-of-living node. Old rows may legitimately omit it; present values
   // must be consumable by the 40..200 bounded source node.
@@ -1501,6 +1520,52 @@ function assertCurrentWorldState(world: WorldState): void {
     }
   }
   assertCountryPolitics(value["countryPolitics"]);
+}
+
+function validatePartyWhipHistory(raw: unknown): void {
+  if (raw === undefined) return;
+  if (!Array.isArray(raw)) throw new Error("Not a valid save file: invalid party whip history");
+  const groups = new Map<string, Array<{ attemptNumber?: number; id: string }>>();
+  const ids = new Set<string>();
+  for (const item of raw) {
+    if (!isRecord(item)
+      || Object.keys(item).some((key) => !["id", "billId", "partyId", "countryId", "stateId", "chamber", "direction", "mode", "attemptNumber", "issuedAtTurn", "issuerId", "issuerRole"].includes(key))
+      || typeof item["id"] !== "string" || item["id"].length === 0
+      || typeof item["billId"] !== "string" || item["billId"].length === 0
+      || typeof item["partyId"] !== "string" || item["partyId"].length === 0
+      || typeof item["countryId"] !== "string" || item["countryId"].length === 0
+      || typeof item["chamber"] !== "string" || item["chamber"].length === 0
+      || !["for", "against", "abstain"].includes(String(item["direction"]))
+      || !["hard", "soft"].includes(String(item["mode"]))
+      || !Number.isInteger(item["issuedAtTurn"]) || Number(item["issuedAtTurn"]) < 0
+      || typeof item["issuerId"] !== "string" || item["issuerId"].length === 0
+      || !["chair", "viceChair", "actingViceChair"].includes(String(item["issuerRole"]))
+      || (item["stateId"] !== undefined && typeof item["stateId"] !== "string")
+      || (item["attemptNumber"] !== undefined && item["attemptNumber"] !== 1 && item["attemptNumber"] !== 2)) {
+      throw new Error("Not a valid save file: invalid party whip record");
+    }
+    const row = item as unknown as { id: string; billId: string; countryId: string; chamber: string; partyId: string; stateId?: string; attemptNumber?: number };
+    if (ids.has(row.id)) throw new Error("Not a valid save file: duplicate party whip id");
+    ids.add(row.id);
+    if (row.stateId !== undefined) continue;
+    const key = JSON.stringify([row.billId, row.countryId, row.chamber, row.partyId]);
+    const entries = groups.get(key) ?? [];
+    entries.push(row);
+    groups.set(key, entries);
+  }
+  for (const entries of groups.values()) {
+    if (entries.length > 2) throw new Error("Not a valid save file: more than two national whip attempts for a bill/chamber");
+    const sequence = entries.map((entry, index) => entry.attemptNumber ?? index + 1);
+    if (new Set(sequence).size !== entries.length || sequence.some((value, index) => value !== index + 1)) {
+      throw new Error("Not a valid save file: invalid national whip attempt sequence");
+    }
+  }
+}
+
+function isCanonicalIsoTimestamp(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 const COUNTRY_POLITICS_REGIMES = new Set([
@@ -4135,6 +4200,12 @@ export function deserializeSave(raw: string): WorldState {
   // from the selected era's source pack at the next ordinary budget turn, not
   // during load. This migration consumes no RNG.
   if (save.schemaVersion < 70) save.world.meta.schemaVersion = 70;
+  // v71: national NPP whips retain the source's two independent attempts per
+  // bill/chamber, and new custom-party/member wall-clock anchors preserve the
+  // source 48-hour control gate. Existing one-row histories and absent time
+  // anchors remain absent; no history is inferred. Schema 70 is owned by the
+  // independent JP budget continuation family.
+  if (save.schemaVersion < 71) save.world.meta.schemaVersion = 71;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

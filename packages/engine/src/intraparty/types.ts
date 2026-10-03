@@ -100,7 +100,9 @@ export interface PartyWhip {
   chamber: string;
   direction: PartyWhipDirection;
   mode: PartyWhipMode;
+  /** One of the source national party's two attempts for this bill/chamber. Missing on legacy rows. */
+  attemptNumber?: 1 | 2;
   issuedAtTurn: number;
   issuerId: string;
-  issuerRole: "chair" | "actingViceChair";
+  issuerRole: "chair" | "viceChair" | "actingViceChair";
 }
