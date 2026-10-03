@@ -64,4 +64,22 @@ The source `StatePartyOrg` rows also carry era-specific regional treasury balanc
 
 `seedDemographics` now consumes the region rows through existing `WorldState.stateDemographics` and `demographicCategories`; no new persisted field or schema version is introduced. Content validation checks category identity, category weights, all six group identities and values, and the 100% regional group share (allowing source rounding).
 
-The focused fixture in `packages/engine/src/elections/easternBlocBackground.test.ts` runs a real `advanceTurn` to produce the election, then explicitly sets `meta.turn` to the source-record activation and close boundaries before calling ordinary `advanceTurn`. It proves nonempty tally, poll resolution, 65 weighted holder seats in Mazovia, the 460-seat PZPR composition after all PL regional races resolve, and save/reload preservation. It does not prove a naturally elapsed 96-turn calendar journey; the untouched-calendar simulation and the source treasury mapping remain separate open acceptance work.
+The focused fixture in `packages/engine/src/elections/easternBlocBackground.test.ts` runs a real `advanceTurn` to produce the election, then explicitly sets `meta.turn` to the source-record activation and close boundaries before calling ordinary `advanceTurn`. It proves nonempty tally, poll resolution, 65 weighted holder seats in Mazovia, the 460-seat PZPR composition after all PL regional races resolve, and save/reload preservation. This boundary fixture does not establish a naturally elapsed calendar; the separate ordinary-turn journey below supplies that evidence. Source regional treasury equivalence remains open.
+
+
+## Natural calendar and independent distributor replay
+
+`packages/engine/src/elections/easternBlocNaturalJourney.sim.test.ts` starts a new 1953 US world at turn 0 and uses ordinary `advanceTurn` calls through turn 96. It retains all history and RNG. At turn 48, the PL_MAZ race is still in its primary period, so the general tally is zero; a complete save/load/save round trip preserves its bytes and RNG. The continuation then resolves seven Mazovia holders totaling 65 weighted seats and the resulting 460-seat PL chamber. A final save/reload preserves those results.
+
+The exact `d5e92aceca9fcbaef2c9b393dbd4d62960eae86f` [extended CI run](https://github.com/Egg3901/AHDNative/actions/runs/37098529156) passed all ten election cases, including this natural journey. Its separate full verification job failed eight app cases, so that run does not qualify the integration for merge.
+
+The trace flag retains the 24 non-persisted distributor inputs from general turns 73 through 96. Reproduce and replay them against a clean, immutable Game checkout:
+
+```sh
+AHD_EASTERN_BLOC_NATURAL_TRACE_PATH=./eastern-natural-inputs.json npx vitest run --config vitest.elections-extended.config.ts packages/engine/src/elections/easternBlocNaturalJourney.sim.test.ts
+node scripts/replay-eastern-distributor.cjs <immutable-AHDGame-checkout> ./eastern-natural-inputs.json > eastern-source-replay.json
+```
+
+The replay command executes Game's actual `distributeVotesBySwingFlow`, restores captured Maps and Sets, checks both complete vote and share dictionaries, records the checkout's commit, and exits unsuccessfully for any mismatch or tracked source modification. The retained `eastern-bloc-natural-1953-source-journey-01` trace has SHA-256 `f5e54b307897cacd0454859db0c2189b09f30a7765d6f9aadb49fbda9123377c`. All 24 turns matched at the original b769 source and again at current Game `0538f4264354eeb837dc1b0b47639e74591fca17`. Relevant distributor, formula, and Eastern seed paths have no source drift through that current checkpoint.
+
+These are the actual recorded Native-built distributor inputs. This replay does not establish equivalence of source candidate enrichment, upstream input construction, the full source allocator, regional party treasury, or playable-country support for every Eastern background region.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { corporateSectorAssets, createWorld, serializeSave } from "@ahdclient/engine";
+import { corporateSectorAssets, createWorld } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
 const UNION_ID = "US-manufacturing";
@@ -10,20 +10,36 @@ function savedWorld(session: GameSession) {
   return JSON.parse(session.serialize(STAMP)).world as ReturnType<typeof createWorld>;
 }
 
-describe("union labor journey through the public session", () => {
-  it("organizes, elects, funds, bargains, strikes, saves, and receives an employer response", () => {
-    const session = new GameSession();
-    session.create({ seed: "union-public-labor-journey", playerName: "Alex", countryId: "US", era: "1953" });
+describe.sequential("continuous union labor journey through the public session", () => {
+  // These stages share one actual character and its complete world. Each
+  // keeps the original 120-second limit; no history, calendar or RNG is reset.
+  const session = new GameSession();
+  const unionRow = () => session.unionManagement().unions.find((row) => row.id === UNION_ID)!;
+  let targetId: string | undefined;
 
-    // The accepted #322 public-action fixture supplies enough starting AP and
-    // strike-fund cash to exercise the source journey without assigning the
-    // presidency, manufacturing a bargaining state, or editing local density.
-    const initial = savedWorld(session);
-    initial.player.actions = 100;
-    initial.unions[UNION_ID]!.treasury = 1_000_000;
-    session.load(serializeSave(initial, STAMP));
+  it("earns leadership and shop organization through actions and actual dues", () => {
+    session.create({
+      seed: "union-public-labor-journey", playerName: "Alex", countryId: "US", era: "1953",
+      creation: {
+        name: "Alex", homeRegionId: "AL", partyId: null,
+        stats: { charisma: 4, debate: 4, energy: 4, fundraising: 4, businessAcumen: 4, statecraft: 4, intellect: 4 },
+        policies: { economic: 0, social: 0 },
+        demographics: { race: "white", gender: "male", education: "college", wealth: "middle" },
+      },
+    });
+    expect(unionRow().treasury).toBe(500);
 
-    for (let drive = 0; drive < 12 && !session.unionManagement().unions.find((row) => row.id === UNION_ID)!.electionOpen; drive++) {
+    // Earn organizing actions through ordinary turns. The union funds shop
+    // drives from its actual dues; no starting resources or offices are edited.
+    let resourceTurns = 0;
+    const earnActions = (minimum: number) => {
+      while (session.view().player.actions < minimum) {
+        expect(resourceTurns++).toBeLessThan(30);
+        session.advance();
+      }
+    };
+    for (let drive = 0; drive < 30 && !unionRow().electionOpen; drive++) {
+      earnActions(5);
       session.organizeUnion(UNION_ID);
     }
     expect(session.unionManagement().unions.find((row) => row.id === UNION_ID)!.electionOpen).toBe(true);
@@ -31,20 +47,27 @@ describe("union labor journey through the public session", () => {
     expect(session.unionManagement().unions.find((row) => row.id === UNION_ID)!.ownerType).not.toBe("player");
     expect(session.acceptUnionLeadership(UNION_ID)).toMatchObject({ ok: true, ownerType: "player", ownerId: "player" });
 
-    const unionRow = () => session.unionManagement().unions.find((row) => row.id === UNION_ID)!;
     expect(session.setUnionDues(UNION_ID, Math.min(100, unionRow().maxDuesPerWorkerAnnual)).ok).toBe(true);
+    session.advance();
     expect(session.setUnionPoliticalContributions(UNION_ID, 0.5).ok).toBe(true);
 
-    const targetId = unionRow().sectors.find((sector) => sector.corporationId === EMPLOYER_ID)?.id;
+    targetId = unionRow().sectors.find((sector) => sector.corporationId === EMPLOYER_ID)?.id;
     expect(targetId).toBeDefined();
     for (let drive = 0; drive < 40; drive++) {
       if (unionRow().sectors.find((sector) => sector.id === targetId)!.unionization >= 99) break;
+      earnActions(1);
+      while (unionRow().treasury < unionRow().sectors.find((sector) => sector.id === targetId)!.treasuryCost) {
+        expect(resourceTurns++).toBeLessThan(30);
+        session.advance();
+      }
       session.organizeUnionSector(UNION_ID, targetId!);
     }
     const organizedTarget = unionRow().sectors.find((sector) => sector.id === targetId)!;
     expect(organizedTarget.unionization).toBeGreaterThanOrEqual(99);
     expect(organizedTarget.representingUnionId).toBe(UNION_ID);
+  }, 120_000);
 
+  it("pays the organizer PAC and continues the complete saved world identically", () => {
     // Keep an otherwise identical saved control at 0% beside the public 50%
     // contribution treatment. Reload both before the ordinary dues turn so
     // this measures the persisted player control and its actual payout.
@@ -60,26 +83,29 @@ describe("union labor journey through the public session", () => {
 
     const fundsBeforeDuesTurn = savedWorld(session).player.funds;
     const controlFundsBeforeDuesTurn = savedWorld(contributionControl).player.funds;
+    const duesTurn = session.view().turn + 1;
     session.advance();
     contributionControl.advance();
     const duesSave = session.serialize(STAMP);
     const duesWorld = savedWorld(session);
     const controlDuesWorld = savedWorld(contributionControl);
-    const firstPayout = duesWorld.unionContributionLedger!.filter((row) => row.unionId === UNION_ID && row.turn === 1);
+    const firstPayout = duesWorld.unionContributionLedger!.filter((row) => row.unionId === UNION_ID && row.turn === duesTurn);
     expect(firstPayout).toHaveLength(1);
     expect(firstPayout[0]).toMatchObject({ recipientId: "player", source: "union_pac", amount: expect.any(Number) });
     expect(firstPayout[0]!.amount).toBeGreaterThan(0);
     expect(
       duesWorld.player.funds - fundsBeforeDuesTurn - (controlDuesWorld.player.funds - controlFundsBeforeDuesTurn),
     ).toBe(firstPayout[0]!.amount);
-    expect(controlDuesWorld.unionContributionLedger?.filter((row) => row.unionId === UNION_ID && row.turn === 1) ?? []).toHaveLength(0);
+    expect(controlDuesWorld.unionContributionLedger?.filter((row) => row.unionId === UNION_ID && row.turn === duesTurn) ?? []).toHaveLength(0);
 
     const resumedDues = new GameSession();
     resumedDues.load(duesSave);
     resumedDues.advance();
     session.advance();
-    expect(savedWorld(resumedDues)).toEqual(savedWorld(session));
+    expect(resumedDues.serialize(STAMP)).toBe(session.serialize(STAMP));
+  }, 120_000);
 
+  it("bargains, escalates a strike, saves, and receives the employer response", () => {
     const campaign = session.callUnionBargaining(UNION_ID, EMPLOYER_ID, {
       wageLevel: 1.5,
       agreementDurationTurns: 48,
@@ -125,17 +151,24 @@ describe("union labor journey through the public session", () => {
     const treatedAsset = corporateSectorAssets(treatedWorld)[targetId!]!;
     const controlAsset = corporateSectorAssets(controlWorld)[targetId!]!;
     expect(treatedAsset.strikeStartedAtTurn).not.toBeNull();
-    // This live-session twin includes the prior overtime-ban turn, and the
-    // strike also changes worker expectations. The isolated source factor
-    // (0.75 versus idle, 0.96 for overtime ban) is asserted in
-    // corporationLabour.test.ts; here require the matched live output to fall.
-    expect(treatedAsset.producedUnits).toBeLessThan(controlAsset.producedUnits!);
-    expect(treatedWorld.corporations[EMPLOYER_ID]!.revenue).toBeLessThan(controlWorld.corporations[EMPLOYER_ID]!.revenue);
+    expect(controlAsset.strikeStartedAtTurn).toBeNull();
+    // This earned journey reaches a demand-limited plant. Game's actual
+    // demandThrottleFactor and resolveSectorLabourProductionEffects at
+    // 0538f426 reproduce equal output for these saved inputs: sales plus the
+    // 15% probe constrain both the 0.75 strike and 0.96 overtime capacity.
+    // The source strike still deducts eight margin points and lowers profit;
+    // worker expectations and the bargaining mandate also respond to it.
+    expect(treatedAsset.producedUnits).toBe(controlAsset.producedUnits);
+    expect(treatedWorld.corporations[EMPLOYER_ID]!.revenue).toBe(controlWorld.corporations[EMPLOYER_ID]!.revenue);
+    expect(controlAsset.effectiveProfitMargin! - treatedAsset.effectiveProfitMargin!).toBeCloseTo(8, 10);
+    expect(treatedAsset.plantsPnl!.profit).toBeLessThan(controlAsset.plantsPnl!.profit);
+    expect(treatedAsset.workerExpectationIndex).toBeGreaterThan(controlAsset.workerExpectationIndex ?? controlAsset.wageLevel ?? 1);
+    expect(session.unionBargaining().campaigns[0]!.mandate.grievance).toBeGreaterThan(control.unionBargaining().campaigns[0]!.mandate.grievance);
 
     const afterStrikeSave = session.serialize(STAMP);
     const reloaded = new GameSession();
     reloaded.load(afterStrikeSave);
-    expect(savedWorld(reloaded)).toEqual(treatedWorld);
+    expect(reloaded.serialize(STAMP)).toBe(afterStrikeSave);
 
     // The player answers the employer's offer through the public session,
     // then the employer's autonomous response lands on the next ordinary
@@ -153,6 +186,6 @@ describe("union labor journey through the public session", () => {
     const employerFollowup = reloaded.unionBargaining().campaigns[0];
     expect(employerFollowup).toBeDefined();
     expect(employerFollowup!.status === "settled" || employerFollowup!.currentOffer.proposedBy === "employer").toBe(true);
-    expect(savedWorld(reloaded)).toEqual(savedWorld(session));
+    expect(reloaded.serialize(STAMP)).toBe(session.serialize(STAMP));
   }, 120_000);
 });
