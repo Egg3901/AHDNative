@@ -33,6 +33,10 @@ export interface StateDemographics {
   groups: Record<string, StateDemographicGroup>;
   cachedEconomicLean?: number;
   cachedSocialLean?: number;
+  /** Durable source era-realignment deltas on the Layer-1 census positions. */
+  layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number; socialLean?: number }>>;
+  /** Durable source era-realignment deltas on Layer-1 turnout rates (percentage points). */
+  layer1TurnoutOverrides?: Record<string, Record<string, number>>;
   lastUpdated: string;
 }
 

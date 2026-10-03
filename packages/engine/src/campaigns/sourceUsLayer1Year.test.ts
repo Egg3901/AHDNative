@@ -11,6 +11,7 @@ import { rngFromSeed } from "../rng.js";
 import { ensureCampaignsForElection } from "./lifecycle.js";
 import type { ElectionRecord } from "../elections/types.js";
 import { dateForTurn } from "../calendar.js";
+import { sourceLayer1Overlays } from "./targetedAds.js";
 
 describe("current-source US annual Layer-1 substrate", () => {
   it("matches independently captured source vectors across starting eras and interpolation years", () => {
@@ -104,5 +105,19 @@ describe("current-source US annual Layer-1 substrate", () => {
     expect(snapshot?.categories[0]?._id).toBe("granularCells");
     const playerInput = snapshot?.candidates.find((candidate) => candidate.candidateId === "player");
     expect(Object.keys(playerInput?.targetedAdBonuses ?? {}).length).toBeGreaterThan(0);
+  });
+
+  it("feeds persisted durable source checkpoint overlays into year-resolved census positions before cell derivation", () => {
+    const world = createWorld({ seed: "checkpoint-overlay-source-cell", playerName: "Player", countryId: "US", era: "1953", homeRegionId: "NY" });
+    const baseline = world.baselineDemographics.NY!;
+    baseline.layer1PositionOverrides = { race: { white: { economicLean: 0.4, socialLean: -0.2 } } };
+    baseline.layer1TurnoutOverrides = { race: { black: 8 } };
+    const overlays = sourceLayer1Overlays(world, "NY");
+    expect(overlays.durableLeanBucketDeltas).toEqual({ "race:white": { economicLean: 0.4, socialLean: -0.2 } });
+    expect(overlays.durableTurnoutBucketDeltas).toEqual({ "race:black": 8 });
+    const without = sourceCampaignUnitsForYear("NY", 1953, 1953)!;
+    const withDurable = sourceCampaignUnitsForYear("NY", 1953, 1953, overlays)!;
+    expect(withDurable).not.toEqual(without);
+    expect(withDurable.flatMap((unit) => unit.campaignCells).some((cell) => cell.buckets.race === "white" && cell.identities.race?.economicLean === 1.6)).toBe(true);
   });
 });

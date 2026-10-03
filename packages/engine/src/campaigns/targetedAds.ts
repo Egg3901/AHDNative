@@ -70,6 +70,17 @@ export function sourceLayer1Overlays(world: WorldState, stateId: string, extraAr
   for (const key of new Set([...Object.keys(economicBucket), ...Object.keys(socialBucket)])) {
     leanBucketDeltas[key] = { economicLean: economicBucket[key] ?? 0, socialLean: socialBucket[key] ?? 0 };
   }
+  const baselineDemographics = world.baselineDemographics[stateId];
+  const durableLeanBucketDeltas: Record<string, { economicLean?: number; socialLean?: number }> = {};
+  for (const [dimension, buckets] of Object.entries(baselineDemographics?.layer1PositionOverrides ?? {})) {
+    for (const [bucket, values] of Object.entries(buckets)) {
+      durableLeanBucketDeltas[`${dimension}:${bucket}`] = { ...values };
+    }
+  }
+  const durableTurnoutBucketDeltas: Record<string, number> = {};
+  for (const [dimension, buckets] of Object.entries(baselineDemographics?.layer1TurnoutOverrides ?? {})) {
+    for (const [bucket, delta] of Object.entries(buckets)) durableTurnoutBucketDeltas[`${dimension}:${bucket}`] = delta;
+  }
   const turnoutBucketDeltas: Record<string, number> = {};
   for (const [key, delta] of Object.entries(sourceArchetypeBucketValues(extraArchetypeTurnout))) {
     turnoutBucketDeltas[key] = (turnoutBucketDeltas[key] ?? 0) + delta;
@@ -89,7 +100,7 @@ export function sourceLayer1Overlays(world: WorldState, stateId: string, extraAr
         }
       }
   }
-  return { leanBucketDeltas, turnoutBucketDeltas };
+  return { leanBucketDeltas, turnoutBucketDeltas, durableLeanBucketDeltas, durableTurnoutBucketDeltas };
 }
 
 export function hasSource1953DemographicShape(world: WorldState, stateId: string): boolean {

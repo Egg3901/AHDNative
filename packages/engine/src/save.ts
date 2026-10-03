@@ -801,6 +801,41 @@ function assertSaveWorldRoot(value: unknown): asserts value is WorldState {
   }
 }
 
+function validateDurableLayer1CheckpointOverlays(world: WorldState): void {
+  for (const [regionId, raw] of Object.entries(world.baselineDemographics)) {
+    if (!isRecord(raw)) throw new Error(`Not a valid save file: invalid baseline demographics for ${regionId}`);
+    const positions = raw["layer1PositionOverrides"];
+    if (positions !== undefined) {
+      if (!isRecord(positions)) throw new Error("Not a valid save file: invalid durable Layer-1 position overrides");
+      for (const [dimension, byBucket] of Object.entries(positions)) {
+        if (!dimension || !isRecord(byBucket)) throw new Error("Not a valid save file: invalid durable Layer-1 position dimension");
+        for (const [bucket, axes] of Object.entries(byBucket)) {
+          if (!bucket || !isRecord(axes) || Object.keys(axes).some((axis) => axis !== "economicLean" && axis !== "socialLean")) {
+            throw new Error("Not a valid save file: invalid durable Layer-1 position bucket");
+          }
+          for (const value of Object.values(axes)) {
+            if (typeof value !== "number" || !Number.isFinite(value) || value < -5 || value > 5) {
+              throw new Error("Not a valid save file: durable Layer-1 position delta is outside source bounds");
+            }
+          }
+        }
+      }
+    }
+    const turnout = raw["layer1TurnoutOverrides"];
+    if (turnout !== undefined) {
+      if (!isRecord(turnout)) throw new Error("Not a valid save file: invalid durable Layer-1 turnout overrides");
+      for (const [dimension, byBucket] of Object.entries(turnout)) {
+        if (!dimension || !isRecord(byBucket)) throw new Error("Not a valid save file: invalid durable Layer-1 turnout dimension");
+        for (const [bucket, value] of Object.entries(byBucket)) {
+          if (!bucket || typeof value !== "number" || !Number.isFinite(value) || value < -80 || value > 80) {
+            throw new Error("Not a valid save file: durable Layer-1 turnout delta is outside source bounds");
+          }
+        }
+      }
+    }
+  }
+}
+
 function validatePmAppointmentVotes(world: WorldState): void {
   const records = (world as unknown as Record<string, unknown>)["pmAppointmentVotes"];
   if (!Array.isArray(records)) throw new Error("Not a valid save file: invalid PM appointment votes");
@@ -972,6 +1007,7 @@ function assertCurrentWorldState(world: WorldState): void {
       (!Number.isSafeInteger(meta["startingYear"]) || (meta["startingYear"] as number) < 1000 || (meta["startingYear"] as number) > 9999)) {
     throw new Error("Not a valid save file: invalid source starting year");
   }
+  validateDurableLayer1CheckpointOverlays(world);
   const lastRelocatedTurn = player["lastRelocatedTurn"];
   if (lastRelocatedTurn !== undefined &&
       (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
