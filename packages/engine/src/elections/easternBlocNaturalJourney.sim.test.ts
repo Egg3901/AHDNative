@@ -11,20 +11,30 @@ describe("Eastern Bloc natural-calendar journey", () => {
     const sourceRegion = source.regions.find((row) => row.id === "PL_MAZ")!;
     let world = createWorld({ seed, playerName: "Player", countryId: "US", era: "1953", autonomyLevel: "off" });
     let rngAtSave: number[] | undefined;
+    const tallyInputs: unknown[] = [];
     for (let index = 0; index < 96; index++) {
-      advanceTurn(world);
+      advanceTurn(world, {
+        observeElectionTallyInput: (snapshot) => {
+          const input = snapshot as { election?: { countryId?: string; state?: string } };
+          if (input.election?.countryId === "PL" && input.election.state === "PL_MAZ") tallyInputs.push(snapshot);
+        },
+      });
       if (world.meta.turn === 48) {
         const inProgress = world.elections.find((row) => row.countryId === "PL" && row.state === "PL_MAZ")!;
         expect(inProgress.startTurn).toBe(1);
+        expect(inProgress.primaryEndTurn).toBe(72);
         expect(inProgress.endTurn).toBe(96);
         expect(inProgress.status).toBe("active");
-        expect(Object.values(inProgress.tally).reduce((sum, votes) => sum + votes, 0)).toBeGreaterThan(0);
+        expect(Object.values(inProgress.tally).reduce((sum, votes) => sum + votes, 0)).toBe(0);
 
         rngAtSave = [...world.meta.rng];
         const savedAtTurn = world.meta.turn;
-        const resumed = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
+        const savedAt = "2026-10-03T00:00:00Z";
+        const rawSave = serializeSave(world, savedAt);
+        const resumed = deserializeSave(rawSave);
         expect(resumed.meta.turn).toBe(savedAtTurn);
         expect(resumed.meta.rng).toEqual(rngAtSave);
+        expect(serializeSave(resumed, savedAt)).toBe(rawSave);
         const resumedElection = resumed.elections.find((row) => row.countryId === "PL" && row.state === "PL_MAZ")!;
         expect(resumedElection).toMatchObject({
           id: inProgress.id,
@@ -44,6 +54,7 @@ describe("Eastern Bloc natural-calendar journey", () => {
     expect(resolved.resolvedTurn).toBe(96);
     expect(Object.values(resolved.tally).reduce((sum, votes) => sum + votes, 0)).toBeGreaterThan(0);
     expect(resolved.winners?.length).toBeGreaterThan(0);
+    expect(tallyInputs.length).toBeGreaterThan(0);
     const holders = world.politicians.filter((politician) => resolved.winners?.includes(politician.id));
     expect(holders.length).toBeGreaterThan(0);
     expect(holders.every((holder) => holder.countryId === "PL" && holder.electedState === "PL_MAZ")).toBe(true);
@@ -89,6 +100,7 @@ describe("Eastern Bloc natural-calendar journey", () => {
           winners: resolved.winners,
           holders: holders.map((holder) => ({ id: holder.id, partyId: holder.partyId, seatsHeld: holder.seatsHeld ?? 1 })),
         },
+        tallyInputTrace: tallyInputs,
         partyComposition: chamber.composition.seatsByParty[source.party.id],
         savedComposition: resumed.legislatures.PL!.chambers[0]!.composition.seatsByParty[source.party.id],
       },
