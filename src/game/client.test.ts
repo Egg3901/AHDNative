@@ -24,6 +24,17 @@ it("matches out-of-order responses to their originating requests", async () => {
   client.dispose();
 });
 
+it("requests the metadata-bearing save from the worker without changing raw serialization", async () => {
+  const port = new TestPort(); const client = new GameClient(port);
+  const pending = client.serializeWithMetadata("2026-10-03T12:00:00.000Z", true);
+  const request = port.messages[0] as { id: number; command: { type: string; savedAt: string; includeSaveNotice?: boolean } };
+  expect(request.command).toEqual({ type: "serializeWithMetadata", savedAt: "2026-10-03T12:00:00.000Z", includeSaveNotice: true });
+  const envelope = { contents: '{"save":"bytes"}', metadata: { savedAt: "2026-10-03T12:00:00.000Z", schemaVersion: 70, turn: 4, countryId: "US", playerName: "Morgan" } };
+  port.reply({ id: request.id, ok: true, value: envelope });
+  expect(await pending).toEqual(envelope);
+  client.dispose();
+});
+
 it("settles pending requests when the worker fails and rejects later commands", async () => {
   const port = new TestPort(); const client = new GameClient(port);
   const pending = client.serialize("2026-09-10T00:00:00Z");
