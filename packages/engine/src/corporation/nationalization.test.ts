@@ -30,6 +30,7 @@ function recordElectedPresident(world: ReturnType<typeof createWorld>) {
     chamberKey: "president",
     candidates: [{ id: "player", name: world.player.name, partyId: "US_DEM", isNPP: false, incumbent: false }],
     tally: { player: 1000 },
+    stateTallyStates: { WY: { totalVotes: { player: 1000 } } },
   };
   // Use the public election resolver so the action gate is backed by a
   // recorded winner and seated executive rather than a hand-built HOG flag.
