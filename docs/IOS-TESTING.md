@@ -88,6 +88,8 @@ and [complying with encryption export regulations](https://developer.apple.com/d
 
 The Mac image does not preinstall `rustup`. The workflow bootstraps it from the official Rust installer when absent, installs the pinned toolchain and records the Cargo binary path for later steps. The first attempt failed at this prerequisite before compilation or signing; inspect a failed step before retrying.
 
+Before Tauri initializes iOS, the workflow reinstalls the image's Homebrew `ca-certificates` package. A dependency install previously collided with its existing links before an Xcode project or IPA could be generated. Explicit reinstallation repairs those links. Automatic metadata updates, unrelated dependent upgrades and install cleanup are disabled during this bootstrap so it stays bounded to the required tools. See the [Homebrew command reference](https://docs.brew.sh/Manpage) for these controls.
+
 The most recently delivered and processed internal iOS preview is marketing
 version `0.1.9`, Apple build `1.15` (source `preview/0.1.9-2`): Apple processing
 VALID, attached to the internal Owner review group. Current release-candidate

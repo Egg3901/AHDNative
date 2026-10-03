@@ -71,7 +71,7 @@ import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecru
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
-import { castPmAppointmentVote, proposePmAppointment } from "../government/pmAppointment.js";
+import { castPmAppointmentVote, pmAppointmentExecutiveTitle, proposePmAppointment } from "../government/pmAppointment.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -407,17 +407,19 @@ function executeActionInner(
   // These source commands are recorded in parliamentary state, not charged
   // through generic action points or action counters.
   if (actionId === "proposePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a Taoiseach." };
+    const title = pmAppointmentExecutiveTitle(world.player.countryId) ?? "head of government";
+    if (found.kind !== "player") return { ok: false, error: `Only the player can nominate a ${title}.` };
     const result = proposePmAppointment(world);
     return result.ok
-      ? { ok: true, message: `Opened Taoiseach appointment vote ${result.vote.id}.` }
+      ? { ok: true, message: `Opened ${title} appointment vote ${result.vote.id}.` }
       : { ok: false, error: result.error };
   }
   if (actionId === "votePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a Taoiseach appointment." };
+    const title = pmAppointmentExecutiveTitle(world.player.countryId) ?? "head of government";
+    if (found.kind !== "player") return { ok: false, error: `Only the player can vote on a ${title} appointment.` };
     const result = castPmAppointmentVote(world, params.pmAppointmentVoteId ?? "", params.pmVote ?? "aye");
     return result.ok
-      ? { ok: true, message: `Recorded ${params.pmVote} on Taoiseach appointment ${params.pmAppointmentVoteId}.` }
+      ? { ok: true, message: `Recorded ${params.pmVote} on ${title} appointment ${params.pmAppointmentVoteId}.` }
       : { ok: false, error: result.error };
   }
   // A pending parliamentary government freezes bill proposals before any
