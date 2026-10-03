@@ -14,6 +14,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: [
+      "packages/content/src/jpConsumptionTaxSourceParity.test.ts",
       "packages/engine/src/elections/jpBackground.test.ts",
       "packages/engine/src/budget/jpRegionalBudget.test.ts",
       "src/game/jpBackgroundSession.test.ts",
