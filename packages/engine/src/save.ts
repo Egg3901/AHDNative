@@ -1,5 +1,8 @@
 import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
+import { COUNTRY_CONFIGS } from "./electionEngine/countryElectionConstants.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
+import { pmAppointmentExecutiveTitle } from "./government/pmAppointment.js";
 import { getPackByEra } from "@ahdclient/content";
 import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
@@ -740,13 +743,26 @@ function validatePmAppointmentVotes(world: WorldState): void {
   for (const raw of records) {
     if (!isRecord(raw)) throw new Error("Not a valid save file: invalid PM appointment vote");
     const vote = raw;
+    const countryId = vote["countryId"];
+    const partyId = vote["partyId"];
+    const coalitionPartyIds = vote["coalitionPartyIds"];
+    const party = typeof partyId === "string" ? world.parties[partyId] : undefined;
+    const coalition = typeof countryId === "string" && typeof vote["coalitionId"] === "string"
+      ? world.coalitions.find((candidate) => candidate.id === vote["coalitionId"] && candidate.countryId === countryId)
+      : undefined;
+    const leadPartyId = Array.isArray(coalitionPartyIds) && coalitionPartyIds.length > 0
+      ? coalitionPartyIds[0]
+      : partyId;
+    const leadParty = typeof leadPartyId === "string" ? world.parties[leadPartyId] : undefined;
     const turnFields = [vote["openedTurn"], vote["closesTurn"]];
     if (
       typeof vote["id"] !== "string" || vote["id"].length === 0 || ids.has(vote["id"]) ||
-      vote["countryId"] !== "IE" || vote["chamberKey"] !== "dail" ||
-      typeof vote["partyId"] !== "string" || !world.parties[vote["partyId"]] ||
-      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !world.coalitions.some((coalition) => coalition.id === vote["coalitionId"]))) ||
-      (vote["coalitionPartyIds"] !== null && (!Array.isArray(vote["coalitionPartyIds"]) || vote["coalitionPartyIds"].length < 2 || new Set(vote["coalitionPartyIds"]).size !== vote["coalitionPartyIds"].length || !vote["coalitionPartyIds"].every((partyId) => typeof partyId === "string" && world.parties[partyId]?.countryId === "IE"))) ||
+      typeof countryId !== "string" || !pmAppointmentExecutiveTitle(countryId) ||
+      vote["chamberKey"] !== GOVERNMENT_CHAMBER_BY_COUNTRY[countryId] ||
+      typeof partyId !== "string" || party?.countryId !== countryId ||
+      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !coalition)) ||
+      (coalitionPartyIds !== null && (!Array.isArray(coalitionPartyIds) || coalitionPartyIds.length < 2 || new Set(coalitionPartyIds).size !== coalitionPartyIds.length || !coalitionPartyIds.every((memberId) => typeof memberId === "string" && world.parties[memberId]?.countryId === countryId))) ||
+      (COUNTRY_CONFIGS[countryId]?.governmentType === "onePartyState" && leadParty?.regimeStatus !== "ruling") ||
       vote["nomineeId"] !== "player" || typeof vote["nomineeName"] !== "string" || vote["nomineeName"].length === 0 ||
       (vote["formationType"] !== "majority" && vote["formationType"] !== "minority" && vote["formationType"] !== "coalition") ||
       !turnFields.every((turn) => typeof turn === "number" && Number.isSafeInteger(turn) && turn >= 0) ||
@@ -759,7 +775,7 @@ function validatePmAppointmentVotes(world: WorldState): void {
     ) throw new Error("Not a valid save file: invalid PM appointment vote");
     ids.add(vote["id"]);
     for (const [voterId, choice] of Object.entries(vote["votes"])) {
-      if ((voterId !== "player" && !world.politicians.some((politician) => politician.id === voterId)) || (choice !== "aye" && choice !== "nay")) {
+      if ((voterId !== "player" && !world.politicians.some((politician) => politician.id === voterId && politician.countryId === countryId && politician.chamberKey === vote["chamberKey"])) || (choice !== "aye" && choice !== "nay")) {
         throw new Error("Not a valid save file: invalid PM appointment ballot");
       }
     }
@@ -770,6 +786,9 @@ function validatePmAppointmentVotes(world: WorldState): void {
 }
 
 function validateGovernmentDirectives(world: WorldState): void {
+  // These saved NPP directives are produced only by the Irish NPC-government
+  // phase. Player PM appointments elsewhere must not widen this snapshot
+  // contract or authorize foreign NPP directive records.
   for (const [countryId, raw] of Object.entries(world.governments)) {
     if (!isRecord(raw)) throw new Error("Not a valid save file: invalid government state");
     const hasAgenda = Object.prototype.hasOwnProperty.call(raw, "governingAgenda");
