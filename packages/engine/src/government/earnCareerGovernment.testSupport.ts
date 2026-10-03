@@ -7,8 +7,9 @@ import { PARTY_LEADERSHIP_TENURE_TURNS } from "../intraparty/leadershipTenure.js
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
 
 /** Real party-chair nomination and chamber appointment before career bills.
- * Only the existing chair ballot's closing calendar is shortened. Authority,
- * votes, appointment's 24-turn window and save continuation use public paths. */
+ * The existing chair ballot and 24-turn PM vote both keep their authored
+ * deadlines. The player receives 100 AP as a test resource fixture; authority,
+ * votes and save continuation use the public action and turn paths. */
 export function earnCareerGovernment(world: WorldState, catalogId: string): WorldState {
   const countryId = world.player.countryId;
   const partyId = world.player.partyId!;
