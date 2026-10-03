@@ -90,11 +90,11 @@ describe("player party membership join/leave", () => {
     w.player.partyJoinedTurn = null;
     w.player.lastPartySwitchTurn = null;
     w.player.actions = 10;
-    const before = serializeSave(w);
+    const before = serializeSave(w, "2026-10-03T00:00:00.000Z");
     const leaveRes = executeAction(w, "player", "leaveParty", {});
     expect(leaveRes.ok).toBe(false);
     expect(w.player.actions).toBe(10);
-    expect(serializeSave(w)).toBe(before);
+    expect(serializeSave(w, "2026-10-03T00:00:00.000Z")).toBe(before);
   });
 
   it("foundParty creates new party + ratified charter, auto-joins founder, costs 8 AP + 100k funds", () => {

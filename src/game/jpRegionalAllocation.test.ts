@@ -5,11 +5,13 @@ import { GameSession } from "./session";
 const SAVED_AT = "2026-10-03T00:00:00.000Z";
 const IDS = ["HOK", "TOH", "KAN", "CHU", "KNS", "CGK", "SHI", "KYU"] as const;
 
-function importedJapaneseOfficeSave(): string {
-  const world = createWorld({ seed: "jp-regional-allocation-import", playerName: "Aki", countryId: "JP", era: "2019" });
-  // This is an imported legacy-country fixture: JP remains unavailable for
-  // new character creation, but an existing eligible office holder can use
-  // the real GameSession command and continue the fiscal world.
+function recordedJapaneseOfficeSave(): string {
+  const world = createWorld({ seed: "jp-regional-allocation-recorded", playerName: "Aki", countryId: "US", era: "2019" });
+  // This recorded consumer fixture isolates an eligible office continuation.
+  // It is not an authentic historical Native writer or an earned appointment.
+  // New JP character creation stays unavailable.
+  world.player.countryId = "JP";
+  world.player.homeRegionId = "HOK";
   world.cabinetMembers.push({
     countryId: "JP",
     positionId: "JP_internal_affairs_minister",
@@ -23,10 +25,10 @@ function importedJapaneseOfficeSave(): string {
   return serializeSave(world, SAVED_AT);
 }
 
-describe("Japan regional grant allocation on existing player saves", () => {
+describe("Japan regional grant allocation on recorded office saves", () => {
   it("uses the cabinet command, persists the reviewed shares, and applies them next turn", () => {
     const session = new GameSession();
-    session.load(importedJapaneseOfficeSave());
+    session.load(recordedJapaneseOfficeSave());
     const shares = { HOK: 30, TOH: 0, KAN: 7.5, CHU: 12.5, KNS: 12.5, CGK: 12.5, SHI: 12.5, KYU: 12.5 };
 
     const saved = session.setJPRegionalAllocation({ allocationPercents: shares });
@@ -36,6 +38,14 @@ describe("Japan regional grant allocation on existing player saves", () => {
 
     const savedContents = session.serialize(SAVED_AT);
     expect(projectSaveToV42(savedContents)).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("source 48-turn election clock"),
+    });
+    // A recorded document without the modern clock isolates the additional
+    // allocation refusal. The complete modern save remains intact for reload.
+    const legacyClockDocument = JSON.parse(savedContents);
+    delete legacyClockDocument.world.meta.startingYear;
+    expect(projectSaveToV42(JSON.stringify(legacyClockDocument))).toMatchObject({
       ok: false,
       error: expect.stringContaining("Japan regional allocation state cannot be projected"),
     });

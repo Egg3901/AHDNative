@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -35,10 +35,10 @@ function loadCheckpoint(file: string): string {
   }
 }
 
-function savedWorldMeta(save: string): { turn: number; rng: unknown } {
+function savedWorldMeta(save: string): { turn: number; rng: unknown; startingYear?: number } {
   const match = save.match(/"meta":(\{[^{}]*\})/);
   if (!match) throw new Error("Save is missing its bounded world.meta record.");
-  return JSON.parse(match[1]!) as { turn: number; rng: unknown };
+  return JSON.parse(match[1]!) as { turn: number; rng: unknown; startingYear?: number };
 }
 
 function presidentialEndTurn(save: string): number {
@@ -55,6 +55,95 @@ function activeWyGovernorEndorsementCandidate(save: string): string {
   const candidate = ledger.match(/"stateId":"WY","candidateId":"([^"]+)","endorsedById":"player"[^{}]*?"isActive":true/)?.[1];
   if (!candidate) throw new Error("Saved presidential race is missing the player's active WY governor endorsement.");
   return candidate;
+}
+
+type SavedLayer1 = Record<string, Record<string, { economicLean?: number }>>;
+
+// Inspect a bounded member of the complete canonical JSON save. Scanning
+// respects strings and escaped quotes; only the selected WY row is parsed.
+// The full checkpoint still passes GameSession.load and byte-for-byte save.
+function savedValueEnd(save: string, start: number): number {
+  const first = save[start];
+  let depth = 0;
+  let inString = false;
+  for (let cursor = start; cursor < save.length; cursor++) {
+    const char = save[cursor];
+    if (inString) {
+      if (char === "\\") cursor++;
+      else if (char === '"') {
+        inString = false;
+        if (first === '"' && depth === 0) return cursor + 1;
+      }
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === "{" || char === "[") depth++;
+    else if (char === "}" || char === "]") {
+      if (depth === 0) return cursor;
+      if (--depth === 0) return cursor + 1;
+    } else if (depth === 0 && /[,\s]/.test(char!)) return cursor;
+  }
+  if (depth || inString) throw new Error("Incomplete checkpoint JSON value.");
+  return save.length;
+}
+
+function savedMember(save: string, objectStart: number, member: string): { start: number; end: number } {
+  if (save[objectStart] !== "{") throw new Error(`Checkpoint ${member} parent is not an object.`);
+  let cursor = objectStart + 1;
+  while (cursor < save.length) {
+    while (/[\s,]/.test(save[cursor] ?? "")) cursor++;
+    if (save[cursor] === "}") break;
+    if (save[cursor] !== '"') throw new Error(`Invalid checkpoint key before ${member}.`);
+    const keyEnd = savedValueEnd(save, cursor);
+    const key = JSON.parse(save.slice(cursor, keyEnd)) as string;
+    cursor = keyEnd;
+    while (/\s/.test(save[cursor] ?? "")) cursor++;
+    if (save[cursor++] !== ":") throw new Error(`Invalid checkpoint member ${key}.`);
+    while (/\s/.test(save[cursor] ?? "")) cursor++;
+    const start = cursor;
+    const end = savedValueEnd(save, start);
+    if (key === member) return { start, end };
+    cursor = end;
+  }
+  throw new Error(`Checkpoint is missing ${member}.`);
+}
+
+function savedWyLayer1(save: string): SavedLayer1 | undefined {
+  const world = savedMember(save, 0, "world");
+  const demographics = savedMember(save, world.start, "baselineDemographics");
+  const wy = savedMember(save, demographics.start, "WY");
+  return (JSON.parse(save.slice(wy.start, wy.end)) as { layer1PositionOverrides?: SavedLayer1 }).layer1PositionOverrides;
+}
+
+function advancePresidentialCheckpoint(inputPath: string, outputPath: string, targetTurn: number, resolved: boolean) {
+  let raw = loadCheckpoint(inputPath);
+  const session = new GameSession();
+  let view = session.load(raw);
+  expect(session.serialize(STAMP)).toBe(raw);
+  raw = "";
+  while (view.turn < targetTurn) view = session.advance();
+  expect(view.turn).toBe(targetTurn);
+  raw = session.serialize(STAMP);
+  const meta = savedWorldMeta(raw);
+  const wyLayer1 = resolved ? savedWyLayer1(raw) : undefined;
+  const sha256 = createHash("sha256").update(raw).digest("hex");
+  const bytes = Buffer.byteLength(raw);
+  writeFileSync(outputPath, raw);
+  raw = "";
+  const presidential = resolved ? session.politics().elections.find((race) => race.id === PRESIDENT_RACE)?.presidential : undefined;
+  const memory = process.memoryUsage();
+  console.log(`PUBLIC_CHECKPOINT ${JSON.stringify({ turn: meta.turn, sha256, bytes, heapUsedMiB: Math.round(memory.heapUsed / 2 ** 20), rssMiB: Math.round(memory.rss / 2 ** 20) })}`);
+  return { meta, wyLayer1, sha256, presidential };
+}
+
+function reloadPresidentialCheckpoint(path: string, expectedTurn: number) {
+  let raw = loadCheckpoint(path);
+  const session = new GameSession();
+  const view = session.load(raw);
+  expect(view.turn).toBe(expectedTurn);
+  expect(session.serialize(STAMP)).toBe(raw);
+  raw = "";
+  return view.turn;
 }
 
 /**
@@ -215,44 +304,30 @@ describe.sequential("earned governor presidential endorsement journey", () => {
     const nextControlPath = join(EVIDENCE_DIR, `president-control-batch-${batchNumber}.json`);
     const nextTreatmentPath = join(EVIDENCE_DIR, `president-treatment-batch-${batchNumber}.json`);
     it(`stage 4 batch ${batchNumber}: advances the matched saved worlds by ordinary turns`, () => {
-      let controlSave = loadCheckpoint(controlPath);
-      let treatmentSave = loadCheckpoint(treatmentPath);
-      const controlMeta = savedWorldMeta(controlSave);
-      const treatmentMeta = savedWorldMeta(treatmentSave);
-      const sourceEndTurn = presidentialEndTurn(treatmentSave);
-      const endorsedCandidateId = activeWyGovernorEndorsementCandidate(treatmentSave);
-      const control = new GameSession();
-      let controlView = control.load(controlSave);
-      const treatment = new GameSession();
-      let treatmentView = treatment.load(treatmentSave);
-      // A no-op load/save round trip must preserve the complete checkpoint,
-      // including historical events, actions, RNG and the endorsement ledger.
-      expect(control.serialize(STAMP)).toBe(controlSave);
-      controlSave = "";
-      expect(treatment.serialize(STAMP)).toBe(treatmentSave);
-      treatmentSave = "";
+      const controlMeta = savedWorldMeta(loadCheckpoint(controlPath));
+      let treatmentInput = loadCheckpoint(treatmentPath);
+      const treatmentMeta = savedWorldMeta(treatmentInput);
+      const sourceEndTurn = presidentialEndTurn(treatmentInput);
+      const endorsedCandidateId = activeWyGovernorEndorsementCandidate(treatmentInput);
+      treatmentInput = "";
       expect(controlMeta.turn).toBe(treatmentMeta.turn);
       expect(controlMeta.rng).toEqual(treatmentMeta.rng);
       const nextTurn = Math.min(treatmentMeta.turn + PRESIDENTIAL_CHECKPOINT_TURNS, sourceEndTurn + 1);
-      while (treatmentView.turn < nextTurn) {
-        treatmentView = treatment.advance();
-        controlView = control.advance();
-      }
-      expect(controlView.turn).toBe(nextTurn);
-      expect(treatmentView.turn).toBe(nextTurn);
-      if (batchNumber === PRESIDENTIAL_BATCH_COUNT) expect(nextTurn).toBe(sourceEndTurn + 1);
-      let nextControlSave = control.serialize(STAMP);
-      const controlAfterMeta = savedWorldMeta(nextControlSave);
-      writeFileSync(nextControlPath, nextControlSave);
-      nextControlSave = "";
-      let nextTreatmentSave = treatment.serialize(STAMP);
-      const treatmentAfterMeta = savedWorldMeta(nextTreatmentSave);
-      expect(controlAfterMeta.rng).toEqual(treatmentAfterMeta.rng);
-      writeFileSync(nextTreatmentPath, nextTreatmentSave);
-      if (batchNumber !== PRESIDENTIAL_BATCH_COUNT) return;
+      const finalBatch = batchNumber === PRESIDENTIAL_BATCH_COUNT;
+      if (finalBatch) expect(nextTurn).toBe(sourceEndTurn + 1);
 
-      const treatmentPresidential = treatment.politics().elections.find((race) => race.id === PRESIDENT_RACE)?.presidential!;
-      const controlPresidential = control.politics().elections.find((race) => race.id === PRESIDENT_RACE)?.presidential!;
+      // Each branch resumes its complete disk checkpoint independently. Only
+      // one world is retained at a time; all 96 ordinary turns, historical
+      // records, saved RNG and six full checkpoint pairs remain unchanged.
+      const control = advancePresidentialCheckpoint(controlPath, nextControlPath, nextTurn, finalBatch);
+      const treatment = advancePresidentialCheckpoint(treatmentPath, nextTreatmentPath, nextTurn, finalBatch);
+      expect(control.meta.turn).toBe(nextTurn);
+      expect(treatment.meta.turn).toBe(nextTurn);
+      expect(control.meta.rng).toEqual(treatment.meta.rng);
+      if (!finalBatch) return;
+
+      const treatmentPresidential = treatment.presidential!;
+      const controlPresidential = control.presidential!;
       const treatmentWy = treatmentPresidential.states.find((state) => state.stateId === "WY")?.votes ?? [];
       const controlWy = controlPresidential.states.find((state) => state.stateId === "WY")?.votes ?? [];
       const treatmentCandidateVotes = treatmentWy.find((row) => row.candidateId === endorsedCandidateId)?.votes ?? 0;
@@ -264,81 +339,52 @@ describe.sequential("earned governor presidential endorsement journey", () => {
       const treatmentOtherVotes = treatmentWy.reduce((sum, row) => sum + row.votes, 0) - treatmentCandidateVotes;
       const controlOtherVotes = controlWy.reduce((sum, row) => sum + row.votes, 0) - controlCandidateVotes;
       const oddsMultiplier = (treatmentCandidateVotes / treatmentOtherVotes) / (controlCandidateVotes / controlOtherVotes);
-      // Current AHDGame presidentialElectionEngine applies 1.015 only to the
-      // endorsed candidate's state. Turn-level integer rounding and aggregation
-      // can reduce the aggregate odds ratio, but it cannot exceed that source
-      // multiplier beyond a small rounding allowance.
+      // Source applies 1.015 only to the endorsed candidate's state. Tally
+      // rounding may reduce aggregate odds; retain the original allowance.
       expect(oddsMultiplier).toBeGreaterThan(1);
       expect(oddsMultiplier).toBeLessThanOrEqual(SOURCE_GOVERNOR_ENDORSEMENT_MULTIPLIER + 0.005);
       expect(treatmentPresidential.resolved).toBe(true);
-      const treatmentState = JSON.parse(nextTreatmentSave) as {
-        world: { meta: { startingYear?: number }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
-      };
-      const controlState = JSON.parse(nextControlSave) as {
-        world: { meta: { startingYear?: number }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
-      };
-      expect(treatmentState.world.meta.startingYear).toBe(1953);
-      expect(controlState.world.meta.startingYear).toBe(1953);
-      // Public GameSession turns 192 and 193 resolve source calendar turns 193 and 194.
-      // The source road-to-1960 checkpoint starts at 193 and writes after that
-      // turn's tally, so both matched worlds persist two exact durable steps.
-      expect(treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean)
-        .toBeCloseTo(2 * (-0.75 / 192), 12);
-      expect(treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean)
-        .toBeCloseTo(2 * (0.6 / 192), 12);
-      expect(controlState.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean)
-        .toBeCloseTo(2 * (-0.75 / 192), 12);
+      expect(treatment.meta.startingYear).toBe(1953);
+      expect(control.meta.startingYear).toBe(1953);
+      // Public turns 192/193 tally source calendar 193/194, then write two
+      // durable road-to-1960 steps after the corresponding tallies.
+      expect(treatment.wyLayer1?.education?.no_college?.economicLean).toBeCloseTo(2 * (-0.75 / 192), 12);
+      expect(treatment.wyLayer1?.wealth?.middle?.economicLean).toBeCloseTo(2 * (0.6 / 192), 12);
+      expect(control.wyLayer1?.education?.no_college?.economicLean).toBeCloseTo(2 * (-0.75 / 192), 12);
       const proof = {
-        name: "president-resolved",
-        sha256: createHash("sha256").update(nextTreatmentSave).digest("hex"),
-        turn: treatmentAfterMeta.turn,
+        name: "president-resolved", sha256: treatment.sha256, turn: treatment.meta.turn,
         office: "Presidential general resolved by ordinary turns; matched control isolates the WY endorsement effect",
-        endorsedCandidateId,
-        sourceMultiplier: SOURCE_GOVERNOR_ENDORSEMENT_MULTIPLIER,
-        aggregateOddsMultiplier: oddsMultiplier,
-        sourceStartingYear: treatmentState.world.meta.startingYear,
-        wyEducationNoCollegeEconomicOverlay: treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean,
-        wyMiddleWealthEconomicOverlay: treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean,
+        endorsedCandidateId, sourceMultiplier: SOURCE_GOVERNOR_ENDORSEMENT_MULTIPLIER,
+        aggregateOddsMultiplier: oddsMultiplier, sourceStartingYear: treatment.meta.startingYear,
+        wyEducationNoCollegeEconomicOverlay: treatment.wyLayer1?.education?.no_college?.economicLean,
+        wyMiddleWealthEconomicOverlay: treatment.wyLayer1?.wealth?.middle?.economicLean,
       };
-      writeFileSync(join(EVIDENCE_DIR, "president-resolved.json"), nextTreatmentSave);
+      // Copy the complete checkpoint without retaining another raw string.
+      copyFileSync(nextTreatmentPath, join(EVIDENCE_DIR, "president-resolved.json"));
       writeFileSync(join(EVIDENCE_DIR, "milestones", "president-resolved.json"), JSON.stringify(proof, null, 2));
       console.log(`PUBLIC_MILESTONE ${JSON.stringify(proof)}`);
 
-      const nextControlView = control.advance();
-      const nextTreatmentView = treatment.advance();
-      expect(nextControlView.turn).toBe(treatmentAfterMeta.turn + 1);
-      expect(nextTreatmentView.turn).toBe(treatmentAfterMeta.turn + 1);
-      const continuedControlSave = control.serialize(STAMP);
-      const continuedTreatmentSave = treatment.serialize(STAMP);
-      const continuedControl = new GameSession();
-      const continuedTreatment = new GameSession();
-      const continuedControlView = continuedControl.load(continuedControlSave);
-      const continuedTreatmentView = continuedTreatment.load(continuedTreatmentSave);
-      expect(continuedControlView.turn).toBe(continuedTreatmentView.turn);
-      const continuedTreatmentWorld = JSON.parse(continuedTreatmentSave) as {
-        world: { meta: { startingYear?: number; rng: unknown }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
-      };
-      const continuedControlWorld = JSON.parse(continuedControlSave) as {
-        world: { meta: { rng: unknown }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
-      };
-      expect(continuedTreatmentWorld.world.meta.startingYear).toBe(1953);
-      expect(continuedTreatmentWorld.world.meta.rng).toEqual(continuedControlWorld.world.meta.rng);
-      expect(continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean)
-        .toBeCloseTo(3 * (-0.75 / 192), 12);
-      expect(continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean)
-        .toBeCloseTo(3 * (0.6 / 192), 12);
+      const continuedControlPath = join(EVIDENCE_DIR, "source-checkpoint-ordinary-control.json");
+      const continuedTreatmentPath = join(EVIDENCE_DIR, "source-checkpoint-ordinary-continuation.json");
+      const continuedControl = advancePresidentialCheckpoint(nextControlPath, continuedControlPath, nextTurn + 1, true);
+      const continuedTreatment = advancePresidentialCheckpoint(nextTreatmentPath, continuedTreatmentPath, nextTurn + 1, true);
+      expect(continuedControl.meta.turn).toBe(treatment.meta.turn + 1);
+      expect(continuedTreatment.meta.turn).toBe(treatment.meta.turn + 1);
+      const continuedControlTurn = reloadPresidentialCheckpoint(continuedControlPath, nextTurn + 1);
+      const continuedTreatmentTurn = reloadPresidentialCheckpoint(continuedTreatmentPath, nextTurn + 1);
+      expect(continuedControlTurn).toBe(continuedTreatmentTurn);
+      expect(continuedTreatment.meta.startingYear).toBe(1953);
+      expect(continuedTreatment.meta.rng).toEqual(continuedControl.meta.rng);
+      expect(continuedTreatment.wyLayer1?.education?.no_college?.economicLean).toBeCloseTo(3 * (-0.75 / 192), 12);
+      expect(continuedTreatment.wyLayer1?.wealth?.middle?.economicLean).toBeCloseTo(3 * (0.6 / 192), 12);
       const continuationProof = {
-        name: "source-checkpoint-ordinary-continuation",
-        sha256: createHash("sha256").update(continuedTreatmentSave).digest("hex"),
-        turn: continuedTreatmentView.turn,
-        sourceStartingYear: continuedTreatmentWorld.world.meta.startingYear,
-        wyEducationNoCollegeEconomicOverlay: continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean,
-        wyMiddleWealthEconomicOverlay: continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean,
+        name: "source-checkpoint-ordinary-continuation", sha256: continuedTreatment.sha256,
+        turn: continuedTreatmentTurn, sourceStartingYear: continuedTreatment.meta.startingYear,
+        wyEducationNoCollegeEconomicOverlay: continuedTreatment.wyLayer1?.education?.no_college?.economicLean,
+        wyMiddleWealthEconomicOverlay: continuedTreatment.wyLayer1?.wealth?.middle?.economicLean,
       };
-      writeFileSync(join(EVIDENCE_DIR, "source-checkpoint-ordinary-continuation.json"), continuedTreatmentSave);
       writeFileSync(join(EVIDENCE_DIR, "milestones", "source-checkpoint-ordinary-continuation.json"), JSON.stringify(continuationProof, null, 2));
       console.log(`PUBLIC_MILESTONE ${JSON.stringify(continuationProof)}`);
-      nextTreatmentSave = "";
     }, 900_000);
   }
 });

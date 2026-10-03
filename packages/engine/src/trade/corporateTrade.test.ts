@@ -21,7 +21,7 @@ describe("corporate-only country trade receipts", () => {
     // Native currently records only a world-global commodity price, not
     // Game's country effective-base inputs. Snapshot values must preserve that
     // actual Native valuation rather than approximate a country price.
-    expect(world.corporateTradeSnapshot!.valuationPriceByCommodity.electronics).toBe(7.5);
+    expect(world.corporateTradeSnapshot!.valuationPriceByCommodity!.electronics).toBe(7.5);
     expect(world.corporateTradeSnapshot!.flow.US!.UK).toBe(375);
     expect(world.corporateTradeSnapshot!.byCountry.US).toEqual({
       exports: 375, imports: 0, net: 375, topPartner: "UK",
@@ -76,9 +76,9 @@ describe("corporate-only country trade receipts", () => {
     world.internationalOrgs = {
       treaty: {
         id: "treaty", name: "Trade agreement", foundedYear: 2010, members: ["CN", "US"],
-        resolutions: [{ id: "fta-cn-us", type: "free_trade_agreement", status: "active", parties: ["CN", "US"], adoptedTurn: 0 }],
+        resolutions: [{ id: "fta-cn-us", title: "Free trade agreement", type: "free_trade_agreement", status: "active", parties: ["CN", "US"], votes: [], proposingCountryId: "US", proposedOnTurn: 0, closesOnTurn: 0, enactedOnTurn: 0 }],
       },
-    } as typeof world.internationalOrgs;
+    };
     const tariff = world.tradeTariffs;
     world.tradeTariffs = [];
     recordCorporateTradeSnapshot(world);
@@ -117,7 +117,7 @@ describe("corporate-only country trade receipts", () => {
 
     // National administered/effective-base inputs are not represented here;
     // the receipt keeps the actual Native global commodity price.
-    expect(world.corporateTradeSnapshot!.valuationPriceByCommodity.electronics).toBe(10);
+    expect(world.corporateTradeSnapshot!.valuationPriceByCommodity!.electronics).toBe(10);
   });
 
   it("records source federal healthcare demand by country and GDP-weighted real region", () => {

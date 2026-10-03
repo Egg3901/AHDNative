@@ -7,6 +7,7 @@ import { corporateSectorBasePrices, SOURCE_DEFAULT_OPERATING_SUPPLY } from "../p
 import { getSectorTechEffects, getTreeForType } from "./selectors.js";
 import { foundingTechState, unlockNppCorporationTech } from "./nppUnlock.js";
 import { validateCorporateCashLedger } from "../corporateCashLedger.js";
+import { rngFromSeed } from "../../rng.js";
 
 describe("source corporate technology state", () => {
   it("uses the source decade tree, cost, prerequisites and deterministic NPP lane pick", () => {
@@ -90,9 +91,9 @@ describe("source corporate technology state", () => {
     const unteched = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     unteched.corporations[corporation.id]!.unlockedTechNodeIds = (unteched.corporations[corporation.id]!.unlockedTechNodeIds ?? [])
       .filter((id) => id !== outputNode.id);
-    corporatePlantProductionPhase.run(world);
-    corporatePlantProductionPhase.run(resumed);
-    corporatePlantProductionPhase.run(unteched);
+    corporatePlantProductionPhase.run(world, rngFromSeed("tech-direct"));
+    corporatePlantProductionPhase.run(resumed, rngFromSeed("tech-direct"));
+    corporatePlantProductionPhase.run(unteched, rngFromSeed("tech-direct"));
 
     const sourceEffects = getSectorTechEffects({ type: "energy", ...corporation }, "energy");
     const sourceMultiplier = technologyOutputUnitsMultiplier(
@@ -109,18 +110,18 @@ describe("source corporate technology state", () => {
       untechedEffects.outputRateMult,
       corporateSectorBasePrices(world),
     );
-    const directAsset = world.corporateSectors[assetId]!;
-    const resumedAsset = resumed.corporateSectors[assetId]!;
+    const directAsset = world.corporateSectors![assetId]!;
+    const resumedAsset = resumed.corporateSectors![assetId]!;
     expect(sourceMultiplier).toBeGreaterThan(1);
     expect(directAsset.producedUnits).toBe(resumedAsset.producedUnits);
     expect(directAsset.producedUnits).toBeCloseTo(
-      unteched.corporateSectors[assetId]!.producedUnits! * sourceMultiplier / untechedMultiplier,
+      unteched.corporateSectors![assetId]!.producedUnits! * sourceMultiplier / untechedMultiplier,
       7,
     );
     expect(world.plantMarketDemand!.corporateOutputSupply!.energy).not.toBe(
       unteched.plantMarketDemand!.corporateOutputSupply!.energy,
     );
-    expect(directAsset.realizedRevenue).not.toBe(unteched.corporateSectors[assetId]!.realizedRevenue);
+    expect(directAsset.realizedRevenue).not.toBe(unteched.corporateSectors![assetId]!.realizedRevenue);
     expect(directAsset.producedUnits).toBeGreaterThan((directAsset.capitalStock ?? 0) * 0.999);
     expect(resumedAsset.producedUnits).toBe(directAsset.producedUnits);
     expect(resumedAsset.plantsPnl).toEqual(directAsset.plantsPnl);

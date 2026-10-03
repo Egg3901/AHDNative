@@ -984,12 +984,12 @@ export function realAccumulate(
   rng: WorldRng,
   rec: ElectionRecord,
   index?: TallyTurnIndex,
-  observeInput?: (snapshot: unknown) => void,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
 ): boolean {
   if (rec.electionType === "president") {
     return realAccumulatePresident(world, rng, rec, index, observeInput);
   }
   const slice = rec.state ? stateSliceFor(world, rec.state, rec.id, false, index) : null;
   if (!slice) return false;
-  return runAccumulate(world, rng, rec, slice, index, observeInput as ((snapshot: VoteDistributionDiagnosticSnapshot) => void) | undefined);
+  return runAccumulate(world, rng, rec, slice, index, observeInput);
 }

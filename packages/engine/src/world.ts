@@ -207,7 +207,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v70: source JP background fiscal rows and optional Internal Affairs grant
 // shares. Existing saves keep absent mutable allocations; missing base rows are
 // reconstructed from immutable era pack data at the next ordinary budget turn.
-export const SCHEMA_VERSION = 70;
+// v71: persisted national whip attempts and source wall-clock party-control anchors.
+export const SCHEMA_VERSION = 71;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -2001,6 +2002,7 @@ function seedGovernors(regions: WorldState["regions"]): WorldState["governors"] 
   const governors: WorldState["governors"] = {};
   for (const region of Object.values(regions)) {
     if (!GOVERNOR_COUNTRIES.has(region.countryId)) continue;
+    if (region.countryId === "US" && region.id === "DC") continue;
     if (region.countryId === "UK" && !UK_DEVOLVED_GOVERNOR_REGIONS.has(region.id)) continue;
     governors[region.id] = {
       stateId: region.id,

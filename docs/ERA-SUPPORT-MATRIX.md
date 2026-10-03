@@ -52,7 +52,7 @@ reference bundles. Its `presetSelector.ts` explicitly falls back to
 2019 bundles when a lane is missing, and `historicalSeats.ts#getPresetSeats`
 returns the 2020 seat roster for these unrecognized preset IDs while recording
 that fallback. The 2023 US description names a genuine 118th-Congress/2023
-state-data lane, while non-US countries fall back to 2019. Such values must not
+state-data lane. UK regions retain the 2019 fallback; Japan supplies eight authored regional rows for each of 1999, 2007, and 2023. Other source lanes keep their individually recorded provenance. Such values must not
 be relabeled as 1999/2007/2023 historical data unless the individual source
 lane explicitly supplies that year.
 Native ships selectable US/UK packs for all three years. Japan remains
@@ -79,8 +79,12 @@ reproducible exporter and pinned source revision are recorded in the artifact.
 
 The 2023 source preset uses its US 118th Congress state data, state census
 demographics, FY2023 budget and current/default registration lane. Native wires
-those US rows into the 2023 pack and year-specific electorate map. UK and other
-regional lanes explicitly retain their source-declared 2019 fallback; all three
+those US rows into the 2023 pack and year-specific electorate map. UK regions
+retain their source-declared 2019 fallback. Japan uses its eight authored regions
+for each year, including source population, GDP and seat counts; Native retains
+2019 registration estimates by stable region ID. These JP content records do not
+qualify new-player access: source regional tax choices, national allocations,
+deficit progression and spending cuts remain unported in issue #103. All three
 presets use the logged 2020 legislature fallback. The generated budget rows
 preserve each country's `sourceFiscalYear`, including inherited rows. A source
 budget config has no unemployment field, so Native retains its documented 2019

@@ -39,8 +39,12 @@ describe("validatePack", () => {
     );
     expect(artifact.historicalSeatRoster2020Fallback.rowCount).toBe(1007);
     expect(sha256(artifact.historicalSeatRoster2020Fallback.rows)).toBe(artifact.historicalSeatRoster2020Fallback.sha256);
+    // The source's 51 geography rows are 50 political states plus DC as a
+    // separate presidential-voting federal district (zero House/state seats).
     expect(artifact.us2023StateContent.regionOutput.rowCount).toBe(51);
     expect(sha256(artifact.us2023StateContent.regionOutput.rows)).toBe(artifact.us2023StateContent.regionOutput.sha256);
+    expect(artifact.us2023StateContent.playablePackOutput.rows).toHaveLength(51);
+    expect(artifact.us2023StateContent.playablePackOutput.rows.find((row) => row.id === "DC")).toMatchObject({ houseSeats: 0, senateSeats: 0 });
     expect(artifact.us2023StateContent.demographicOutput.stateCount).toBe(51);
     expect(sha256(artifact.us2023StateContent.demographicOutput.states)).toBe(artifact.us2023StateContent.demographicOutput.sha256);
     expect(artifact.us2023StateContent.generatedDemographics.rowCount).toBe(51);
@@ -57,6 +61,7 @@ describe("validatePack", () => {
       expect(japan).toHaveLength(8);
       for (const row of japan) {
         expect(row).toMatchObject(source.get(row.id));
+        expect(row.votingSystem).toBe(source.get(row.id)?.votingSystem);
         expect(row.registration).toBeDefined();
       }
     }
@@ -96,7 +101,10 @@ describe("validatePack", () => {
     expect(pack1999.era.startDate).toBe("1999-01-01");
     expect(pack2007.era.startDate).toBe("2007-01-01");
     expect(pack2023.era.startDate).toBe("2023-01-01");
-    expect(pack2023.states?.filter((row) => row.countryId === "US")).toHaveLength(51);
+    const usStates2023 = pack2023.states?.filter((row) => row.countryId === "US") ?? [];
+    expect(usStates2023).toHaveLength(51);
+    expect(usStates2023.find((row) => row.id === "DC")).toMatchObject({ houseSeats: 0, senateSeats: 0 });
+    expect(usStates2023.reduce((sum, row) => sum + row.houseSeats, 0)).toBe(435);
   });
 
   it("validates the exported US electorate anchors used by source-era packs", () => {
@@ -131,6 +139,16 @@ describe("validatePack", () => {
     for (const pack of PACKS) {
       expect(() => validatePack(pack)).not.toThrow();
     }
+  });
+
+  it("accepts the source federal district without giving political states zero Senate seats", () => {
+    expect(() => validatePack(pack2023)).not.toThrow();
+    const missingStateSeats = structuredClone(pack2023);
+    missingStateSeats.states!.find((state) => state.countryId === "US" && state.id === "VA")!.senateSeats = 0;
+    expect(() => validatePack(missingStateSeats)).toThrow(/senateSeats.*> 0/);
+    const districtSeats = structuredClone(pack2023);
+    districtSeats.states!.find((state) => state.id === "DC")!.houseSeats = 1;
+    expect(() => validatePack(districtSeats)).toThrow(/federal district DC.*zero/);
   });
 
   it("rejects duplicate country ids", () => {
@@ -219,7 +237,7 @@ describe("validatePack", () => {
   });
 
   it("ports authored 1953 China economy regions without treating them as political states", () => {
-    const regions = pack1953.economyRegions ?? [];
+    const regions = (pack1953.economyRegions ?? []).filter((region) => region.countryId === "CN");
     expect(pack1953.countries.find((country) => country.id === "CN")?.playable).toBe(false);
     expect(regions.map((region) => region.id)).toEqual(["DB", "HB", "HD", "HZ", "HN", "XN", "XB"]);
     expect(regions.reduce((sum, region) => sum + region.population, 0)).toBe(585_000_000);
@@ -469,25 +487,33 @@ describe("state layer (regions, apportionment) per pack", () => {
     }
   });
 
-  it("US: 50 states, no DC, House apportionment sums to the House chamber, state-senate sums to the stateSenate chamber", () => {
+  it("US: 50 political states and 435 House seats; 2023 DC is a zero-seat federal district", () => {
     for (const pack of PACKS) {
       const us = (pack.states ?? []).filter((s) => s.countryId === "US");
       if (pack.era.id === "1953") expect(us.length).toBe(48); // AK/HI territories
-      else expect(us.length, pack.era.id).toBe(50);
-      expect(us.some((s) => s.id === "DC"), `${pack.era.id} DC`).toBe(false);
+      else expect(us.length, pack.era.id).toBe(pack.era.id === "2023" ? 51 : 50);
+      if (pack.era.id === "2023") {
+        expect(us.find((state) => state.id === "DC"), "2023 federal district").toMatchObject({ houseSeats: 0, senateSeats: 0 });
+      } else {
+        expect(us.some((s) => s.id === "DC"), `${pack.era.id} DC`).toBe(false);
+      }
       expect(sum(us, "houseSeats"), `${pack.era.id} house`).toBe(seatsOf(pack, "US", "house"));
       expect(sum(us, "senateSeats"), `${pack.era.id} stateSenate`).toBe(seatsOf(pack, "US", "stateSenate"));
     }
   });
 
-  it("keeps the Game-authored DC corporation HQ as residence geography without political state seeding", () => {
+  it("keeps one Game-authored DC geography row for HQ resolution", () => {
     for (const pack of PACKS) {
-      expect(pack.corporationHeadquartersRegions).toContainEqual({
-        id: "DC",
-        countryId: "US",
-        name: "District of Columbia",
-      });
-      expect((pack.states ?? []).some((region) => region.id === "DC")).toBe(false);
+      const stateRows = (pack.states ?? []).filter((region) => region.id === "DC");
+      const hqRows = (pack.corporationHeadquartersRegions ?? []).filter((region) => region.id === "DC");
+      expect(stateRows.length + hqRows.length, pack.era.id).toBe(1);
+      if (pack.era.id === "2023") {
+        expect(stateRows[0]).toMatchObject({ id: "DC", population: 678972, houseSeats: 0, senateSeats: 0 });
+        expect(hqRows).toHaveLength(0);
+      } else {
+        expect(stateRows).toHaveLength(0);
+        expect(hqRows).toContainEqual({ id: "DC", countryId: "US", name: "District of Columbia" });
+      }
     }
   });
 

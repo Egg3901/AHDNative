@@ -2,10 +2,9 @@
  * Japan's regional-budget formula from AHDGame
  * `src/lib/countries/jp/regionalBudget.ts#calculateJPRegionalBudget`.
  *
- * This pure kernel is kept separate from the generic regional processor. It
- * provides the supported source revenue and allocation path. Source regional
- * spending-policy records, subsidy costs, and forced austerity remain outside
- * this represented subset.
+ * The pure kernel is separate from the generic regional processor. The JP
+ * processor retains regional policy options, subsidy costs, property bases,
+ * minister allocation choices, and the source two-deficit austerity writes.
  */
 import { getPackByEra } from "@ahdclient/content";
 import type { RegionalBudget } from "./types.js";
@@ -68,9 +67,10 @@ export function jpRegionalBudgetDefaults(era: string): {
 
 /**
  * Build the source background country's initial fiscal rows from its immutable
- * eight-region pack. When an era has separate fiscal and political records,
- * the fiscal table is authoritative here; the political copy feeds elections.
- * This function does not seed cabinet membership or an allocation choice.
+ * eight-region fiscal pack and its authored policy options. When an era has
+ * separate fiscal and political records, the fiscal table is authoritative
+ * here; the political copy feeds elections. This does not seed cabinet
+ * membership or an allocation choice.
  */
 export function createJPRegionalBudgetRows(era: string): Record<string, RegionalBudget> {
   const pack = getPackByEra(era);

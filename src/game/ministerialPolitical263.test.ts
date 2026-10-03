@@ -54,9 +54,11 @@ describe("source political cabinet board through GameSession (#263)", () => {
     // Actual Game foldCabinetResiduals output for the stat10 contribution
     // 0.944, mapped before macro strength/cap: the first residual is0.9422.
     expect(resumed.regions({ regionId: "LON" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.cabinetResidual).toBe(0.9422);
-    // Actual source processPoliticalMetricsDynamics with the same recorded
-    // macro unemployment and standing order, including its bounded macro term.
-    expect(resumed.regions({ regionId: "LON" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.value).toBeCloseTo(53.858844, 9);
+    // Independently executed Game968 law/macro/node helpers on both observed
+    // ordinary phase inputs: seeded structural residuals permit the first
+    // source drift 53.6 -> 53.84. The next source drift combines the capped
+    // macro term 12 with cabinet 0.9422, producing 54.094044.
+    expect(resumed.regions({ regionId: "LON" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.value).toBeCloseTo(54.094044, 9);
     expect(resumed.regions({ regionId: "SCO" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.cabinetResidual).toBe(otherBefore);
     const secondReload = new GameSession();
     secondReload.load(resumed.serialize("2026-10-01T00:00:00.000Z"));
@@ -68,7 +70,7 @@ describe("source political cabinet board through GameSession (#263)", () => {
     expect(board.countryName).toBe("United Kingdom");
     const workerSecurity = board.politicalMetrics?.categories.flatMap(category => category.metrics)
       .find(metric => metric.id === "economy.workerSecurity");
-    expect(workerSecurity?.regions.find(region => region.regionId === "LON")?.value).toBe(53.9);
+    expect(workerSecurity?.regions.find(region => region.regionId === "LON")?.value).toBe(54.1);
     expect(secondReload.serialize("2026-10-01T00:00:00.000Z")).toBe(beforeQuery);
   });
 

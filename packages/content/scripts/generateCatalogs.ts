@@ -45,7 +45,7 @@ import { assertPinnedSourceCheckout } from "./catalogSourceCheckout.js";
 
 const OUT = path.resolve(import.meta.dirname, "../../engine/src/legislation");
 
-type Opt = { id: string; name: string; rate?: number; economic?: number; social?: number; effectDirection?: number };
+type Opt = { id: string; name: string; explanation?: string; rate?: number; economic?: number; social?: number; stance?: "left" | "center" | "right"; effectDirection?: number; annualCostPerCapita?: number; gdpPerCapitaMultiplier?: number };
 type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; allowedScope?: "state"; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; positions?: Array<{ positionId: string; name: string; chamber: string }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
 
 const SOURCE_REVISION = "96831835fb6b28983aa14fe66cb6eae9ecfde84c";
@@ -87,6 +87,7 @@ const [
   { UK_LAWS },
   { RU_LAWS },
   { DD_LAWS },
+  { getCostClass },
 ] = await Promise.all([
   import(fromSource("src/lib/countries/jp/data/jpLegislationTypes.ts")),
   import(fromSource("src/lib/countries/de/data/deLegislationTypes.ts")),
@@ -99,6 +100,7 @@ const [
   import(fromSource("src/lib/politicalLegislation/laws/ukLaws.ts")),
   import(fromSource("src/lib/politicalLegislation/laws/ruLaws.ts")),
   import(fromSource("src/lib/politicalLegislation/laws/ddLaws.ts")),
+  import(fromSource("src/lib/era/legislationCostCatalog.ts")),
 ]);
 type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
@@ -106,6 +108,7 @@ const EXECUTABLE_LAW_IDS = new Set([
   "jp_consumption_tax",
   "br_income_tax_rate",
   "ie_vat_rate",
+  "ie_corporate_tax_rate",
   "cn_value_added_tax",
   "cn_enterprise_income_tax",
   "cn_individual_income_tax",
@@ -118,6 +121,21 @@ const EXECUTABLE_LAW_IDS = new Set([
   "de_foreign_corporate_tax_rate",
   "de_payroll_social_insurance",
   "de_customs_tariff_rate",
+  "de_government_ethics",
+  "ie_electoral_reform",
+  "ie_gender_equality",
+  "ie_government_ethics",
+]);
+const METRIC_ONLY_LAW_IDS = new Set([
+  "de_government_ethics",
+  "ie_electoral_reform",
+  "ie_gender_equality",
+  "ie_government_ethics",
+]);
+const COST_METADATA_LAW_IDS = new Set([
+  "jp_constitutional_reform",
+  "jp_electoral_reform",
+  "jp_regional_governance",
 ]);
 
 function writeGenerated(file: string, content: string): void {
@@ -173,6 +191,22 @@ function emit(c: string, types: LT[]): void {
     }
     for (const [metricId, weight] of acc) targets.push({ metricId, weight: Math.round(weight * 100) / 100 });
     const isTax = !!t.taxRateChange;
+    const authoredCostOptions = (COST_METADATA_LAW_IDS.has(t._id) ? t.policyOptions ?? [] : []).flatMap((option) =>
+      typeof option.annualCostPerCapita === "number" || typeof option.gdpPerCapitaMultiplier === "number"
+        ? [{ id: option.id, ...(typeof option.annualCostPerCapita === "number" ? { annualCostPerCapita: option.annualCostPerCapita } : {}), ...(typeof option.gdpPerCapitaMultiplier === "number" ? { gdpPerCapitaMultiplier: option.gdpPerCapitaMultiplier } : {}) }]
+        : [],
+    );
+    const defaultsForLaw = defaults[t._id] ?? (isTax ? undefined : { economic: 0, social: 0 });
+    const baselineCostOption = defaultsForLaw
+      ? (t.policyOptions ?? []).find((option) => option.economic === defaultsForLaw.economic && option.social === defaultsForLaw.social && authoredCostOptions.some((cost) => cost.id === option.id))
+      : undefined;
+    const costClass = authoredCostOptions.length ? getCostClass(t._id) : undefined;
+    const levels = isAvailable && METRIC_ONLY_LAW_IDS.has(t._id)
+      ? (t.policyOptions ?? []).map((option) => ({ name: option.name, description: option.explanation ?? "" }))
+      : [];
+    const directions = isAvailable && METRIC_ONLY_LAW_IDS.has(t._id)
+      ? (t.policyOptions ?? []).map((option) => option.effectDirection ?? (option.stance === "left" ? 1 : option.stance === "right" ? -1 : 0))
+      : [];
     let taxPolicy = "";
     let taxNote = "";
     if (isTax) {
@@ -224,6 +258,16 @@ function emit(c: string, types: LT[]): void {
       `    category: ${q(t.policyDomain ?? "governance")},`,
       `    allowedScope: ${q(nativeScope)},`,
       ...(taxPolicy ? [taxPolicy.trimEnd()] : []),
+      ...(levels.length ? [
+        `    baselineLevel: ${Math.floor(levels.length / 2)},`,
+        `    optionEffectDirections: ${JSON.stringify(directions)},`,
+        `    levels: ${JSON.stringify(levels)},`,
+      ] : []),
+      ...(authoredCostOptions.length ? [
+        `    policyOptionCosts: ${JSON.stringify(authoredCostOptions)},`,
+        ...(baselineCostOption ? [`    baselinePolicyOptionId: ${q(baselineCostOption.id)},`] : []),
+        ...(costClass ? [`    budgetCostClass: ${q(costClass)},`] : []),
+      ] : []),
       `    targets: ${JSON.stringify(targets)},`,
       `    status: ${q(isAvailable ? "available" : "unavailable")},`,
       ...(isAvailable ? [] : [`    blockingSystem: ${q(blocker)},`]),

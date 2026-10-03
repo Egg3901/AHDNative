@@ -66,11 +66,11 @@ describe("legislationDetails query (detached, bounded)", () => {
     expect(proposal?.effect).toMatchObject({ economy: { unemploymentRate: -0.002 } });
   });
 
-  it("marks legal-level choice as unsupported and tax-rate choice as supported", () => {
+  it("exposes authored program levels and tax-rate choice in the bounded player query", () => {
     const query = buildLegislationDetails(hosWorld());
-    expect(query.sponsorSupportsLevelChoice).toBe(false);
+    expect(query.sponsorSupportsLevelChoice).toBe(true);
     expect(query.sponsorSupportsTaxRateChoice).toBe(true);
-    expect(query.levelChoiceNote).toMatch(/unavailable in this single-player version/i);
+    expect(query.levelChoiceNote).toMatch(/choose an authored level/i);
     expect(query.levelChoiceNote).not.toMatch(/sponsorBill|catalogId|effectDirection/i);
     const tax = query.proposals.find((p) => p.id === "us.tax.incomeTax");
     expect(tax?.taxPolicy).toMatchObject({ minRate: 0, maxRate: 60, step: 1, baselineRate: 35 });
@@ -86,6 +86,29 @@ describe("legislationDetails query (detached, bounded)", () => {
     });
     expect(sponsorParamsForLegislation("us.economy.workerSecurity.primary", { taxRate: 50 })).toEqual({
       catalogId: "us.economy.workerSecurity.primary",
+    });
+    expect(sponsorParamsForLegislation("us.economy.workerSecurity.primary", { policyOptionId: "l3" })).toEqual({
+      catalogId: "us.economy.workerSecurity.primary", policyOptionId: "l3",
+    });
+    expect(sponsorParamsForLegislation("us.tax.incomeTax", { policyOptionId: "l3" })).toEqual({
+      catalogId: "us.tax.incomeTax", taxRate: 35,
+    });
+    expect(sponsorParamsForLegislation("dd.economy.workerSecurity.primary", {
+      policyOptionId: "l2", regionId: "DD-BE",
+    })).toEqual({ catalogId: "dd.economy.workerSecurity.primary", policyOptionId: "l2", regionId: "DD-BE" });
+  });
+
+  it("projects source-authorized national and regional reach for both-scope laws", () => {
+    const world = createWorld({ era: "1953", countryId: "DD", seed: "dd-law-scope", playerName: "P", mode: "hos" });
+    const proposal = buildLegislationDetails(world).proposals.find((entry) => entry.id === "dd.economy.workerSecurity.primary");
+    expect(proposal?.allowedScope).toBe("both");
+    expect(proposal?.regions?.length).toBeGreaterThan(0);
+    const region = proposal!.regions![0]!;
+    expect(sponsorParamsForLegislation(proposal!.id, { policyOptionId: "l3", regionId: region.id })).toEqual({
+      catalogId: proposal!.id, policyOptionId: "l3", regionId: region.id,
+    });
+    expect(sponsorParamsForLegislation(proposal!.id, { policyOptionId: "l3" })).toEqual({
+      catalogId: proposal!.id, policyOptionId: "l3",
     });
   });
 

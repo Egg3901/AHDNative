@@ -4,7 +4,7 @@ import { calculateJPRegionalBudget, processJPRegionalBudget } from "./jpRegional
 import { regionalBudgetProcessingPhase } from "./phases.js";
 import { setJPRegionalBudgetAllocation } from "./jpAllocation.js";
 import { getPackByEra } from "@ahdclient/content";
-import { projectSaveToV42, serializeSave } from "../save.js";
+import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { JP_REGIONAL_POLICY_CATALOG } from "./jpRegionalPolicyCatalog.js";
 import { calculateStateSubsidyCostForRegion } from "./subsidyBudget.js";
 
@@ -41,7 +41,7 @@ describe("Japan regional budget source formula", () => {
     });
   });
 
-  it("seeds source JP fiscal rows without manufacturing electoral regions", () => {
+  it("seeds fiscal rows alongside source JP election geography while keeping player selection closed", () => {
     for (const era of ["1953", "1979", "1991", "2019", "1999", "2007", "2023"] as const) {
       const world = createWorld({ seed: `jp-budget-${era}`, playerName: "Tester", countryId: "US", era });
       const pack = getPackByEra(era)!;
@@ -66,7 +66,11 @@ describe("Japan regional budget source formula", () => {
       expect(jpBudgets.every((row) => row.taxRates?.residentTax === (era === "1953" || era === "1979" ? 8 : 10))).toBe(true);
       expect(jpBudgets.every((row) => row.jpRegionalPolicies?.length === 14)).toBe(true);
       const packRegions = [...(pack.states ?? []), ...(pack.economyRegions ?? [])];
-      expect(jpBudgets.every((row) => row.jpEnactedPolicyCosts === 100_000 * packRegions.find((state) => state.id === row.regionId)?.population)).toBe(true);
+      for (const row of jpBudgets) {
+        const region = packRegions.find((state) => state.id === row.regionId);
+        expect(region, `${era}/${row.regionId} source population`).toBeDefined();
+        expect(row.jpEnactedPolicyCosts).toBe(100_000 * region!.population);
+      }
     }
   });
 
@@ -154,7 +158,8 @@ describe("Japan regional budget source formula", () => {
 
     expect(hok.revenue).toMatchObject({
       jpResidentTax: 1_820_000_000_000,
-      jpFixedAssetTax: 582_400_000_000,
+      // Actual Game ad04918e calculation with the persisted rate 1.4 / 100.
+      jpFixedAssetTax: 582_399_999_999.9999,
       grant: 2_677_500_000_000,
       total: 5_079_900_000_000,
     });
@@ -174,7 +179,8 @@ describe("Japan regional budget source formula", () => {
 
     expect(hokkaido.revenue).toMatchObject({
       jpResidentTax: 200_000_000_000,
-      jpFixedAssetTax: 168_000_000_000,
+      // Actual Game ad04918e calculation with the persisted rate 1.4 / 100.
+      jpFixedAssetTax: 167_999_999_999.99997,
       grant: 128_000_000_000,
       total: 496_000_000_000,
     });
@@ -200,7 +206,15 @@ describe("Japan regional budget source formula", () => {
 
   it("refuses lossy v42 export of schema70 Japan budget rows", () => {
     const world = createWorld({ seed: "jp-budget-v42", playerName: "Tester", countryId: "US", era: "2019" });
-    const result = projectSaveToV42(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    const contents = serializeSave(world, "2026-10-03T00:00:00.000Z");
+    expect(projectSaveToV42(contents)).toMatchObject({
+      ok: false, error: expect.stringContaining("source 48-turn election clock"),
+    });
+    // A recorded legacy-clock document isolates the independent JP refusal;
+    // no state is dropped from the complete modern save or its turn reader.
+    const legacyClockDocument = JSON.parse(contents);
+    delete legacyClockDocument.world.meta.startingYear;
+    const result = projectSaveToV42(JSON.stringify(legacyClockDocument));
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Japan regional budget state") });
   });
 

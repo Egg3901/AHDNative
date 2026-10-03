@@ -1,5 +1,5 @@
 import type { BudgetSeed, PartySeed, SeedPack, StateSeed } from "../types.js";
-import sourceOutputs from "./sourceReferenceEraOutputs.json";
+import sourceOutputs from "./sourceReferenceEraOutputs.json" with { type: "json" };
 import { pack2019 } from "./2019.js";
 import { ROSTER_2019_PARTIES, ROSTER_2019_STATES } from "./roster2019.js";
 import { ukRegions2019 } from "./ukRegions2019.js";
@@ -20,7 +20,7 @@ interface SourceEraExport {
   provenance: { sourceRepository: string; sourceCommit: string };
   eras: SourceEraOutput[];
   us2023StateContent: { playablePackOutput: { rows: StateSeed[] } };
-  jpRegionalContent: { presets: Array<{ year: number; rows: Array<Omit<StateSeed, "senateClasses" | "registration"> & { votingSystem: string }> }> };
+  jpRegionalContent: { presets: Array<{ year: number; rows: Array<Omit<StateSeed, "senateClasses" | "registration"> & { votingSystem: "fptp" | "rcv" }> }> };
   sourcePlayerPartyRosters: {
     presets: Array<{
       year: number;
@@ -65,6 +65,10 @@ function japanRegions(year: 1999 | 2007 | 2023): StateSeed[] {
       houseSeats: source.houseSeats,
       senateSeats: source.senateSeats,
       region: source.region,
+      // Keep the source-authored regional method in the content pack. The
+      // engine's persisted Region and election resolver still omit/ignore it;
+      // this seed fidelity does not claim JP election mechanics are ported.
+      votingSystem: source.votingSystem,
     };
   });
 }
@@ -137,7 +141,13 @@ function buildEraPack(
       ...ukRegions2019,
     ];
   }
-  pack.corporationHeadquartersRegions = [...US_CORPORATION_HEADQUARTERS_REGIONS];
+  // The source 2023 US state materializer already emits its special DC
+  // presidential geography row (zero House and state-senate seats). Keep the
+  // corporation-HQ fallback only in packs whose state roster lacks DC, so
+  // createWorld receives one DC identity rather than duplicate geography.
+  pack.corporationHeadquartersRegions = US_CORPORATION_HEADQUARTERS_REGIONS.filter(
+    (location) => !pack.states?.some((region) => region.id === location.id),
+  );
   budgetsBySourceEconomy(pack, budgets, year);
   return pack;
 }

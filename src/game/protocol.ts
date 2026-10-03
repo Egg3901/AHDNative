@@ -53,6 +53,7 @@ export type GameCommand =
   | { type: "unionCommand"; op: "ratify"; campaignId: string; vote: "ratify" | "reject" }
   | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "serializeWithMetadata"; savedAt: string; includeSaveNotice?: boolean }
+  | { type: "serializeForStorage"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "load"; contents: string }
   | { type: "notificationsRead"; id: string }
   | { type: "notificationsDelete"; id: string }

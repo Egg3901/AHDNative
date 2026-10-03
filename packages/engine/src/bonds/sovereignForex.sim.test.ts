@@ -239,7 +239,7 @@ describe("save and reload across foreign trades", () => {
 
     expect(executeAction(world, "player", "buyBond", { bondId: "fx-save", units: 4 }).ok).toBe(true);
     const notional = Math.round(4 * 1000 * 1.01 * 100) / 100;
-    const reloaded = deserializeSave(serializeSave(world));
+    const reloaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     expect(reloaded.player.cash).toBe(33_333);
     expect(reloaded.player.currencyBalances?.personal.GBP).toBe(12_000 - notional);
     expect(reloaded.bonds["fx-save"]!.holders.find((h) => h.holderId === "player")!.units).toBe(4);
@@ -255,7 +255,7 @@ describe("save and reload across foreign trades", () => {
 
   it("an old save without currencyBalances still refuses foreign buys and trades domestic in cash", () => {
     const world = createWorld(OPTS);
-    const raw = JSON.parse(serializeSave(world)) as { world: Record<string, unknown> };
+    const raw = JSON.parse(serializeSave(world, "2026-10-03T00:00:00.000Z")) as { world: Record<string, unknown> };
     delete (raw.world["player"] as Record<string, unknown>)["currencyBalances"];
     const legacy = deserializeSave(JSON.stringify(raw));
     expect(legacy.player.currencyBalances).toBeUndefined();

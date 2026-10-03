@@ -154,6 +154,8 @@ describe("source multi-seat winner continuation", () => {
 
   it("refuses schema 42 export when the real resolved winners carry weighted seats", () => {
     const { world } = sourceWeightedWinners();
+    // Isolate the weighted-seat reader guard from the separately covered clock.
+    delete world.meta.startingYear;
     const projection = projectSaveToV42(serializeSave(world, savedAt));
     expect(projection).toMatchObject({ ok: false, error: expect.stringMatching(/weighted.*seat/i) });
   });

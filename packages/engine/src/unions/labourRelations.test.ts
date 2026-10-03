@@ -557,6 +557,7 @@ describe("#322 public turn and session seams", () => {
     for (let i = 0; i < 10; i++) advanceTurn(world);
     const campaign = Object.values(world.bargainingCampaigns ?? {})[0];
     expect(campaign).toBeDefined();
+    if (!campaign) throw new Error("Expected the opened bargaining campaign to remain available");
     expect(["negotiating", "dispute", "settled", "lapsed", "withdrawn"]).toContain(campaign.status);
   });
 

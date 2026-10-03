@@ -95,17 +95,7 @@ describe("source regional cost-of-living lifecycle", () => {
     // employer's local rows are configured to isolate their consumer.
     // No player leadership, treasury, law enactment, or campaign authority is
     // implied by this direct exported-domain seam.
-    const relevantLocals = employerLocals.map((shop) => ({
-      id: shop.id,
-      corporationId: shop.corporationId,
-      countryId: shop.countryId,
-      sectorType: shop.sectorType,
-      stateId: shop.stateId,
-      workers: shop.workers,
-      unionization: shop.unionization,
-      wageLevel: shop.wageLevel,
-      workerExpectationIndex: shop.workerExpectationIndex,
-    }));
+    const relevantLocals = employerLocals.map((shop) => ({ ...shop }));
     const sourceCost = loaded.regionalMetrics[local.stateId ?? ""]?.["economic.costOfLiving"]?.value;
     expect(sourceCost).toBeGreaterThan(100);
     const mandate = mandateFromLocals(loaded, union, relevantLocals, union.treasury);

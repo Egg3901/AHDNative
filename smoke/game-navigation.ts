@@ -1,4 +1,6 @@
 import { expect, type Page } from '@playwright/test';
+import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 
 /**
  * Completes the reference character-creation file (#242) after world setup.
@@ -89,29 +91,35 @@ export async function closeGameMenu(page: Page) {
  * explicit CI-only flag; ordinary production builds omit the hook.
  */
 export async function loadFixture(page: Page, fixture: Buffer) {
-  let saveText = fixture.toString('utf8');
+  // The test trace records every protocol argument. Compress the complete
+  // fixture before transport so mature worlds do not also occupy hundreds of
+  // megabytes in the test worker and trace. The app still loads the original
+  // save through its normal worker and storage boundary.
+  const compressed = gzipSync(fixture, { level: 1 });
+  const compressedHash = createHash('sha256').update(compressed).digest('hex');
+  let encoded = compressed.toString('base64');
+  if (fixture.byteLength > 128 * 1024 * 1024) {
+    console.log(`[Fixture transfer] ${JSON.stringify({
+      rawBytes: fixture.byteLength,
+      rawSha256: createHash('sha256').update(fixture).digest('hex'),
+      protocolBytes: encoded.length,
+      runner: process.memoryUsage(),
+    })}`);
+  }
   const chunkSize = 512 * 1024;
   await page.evaluate(() => {
     const hooks = (window as unknown as { __ahdTestHooks?: unknown }).__ahdTestHooks;
     if (!hooks) throw new Error('Test fixture hooks are unavailable in this build.');
     (window as unknown as { __ahdFixtureChunks?: string[] }).__ahdFixtureChunks = [];
   });
-  // Large, full-history saves can exceed the browser protocol's single-value
-  // transport limit. Keep the fixture intact while transferring it in bounded
-  // pieces, then pass the original serialized save through the normal hook.
-  for (let offset = 0; offset < saveText.length; offset += chunkSize) {
-    let end = Math.min(offset + chunkSize, saveText.length);
-    if (end < saveText.length) {
-      const lastCodeUnit = saveText.charCodeAt(end - 1);
-      if (lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff) end--;
-    }
-    const chunk = saveText.slice(offset, end);
+  // Base64 is ASCII, so bounded chunks cannot split a Unicode code point.
+  for (let offset = 0; offset < encoded.length; offset += chunkSize) {
+    const chunk = encoded.slice(offset, offset + chunkSize);
     await page.evaluate((part: string) => {
       (window as unknown as { __ahdFixtureChunks?: string[] }).__ahdFixtureChunks!.push(part);
     }, chunk);
-    offset = end - chunkSize;
   }
-  await page.evaluate(async () => {
+  await page.evaluate(async (expectedHash: string) => {
     const pageWindow = window as unknown as {
       __ahdFixtureChunks?: string[];
       __ahdTestHooks?: { loadFixture: (contents: string) => Promise<void> };
@@ -120,12 +128,18 @@ export async function loadFixture(page: Page, fixture: Buffer) {
     if (!hooks) throw new Error('Test fixture hooks are unavailable in this build.');
     const chunks = pageWindow.__ahdFixtureChunks;
     if (!chunks) throw new Error('Test fixture transfer was not initialized.');
-    const contents = chunks.join('');
+    const binary = atob(chunks.join(''));
     chunks.length = 0;
     delete pageWindow.__ahdFixtureChunks;
+    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    const actualHash = Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+    if (actualHash !== expectedHash) throw new Error('Test fixture transfer checksum mismatch.');
+    const stream = new Blob([bytes.buffer]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const contents = await new Response(stream).text();
     await hooks.loadFixture(contents);
-  });
-  saveText = '';
+  }, compressedHash);
+  encoded = '';
 }
 
 export async function gameReady(page: Page, options: { keepStatAllocationGate?: boolean } = {}) {

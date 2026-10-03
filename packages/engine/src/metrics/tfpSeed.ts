@@ -20,7 +20,7 @@ import type { WorldState } from "../types.js";
 import { rngFromSeed, type WorldRng } from "../rng.js";
 import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { AUTHORED_TFP_LEAVES, type TfpLeaves } from "./tfpAuthoredLeaves.js";
-import sourceEraTfp from "./tfpSourceEraFixtures.json";
+import sourceEraTfp from "./tfpSourceEraFixtures.json" with { type: "json" };
 
 export type { TfpLeaves };
 
