@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advanceTurn } from "../engine.js";
-import { createWorld } from "../world.js";
+import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import type { ElectionRecord } from "./types.js";
 
@@ -72,7 +72,7 @@ describe("explicit Irish PR-STV election lifecycle", () => {
 
     const raw = serializeSave(world, "2026-10-03T00:00:00Z");
     const resumed = deserializeSave(raw);
-    expect(resumed.meta.schemaVersion).toBe(67);
+    expect(resumed.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(resumed.elections.find((row) => row.id === election.id)).toMatchObject({
       countingMethod: "pr_stv",
       rankedPreferenceModel: "same_party_then_policy_distance_v1",
