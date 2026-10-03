@@ -18,9 +18,9 @@ export interface SeedPack {
   /** Optional extension tables: states, parties, sectors, budgets. */
   states?: StateSeed[];
   /**
-   * Source-authored regions for economy-preview countries which do not have
-   * political registration/office seeds in this era. Kept out of `states` so
-   * they cannot silently become election units.
+   * Source-authored fiscal regions, kept separate from political `states` so
+   * economy-only rows cannot silently become election units. An era may carry
+   * both tables when the source authors both fiscal and political geography.
    */
   economyRegions?: EconomyRegionSeed[];
   /** Authored corporation HQ locations that do not participate in political state systems (e.g. DC in 1953). */

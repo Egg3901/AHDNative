@@ -68,12 +68,13 @@ export function jpRegionalBudgetDefaults(era: string): {
 
 /**
  * Build the source background country's initial fiscal rows from its immutable
- * eight-region pack. This does not create electoral Region entities, policies,
- * cabinet membership, or an allocation choice.
+ * eight-region pack. When an era has separate fiscal and political records,
+ * the fiscal table is authoritative here; the political copy feeds elections.
+ * This function does not seed cabinet membership or an allocation choice.
  */
 export function createJPRegionalBudgetRows(era: string): Record<string, RegionalBudget> {
   const pack = getPackByEra(era);
-  const sourceRegions = [...(pack?.states ?? []), ...(pack?.economyRegions ?? [])]
+  const sourceRegions = (pack?.economyRegions ?? pack?.states ?? [])
     .filter((candidate) => candidate.countryId === "JP");
   if (sourceRegions.length === 0) return {};
   if (sourceRegions.length !== JP_REGION_COUNT || new Set(sourceRegions.map((row) => row.id)).size !== JP_REGION_COUNT) {

@@ -4,7 +4,7 @@ import { usStates1979 } from "./usStates1979.js";
 import { ukRegions1979 } from "./ukRegions1979.js";
 import { ruRegions1979 } from "./ruRegions1979.js";
 import { ddRegions1979 } from "./ddRegions1979.js";
-import { JP_BUDGET_REGIONS_1979 } from "./jpBudgetRegionsColdWar.js";
+import { JP_BUDGET_REGIONS_1979, JP_LEGISLATURES_COLD_WAR, JP_PARTIES_1979, JP_STATES_1979 } from "./jpBudgetRegionsColdWar.js";
 import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 import { EASTERN_BLOC_ELECTIONS_1979 } from "./easternBlocElections.js";
 
@@ -183,12 +183,13 @@ export const pack1979: SeedPack = {
   ],
   // State layer (regions, apportionment, registration) generated from mainline's
   // per-era bundles by scripts/generateStateLayer.ts; see each file's header.
-  states: [...usStates1979, ...ukRegions1979, ...ruRegions1979, ...ddRegions1979],
+  states: [...usStates1979, ...ukRegions1979, ...ruRegions1979, ...ddRegions1979, ...JP_STATES_1979],
   economyRegions: [...JP_BUDGET_REGIONS_1979],
   corporationHeadquartersRegions: [...US_CORPORATION_HEADQUARTERS_REGIONS],
   // Authored national budgets for every playable country (generateBudgets.ts).
   budgets: BUDGETS_1979,
   parties: [
+    ...JP_PARTIES_1979,
     { id: "US_DEM", name: "Democratic Party", countryId: "US", abbreviation: "DEM", color: "#3B82F6", economicPosition: -2, socialPosition: -2 },
     { id: "US_REP", name: "Republican Party", countryId: "US", abbreviation: "REP", color: "#EF4444", economicPosition: 2, socialPosition: 2 },
     // UK roster for 1979-default per ukParties.ts validForPresets: LAB/CON/SNP/PC/SF
@@ -212,6 +213,7 @@ export const pack1979: SeedPack = {
     { id: "DD_DBD", name: "Demokratische Bauernpartei Deutschlands", countryId: "DD", abbreviation: "DBD", color: "#2E7D32", economicPosition: -3, socialPosition: 1, regimeStatus: "approved" },
   ],
   legislatures: [
+    JP_LEGISLATURES_COLD_WAR[1]!,
     {
       // US chamber sizes are constitutionally fixed (435 House / 100 Senate);
       // unchanged across every era. No historical seat roster exists for
