@@ -17,6 +17,20 @@ node /tmp/export_eastern_layer1_b769.cjs > /tmp/eastern-layer1-source-pinned-b76
 
 The JSON is 65,963 bytes with SHA-256 `6799f9408a8125b4a6dcba1d3afa734fe176e102e09fcdb6751c85214e179575`. Parsed rows from that export compare exactly equal to the committed static table. Its per-country row hashes (SHA-256 of compact JSON in source property order, UTF-8) are:
 
+The 18 raw census input file SHA-256 values at b769 are listed here; `old` is the 1953 bundle and `current` is the 1979 bundle selected by each model:
+
+| Country | 1953 census SHA-256 | 1979 census SHA-256 |
+| --- | --- | --- |
+| PL | `2d7afa4412eb597faee03125b3c518f39802f290e8e1836c051eef8c797336ec` | `0922f9bc6e2971723a390d10b0a5036c94d21dd5214c63536f7f11b376ed8ea3` |
+| CS | `1f9f5c9da434f44d19292f156042a0236c332e0fb57aade83c05483416a42821` | `4aef207a9b9ec26195f63990b8f263f3f48ff64c2b83bca9dcdf17235b34f059` |
+| HU | `fae9b8f28b6a9c0fb9d29f1b8f8171a5c6db46514238762dd3adb8766bbb49ed` | `fc579dba5b7d09b94dfd0a4a7c8adb26753b0e7abe1393e44526d10d3a2b7474` |
+| RO | `a0e61ceb6d22443d739733a494f0897bafd9ce39f58344c9fed0e107eb2b18bc` | `95e6552547452a83a9980a85c4fe6276d7e0ae9ba5ca3563654c9b35bd474604` |
+| BG | `dd3aac74fc77c8e3f94d2736ff8b2e320162d1c5a4e6b37cfdde8a52f91feb97` | `da9b24648729ea2b2268abcbacd430d632f745e203d19d4b7f184c8593003f2a` |
+| YU | `a6bdb0205448e48863e8fe4c4d3139c18aea2a4386bebf43346385aa82516b35` | `673afe0a52f277b5de30902d104c4fc323d4f25b21a957945923e01e5a578832` |
+| UKR | `c3ba6801139cce65503edaa422f3074cefe0e36befd37ee7a1ba38f27f751154` | `185033c23366966c46f4dcfd0b09e29894235a689c8b25d0ce76813dccc9e00e` |
+| BLR | `0f12cc59a1dd8045346fafc56771b0c3ffab701e3bbb28342bb7f1b669a73200` | `8ae1fcd34e4da263cc461d58e4ed45957be455eaad57886c2a8aa5fe8831e198` |
+| BAL | `74074476f3bddaecd6692a473a52f6d8b1f32ff5e75f40b725d6bcfd5e92b812` | `75b7b906b9f99d6541b6f49071df181db09cb11f6d653e8de42118dd3f9e16a8` |
+
 | Era | Country | SHA-256 |
 | --- | --- | --- |
 | 1953 | PL | `b0616329cf05bbfee9e6248934720b60dd5750a90539726d34a1387dab2a88db` |
