@@ -511,3 +511,4 @@ export type { ContractAuthority } from "./extraction/authority.js";
 export { expandRegionalExtraction, SECTOR_EXPANSION_BASE_COST_ANCHOR } from "./extraction/operations.js";
 
 export { addCanvassBoost, canvassEligibility, quoteCanvass } from "./actions/canvass.js";
+export { partyWhipEligibilityError } from "./npp/partyWhipEligibility.js";

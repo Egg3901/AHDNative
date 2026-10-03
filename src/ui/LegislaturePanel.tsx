@@ -478,7 +478,9 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
                         aria-label={`Hard whip NPPs against on ${bill.title}`}
                       >Hard whip NPPs against</button>
                       <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
-                        {bill.hardWhip.available ? `Cost ${bill.hardWhip.cost} actions` : bill.hardWhip.disabledReason}
+                        {bill.hardWhip.available
+                          ? bill.hardWhip.cost > 0 ? `Cost ${bill.hardWhip.cost} actions` : "No action cost"
+                          : bill.hardWhip.disabledReason}
                       </span>
                     </>
                   ) : null}

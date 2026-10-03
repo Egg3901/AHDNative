@@ -213,20 +213,27 @@ describe("party logo identity (authored override carrier)", () => {
 });
 
 it("queries, founds and resumes through the session boundary without leaking state", () => {
-  const session = new GameSession();
+  const observedAt = new Date("2026-10-03T08:00:00.000Z");
+  const session = new GameSession(() => new Date(observedAt));
   expect(() => session.partyManagement()).toThrow("Start or load");
   session.load(gunzipSync(readFileSync(ELECTED_FIXTURE)).toString("utf8"));
   session.advance();
   const before = session.partyManagement();
   expect(before.founding.available).toBe(true);
   expect(session.act("foundParty", { foundPartyName: "New Frontier", foundPartyAbbr: "NFP" }).ok).toBe(true);
+  const persisted = JSON.parse(session.serialize("2026-10-03T08:00:00.000Z")) as {
+    world: { parties: Record<string, { nppControlCreatedAt?: string }>; player: { partyJoinedAt?: string | null; lastPartySwitchAt?: string | null } };
+  };
+  expect(persisted.world.parties.US_NFP?.nppControlCreatedAt).toBe(observedAt.toISOString());
+  expect(persisted.world.player.partyJoinedAt).toBe(observedAt.toISOString());
+  expect(persisted.world.player.lastPartySwitchAt).toBe(observedAt.toISOString());
   const after = session.partyManagement();
   expect(after.playerPartyName).toBe("New Frontier");
   expect(after.founding.funds).toBe(before.founding.funds - 100_000);
   expect(after.founding.consequences).toContain("Starts the 24-turn party-switch cooldown");
   after.parties[0]!.name = "Detached query";
   expect(session.partyManagement().parties[0]!.name).toBe("New Frontier");
-  const resumed = new GameSession();
+  const resumed = new GameSession(() => new Date(observedAt));
   resumed.load(session.serialize("2026-09-10T00:00:00.000Z"));
   expect(resumed.partyManagement()).toEqual(session.partyManagement());
   expect(resumed.search("New Frontier").results.some(result => result.id === "US_NFP")).toBe(true);
