@@ -2258,26 +2258,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "de_government_ethics",
-    "countryId": "DE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "bundestag:bundestag_chair",
-      "bundestag:bundestag_obmann"
-    ],
-    "authoredTargets": [
-      "governance.governmentTransparency",
-      "governance.publicTrust",
-      "governance.voterTurnout"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/countries/de/data/deLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "de_grundgesetz_reform",
     "countryId": "DE",
     "nativeScope": "national",
@@ -3434,27 +3414,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "ie_electoral_reform",
-    "countryId": "IE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "dail:dail_chair",
-      "dail:dail_vice"
-    ],
-    "authoredTargets": [
-      "governance.voterTurnout",
-      "social.civicParticipation",
-      "governance.publicTrust",
-      "governance.governmentTransparency"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "ie_excise_duty",
     "countryId": "IE",
     "nativeScope": "national",
@@ -3680,47 +3639,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "taxRateChange": null,
     "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "ie_gender_equality",
-    "countryId": "IE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "dail:dail_chair",
-      "dail:dail_vice"
-    ],
-    "authoredTargets": [
-      "social.genderEquality",
-      "social.socialMobility",
-      "social.civicParticipation",
-      "social.socialCohesion"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "ie_government_ethics",
-    "countryId": "IE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "dail:dail_chair",
-      "dail:dail_vice"
-    ],
-    "authoredTargets": [
-      "governance.governmentTransparency",
-      "governance.publicTrust",
-      "social.civicParticipation"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
