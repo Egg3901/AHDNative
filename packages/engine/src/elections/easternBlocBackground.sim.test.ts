@@ -77,3 +77,23 @@ describe("source Eastern Bloc background election systems", () => {
     expect(resumed.elections.filter((election) => SATELLITES.includes(election.countryId))).toEqual(rows);
   });
 });
+
+  it("resolves a source-calendar background poll into persisted regional seat holders", () => {
+    const world = createWorld({ seed: "eastern-background-resolution", playerName: "Player", countryId: "US", era: "1953", autonomyLevel: "off" });
+    for (let turn = 0; turn < 96; turn++) advanceTurn(world);
+    const poland = world.elections.filter((election) => election.countryId === "PL");
+    expect(poland).toHaveLength(8);
+    expect(poland.every((election) => election.status === "resolved")).toBe(true);
+    const seated = world.politicians.filter((politician) => politician.countryId === "PL" && politician.chamberKey === "sejm" && politician.electedState);
+    expect(seated).toHaveLength(8);
+    for (const election of poland) {
+      const winner = election.winnerId && world.politicians.find((politician) => politician.id === election.winnerId);
+      expect(winner).toBeDefined();
+      expect(winner?.countryId).toBe("PL");
+      expect(winner?.electedState).toBe(election.state);
+      expect(winner?.seatsHeld).toBeGreaterThan(0);
+    }
+    const resumed = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
+    expect(resumed.elections.filter((election) => election.countryId === "PL")).toEqual(poland);
+    expect(resumed.politicians.filter((politician) => politician.countryId === "PL" && politician.chamberKey === "sejm" && politician.electedState)).toEqual(seated);
+  });
