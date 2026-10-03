@@ -29,7 +29,11 @@ function loadAuthenticV42(): string {
 
 describe("schema 42 projection of public save envelopes", () => {
   it("refuses fresh TFP state that the historical engine does not consume", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const fresh = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // A genuine legacy clock isolates the TFP refusal from the independently
+    // tested current-world 48-turn clock refusal.
+    const world = deserializeSave(loadAuthenticV42());
+    world.regionalMetrics = fresh.regionalMetrics;
     expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
       ok: false, error: expect.stringContaining("Regional metric records"),
     });
@@ -138,7 +142,7 @@ describe("schema 42 projection of public save envelopes", () => {
       ["lastUnpostedDividendPaid", 495],
     ];
     for (const [field, value] of unsupportedStates) {
-      const world = createWorld({ seed: "v42-ceo-refusal", playerName: "Validator", countryId: "US", era: "1953" });
+      const world = deserializeSave(loadAuthenticV42());
       world.regionalMetrics = {};
       Object.assign(world.corporations["US-media"]!, { [field]: value });
       const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -154,6 +158,8 @@ describe("schema 42 projection of public save envelopes", () => {
       era: "1953",
       homeRegionId: "DC",
     });
+    // This controlled CEO fixture isolates its refusal from the source clock.
+    delete playerWorld.meta.startingYear;
     playerWorld.regionalMetrics = {};
     expect(executeAction(playerWorld, "player", "buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     expect(executeAction(playerWorld, "player", "voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
@@ -200,7 +206,7 @@ describe("schema 42 projection of public save envelopes", () => {
   });
 
   it("refuses a schema 43 envelope that was only relabeled 42", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const world = deserializeSave(loadAuthenticV42());
     // Keep this identity test at the pre-political-board schema boundary.
     // Modern board relabeling has its own explicit refusal regression.
     delete world.regionalPoliticalMetrics;

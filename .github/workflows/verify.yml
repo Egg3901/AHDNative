@@ -9,6 +9,18 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  law_player_flows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Qualify authored laws through real player controls and saved turns
+        run: npx vitest run --config vitest.law-player.config.ts
   engine_strict:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -21,6 +33,34 @@ jobs:
       - run: npm ci
       - name: Check the complete engine source and tests with its strict config
         run: npm run typecheck:engine
+  mature_save_journeys:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the same browser fixture boundary
+        run: npm run build
+        env:
+          VITE_AHD_SMOKE_FIXTURES: "1"
+      - run: npx playwright install --with-deps chromium
+      - name: Resume original mature Irish saves and authentic v42 saves
+        run: npm run test:smoke -- smoke/ireland-vat.spec.ts smoke/save-compatibility.spec.ts
+        env:
+          SMOKE_PRODUCTION: "1"
+          DEBUG: "pw:browser"
+      - name: Retain failed mature-save browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mature-save-failure-${{ github.sha }}
+          path: artifacts/smoke
+          retention-days: 3
+          if-no-files-found: ignore
   election_journey:
     runs-on: ubuntu-24.04
     timeout-minutes: 75

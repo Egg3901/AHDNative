@@ -87,8 +87,8 @@ describe("campaign bootstrap from new-character creation (#447)", () => {
         expect(broke.view().actions.find((action) => action.id === "fundraise")).toMatchObject({ available: true });
         expect(broke.act("fundraise").ok).toBe(true);
 
-        // Head of State: the hub carries no fundraising actions and no hub
-        // action spends campaign funds, so there is nothing to lock out.
+        // Executive controls do not spend campaign funds. Standing ads use
+        // the source campaign currency and the normal creation endowment.
         const hos = new GameSession();
         const hosView = hos.create({
           era: era.id,
@@ -98,7 +98,14 @@ describe("campaign bootstrap from new-character creation (#447)", () => {
           mode: "hos",
         });
         expect(hosView.actions.some((action) => action.id === "fundraise")).toBe(false);
-        for (const action of hosView.actions) expect(action.fundCost).toBe(0);
+        for (const action of hosView.actions.filter((entry) => entry.category === "executive")) expect(action.fundCost).toBe(0);
+        const ads = hosView.actions.find((action) => action.id === "targetedAds");
+        expect(ads).toBeDefined();
+        if (ads?.available) {
+          expect(ads.fundCost).toBe(100);
+          if (ads.fundCost === undefined) throw new Error("Available standing ads require their source campaign cost.");
+          expect(hosView.player.funds).toBeGreaterThanOrEqual(ads.fundCost);
+        }
       }
     }
   });

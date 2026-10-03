@@ -38,11 +38,11 @@ const UNMATCHED_SOURCE_VECTOR = [
 
 describe("unavailable law source inventory", () => {
   it("matches the pinned source vector independently of the Native catalog", () => {
-    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(254);
+    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(243);
     expect(Object.fromEntries(["JP", "DE", "IE", "CN", "BR", "US", "UK", "RU", "DD"].map((countryId) => [
       countryId,
       UNAVAILABLE_LAW_INVENTORY.filter((row) => row.countryId === countryId).length,
-    ]))).toEqual({ JP: 62, DE: 53, IE: 57, CN: 57, BR: 13, US: 9, UK: 1, RU: 1, DD: 1 });
+    ]))).toEqual({ JP: 62, DE: 52, IE: 53, CN: 57, BR: 13, US: 6, UK: 0, RU: 0, DD: 0 });
     for (const id of ["de_trade_tax", "cn_provincial_resource_tax", "jp_resident_tax", "jp_fixed_asset_tax"]) {
       expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === id), id).toMatchObject({
         nativeScope: "regional",
@@ -55,10 +55,14 @@ describe("unavailable law source inventory", () => {
     expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === "cn_provincial_resource_tax")?.authoredRateOptions.map((option) => option.rate)).toEqual([0, 1, 2, 4, 5, 6, 8, 10, 12, 16, 20]);
     const taxes = UNAVAILABLE_LAW_INVENTORY.filter((row) => row.taxRateChange !== null);
     expect(Object.keys(TAX_SOURCE_VECTOR)).toHaveLength(26);
-    expect(Object.fromEntries(taxes.map((tax) => [tax.id, [
+    const released = CATALOG.find((law) => law.id === "ie_corporate_tax_rate");
+    expect(released?.status).toBe("available");
+    const releasedVector = [released?.countryId, released?.allowedScope, released?.taxPolicy?.taxType,
+      released?.taxPolicy?.options?.map((option) => option.rate)];
+    expect(Object.fromEntries([...taxes.map((tax) => [tax.id, [
       tax.countryId, tax.sourceScope, tax.taxRateChange!.taxType,
       tax.authoredRateOptions.map((option) => option.rate),
-    ]]))).toEqual(TAX_SOURCE_VECTOR);
+    ]]), ["ie_corporate_tax_rate", releasedVector]])).toEqual(TAX_SOURCE_VECTOR);
     for (const tax of taxes) expect(tax.authoredRateOptions.map((option) => option.id), tax.id)
       .toEqual(tax.authoredRateOptions.map((_, index) => `${tax.id}_opt_${index}`));
     expect(taxes.every((tax) => tax.blockingSystem === "budget/taxRateLadder")).toBe(true);
@@ -92,9 +96,9 @@ describe("unavailable law source inventory", () => {
     }
     const unmatched = UNAVAILABLE_LAW_INVENTORY.filter((row) => row.sourceMatch === "unmatched");
     expect(unmatched.map((row) => [row.countryId, row.id])).toEqual(UNMATCHED_SOURCE_VECTOR);
-    expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === "dd.economy.workerSecurity.primary")).toMatchObject({
-      nativeScope: "national",
-      sourceScope: "both",
-    });
+    expect(UNAVAILABLE_LAW_INVENTORY.some((row) => [
+      "ru.economy.stability.primary",
+      "dd.economy.workerSecurity.primary",
+    ].includes(row.id))).toBe(false);
   });
 });

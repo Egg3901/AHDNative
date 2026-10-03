@@ -23,6 +23,7 @@ import {
 import { calculateSubsidyCostForCountry, SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
 import { getTurnInYear, FISCAL_YEAR_START_TURN_IN_YEAR, TURNS_PER_YEAR } from "./fiscalYear.js";
 import { advanceTaxRatePhaseIn } from "./taxRatePhaseIn.js";
+import { regionalPolicySpendingDelta } from "../policyEffects/budget.js";
 
 function sourcePipelineGdpGrowth(world: import("../types.js").WorldState, countryId: string): number {
   const national = world.nationalMetrics?.[countryId]?.["economic.gdpGrowth"]?.value;
@@ -202,6 +203,8 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
       for (const [k, v] of Object.entries(countryBudget.spending.byCategory)) {
         byCat[k] = nationalPop > 0 ? Math.round((v * pop) / nationalPop) : 0;
       }
+      const regionalPolicyDelta = regionalPolicySpendingDelta(world, rid);
+      if (regionalPolicyDelta !== 0) byCat.other = (byCat.other ?? 0) + regionalPolicyDelta;
       const spendTotal = Object.values(byCat).reduce((s, v) => s + v, 0) + Math.round(rb.revenue.grant * 0.5) + (rb.spending.resourceProspecting ?? 0);
       rb.spending.byCategory = byCat;
       rb.spending.total = spendTotal;
