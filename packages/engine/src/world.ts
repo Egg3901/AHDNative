@@ -194,7 +194,10 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // stamps, source UK devolution institutions/Northern Ireland conflict state,
 // and UK Commons recall petition clocks/signatures/declarations/support samples.
 // Older readers must refuse these continuations.
-export const SCHEMA_VERSION = 65;
+// v66 is reserved for the FX conversion/cash continuation family.
+// v67: explicit Irish Dail/local-council PR-STV ballot rankings and frozen
+// transfer-count result. The schema-66 reader must refuse this grammar.
+export const SCHEMA_VERSION = 67;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

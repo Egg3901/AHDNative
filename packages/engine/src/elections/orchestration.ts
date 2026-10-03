@@ -1027,6 +1027,7 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
   };
   const result = resolveGeneralElectionPure(input);
   if (!result) return;
+
   // seatsEstimate may assign the single seat to a candidate id; winner is the one with >0 seats.
   let winnerId: string | null = null;
   let maxSeats = 0;
@@ -1113,7 +1114,14 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
       cycle: rec.cycle,
       status: rec.status,
     } as GeneralResolutionInput["election"],
-    tally: { electionId: rec.id, totalVotes: rec.tally, finalized: true },
+    tally: {
+      electionId: rec.id,
+      totalVotes: rec.tally,
+      finalized: true,
+      ...(rec.countingMethod ? { countingMethod: rec.countingMethod } : {}),
+      ...(rec.rankedBallots ? { rankedBallots: rec.rankedBallots } : {}),
+      ...(rec.conversionTerms ? { conversionTerms: rec.conversionTerms } : {}),
+    },
     candidates,
     totalSeats: rec.totalSeats,
     // Without this, house allocation falls back to mainline's 2020-census
@@ -1129,6 +1137,8 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   };
   const result = resolveGeneralElectionPure(input);
   if (!result) return;
+  if (result.resolutionPath) rec.resolutionPath = result.resolutionPath;
+  if (result.prStvResult) rec.prStvResult = result.prStvResult;
 
   // Game stores each actual winner with its allocated seatsHeld. A nominee
   // can represent several seats; redistributing by party and capping at the
