@@ -5,7 +5,8 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
 import type { Bill } from "../legislation/types.js";
 import { nppBehaviorPhase } from "../npp/nppBehavior.js";
-import { rngFromSeed } from "../rng.js";
+import { hardNppWhipSuccessChance } from "../npp/partyWhipSuccess.js";
+import { rngFromSeed, rngFromState } from "../rng.js";
 import { projectPlayerPartyInfluence } from "../party/playerInfluence.js";
 import { partyInfluenceTurnPhase } from "../party/phases.js";
 import { accelerateNationalPartyElections, resolveNationalPartyElections } from "./nationalPartyElections.js";
@@ -198,20 +199,29 @@ describe("issue 102 leadership acceptance", () => {
     expect(() => initiateDisbandVote(world, coalition.id, "US_DEM", "player")).toThrow(/chair|vice/i);
   });
 
-  it("persists a party whip and makes NPP bill voting follow a hard direction", () => {
+  it("applies a hard whip with the source per-NPP chance and saved world RNG", () => {
     const world = createWorld(OPTIONS);
     world.player.partyId = "US_DEM";
     world.parties.US_DEM!.chairId = "player";
     world.player.actions = 100;
-    const demPoliticians = world.politicians.filter((politician) => politician.partyId === "US_DEM").slice(0, 3);
-    for (const politician of demPoliticians) politician.chamberKey = "house";
-    // Pin all seated voters to an independently source-vectored compliance
-    // input. A hard whip is still compliance-scaled in Game, so default
-    // randomized personalities can legitimately abstain near the threshold.
-    for (const politician of world.politicians.filter((candidate) => candidate.partyId === "US_DEM" && candidate.chamberKey === "house")) {
-      politician.personality = { loyalty: 80, ambition: 50, stubbornness: 20 };
+    for (const politician of world.politicians.filter((candidate) => candidate.partyId === "US_DEM")) {
+      politician.chamberKey = "senate";
     }
-    world.bills.push(activeBill("bill-hard-whip"));
+    const demPoliticians = world.politicians.filter((politician) => politician.partyId === "US_DEM").slice(0, 3);
+    for (const politician of demPoliticians) {
+      politician.chamberKey = "house";
+      politician.personality = { loyalty: 0, ambition: 50, stubbornness: 100 };
+      politician.ideology = { economic: 5, social: 0 };
+    }
+    const bill = activeBill("bill-hard-whip");
+    bill.provisions = [{ type: "policy", legislationTypeId: "test.policy", effectDirection: 1, economic: 5, social: 0 }];
+    world.bills.push(bill);
+
+    // Source formula for this declared vector is 55 + round(0 * .35)
+    // - round(100 * .18) + 15 hard = 52%; neutral statecraft adds zero.
+    expect(hardNppWhipSuccessChance(demPoliticians[0]!.personality, 0)).toBe(52);
+    const expectedRng = rngFromState(world.meta.rng);
+    const expectedVotes = demPoliticians.map(() => expectedRng.int(1, 100) <= 52 ? "against" : "for");
 
     const issued = executeAction(world, "player", "issuePartyWhip", {
       billId: "bill-hard-whip",
@@ -220,23 +230,47 @@ describe("issue 102 leadership acceptance", () => {
     });
     expect(issued.ok).toBe(true);
     expect(world.partyWhips).toHaveLength(1);
+    expect(demPoliticians.map((politician) => bill.votes[politician.id])).toEqual(expectedVotes);
+    expect(world.meta.rng).toEqual(expectedRng.state());
 
     const raw = JSON.parse(serializeSave(world, "2026-09-11T00:00:00.000Z")) as { world: Record<string, unknown> };
     delete raw.world.partyWhips;
     expect(deserializeSave(JSON.stringify(raw)).partyWhips).toBeUndefined();
     const restored = deserializeSave(serializeSave(world, "2026-09-11T00:00:00.000Z"));
     expect(restored.partyWhips).toEqual(world.partyWhips);
+    expect(restored.bills[0]!.votes).toEqual(bill.votes);
+    expect(restored.meta.rng).toEqual(world.meta.rng);
     for (let turn = 0; turn < 20; turn++) {
       restored.meta.turn = turn;
       nppBehaviorPhase.run(restored, rngFromSeed(`whip-${turn}`));
     }
-    const demVotes = Object.entries(restored.bills[0]!.votes)
-      .filter(([politicianId]) => restored.politicians.find((politician) => politician.id === politicianId)?.partyId === "US_DEM")
-      .map(([, vote]) => vote);
-    expect(demVotes.length).toBeGreaterThan(0);
-    expect(new Set(demVotes)).toEqual(new Set(["against"]));
+    expect(demPoliticians.map((politician) => restored.bills[0]!.votes[politician.id])).toEqual(expectedVotes);
 
     advanceTurn(restored);
     expect(restored.partyWhips).toHaveLength(1);
+  });
+
+  it("keeps a soft whip advisory without changing ballots or consuming RNG", () => {
+    const world = createWorld(OPTIONS);
+    world.player.partyId = "US_DEM";
+    world.parties.US_DEM!.chairId = "player";
+    world.player.actions = 100;
+    const politician = world.politicians.find((candidate) => candidate.partyId === "US_DEM")!;
+    politician.chamberKey = "house";
+    const bill = activeBill("bill-soft-whip");
+    bill.votes[politician.id] = "for";
+    bill.votesFor = 1;
+    world.bills.push(bill);
+    const rngBefore = [...world.meta.rng];
+
+    const issued = executeAction(world, "player", "issuePartyWhip", {
+      billId: bill.id,
+      whipDirection: "against",
+      whipMode: "soft",
+    });
+
+    expect(issued.ok).toBe(true);
+    expect(bill.votes[politician.id]).toBe("for");
+    expect(world.meta.rng).toEqual(rngBefore);
   });
 });

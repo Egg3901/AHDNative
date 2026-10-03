@@ -185,6 +185,22 @@ describe("LegislaturePanel", () => {
     expect(onAction).toHaveBeenCalledWith("voteOnBill", { billId: "b1", vote: "against" });
   });
 
+  it("dispatches the source hard whip directions from an active bill", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const legislature = makeLegislature({
+      bills: [{
+        id: "b1", title: "Wage Bill", status: "active", chamber: "Dáil", chamberKey: "dail", sponsorName: "Ada",
+        votesFor: 12, votesAgainst: 7, votesAbstain: 3, playerVote: null,
+        voting: { id: "voteOnBill", name: "Vote", description: "Vote", cost: 0, available: true },
+        hardWhip: { id: "issuePartyWhip", name: "Issue Party Whip", description: "", cost: 2, available: true },
+      }],
+    });
+    render(<LegislaturePanel legislature={legislature} busy={false} onAction={onAction} clock={CLOCK} />);
+    await user.click(screen.getByRole("button", { name: "Hard whip NPPs for on Wage Bill" }));
+    expect(onAction).toHaveBeenCalledWith("issuePartyWhip", { billId: "b1", whipDirection: "for", whipMode: "hard" });
+  });
+
   it("gates vote buttons on voting availability and busy, showing the reason", async () => {
     const onAction = vi.fn();
     const { rerender } = render(

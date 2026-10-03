@@ -28,7 +28,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
+  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveCurrentBillVote, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, campaignAdTargetChoices, currentAdBonus,
   quoteTargetedAds,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
@@ -1398,7 +1398,7 @@ function projectLegislature(world: WorldState): LegislatureView {
   const player = world.player;
   const seat = player.legislativeSeat;
   const chamberName = (countryId: string, key: string) => world.legislatures[countryId]?.chambers.find((c) => c.key === key)?.name ?? key;
-  const action = (id: "sponsorBill" | "voteOnBill", reason?: string): ActionView => {
+  const action = (id: "sponsorBill" | "voteOnBill" | "issuePartyWhip", reason?: string): ActionView => {
     const entry = ACTION_CATALOG[id];
     const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
     const remaining = (player.actionCooldowns[id] ?? 0) - world.meta.turn;
@@ -1483,16 +1483,35 @@ function projectLegislature(world: WorldState): LegislatureView {
         const other = !override && bill.currentChamber !== bill.originChamber;
         const votingOpen = ["active", "active_other", "veto_override"].includes(bill.status);
         const votes = other ? bill.otherChamberVotes : override ? bill.vetoOverrideVotes : bill.votes;
-        const liveTally = { for: 0, against: 0, abstain: 0 };
-        for (const vote of Object.values(votes ?? {})) liveTally[vote]++;
+        const liveTally = resolveCurrentBillVote(
+          world,
+          bill.countryId,
+          bill.currentChamber,
+          votes,
+          {
+            for: (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
+            against: (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
+            abstain: (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
+          },
+        ).totals;
         const reason = !seat ? "Win a legislative seat before voting."
           : seat.countryId !== bill.countryId || seat.chamberKey !== bill.currentChamber ? "This bill is in another chamber."
           : !votingOpen ? "Voting is not open on this bill." : undefined;
+        const whipReason = !player.partyId ? "Join a party before issuing a whip."
+          : !hasPlayerWhipAuthority(world, player.partyId) ? "Only the national chair or acting vice chair may issue a party whip."
+          : !["active", "active_other"].includes(bill.status) ? "A party whip requires an open chamber vote."
+          : world.parties[player.partyId]?.countryId !== bill.countryId ? "Your party and the bill must be in the same country."
+          : undefined;
         return { id: bill.id, title: bill.title, status: bill.status, chamber: chamberName(bill.countryId, bill.currentChamber), chamberKey: bill.currentChamber, sponsorName: bill.sponsorName,
           votesFor: votingOpen ? liveTally.for : (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
           votesAgainst: votingOpen ? liveTally.against : (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
           votesAbstain: votingOpen ? liveTally.abstain : (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
-          playerVote: votes?.player ?? null, voting: action("voteOnBill", reason) };
+          playerVote: votes?.player ?? null, voting: action("voteOnBill", reason), hardWhip: action("issuePartyWhip", whipReason) };
       }),
   };
+}
+
+function hasPlayerWhipAuthority(world: WorldState, partyId: string): boolean {
+  const party = world.parties[partyId];
+  return party !== undefined && (party.chairId === "player" || (party.chairId == null && party.viceChairId === "player"));
 }

@@ -81,6 +81,10 @@ import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
+import { chamberSeatWeights } from "../government/seatWeights.js";
+import { tallyVotes } from "../legislation/billVoteLogic.js";
+import { isEligibleNppBillVoter, resolveNppBillVote } from "../npp/voteDecision.js";
+import { hardNppWhipSuccessChance } from "../npp/partyWhipSuccess.js";
 import { proposeNationalizationBill } from "../legislation/nationalizationBills.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
@@ -1919,7 +1923,7 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `Unknown bill: ${billId}` };
     }
-    if (bill.countryId !== world.player.countryId || bill.sponsorPartyId === null && world.parties[partyId]?.countryId !== bill.countryId) {
+    if (bill.countryId !== world.player.countryId || world.parties[partyId]?.countryId !== bill.countryId) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Party and bill must be in the same country" };
@@ -1933,6 +1937,11 @@ function executeActionInner(
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Party whip requires the national chair or acting vice chair" };
+    }
+    if (mode === "hard" && direction === "abstain") {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Hard whips support for or against; abstain is not a source hard-whip direction" };
     }
     const issuerRole = world.parties[partyId]?.chairId === "player" ? "chair" : "actingViceChair";
     const whip = {
@@ -1951,6 +1960,41 @@ function executeActionInner(
     const existing = partyWhips.findIndex((candidate) => candidate.billId === billId && candidate.partyId === partyId);
     if (existing >= 0) partyWhips[existing] = whip;
     else partyWhips.push(whip);
+
+    // A source hard whip is an immediate per-NPP success roll. A successful
+    // NPP changes its recorded ballot; a failed NPP keeps the bill verdict
+    // recomputed with the hard instruction in its cross-pressure inputs.
+    // Soft whips are advisory and never rewrite a recorded ballot here.
+    if (mode === "hard" && (direction === "for" || direction === "against")) {
+      const voteMap = bill.status === "active_other" ? (bill.otherChamberVotes ??= {}) : bill.votes;
+      const statecraft = effectivePlayerStats(world)?.statecraft ?? NEUTRAL_STAT;
+      const statecraftBonus = Math.round((statMultiplier(statecraft) - 1) * 50);
+      const rng = rngFromState(world.meta.rng);
+      for (const politician of world.politicians) {
+        if (politician.countryId !== bill.countryId
+          || politician.chamberKey !== bill.currentChamber
+          || politician.partyId !== partyId
+          || !isEligibleNppBillVoter(world, bill, politician)) continue;
+        if (voteMap[politician.id] === direction) continue;
+
+        const obeys = rng.int(1, 100) <= hardNppWhipSuccessChance(politician.personality, statecraftBonus);
+        voteMap[politician.id] = obeys ? direction : resolveNppBillVote(world, bill, politician, { direction, mode: "hard" });
+      }
+      world.meta.rng = rng.state();
+
+      const weights = chamberSeatWeights(world, bill.countryId, bill.currentChamber);
+      const countedVotes = Object.fromEntries(Object.entries(voteMap).filter(([id]) => weights.has(id)));
+      const tally = tallyVotes(countedVotes, weights);
+      if (bill.status === "active_other") {
+        bill.otherChamberVotesFor = tally.for;
+        bill.otherChamberVotesAgainst = tally.against;
+        bill.otherChamberVotesAbstain = tally.abstain;
+      } else {
+        bill.votesFor = tally.for;
+        bill.votesAgainst = tally.against;
+        bill.votesAbstain = tally.abstain;
+      }
+    }
     return { ok: true, message: `Issued ${mode} ${direction} whip for ${partyId} on ${billId}` };
   }
   if (actionId === "createCoalition") {
