@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { advanceTurn } from "../engine.js";
+import { FIRST_CHOICE_RNG } from "./testRng.js";
 import {
   unionMembers,
   duesIncomePerTurn,
@@ -230,7 +231,7 @@ describe("unionsTurn integration + determinism", () => {
     expect(baseline.ownerId).toBeNull();
     expect(configured.ownerId).toBeNull();
 
-    const rng = { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! };
+    const rng = FIRST_CHOICE_RNG;
     unionsTurnPhase.run(withoutPolicy, rng);
     unionsTurnPhase.run(withPolicy, rng);
 

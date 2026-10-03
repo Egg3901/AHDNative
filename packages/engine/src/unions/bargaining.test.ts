@@ -428,7 +428,13 @@ describe("#322 strike state machine", () => {
     expect(started.next.strikeStartedAtTurn).toBe(10);
     // Below-threshold density never ignites.
     expect(
-      stepSectorStrike({ unionization: 40, realWage: 1, workerExpectation: 1.5, turn: 10, prior: {} }).event,
+      stepSectorStrike({
+        unionization: 40,
+        realWage: 1,
+        workerExpectation: 1.5,
+        turn: 10,
+        prior: { strikeStartedAtTurn: null, strikeCooldownUntilTurn: null },
+      }).event,
     ).toBeNull();
     // Hysteresis: the trigger gap (0.12) sits strictly above the concession gap (0.04).
     expect(STRIKE_EXPECTATION_GAP_THRESHOLD).toBeGreaterThan(STRIKE_CONCESSION_GAP_THRESHOLD);
