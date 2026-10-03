@@ -8,8 +8,8 @@ function savedWorld(session: GameSession): WorldState {
   return (JSON.parse(session.serialize(SAVED_AT)) as { world: WorldState }).world;
 }
 
-describe("recorded national-only presidential save continuation", () => {
-  it("resolves the source 1953 tied national tally as 266/265 electoral votes and retains it on reload", () => {
+describe("recorded presidential save with no recoverable unit votes", () => {
+  it("vacates the source presidency instead of seating a national-vote winner and retains it on reload", () => {
     // Recorded consumer fixture, not an authentic historical writer or an
     // earned candidacy. The expired race prevents new vote accumulation.
     const world = createWorld({
@@ -49,18 +49,19 @@ describe("recorded national-only presidential save continuation", () => {
     session.advance();
 
     const resolved = savedWorld(session).elections.find((record) => record.id === race.id)!;
-    // Literal witness from actual Game computeElectoralVotes at bfe655d5:
-    // an equal national tally in the 531-EV college allocates 266 to the
-    // first entry and the remaining 265 to the second entry.
-    expect(resolved.electoralCollegeResult).toEqual({
-      stateWinners: {},
-      evByCandidate: { player: 266, [opponent.id]: 265 },
-      totalEv: 531,
-      resolutionMode: "majority",
-    });
-    expect(resolved.winners).toEqual(["player"]);
+    // Game turn/election/presidentResolution.ts at c0f39acd vacates when
+    // neither unit votes nor recoverable unit snapshots exist. The national
+    // proportional fallback in electoralVoteService.ts is display-only.
+    expect(resolved.electoralCollegeResult).toBeUndefined();
+    expect(resolved.winners).toEqual([]);
     expect(resolved.status).toBe("resolved");
-    expect(savedWorld(session).executives.US?.presidentId).toBe("player");
+    expect(savedWorld(session).executives.US).toMatchObject({
+      presidentId: null,
+      presidentParty: null,
+      termStartTurn: null,
+      vicePresidentId: null,
+      vicePresidentParty: null,
+    });
     expect(resolved.stateTallyStates).toBeUndefined();
 
     const resumed = new GameSession();
