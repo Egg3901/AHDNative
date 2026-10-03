@@ -91,9 +91,16 @@ The Mac image does not preinstall `rustup`. The workflow bootstraps it from the 
 Before Tauri initializes iOS, the workflow reinstalls the image's Homebrew `ca-certificates` package. A dependency install previously collided with its existing links before an Xcode project or IPA could be generated. Explicit reinstallation repairs those links. Automatic metadata updates, unrelated dependent upgrades and install cleanup are disabled during this bootstrap so it stays bounded to the required tools. See the [Homebrew command reference](https://docs.brew.sh/Manpage) for these controls.
 
 The most recently delivered and processed internal iOS preview is marketing
-version `0.1.9`, Apple build `1.15` (source `preview/0.1.9-2`): Apple processing
-VALID, attached to the internal Owner review group. Current release-candidate
-source metadata is `0.1.9`. For the next authorized candidate, set the intended marketing version
+version `0.1.10`, Apple build `1.23` (source `preview/0.1.10-2`): Apple processing
+VALID, INTERNAL_ONLY, IN_BETA_TESTING, attached to the existing internal Owner review
+group with assignment confirmed by a fresh read. Actual IPA metadata and approved
+packaged icons were verified privately. The exact source passed the complete
+[verification gate](https://github.com/Egg3901/AHDNative/actions/runs/37088728120),
+and [PR #738](https://github.com/Egg3901/AHDNative/pull/738) merged as `15a6aa69`.
+Current source metadata is `0.1.10`.
+Networking and dependency sources are unchanged from the preceding qualified runtime;
+the actual IPA and App Store Connect encryption Boolean remain `false`. This records
+delivery metadata, not a new legal classification. For the next authorized candidate, set the intended marketing version
 deliberately and keep the iOS bundle version as `1.N`, where Tauri appends
 Codemagic's build number. Do not append a fourth numeric component to the
 marketing version.
