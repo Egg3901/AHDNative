@@ -1,3 +1,5 @@
+import { SOURCE_REFERENCE_ERA_OUTPUTS } from "@ahdclient/content";
+
 /**
  * Forex constants — W4 port.
  *
@@ -125,6 +127,21 @@ export const INITIAL_RATES_2019: Readonly<Record<string, CurrencyPerAnchor>> = {
 };
 
 /**
+ * 1999/2007/2023 preset rates from the pinned AHDGame source export. These
+ * use its getInitialRatesForYear producer; the data is shared with the
+ * content packs so economy conversion and live FX seeding cannot drift.
+ */
+function sourceInitialRatesForYear(year: 1999 | 2007 | 2023): Readonly<Record<string, CurrencyPerAnchor>> {
+  const row = SOURCE_REFERENCE_ERA_OUTPUTS.eras.find((entry) => entry.year === year);
+  if (!row?.initialExchangeRates) throw new Error(`Missing source initial rates for ${year}`);
+  return row.initialExchangeRates;
+}
+
+export const INITIAL_RATES_1999 = sourceInitialRatesForYear(1999);
+export const INITIAL_RATES_2007 = sourceInitialRatesForYear(2007);
+export const INITIAL_RATES_2023 = sourceInitialRatesForYear(2023);
+
+/**
  * Era-keyed lookup mirroring mainline's `getInitialRates(preset)`. Falls
  * back to the 1953 table for the legacy fabricated "1960" era (only
  * reachable on an old save — see calendar.ts) and for any unrecognized era,
@@ -133,7 +150,10 @@ export const INITIAL_RATES_2019: Readonly<Record<string, CurrencyPerAnchor>> = {
 export function getInitialRatesForEra(era: string): Readonly<Record<string, CurrencyPerAnchor>> {
   if (era === "1979") return INITIAL_RATES_1979;
   if (era === "1991") return INITIAL_RATES_1991;
+  if (era === "1999") return INITIAL_RATES_1999;
+  if (era === "2007") return INITIAL_RATES_2007;
   if (era === "2019") return INITIAL_RATES_2019;
+  if (era === "2023") return INITIAL_RATES_2023;
   return INITIAL_RATES_1953;
 }
 

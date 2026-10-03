@@ -3793,8 +3793,7 @@ export function deserializeSave(raw: string): WorldState {
   // from mainline's actual preset data.
   //
   // Adds `meta.legacyEra` (WorldState shape change, hence the bump): true
-  // for any save whose `meta.era` is not one of the four real shipped pack
-  // ids ("1953"/"1979"/"1991"/"2019") — in practice this can currently only
+  // for any save whose `meta.era` is not a real shipped pack id — in practice this can currently only
   // be "1960", the fabricated era, for saves created before this fix.
   // `false`/absent for every real-pack era. This is a pure backfill (no RNG
   // consumed, no other field touched); calendar.ts's `nextEraForDate` keeps
@@ -3805,7 +3804,7 @@ export function deserializeSave(raw: string): WorldState {
     const w = save.world as unknown as Record<string, unknown>;
     const meta = w["meta"] as Record<string, unknown> | undefined;
     const era = typeof meta?.["era"] === "string" ? (meta["era"] as string) : "1953";
-    const REAL_PACK_ERAS = new Set(["1953", "1979", "1991", "2019"]);
+    const REAL_PACK_ERAS = new Set(["1953", "1979", "1991", "1999", "2007", "2019", "2023"]);
     if (meta && typeof meta["legacyEra"] !== "boolean") {
       meta["legacyEra"] = !REAL_PACK_ERAS.has(era);
     }

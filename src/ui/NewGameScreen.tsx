@@ -16,13 +16,19 @@ import { PartyMark } from "./PartyMark";
 import { EraDateSelector, resetDateIso } from "./EraDateSelector";
 import "./ui.css";
 
+function countriesForMode(era: EraChoice | undefined, mode: "career" | "hos" | "worldsim") {
+  return (era?.countries ?? []).filter((country) => mode === "worldsim" || country.playerSelectable !== false);
+}
+
 function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, string> {
   const errs: Record<string, string> = {};
   if (!opts.era) errs.era = "Choose an era.";
   if (!opts.countryId) errs.countryId = "Choose a country.";
   const era = eras.find((e) => e.id === opts.era);
-  const country = era?.countries.find((c) => c.id === opts.countryId) ?? null;
-  if (opts.countryId && era && !era.countries.some((c) => c.id === opts.countryId)) {
+  const country = countriesForMode(era, opts.mode === "worldsim" ? "worldsim" : opts.mode === "hos" ? "hos" : "career")
+    .find((c) => c.id === opts.countryId) ?? null;
+  if (opts.countryId && era && !countriesForMode(era, opts.mode === "worldsim" ? "worldsim" : opts.mode === "hos" ? "hos" : "career")
+    .some((c) => c.id === opts.countryId)) {
     errs.countryId = "Country not available in this era.";
   }
   if (country && country.regions.length > 0) {
@@ -87,7 +93,8 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
   const [localError, setLocalError] = useState<string | null>(null);
 
   const activeEra = useMemo(() => eras.find((e) => e.id === era) ?? null, [eras, era]);
-  const activeCountry = useMemo(() => activeEra?.countries.find((c) => c.id === countryId) ?? null, [activeEra, countryId]);
+  const activeCountries = useMemo(() => countriesForMode(activeEra, mode), [activeEra, mode]);
+  const activeCountry = useMemo(() => activeCountries.find((c) => c.id === countryId) ?? null, [activeCountries, countryId]);
   const previewParty = activeCountry?.rulingPartyByInitialization[initialization] ?? null;
   const hasExecutiveOffice = !!activeCountry?.headOfStateOffice;
   const hosUnavailableReason = !activeCountry
@@ -105,13 +112,14 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
       if (countryId) setCountryId("");
       return;
     }
-    const ids = new Set(activeEra.countries.map((c) => c.id));
+    const countries = countriesForMode(activeEra, mode);
+    const ids = new Set(countries.map((c) => c.id));
     if (!ids.has(countryId)) {
-      const next = activeEra.countries[0] ?? null;
+      const next = countries[0] ?? null;
       setCountryId(next?.id ?? "");
       setHomeRegionId(next?.regions[0]?.id ?? "");
     }
-  }, [activeEra, countryId]);
+  }, [activeEra, countryId, mode]);
 
   useEffect(() => {
     if (!activeCountry) {
@@ -393,11 +401,11 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   aria-describedby={fieldErrors.countryId ? "ng-country-error" : undefined}
                   aria-invalid={!!fieldErrors.countryId}
                 >
-                  {activeEra?.countries.map((c) => (
+                  {activeCountries.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                   {!activeEra ? <option value="">Select an era first</option> : null}
-                  {activeEra && activeEra.countries.length === 0 ? <option value="">No countries in this era</option> : null}
+                  {activeEra && activeCountries.length === 0 ? <option value="">No countries in this era and mode</option> : null}
                 </select>
                 {fieldErrors.countryId ? <span id="ng-country-error" className="ahd-error-text" role="alert">{fieldErrors.countryId}</span> : null}
               </div>

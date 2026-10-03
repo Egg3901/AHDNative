@@ -17,7 +17,7 @@ Requires `npm ci` once. Uses the existing `tsx` dependency. Does not invoke `vit
 
 `createWorld`, `listEras`, `listPlayableCountries`, `executeAction`, `advanceTurn`, `serializeSave`, `deserializeSave`.
 
-Combos are derived at runtime from `listEras()` × `listPlayableCountries(era)`. Current packs derive **17** playable era/country pairs (4+4+5+4): JP/DE (1991, 2019) and BR (2019) are present as economy-preview entries with `playable:false`, and `createWorld` rejects them fail-closed (pinned by `packages/engine/src/eraCoverage.test.ts` and `packages/content/src/supportedMatrix.test.ts`). The recorded run below exercised **21** pairs on [Egg3901/AHDNative@16e4c9a](https://github.com/Egg3901/AHDNative/commit/16e4c9a829eea425139bd083e9df46d8c1737c19), whose 1991/2019 packs still marked JP/DE playable; its hashes are preserved as that run's evidence, not as current coverage.
+Combos are derived at runtime from `listEras()` × `listPlayableCountries(era)`. Current engine packs expose **18 internal era/country fixtures** (4+4+5+5). For new characters, Native's desktop selector and `GameSession.create()` use the stricter source/readiness matrix: 12 currently supported combinations (4+4+2+2). The extra internal fixtures are not offered for player-character creation; worldsim remains playerless. The recorded run below exercised **21** raw engine pairs on [Egg3901/AHDNative@16e4c9a](https://github.com/Egg3901/AHDNative/commit/16e4c9a829eea425139bd083e9df46d8c1737c19), whose 1991/2019 packs still marked JP/DE playable; those hashes are historical evidence, not the current new-character selector contract.
 
 Fixed inputs:
 

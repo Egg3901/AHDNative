@@ -60,6 +60,8 @@ export interface EraChoice {
   countries: {
     id: string;
     name: string;
+    /** Native source-ready new-character choice; spectator worlds are separate. */
+    playerSelectable?: boolean;
     regions: { id: string; name: string }[];
     /** National executive office key from the engine registry; null when none exists. */
     headOfStateOffice: string | null;

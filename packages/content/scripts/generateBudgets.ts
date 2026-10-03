@@ -1,11 +1,13 @@
 /**
- * Authored national budgets for the 1979 / 1991 / 2019 packs (every playable
- * country of each era), from mainline's own per-preset budget configs.
+ * Authored national budgets for the supported source presets (every country
+ * with a budget row in each era), from mainline's own per-preset configs.
  *
- * Emits packages/content/src/packs/budgets{1979,1991,2019}.ts (BudgetSeed[]).
+ * Emits packages/content/src/packs/budgets{1979,1991,1999,2007,2019,2023}.ts (BudgetSeed[]).
+ * Optional first CLI argument is a comma-separated era subset (e.g. 1999,2007,2023).
  *
- * Run FROM THE MAINLINE CHECKOUT so its `@/` alias resolves:
- *   npx tsx ../AHDClient/packages/content/scripts/generateBudgets.ts
+ * Run against a clean AHDGame checkout pinned by the caller:
+ *   AHDGAME_SOURCE_ROOT=/path/to/AHDGame AHDGAME_SOURCE_REVISION=<pinned-sha> node --import /path/to/AHDGame/node_modules/tsx/dist/loader.mjs \
+ *     /path/to/AHDNative/packages/content/scripts/generateBudgets.ts 1999,2007,2023
  *
  * Sources (imported directly, no transcription, no invented numbers):
  *  - src/lib/seeds/reference/budgets.ts getNationalBudgetSeedConfigsForPreset
@@ -28,16 +30,28 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createRequire } from "node:module";
 
-import { getNationalBudgetSeedConfigsForPreset } from "@/lib/seeds/reference/budgets";
-import { legislationTypes } from "@/lib/seeds/reference/legislationTypes";
-import { ruLegislationTypes } from "@/lib/seeds/ru/ruLegislationTypes";
-import { ddLegislationTypes } from "@/lib/seeds/dd/ddLegislationTypes";
-import { jpLegislationTypes } from "@/lib/seeds/jp/jpLegislationTypes";
-import { deLegislationTypes } from "@/lib/seeds/de/deLegislationTypes";
-import { ieLegislationTypes } from "@/lib/seeds/ie/ieLegislationTypes";
-import { cnLegislationTypes } from "@/lib/seeds/cn/cnLegislationTypes";
-import { brLegislationTypes } from "@/lib/seeds/br/brLegislationTypes";
+const sourceRoot = process.env.AHDGAME_SOURCE_ROOT ?? process.cwd();
+const EXPECTED_SOURCE_COMMIT = "c35bcd86cbdbb877e73a0e9a45b0726605bdbc7a";
+const sourceCommit = process.env.AHDGAME_SOURCE_REVISION;
+if (sourceCommit !== EXPECTED_SOURCE_COMMIT) {
+  throw new Error(`Expected AHDGame ${EXPECTED_SOURCE_COMMIT}; received ${sourceCommit}`);
+}
+const sourceRequire = createRequire(path.join(sourceRoot, "package.json"));
+sourceRequire("tsconfig-paths").register({
+  baseUrl: sourceRoot,
+  paths: { "@/*": ["src/*"], "@shared/*": ["shared/*"] },
+});
+const { getNationalBudgetSeedConfigsForPreset } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/reference/budgets.ts"));
+const { legislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/reference/legislationTypes.ts"));
+const { ruLegislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/ru/ruLegislationTypes.ts"));
+const { ddLegislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/dd/ddLegislationTypes.ts"));
+const { jpLegislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/countries/jp/data/jpLegislationTypes.ts"));
+const { deLegislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/de/deLegislationTypes.ts"));
+const { ieLegislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/ie/ieLegislationTypes.ts"));
+const { cnLegislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/cn/cnLegislationTypes.ts"));
+const { brLegislationTypes } = sourceRequire(path.join(sourceRoot, "src/lib/seeds/br/brLegislationTypes.ts"));
 
 const OUT = path.resolve(import.meta.dirname, "../src/packs");
 const TAX_TYPES = ["incomeTax", "domesticCorporateTax", "foreignCorporateTax", "payrollTax", "tariffs", "salesTax"] as const;
@@ -45,7 +59,7 @@ type TaxType = (typeof TAX_TYPES)[number] | "solidaritySurcharge";
 type Opt = { rate?: number; economic?: number; social?: number };
 type LT = { _id: string; policyOptions?: Opt[] };
 type Cfg = {
-  countryId: string; fiscalYear: number; population: number; gdp: number; currencyCode: string;
+  countryId: string; fiscalYear: number; sourceFiscalYear?: number; population: number; gdp: number; currencyCode: string;
   economicFactors: { gdpGrowth: number; wageGrowth: number; inflationRate: number; tradeGrowth: number };
   taxBaseRatios: { taxableIncome: number; corporateProfits: number; wagesAndSalaries: number; importValue: number; taxableSales: number };
   otherRevenue: number; debt: { principal: number; interestRate: number; ceiling: number }; creditRating: string;
@@ -54,10 +68,13 @@ type Cfg = {
   policyOptionOverrides: Record<string, number>; seedTaxRatesOverride?: Partial<Record<TaxType, number>>; taxRateOverrides?: Partial<Record<TaxType, number>>;
 };
 
-const PLAYABLE: Record<string, string[]> = {
+const PACK_COUNTRIES: Record<string, string[]> = {
   "1979": ["US", "UK", "RU", "DD"],
   "1991": ["US", "UK", "JP", "DE", "CN", "BR", "IE"],
+  "1999": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],
+  "2007": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],
   "2019": ["US", "UK", "JP", "DE", "CN", "IE"],
+  "2023": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],
 };
 
 const typesById = new Map<string, LT>();
@@ -114,12 +131,17 @@ function deriveTaxRates(cfg: Cfg): { rates: Record<TaxType, number>; notes: stri
 
 const fmtNum = (n: number) => (Number.isInteger(n) && Math.abs(n) >= 10_000 ? n.toLocaleString("en-US").replace(/,/g, "_") : String(n));
 
-for (const [era, countries] of Object.entries(PLAYABLE)) {
+const requestedEras = process.argv[2]
+  ? new Set(process.argv[2].split(",").map((value) => value.trim()).filter(Boolean))
+  : null;
+for (const [era, countries] of Object.entries(PACK_COUNTRIES)) {
+  if (requestedEras && !requestedEras.has(era)) continue;
   const cfgs = getNationalBudgetSeedConfigsForPreset(`${era}-default`) as unknown as Cfg[];
   const lines: string[] = [
     `import type { BudgetSeed } from "../types.js";`,
     "/**",
     ` * Authored national budgets for ${era}-default (${countries.join("/")}). Generated from mainline AHDGame — DO NOT HAND-EDIT.`,
+    ` * Source revision: ${sourceCommit}.`,
     " * Generator: packages/content/scripts/generateBudgets.ts (see its header for sources and the tax-rate derivation).",
     " * Units: gdp / otherRevenue / debt / spending in absolute local currency; economicFactors and taxRates in percent (same as the 1953 pack).",
     " */",
@@ -135,6 +157,7 @@ for (const [era, countries] of Object.entries(PLAYABLE)) {
       `    // taxRates: ${notes.join("; ")}`,
       `    countryId: "${c}",`,
       `    fiscalYear: ${cfg.fiscalYear},`,
+      `    sourceFiscalYear: ${cfg.sourceFiscalYear ?? cfg.fiscalYear},`,
       `    population: ${fmtNum(cfg.population)},`,
       `    gdp: ${fmtNum(cfg.gdp)},`,
       `    currencyCode: ${JSON.stringify(cfg.currencyCode)},`,
