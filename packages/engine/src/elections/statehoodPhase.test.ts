@@ -26,6 +26,23 @@ describe("ordinary-turn statehood admission", () => {
     expect(admissionRoll("AK", 1953, "statehood-source-AK-1953-0")).toBe(3_543_982_334 / 0x1_0000_0000);
   });
 
+  it("seats the initial federal senators in states rather than unadmitted territories", () => {
+    const world = createWorld({ seed: "federal-seat-statehood-boundary", playerName: "Tester", countryId: "US", era: "1953" });
+    const senators = world.politicians.filter((politician) => politician.countryId === "US" && politician.chamberKey === "senate");
+    // Source 1953 Alaska and Hawaii have no federal representation. Their
+    // recorded geography must not consume the sorted incumbent seat slots.
+    expect(world.regions.AK?.houseSeats).toBe(0);
+    expect(world.regions.HI?.houseSeats).toBe(0);
+    expect(senators).toHaveLength(95);
+    expect(senators.every((politician) => {
+      const state = world.regions[politician.electedState ?? ""];
+      return state !== undefined && (state.houseSeats ?? 0) > 0;
+    })).toBe(true);
+    const saved = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
+    expect(saved.politicians.filter((politician) => politician.countryId === "US" && politician.chamberKey === "senate"))
+      .toEqual(JSON.parse(JSON.stringify(senators)));
+  });
+
   it("admits a source 1953 territory through the registered turn phase and saves the annual guard", () => {
     const year = 1953;
     const seed = seedWithAdmission("AK", year);
