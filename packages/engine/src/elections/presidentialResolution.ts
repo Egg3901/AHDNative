@@ -9,7 +9,7 @@ import {
 } from "../electionEngine/resolution/contingentData.js";
 import { resolveContingentElection, type ContingentElectionResult } from "../electionEngine/resolution/contingentElection.js";
 import { archiveCampaignsForElection } from "../campaigns/lifecycle.js";
-import { allocateElectoralVotes, electoralMajorityFor } from "./presidentialElectoralCollege.js";
+import { allocatePresidentialResolutionVotes, electoralMajorityFor } from "./presidentialElectoralCollege.js";
 import { survivingElectionPartyId } from "./survivingParty.js";
 
 /**
@@ -172,7 +172,7 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
 
   // Game's turn resolver requires electoral-unit votes. Its proportional
   // national fallback is a display helper and cannot seat an executive.
-  const ec = allocateElectoralVotes(world, rec);
+  const ec = allocatePresidentialResolutionVotes(world, rec);
   if (!ec) {
     vacate(world, rec);
     return;
