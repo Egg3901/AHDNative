@@ -27,6 +27,21 @@ const ERAS: SetupEra[] = [
 ];
 
 describe("NewGameScreen", () => {
+  it("filters source-unavailable countries for characters but leaves worldsim spectator choices separate", async () => {
+    const user = userEvent.setup();
+    const eraChoices: SetupEra[] = [{ id: "1991", label: "1991", countries: [
+      { id: "US", name: "United States", playerSelectable: true, regions: [{ id: "US-CA", name: "California" }], headOfStateOffice: "president", rulingPartyByInitialization: { founding: REP, historical: REP } },
+      { id: "IE", name: "Ireland", playerSelectable: false, regions: [{ id: "IE-D", name: "Dublin" }], headOfStateOffice: null, rulingPartyByInitialization: { founding: null, historical: null } },
+    ] }];
+    render(<NewGameScreen eras={eraChoices} busy={false} onStart={vi.fn()} onBack={vi.fn()} />);
+    const countries = screen.getByLabelText(/country/i) as HTMLSelectElement;
+    expect([...countries.options].map((option) => option.value)).toEqual(["US"]);
+    await user.click(screen.getByLabelText("Worldsim"));
+    expect([...countries.options].map((option) => option.value)).toEqual(["US", "IE"]);
+    await user.click(screen.getByLabelText("Career"));
+    expect([...countries.options].map((option) => option.value)).toEqual(["US"]);
+  });
+
   it("starts the default 1953 world on its authored content anchor", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();

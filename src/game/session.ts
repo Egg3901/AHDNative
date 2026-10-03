@@ -31,6 +31,7 @@ import {
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, campaignAdTargetChoices, currentAdBonus,
   quoteTargetedAds,
+  isNewCharacterSelection,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -169,6 +170,7 @@ export function gameChoices(): EraChoice[] {
   return listEras().map((era) => ({ id: era.id, label: era.label, startDate: era.startDate,
     countries: listPlayableCountries(era.id).map((country) => ({
       id: country.id, name: country.name,
+      playerSelectable: isNewCharacterSelection(era.id, country.id),
       regions: listCreationHomeRegions(era.id, country.id).map((region) => ({ id: region.id, name: region.name })),
       headOfStateOffice: headOfStateOfficeForCountry(country.id),
       rulingPartyByInitialization: {
@@ -196,8 +198,10 @@ export class GameSession {
     if (creationName !== undefined && (!creationName || creationName.length > 80)) {
       throw new Error("Enter a character name between 1 and 80 characters.");
     }
+    const mode = resolveSingleplayerMode(options.mode);
     const era = gameChoices().find((choice) => choice.id === options.era);
-    if (!era?.countries.some((country) => country.id === options.countryId)) {
+    const selectedCountry = era?.countries.find((country) => country.id === options.countryId);
+    if (!selectedCountry || (mode !== "worldsim" && !selectedCountry.playerSelectable)) {
       throw new Error("Choose a playable country in the selected era.");
     }
     // Issue #334: the engine owns difficulty validation, but the session
@@ -206,7 +210,6 @@ export class GameSession {
     const difficulty = resolveSingleplayerDifficulty(options.difficulty);
     // Issue #346: same pre-creation gate for the play mode. Career is the
     // default; worldsim marks a spectator world with no player character.
-    const mode = resolveSingleplayerMode(options.mode);
     const autonomyLevel = resolveNppAutonomyLevel(options.autonomyLevel);
     const world = createWorld({
       ...options,

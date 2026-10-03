@@ -15,6 +15,7 @@ import { DD_DEMOGRAPHICS_1953 } from "./demographics/ddDemographics1953.js";
 import { US_STATE_DEMOGRAPHICS_1979 } from "./demographics/usStateDemographics1979.js";
 import { US_STATE_DEMOGRAPHICS_1991 } from "./demographics/usStateDemographics1991.js";
 import { US_STATE_DEMOGRAPHICS_2019 } from "./demographics/usStateDemographics2019.js";
+import { US_STATE_DEMOGRAPHICS_2023 } from "./demographics/usStateDemographics2023.js";
 import { UK_DEMOGRAPHICS_1979 } from "./demographics/ukDemographics1979.js";
 import { UK_DEMOGRAPHICS_1991 } from "./demographics/ukDemographics1991.js";
 import { UK_DEMOGRAPHICS_2019 } from "./demographics/ukDemographics2019.js";
@@ -1684,8 +1685,8 @@ function seedDemographics(
   // demographics fallback below, exactly as before this table existed.
   const eraId = pack.era.id;
   const pick = <T>(table: Record<string, T>): T | null => table[eraId] ?? null;
-  const usSeeds: StateDemographicsSeed[] | null = pick({ "1953": US_STATE_DEMOGRAPHICS_1953, "1979": US_STATE_DEMOGRAPHICS_1979, "1991": US_STATE_DEMOGRAPHICS_1991, "2019": US_STATE_DEMOGRAPHICS_2019 });
-  const ukSeeds: StateDemographicsSeed[] | null = pick({ "1953": UK_DEMOGRAPHICS_1953, "1979": UK_DEMOGRAPHICS_1979, "1991": UK_DEMOGRAPHICS_1991, "2019": UK_DEMOGRAPHICS_2019 });
+  const usSeeds: StateDemographicsSeed[] | null = pick({ "1953": US_STATE_DEMOGRAPHICS_1953, "1979": US_STATE_DEMOGRAPHICS_1979, "1991": US_STATE_DEMOGRAPHICS_1991, "1999": US_STATE_DEMOGRAPHICS_2019, "2007": US_STATE_DEMOGRAPHICS_2019, "2019": US_STATE_DEMOGRAPHICS_2019, "2023": US_STATE_DEMOGRAPHICS_2023 });
+  const ukSeeds: StateDemographicsSeed[] | null = pick({ "1953": UK_DEMOGRAPHICS_1953, "1979": UK_DEMOGRAPHICS_1979, "1991": UK_DEMOGRAPHICS_1991, "1999": UK_DEMOGRAPHICS_2019, "2007": UK_DEMOGRAPHICS_2019, "2019": UK_DEMOGRAPHICS_2019, "2023": UK_DEMOGRAPHICS_2019 });
   const ruSeeds: StateDemographicsSeed[] | null = pick({ "1953": RU_DEMOGRAPHICS_1953, "1979": RU_DEMOGRAPHICS_1979 });
   const ddSeeds: StateDemographicsSeed[] | null = pick({ "1953": DD_DEMOGRAPHICS_1953, "1979": DD_DEMOGRAPHICS_1979 });
   const usMap = new Map<string, StateDemographicsSeed>();
@@ -1708,11 +1709,11 @@ function seedDemographics(
     UK: ukMap,
     RU: ruMap,
     DD: ddMap,
-    JP: toMap(pick({ "1991": JP_DEMOGRAPHICS_1991, "2019": JP_DEMOGRAPHICS_2019 })),
-    DE: toMap(pick({ "1991": DE_DEMOGRAPHICS_1991, "2019": DE_DEMOGRAPHICS_2019 })),
-    CN: toMap(pick({ "1991": CN_DEMOGRAPHICS_1991, "2019": CN_DEMOGRAPHICS_2019 })),
+    JP: toMap(pick({ "1991": JP_DEMOGRAPHICS_1991, "1999": JP_DEMOGRAPHICS_2019, "2007": JP_DEMOGRAPHICS_2019, "2019": JP_DEMOGRAPHICS_2019, "2023": JP_DEMOGRAPHICS_2019 })),
+    DE: toMap(pick({ "1991": DE_DEMOGRAPHICS_1991, "1999": DE_DEMOGRAPHICS_2019, "2007": DE_DEMOGRAPHICS_2019, "2019": DE_DEMOGRAPHICS_2019, "2023": DE_DEMOGRAPHICS_2019 })),
+    CN: toMap(pick({ "1991": CN_DEMOGRAPHICS_1991, "1999": CN_DEMOGRAPHICS_2019, "2007": CN_DEMOGRAPHICS_2019, "2019": CN_DEMOGRAPHICS_2019, "2023": CN_DEMOGRAPHICS_2019 })),
     BR: toMap(pick({ "1991": BR_DEMOGRAPHICS_1991 })),
-    IE: toMap(pick({ "1991": IE_DEMOGRAPHICS_1991, "2019": IE_DEMOGRAPHICS_2019 })),
+    IE: toMap(pick({ "1991": IE_DEMOGRAPHICS_1991, "1999": IE_DEMOGRAPHICS_2019, "2007": IE_DEMOGRAPHICS_2019, "2019": IE_DEMOGRAPHICS_2019, "2023": IE_DEMOGRAPHICS_2019 })),
   };
 
   const nowIso = `${_startDate}T00:00:00.000Z`;
@@ -1986,6 +1987,7 @@ function seedGovernors(regions: WorldState["regions"]): WorldState["governors"] 
   const governors: WorldState["governors"] = {};
   for (const region of Object.values(regions)) {
     if (!GOVERNOR_COUNTRIES.has(region.countryId)) continue;
+    if (region.countryId === "US" && region.id === "DC") continue;
     if (region.countryId === "UK" && !UK_DEVOLVED_GOVERNOR_REGIONS.has(region.id)) continue;
     governors[region.id] = {
       stateId: region.id,

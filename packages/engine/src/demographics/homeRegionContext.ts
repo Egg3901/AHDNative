@@ -23,6 +23,7 @@ import { US_STATE_DEMOGRAPHICS_1953 } from "./usStateDemographics1953.js";
 import { US_STATE_DEMOGRAPHICS_1979 } from "./usStateDemographics1979.js";
 import { US_STATE_DEMOGRAPHICS_1991 } from "./usStateDemographics1991.js";
 import { US_STATE_DEMOGRAPHICS_2019 } from "./usStateDemographics2019.js";
+import { US_STATE_DEMOGRAPHICS_2023 } from "./usStateDemographics2023.js";
 import { UK_DEMOGRAPHICS_1953 } from "./ukDemographics1953.js";
 import { UK_DEMOGRAPHICS_1979 } from "./ukDemographics1979.js";
 import { UK_DEMOGRAPHICS_1991 } from "./ukDemographics1991.js";
@@ -102,23 +103,23 @@ function seedRowsFor(countryId: string, eraId: string): StateDemographicsSeed[] 
   const pick = <T>(table: Record<string, T>): T | null => table[eraId] ?? null;
   switch (countryId) {
     case "US":
-      return pick({ "1953": US_STATE_DEMOGRAPHICS_1953, "1979": US_STATE_DEMOGRAPHICS_1979, "1991": US_STATE_DEMOGRAPHICS_1991, "2019": US_STATE_DEMOGRAPHICS_2019 });
+      return pick({ "1953": US_STATE_DEMOGRAPHICS_1953, "1979": US_STATE_DEMOGRAPHICS_1979, "1991": US_STATE_DEMOGRAPHICS_1991, "1999": US_STATE_DEMOGRAPHICS_2019, "2007": US_STATE_DEMOGRAPHICS_2019, "2019": US_STATE_DEMOGRAPHICS_2019, "2023": US_STATE_DEMOGRAPHICS_2023 });
     case "UK":
-      return pick({ "1953": UK_DEMOGRAPHICS_1953, "1979": UK_DEMOGRAPHICS_1979, "1991": UK_DEMOGRAPHICS_1991, "2019": UK_DEMOGRAPHICS_2019 });
+      return pick({ "1953": UK_DEMOGRAPHICS_1953, "1979": UK_DEMOGRAPHICS_1979, "1991": UK_DEMOGRAPHICS_1991, "1999": UK_DEMOGRAPHICS_2019, "2007": UK_DEMOGRAPHICS_2019, "2019": UK_DEMOGRAPHICS_2019, "2023": UK_DEMOGRAPHICS_2019 });
     case "RU":
       return pick({ "1953": RU_DEMOGRAPHICS_1953, "1979": RU_DEMOGRAPHICS_1979 });
     case "DD":
       return pick({ "1953": DD_DEMOGRAPHICS_1953, "1979": DD_DEMOGRAPHICS_1979 });
     case "JP":
-      return pick({ "1991": JP_DEMOGRAPHICS_1991, "2019": JP_DEMOGRAPHICS_2019 });
+      return pick({ "1991": JP_DEMOGRAPHICS_1991, "1999": JP_DEMOGRAPHICS_2019, "2007": JP_DEMOGRAPHICS_2019, "2019": JP_DEMOGRAPHICS_2019, "2023": JP_DEMOGRAPHICS_2019 });
     case "DE":
-      return pick({ "1991": DE_DEMOGRAPHICS_1991, "2019": DE_DEMOGRAPHICS_2019 });
+      return pick({ "1991": DE_DEMOGRAPHICS_1991, "1999": DE_DEMOGRAPHICS_2019, "2007": DE_DEMOGRAPHICS_2019, "2019": DE_DEMOGRAPHICS_2019, "2023": DE_DEMOGRAPHICS_2019 });
     case "CN":
-      return pick({ "1991": CN_DEMOGRAPHICS_1991, "2019": CN_DEMOGRAPHICS_2019 });
+      return pick({ "1991": CN_DEMOGRAPHICS_1991, "1999": CN_DEMOGRAPHICS_2019, "2007": CN_DEMOGRAPHICS_2019, "2019": CN_DEMOGRAPHICS_2019, "2023": CN_DEMOGRAPHICS_2019 });
     case "BR":
       return pick({ "1991": BR_DEMOGRAPHICS_1991 });
     case "IE":
-      return pick({ "1991": IE_DEMOGRAPHICS_1991, "2019": IE_DEMOGRAPHICS_2019 });
+      return pick({ "1991": IE_DEMOGRAPHICS_1991, "1999": IE_DEMOGRAPHICS_2019, "2007": IE_DEMOGRAPHICS_2019, "2019": IE_DEMOGRAPHICS_2019, "2023": IE_DEMOGRAPHICS_2019 });
     default:
       return null;
   }

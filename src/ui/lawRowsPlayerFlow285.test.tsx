@@ -3,6 +3,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameSession } from "../game/session";
 import type { ExecuteActionParams } from "@ahdclient/engine";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
+import preRosterProvenance from "../../fixtures/pre-roster-country-provenance.json";
 
 const RELEASED_ROWS = [
   { id: "ru.economy.stability.primary", countryId: "RU", era: "1953" },
@@ -27,14 +32,28 @@ describe("released law player controls through saved GameSession (#285)", () => 
     it(`${row.id}${"region" in row && row.region ? " regional scope" : ""} is selectable, enacted, saved, and continued`, async () => {
       const user = userEvent.setup();
       let session = new GameSession();
-      session.create({
+      const options = {
         era: row.era,
         countryId: row.countryId,
         seed: `law-285-phone-${row.id}-${"region" in row && row.region ? "regional" : "national"}`,
         playerName: "Policy Chair",
-        mode: "hos",
-        autonomyLevel: "off",
-      });
+        mode: "hos" as const,
+        autonomyLevel: "off" as const,
+      };
+      if (row.countryId === "IE" || row.countryId === "DE") {
+        // The current source roster withholds new characters in IE/DE.
+        // These complete schema65 fixtures were produced by the immutable
+        // public pre-roster GameSession route; existing games still resume.
+        const provenance = preRosterProvenance.fixtures.find((fixture) => fixture.options.countryId === row.countryId)!;
+        const compressed = readFileSync(join(process.cwd(), "fixtures", provenance.fixture));
+        expect(createHash("sha256").update(compressed).digest("hex")).toBe(provenance.gzipSha256);
+        const raw = gunzipSync(compressed).toString("utf8");
+        expect(createHash("sha256").update(raw).digest("hex")).toBe(provenance.sha256);
+        session.load(raw);
+        const beforeRefusal = session.serialize(SAVED_AT);
+        expect(() => session.create(options)).toThrow("Choose a playable country");
+        expect(session.serialize(SAVED_AT)).toBe(beforeRefusal);
+      } else session.create(options);
       const initialProposal = session.legislation().proposals.find((entry) => entry.id === row.id);
       expect(initialProposal, `${row.id} must be in the actual player proposal list`).toBeDefined();
       if (row.id === "us.tax.tariffs") expect(initialProposal?.sponsorNpiCost).toBe(0);
