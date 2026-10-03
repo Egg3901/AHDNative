@@ -194,15 +194,15 @@ describe.sequential("earned governor presidential endorsement journey", () => {
       // including historical events, actions, RNG and the endorsement ledger.
       expect(control.serialize(STAMP)).toBe(controlSave);
       expect(treatment.serialize(STAMP)).toBe(treatmentSave);
-      const controlBefore = JSON.parse(controlSave) as { world: { meta: { turn: number }; rng: unknown } };
+      const controlBefore = JSON.parse(controlSave) as { world: { meta: { turn: number; rng: unknown } } };
       const treatmentBefore = JSON.parse(treatmentSave) as {
         world: {
-          meta: { turn: number }; rng: unknown;
+          meta: { turn: number; rng: unknown };
           elections: Array<{ id: string; endTurn: number }>;
         };
       };
       expect(controlBefore.world.meta.turn).toBe(treatmentBefore.world.meta.turn);
-      expect(controlBefore.world.rng).toEqual(treatmentBefore.world.rng);
+      expect(controlBefore.world.meta.rng).toEqual(treatmentBefore.world.meta.rng);
       const sourceEndTurn = treatmentBefore.world.elections.find((race) => race.id === PRESIDENT_RACE)!.endTurn;
       const nextTurn = Math.min(treatmentBefore.world.meta.turn + PRESIDENTIAL_CHECKPOINT_TURNS, sourceEndTurn + 1);
       while (treatmentView.turn < nextTurn) {
@@ -214,9 +214,9 @@ describe.sequential("earned governor presidential endorsement journey", () => {
       if (batchNumber === PRESIDENTIAL_BATCH_COUNT) expect(nextTurn).toBe(sourceEndTurn + 1);
       const nextControlSave = control.serialize(STAMP);
       const nextTreatmentSave = treatment.serialize(STAMP);
-      const controlAfter = JSON.parse(nextControlSave) as { world: { rng: unknown } };
-      const treatmentAfter = JSON.parse(nextTreatmentSave) as { world: { rng: unknown } };
-      expect(controlAfter.world.rng).toEqual(treatmentAfter.world.rng);
+      const controlAfter = JSON.parse(nextControlSave) as { world: { meta: { rng: unknown } } };
+      const treatmentAfter = JSON.parse(nextTreatmentSave) as { world: { meta: { rng: unknown } } };
+      expect(controlAfter.world.meta.rng).toEqual(treatmentAfter.world.meta.rng);
       writeFileSync(nextControlPath, nextControlSave);
       writeFileSync(nextTreatmentPath, nextTreatmentSave);
       if (batchNumber !== PRESIDENTIAL_BATCH_COUNT) return;
