@@ -72,7 +72,7 @@ import { splitNationalCorporation, mergeNationalCorporation } from "../corporati
 import { foundPlayerCorporation } from "../corporation/playerFounding.js";
 import { expandPlayerCorporationSector } from "../corporation/playerSectorExpansion.js";
 import { buyCorporateSectorForSale } from "../corporation/corporateSectorAcquire.js";
-import { castCorporationRelocationVote, openCorporationRelocationVote } from "../corporation/relocationVotes.js";
+import { castCorporationRelocationVote, directIndexFundRelocationVote, openCorporationRelocationVote } from "../corporation/relocationVotes.js";
 import { relocatePlayerWithCorporation } from "../corporation/relocatePlayerWithCorporation.js";
 import { relocateCorporateHeadquarters } from "../corporation/relocateCorporateHeadquarters.js";
 import type { CorporationType } from "../corporation/types.js";
@@ -170,7 +170,7 @@ export type ExecuteActionParams = {
   corpId?: string;
   corporationId?: string;
   sectorId?: string;
-  relocationChoice?: "yes" | "no";
+  relocationChoice?: "yes" | "no" | "withdraw";
   strategyId?: string;
   tier?: "fair" | "discounted" | "seizure";
   newCorpName?: string;
@@ -590,8 +590,13 @@ function executeActionInner(
   }
   if (actionId === "voteCorporateRelocation") {
     if (found.kind !== "player") return { ok: false, error: "Only the player can vote on corporate relocation" };
-    const result = castCorporationRelocationVote(world, params.corporationId ?? "", params.relocationChoice ?? "no");
+    const result = castCorporationRelocationVote(world, params.corporationId ?? "", params.relocationChoice === "yes" ? "yes" : "no");
     return result.ok ? { ok: true, message: `Recorded ${params.relocationChoice} on the corporate relocation vote (${result.status}).` } : result;
+  }
+  if (actionId === "directIndexFundRelocationVote") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can direct an index-fund vote" };
+    const result = directIndexFundRelocationVote(world, params.corporationId ?? "", params.fundSlug ?? "", params.relocationChoice ?? "no");
+    return result.ok ? { ok: true, message: `Recorded the ${params.relocationChoice} fund instruction (${result.status}).` } : result;
   }
   if (actionId === "relocatePlayerWithCorporation") {
     if (found.kind !== "player") return { ok: false, error: "Only the player CEO can relocate with a corporation" };
@@ -2776,8 +2781,11 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.corporationId && params.regionId
         ? null : "openCorporateRelocationVote requires corporationId and regionId";
     case "voteCorporateRelocation":
-      return params.corporationId && params.relocationChoice
+      return params.corporationId && (params.relocationChoice === "yes" || params.relocationChoice === "no")
         ? null : "voteCorporateRelocation requires corporationId and relocationChoice";
+    case "directIndexFundRelocationVote":
+      return params.corporationId && params.fundSlug && (params.relocationChoice === "yes" || params.relocationChoice === "no" || params.relocationChoice === "withdraw")
+        ? null : "directIndexFundRelocationVote requires corporationId, fundSlug and relocationChoice";
     case "relocatePlayerWithCorporation":
       return params.corporationId && params.regionId
         ? null : "relocatePlayerWithCorporation requires corporationId and regionId";

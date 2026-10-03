@@ -183,6 +183,27 @@ describe("ActionsHub", () => {
     expect(onAction).toHaveBeenCalledWith("voteCorporateRelocation", { corporationId: "corp-a", relocationChoice: "no" });
   });
 
+  it("submits a per-fund stewardship instruction through the public action", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    render(
+      <ActionsHub
+        actions={[{
+          id: "directIndexFundRelocationVote", name: "Direct Index Fund Vote", description: "Set the fund ballot.", cost: 0,
+          available: true, requires: "corporationVote", choices: [{ id: "corp-a", label: "A Corp" }],
+        }]}
+        {...props} onAction={onAction} category="all" onCategoryChange={() => {}}
+      />,
+    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "Corporation for Direct Index Fund Vote" }), "corp-a");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Fund instruction for Direct Index Fund Vote" }), "no");
+    await user.click(screen.getByRole("button", { name: "Take action: Direct Index Fund Vote" }));
+    expect(onAction).toHaveBeenCalledWith("directIndexFundRelocationVote", { corporationId: "corp-a", relocationChoice: "no", fundSlug: "us_top_25" });
+    await user.selectOptions(screen.getByRole("combobox", { name: "Fund instruction for Direct Index Fund Vote" }), "withdraw");
+    await user.click(screen.getByRole("button", { name: "Take action: Direct Index Fund Vote" }));
+    expect(onAction).toHaveBeenLastCalledWith("directIndexFundRelocationVote", { corporationId: "corp-a", relocationChoice: "withdraw", fundSlug: "us_top_25" });
+  });
+
   it("shows cooldown, prerequisite and funds cost from the projection", () => {
     const cooling: ActionView[] = [
       {

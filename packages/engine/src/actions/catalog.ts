@@ -122,6 +122,7 @@ export type ActionId =
   | "buyCorporateSector"
   | "openCorporateRelocationVote"
   | "voteCorporateRelocation"
+  | "directIndexFundRelocationVote"
   | "relocatePlayerWithCorporation"
   | "relocateCorporateHeadquarters"
   | "issueExtractionContract"
@@ -1066,6 +1067,13 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     description: "Cast or update your source-weighted shareholder ballot on a pending headquarters relocation.",
     baseCost: 0, cooldown: 0, fundCost: 0,
     systems: ["corporations", "corporation/governance"], status: "available",
+  },
+  directIndexFundRelocationVote: {
+    id: "directIndexFundRelocationVote",
+    name: "Direct Index Fund Vote",
+    description: "As a holder of at least half the fund units, set the fund's ballot on an open corporate relocation vote.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["corporations", "index-funds", "corporation/governance"], status: "available",
   },
   issueExtractionContract: {
     id: "issueExtractionContract",

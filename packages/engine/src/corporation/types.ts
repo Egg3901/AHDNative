@@ -215,6 +215,8 @@ export interface Corporation {
     passThreshold: number;
     eligibleSharesAtOpen: number;
     votes: Array<{ voterId: "player" | "npc"; choice: "yes" | "no" }>;
+    /** Per-fund instruction and directing unit holder, source vote continuation. */
+    fundDirections?: Array<{ fundSlug: string; directorId: string; choice: "yes" | "no" }>;
   };
   /** Source insolvency/default grace clock; no reconstruction from older Native insolvency. */
   financialDistressSinceTurn?: number | null;

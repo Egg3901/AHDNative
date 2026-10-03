@@ -21,8 +21,10 @@ export function sourceRelocationVoteThreshold(countryId: string): number {
 }
 
 function eligibleShares(corporation: Corporation): number {
-  return corporation.shareholders.reduce((sum, holder) =>
-    sum + (Number.isFinite(holder.shares) && holder.shares > 0 ? holder.shares : 0), 0);
+  // Game totalVotingPower uses all issued common shares, including public float.
+  // Fund custody transfers a share out of publicFloat, so totalShares remains
+  // the stable denominator across subscriptions, float trades, and redemptions.
+  return Number.isFinite(corporation.totalShares) && corporation.totalShares > 0 ? corporation.totalShares : 0;
 }
 
 function currentBallots(corporation: Corporation): Map<"player" | "npc", "yes" | "no"> {
@@ -110,6 +112,43 @@ export function castCorporationRelocationVote(
   return { ok: true, status: vote.status };
 }
 
+/** Source fund-direction route, authorized by >=50% of outstanding fund units. */
+export function directIndexFundRelocationVote(
+  world: WorldState,
+  corporationId: string,
+  fundSlug: string,
+  choice: "yes" | "no" | "withdraw",
+): { ok: true; status: "open" | "passed" | "failed" | "cancelled" } | { ok: false; error: string } {
+  const corporation = world.corporations[corporationId];
+  const vote = corporation?.relocationVote;
+  if (!corporation || !vote || vote.status !== "open") return { ok: false, error: "No open relocation vote exists" };
+  const fund = world.indexFundBook?.funds[fundSlug];
+  if (!fund) return { ok: false, error: "Unknown index fund" };
+  const existing = vote.fundDirections ?? [];
+  if (choice === "withdraw") {
+    if (!existing.some((direction) => direction.fundSlug === fundSlug && direction.directorId === "player")) {
+      return { ok: false, error: "No instruction of yours to withdraw" };
+    }
+    vote.fundDirections = existing.filter((direction) => direction.fundSlug !== fundSlug);
+    resolveOpenVote(world, corporation);
+    return { ok: true, status: vote.status };
+  }
+  const holding = fund.holdings[corporationId];
+  if (!holding || holding.shares <= 0) return { ok: false, error: "This fund holds no shares in the corporation" };
+  const positions = world.indexFundBook?.positions.filter((position) => position.fundSlug === fundSlug) ?? [];
+  const totalUnits = positions.reduce((sum, position) => sum + (Number.isFinite(position.units) && position.units > 0 ? position.units : 0), 0);
+  const playerUnits = positions.filter((position) => position.holderKind === "player" && position.holderId === "player")
+    .reduce((sum, position) => sum + position.units, 0);
+  if (totalUnits <= 0 || playerUnits / totalUnits < 0.5) {
+    return { ok: false, error: "You do not control enough units of this fund to direct its vote" };
+  }
+  const fundDirections = existing.filter((direction) => direction.fundSlug !== fundSlug);
+  fundDirections.push({ fundSlug, directorId: "player", choice });
+  vote.fundDirections = fundDirections;
+  resolveOpenVote(world, corporation);
+  return { ok: true, status: vote.status };
+}
+
 function resolveOpenVote(world: WorldState, corporation: Corporation): void {
   const vote = corporation.relocationVote;
   if (!vote || vote.status !== "open") return;
@@ -119,10 +158,31 @@ function resolveOpenVote(world: WorldState, corporation: Corporation): void {
   }
   const sharesByHolder = new Map(corporation.shareholders.map((holder) => [holder.holder, holder.shares]));
   const ballots = currentBallots(corporation);
-  const yes = [...ballots].reduce((sum, [holder, choice]) => sum + (choice === "yes" ? sharesByHolder.get(holder)! : 0), 0);
-  const no = [...ballots].reduce((sum, [holder, choice]) => sum + (choice === "no" ? sharesByHolder.get(holder)! : 0), 0);
-  const required = Math.ceil(vote.eligibleSharesAtOpen * vote.passThreshold);
-  const maxPossibleYes = yes + (vote.eligibleSharesAtOpen - yes - no);
+  const castYes = [...ballots].reduce((sum, [holder, choice]) => sum + (choice === "yes" ? sharesByHolder.get(holder) ?? 0 : 0), 0);
+  const castNo = [...ballots].reduce((sum, [holder, choice]) => sum + (choice === "no" ? sharesByHolder.get(holder) ?? 0 : 0), 0);
+  let yes = castYes;
+  let no = castNo;
+  let excludedFromDenominator = 0;
+  const book = world.indexFundBook;
+  for (const [fundSlug, fund] of Object.entries(book?.funds ?? {})) {
+    const votingPower = fund.holdings[corporation.id]?.shares ?? 0;
+    if (!(votingPower > 0)) continue;
+    const direction = vote.fundDirections?.find((row) => row.fundSlug === fundSlug);
+    const positions = book?.positions.filter((position) => position.fundSlug === fundSlug) ?? [];
+    const totalUnits = positions.reduce((sum, position) => sum + (Number.isFinite(position.units) && position.units > 0 ? position.units : 0), 0);
+    const directorUnits = direction
+      ? positions.filter((position) => position.holderKind === "player" && position.holderId === direction.directorId)
+        .reduce((sum, position) => sum + position.units, 0)
+      : 0;
+    const directed = direction?.directorId === "player" && totalUnits > 0 && directorUnits / totalUnits >= 0.5;
+    const fundVote = directed ? direction!.choice : castYes > castNo ? "yes" : castNo > castYes ? "no" : null;
+    if (fundVote === "yes") yes += votingPower;
+    else if (fundVote === "no") no += votingPower;
+    else excludedFromDenominator += votingPower;
+  }
+  const eligible = Math.max(1, vote.eligibleSharesAtOpen - excludedFromDenominator);
+  const required = Math.ceil(eligible * vote.passThreshold);
+  const maxPossibleYes = yes + Math.max(0, eligible - yes - no);
   if (yes >= required) {
     vote.status = "passed";
     applyPassedRelocation(world, corporation);
@@ -165,5 +225,19 @@ export function validateCorporateRelocationVote(value: unknown, corporationId: s
       throw new Error(`Corporation ${corporationId} has invalid relocation ballot`);
     }
     voterIds.add(row["voterId"]);
+  }
+  if (vote["fundDirections"] !== undefined) {
+    if (!Array.isArray(vote["fundDirections"])) throw new Error(`Corporation ${corporationId} has invalid fund vote directions`);
+    const fundSlugs = new Set<string>();
+    for (const rawDirection of vote["fundDirections"]) {
+      if (rawDirection === null || typeof rawDirection !== "object" || Array.isArray(rawDirection)) throw new Error(`Corporation ${corporationId} has invalid fund vote direction`);
+      const direction = rawDirection as Record<string, unknown>;
+      if (Object.keys(direction).some((key) => !["fundSlug", "directorId", "choice"].includes(key)) ||
+          typeof direction["fundSlug"] !== "string" || direction["fundSlug"].length === 0 || fundSlugs.has(direction["fundSlug"]) ||
+          direction["directorId"] !== "player" || (direction["choice"] !== "yes" && direction["choice"] !== "no")) {
+        throw new Error(`Corporation ${corporationId} has invalid fund vote direction`);
+      }
+      fundSlugs.add(direction["fundSlug"]);
+    }
   }
 }

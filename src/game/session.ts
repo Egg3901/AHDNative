@@ -74,6 +74,7 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting elected head of government and an eligible domestic issuer." },
   { id: "openCorporateRelocationVote", requires: "corporationRegion", category: "executive", prerequisite: "Requires an active CEO and a public corporation with eligible shareholders." },
   { id: "voteCorporateRelocation", requires: "corporationVote", category: "executive", prerequisite: "Requires shares in a corporation with an open relocation vote." },
+  { id: "directIndexFundRelocationVote", requires: "corporationVote", category: "executive", prerequisite: "Requires an open vote where you direct at least half of the US Large-Cap 25 Index units." },
   { id: "relocateCorporateHeadquarters", requires: "corporationRegion", category: "executive", prerequisite: "Requires an active CEO; public corporations need a passed shareholder vote for the selected destination." },
   { id: "relocatePlayerWithCorporation", requires: "corporationRegion", category: "executive", prerequisite: "Requires residence at the corporation headquarters and an active CEO; relocation starts a 72-turn personal cooldown." },
 ];
@@ -1026,7 +1027,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       // statless quick-create path); the engine error stays authoritative.
       const characterReason = characterActionDisabledReason(world, id);
       const choices = id === "nationalizeCorporation" ? nationalizationTargets(world)
-        : id === "voteCorporateRelocation" ? corporateRelocationChoices(world, id)
+        : id === "voteCorporateRelocation" || id === "directIndexFundRelocationVote" ? corporateRelocationChoices(world, id)
         : id === "openCorporateRelocationVote" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation"
           ? corporateRelocationChoices(world, id) : undefined;
       const destinations = requires === "corporationRegion" && choices?.length
@@ -1039,7 +1040,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : player.actions < cost ? "Not enough action points."
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
         : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
-        : (id === "openCorporateRelocationVote" || id === "voteCorporateRelocation" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation") && !choices?.length ? "No eligible corporation is available for this action."
+        : (id === "openCorporateRelocationVote" || id === "voteCorporateRelocation" || id === "directIndexFundRelocationVote" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation") && !choices?.length ? "No eligible corporation is available for this action."
         : requires === "corporationRegion" && !destinations?.length ? "No eligible headquarters destination is available."
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "debatePrep" && !world.featureFlags.rpgStats ? "The stat system is not currently enabled."
@@ -1278,9 +1279,20 @@ function projectFinance(world: WorldState): FinanceView {
  */
 function corporateRelocationChoices(world: WorldState, actionId: string): { id: string; label: string }[] {
   return Object.values(world.corporations)
-    .filter((corp) => corp.ceoId === "player" && corp.ceoType === "player" && corp.ceoVacant !== true)
+    .filter((corp) => actionId === "directIndexFundRelocationVote" || actionId === "voteCorporateRelocation" ||
+      (corp.ceoId === "player" && corp.ceoType === "player" && corp.ceoVacant !== true))
     .filter((corp) => actionId === "voteCorporateRelocation"
       ? corp.relocationVote?.status === "open" && corp.shareholders.some((holder) => holder.holder === "player" && holder.shares > 0)
+      : actionId === "directIndexFundRelocationVote"
+        ? corp.relocationVote?.status === "open" && (
+          corp.relocationVote.fundDirections?.some((direction) => direction.fundSlug === "us_top_25" && direction.directorId === "player") === true ||
+          ((world.indexFundBook?.funds.us_top_25?.holdings[corp.id]?.shares ?? 0) > 0 && (() => {
+            const positions = world.indexFundBook?.positions.filter((position) => position.fundSlug === "us_top_25") ?? [];
+            const total = positions.reduce((sum, position) => sum + position.units, 0);
+            const player = positions.filter((position) => position.holderKind === "player" && position.holderId === "player").reduce((sum, position) => sum + position.units, 0);
+            return total > 0 && player / total >= 0.5;
+          })())
+        )
       : actionId === "openCorporateRelocationVote"
         ? corp.isPrivate !== true && corp.relocationVote?.status !== "open" && corp.shareholders.some((holder) => holder.shares > 0)
         : actionId === "relocateCorporateHeadquarters"

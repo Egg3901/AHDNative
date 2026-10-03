@@ -78,7 +78,7 @@ function ActionCard({
   const [partyId, setPartyId] = useState(parties[0]?.id ?? "");
   const [regionId, setRegionId] = useState(action.destinations?.[0]?.id ?? regions[0]?.id ?? "");
   const [corporationId, setCorporationId] = useState(action.choices?.[0]?.id ?? "");
-  const [relocationChoice, setRelocationChoice] = useState<"yes" | "no">("yes");
+  const [relocationChoice, setRelocationChoice] = useState<"yes" | "no" | "withdraw">("yes");
   const [budgetCategory, setBudgetCategory] = useState("defense");
   const [taxField, setTaxField] = useState("incomeTax");
 
@@ -140,6 +140,7 @@ function ActionCard({
       if (!corporation) return;
       params.corporationId = corporation.id;
       params.relocationChoice = relocationChoice;
+      if (action.id === "directIndexFundRelocationVote") params.fundSlug = "us_top_25";
     }
     if (action.requires === "budgetSpending") {
       const value = Number(amount);
@@ -276,10 +277,11 @@ function ActionCard({
       ) : null}
       {action.requires === "corporationVote" ? (
         <label className="ahd-field" style={{ maxWidth: "16rem" }}>
-          <span className="ahd-label">Shareholder vote</span>
-          <select className="ahd-select" value={relocationChoice} onChange={(event) => setRelocationChoice(event.target.value as "yes" | "no")} disabled={busy || !action.available} aria-label={`Shareholder vote for ${action.name}`}>
-            <option value="yes">Approve relocation</option>
-            <option value="no">Reject relocation</option>
+          <span className="ahd-label">{action.id === "directIndexFundRelocationVote" ? "Fund instruction" : "Shareholder vote"}</span>
+          <select className="ahd-select" value={relocationChoice} onChange={(event) => setRelocationChoice(event.target.value as "yes" | "no" | "withdraw")} disabled={busy || !action.available} aria-label={`${action.id === "directIndexFundRelocationVote" ? "Fund instruction" : "Shareholder vote"} for ${action.name}`}>
+            <option value="yes">{action.id === "directIndexFundRelocationVote" ? "Instruct yes" : "Approve relocation"}</option>
+            <option value="no">{action.id === "directIndexFundRelocationVote" ? "Instruct no" : "Reject relocation"}</option>
+            {action.id === "directIndexFundRelocationVote" ? <option value="withdraw">No instruction (mirror holders)</option> : null}
           </select>
         </label>
       ) : null}
