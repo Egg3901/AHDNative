@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import { electorateLeanForGroups, listCreationHomeRegions } from "./homeRegionContext.js";
 import { US_CATEGORY_1953, type DemographicCategory } from "./categories.js";
 import { US_STATE_DEMOGRAPHICS_1953 } from "./usStateDemographics1953.js";
+import { US_STATE_DEMOGRAPHICS_2019 } from "./usStateDemographics2019.js";
+import { US_STATE_DEMOGRAPHICS_2023 } from "./usStateDemographics2023.js";
 
 const CATS: DemographicCategory[] = [
   {
@@ -81,6 +83,23 @@ describe("listCreationHomeRegions (world-free creation context)", () => {
     const ny = regions.find((region) => region.id === "NY")!.electorateLean!;
     const al = regions.find((region) => region.id === "AL")!.electorateLean!;
     expect(ny).not.toEqual(al);
+  });
+
+  it("uses source 2023 US context and the declared 2019 fallback for 1999/2007", () => {
+    const sourceAk = US_STATE_DEMOGRAPHICS_2023.find((row) => row.stateId === "AK")!;
+    const sourceNewYork = US_STATE_DEMOGRAPHICS_2023.find((row) => row.stateId === "NY")!;
+    const fallbackNewYork = US_STATE_DEMOGRAPHICS_2019.find((row) => row.stateId === "NY")!;
+    const sourceContext = listCreationHomeRegions("2023", "US");
+    const fallback1999 = listCreationHomeRegions("1999", "US");
+    const fallback2007 = listCreationHomeRegions("2007", "US");
+    expect(sourceAk).toBeDefined();
+    expect(sourceContext.find((row) => row.id === "AK")?.seeded).toBe(true);
+    expect(sourceContext.find((row) => row.id === "NY")?.electorateLean)
+      .toEqual(electorateLeanForGroups(US_CATEGORY_1953, sourceNewYork.categoryWeights, sourceNewYork.groups));
+    expect(fallback1999.find((row) => row.id === "NY")?.electorateLean)
+      .toEqual(electorateLeanForGroups(US_CATEGORY_1953, fallbackNewYork.categoryWeights, fallbackNewYork.groups));
+    expect(fallback2007.find((row) => row.id === "NY")?.electorateLean)
+      .toEqual(fallback1999.find((row) => row.id === "NY")?.electorateLean);
   });
 
   it("returns an empty list for an unknown country instead of inventing regions", () => {

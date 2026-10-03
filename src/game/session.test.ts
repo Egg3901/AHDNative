@@ -61,6 +61,19 @@ describe("singleplayer session", () => {
     expect(saved.world.player.countryId).toBe("IE");
   });
 
+  it("allows only ready US/UK characters in the 1999/2007/2023 source presets", () => {
+    for (const era of ["1999", "2007", "2023"]) {
+      for (const countryId of ["US", "UK"]) {
+        const session = new GameSession();
+        expect(session.create({ ...options, era, countryId }).countryId).toBe(countryId);
+      }
+      for (const countryId of ["JP", "CN", "DE", "IE"]) {
+        const unavailable = new GameSession();
+        expect(() => unavailable.create({ ...options, era, countryId })).toThrow(/playable country/);
+      }
+    }
+  });
+
   it("creates, saves, and reloads every ordinary selectable era/country with stable content identity", () => {
     const stamp = "2026-10-03T06:00:00.000Z";
     const pairs = gameChoices().flatMap((era) => era.countries
@@ -69,7 +82,8 @@ describe("singleplayer session", () => {
     expect(pairs.map(({ era, countryId }) => `${era}/${countryId}`).sort()).toEqual([
       "1953/DD", "1953/RU", "1953/UK", "1953/US",
       "1979/DD", "1979/RU", "1979/UK", "1979/US",
-      "1991/UK", "1991/US", "2019/UK", "2019/US",
+      "1991/UK", "1991/US", "1999/UK", "1999/US", "2007/UK", "2007/US",
+      "2019/UK", "2019/US", "2023/UK", "2023/US",
     ]);
 
     for (const { era, countryId } of pairs) {
@@ -83,9 +97,12 @@ describe("singleplayer session", () => {
         chamberKeys: (created.legislature.chambers ?? []).map((chamber) => chamber.key).sort(),
       };
       const save = session.serialize(stamp);
-      const stored = JSON.parse(save) as { world: { meta: { era: string }; player: { countryId: string } } };
+      const stored = JSON.parse(save) as { world: { meta: { era: string; startingYear?: number }; player: { countryId: string } } };
       expect(stored.world.meta.era).toBe(era);
       expect(stored.world.player.countryId).toBe(countryId);
+      if (["1999", "2007", "2023"].includes(era)) {
+        expect(stored.world.meta.startingYear).toBe(Number(era));
+      }
 
       const restored = new GameSession();
       const reloaded = restored.load(save);

@@ -1,6 +1,6 @@
 /**
- * Export the actual AHDGame source producers for unshipped 1999/2007/2023
- * reference presets without pretending their 2020 seat fallback is historical.
+ * Export actual AHDGame producer outputs used to build Native's 1999/2007/2023
+ * packs, while preserving the source's 2019 and 2020 fallback identities.
  *
  * Run from a clean AHDGame checkout pinned to the provenance revision:
  *   node --require ./node_modules/tsx/dist/cjs/index.cjs \
@@ -18,6 +18,7 @@ if (suppliedRevision !== EXPECTED_SOURCE_REVISION) {
   throw new Error(`Expected AHDGame ${EXPECTED_SOURCE_REVISION}; received ${String(suppliedRevision)}`);
 }
 const nativeOutput = path.resolve(__dirname, '../src/packs/sourceReferenceEraOutputs.json');
+const nativeDemographicsOutput = path.resolve(__dirname, '../../engine/src/demographics/usStateDemographics2023.ts');
 require(path.join(sourceRoot, 'node_modules/tsconfig-paths')).register({
   baseUrl: sourceRoot,
   paths: { '@/*': ['src/*'], '@shared/*': ['shared/*'] },
@@ -109,7 +110,9 @@ const us2023StatePack = states2023.map((state) => {
   };
 });
 const us2023Demographics = Object.entries(stateCensusData2023).map(([stateId, config]) =>
-  generateStateDemographicsForTest(stateId, config, '2023', { layer1Positions: false })
+  (({ categoryWeights, groups }) => ({ stateId, categoryWeights, groups }))(
+    generateStateDemographicsForTest(stateId, config, '2023', { layer1Positions: false })
+  )
 );
 const sourcePartyRosters = years.map((year) => {
   const preset = `${year}-default`;
@@ -144,7 +147,7 @@ const artifact = {
       'src/lib/seeds/registration/registrationLanes.ts#buildAllRegistrationSeeds',
       'src/lib/seeds/stateDemographics.ts#generateStateDemographicsForTest',
     ],
-    nativeExportScope: 'Source-returned preset roster, budget, 2023 state/demographic and exchange-rate outputs plus explicit 2020 seat fallback; pack generation remains a separate step.',
+    nativeExportScope: 'Source-returned preset roster, budget, party, exchange-rate, 2023 state/demographic outputs plus explicit 2020 seat fallback; playable SeedPack assembly and unsupported system disclosure remain separate.',
     normalizedRuntimeFields: ['budgetOutput.rows[].economicFactors.lastUpdated: source assigns current seed time; non-epoch Date values use a stable marker.'],
   },
   historicalSeatRoster2020Fallback: {
@@ -173,8 +176,22 @@ const artifact = {
   eras,
 };
 fs.writeFileSync(nativeOutput, `${JSON.stringify(artifact)}\n`);
+const typeScriptDemographics = [
+  'import type { StateDemographicsSeed } from "./usStateDemographics1953.js";',
+  '/**',
+  ' * US state demographics for 2023. Generated from current AHDGame source — DO NOT HAND-EDIT.',
+  ` * Source: ${EXPECTED_SOURCE_REVISION} src/lib/countries/us/data/usStateCensusData2023.ts + src/lib/seeds/stateDemographics.ts#generateStateDemographicsForTest.`,
+  ' * Uses the source default registration lane and Layer-1 positions disabled, matching the public 2023 preset producer.',
+  ' */',
+  'export const US_STATE_DEMOGRAPHICS_2023: StateDemographicsSeed[] = [',
+  ...us2023Demographics.map((row) => `  ${JSON.stringify(row)},`),
+  '];',
+  '',
+].join('\n');
+fs.writeFileSync(nativeDemographicsOutput, typeScriptDemographics);
 console.log(JSON.stringify({
   output: nativeOutput,
+  demographicsOutput: nativeDemographicsOutput,
   eras: eras.map(({ year, playerCountries, historicalSeatOutput, budgetOutput }) => ({
     year, playerCountries, seatRows: historicalSeatOutput.rowCount,
     seatHash: historicalSeatOutput.sha256, seatFallbacks: historicalSeatOutput.recordedFallbacks,

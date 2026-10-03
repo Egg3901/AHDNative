@@ -12,6 +12,8 @@ export interface SeedPack {
   /** Data format version for this pack. Bump when required fields change. */
   packVersion: number;
   era: EraSeed;
+  /** Source preset identity and lane-by-lane fallback disclosure for era packs. */
+  sourceProvenance?: EraPackSourceProvenance;
   countries: CountrySeed[];
   /** Optional extension tables: states, parties, sectors, budgets. */
   states?: StateSeed[];
@@ -33,6 +35,14 @@ export interface SeedPack {
    * not make a country selectable or create a macro-economy country by themselves.
    */
   backgroundElections?: BackgroundElectionSeed[];
+}
+
+export interface EraPackSourceProvenance {
+  sourceRepository: string;
+  sourceCommit: string;
+  sourcePreset: string;
+  /** Describes the source producer actually used for each seeded lane. */
+  lanes: Record<string, string>;
 }
 
 export interface BackgroundElectionSeed {

@@ -8,7 +8,7 @@ import { getPackByEra, PACKS } from "./packs/index.js";
  * and deliberately unavailable eras. The raw factory keeps authored rows for
  * internal fixtures; the GameSession boundary uses the narrower player set.
  *
- * Pinned authority: Egg3901/AHDGame@fff42a48a7dd7fd50cbe01124c8164cf9b7f6cb8
+ * Pinned authority: Egg3901/AHDGame@c35bcd86cbdbb877e73a0e9a45b0726605bdbc7a
  * (`src/lib/world/eraRoster.ts#tierFor` and
  * `src/lib/admin/seed/seedCountryGameStates.ts#seedCountryGameStates`):
  * - US/UK/RU/DD are player tier for 1953/1979.
@@ -41,7 +41,7 @@ export interface EraCoverageRow {
 }
 
 /**
- * The four supported eras. playableCountries mirrors the shipped packs;
+ * The supported eras. playableCountries mirrors the shipped packs;
  * assertSupportedMatrixMatchesPacks() fails closed on any drift.
  */
 export const SUPPORTED_MATRIX: EraCoverageRow[] = [
@@ -82,6 +82,30 @@ export const SUPPORTED_MATRIX: EraCoverageRow[] = [
     authorityPlayerUnavailableInNative: ["JP"],
   },
   {
+    era: "1999",
+    label: "1999 Start Date - Default Parties",
+    startDate: "1999-01-01",
+    packVersion: 1,
+    playableCountries: ["CN", "DE", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
+    authorityPreset: "1999-default",
+    authorityPlayer: ["US", "UK", "JP"],
+    playableDelta: ["CN", "DE", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
+  },
+  {
+    era: "2007",
+    label: "2007 Start Date - Default Parties",
+    startDate: "2007-01-01",
+    packVersion: 1,
+    playableCountries: ["CN", "DE", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
+    authorityPreset: "2007-default",
+    authorityPlayer: ["US", "UK", "JP"],
+    playableDelta: ["CN", "DE", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
+  },
+  {
     era: "2019",
     label: "2019 Start Date - Default Parties",
     startDate: "2019-01-01",
@@ -89,6 +113,18 @@ export const SUPPORTED_MATRIX: EraCoverageRow[] = [
     playableCountries: ["CN", "DE", "IE", "UK", "US"],
     newCharacterCountries: ["UK", "US"],
     authorityPreset: "2019-default",
+    authorityPlayer: ["US", "UK", "JP"],
+    playableDelta: ["CN", "DE", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
+  },
+  {
+    era: "2023",
+    label: "2023 Start Date - Default Parties",
+    startDate: "2023-01-01",
+    packVersion: 1,
+    playableCountries: ["CN", "DE", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
+    authorityPreset: "2023-default",
     authorityPlayer: ["US", "UK", "JP"],
     playableDelta: ["CN", "DE", "IE"],
     authorityPlayerUnavailableInNative: ["JP"],
@@ -105,7 +141,6 @@ export interface UnavailableEra {
 
 /**
  * Eras that must stay unavailable until authorized content exists.
- * 1999/2007/2023 have authority presets but no ported Native pack;
  * 1960 has neither an authority preset nor a pack — only a calendar
  * anchor (engine calendar.ts) plus the v40 legacyEra save backfill so
  * pre-removal saves migrate instead of crashing.
@@ -119,33 +154,6 @@ export const UNAVAILABLE_ERAS: UnavailableEra[] = [
       "No authority preset and no pack: fabricated era removed. " +
       "Legacy saves with meta.era 1960 migrate via the calendar anchor " +
       "and the v40 legacyEra backfill; no new world may be created.",
-  },
-  {
-    era: "1999",
-    status: "no-pack",
-    authorityPreset: "1999-default",
-    reason:
-      "Source authorizes US/UK/JP, but the preset has no complete Native pack. " +
-      "Source preset lanes fall back to 2019 and historical seats fall back " +
-      "to the 2020 roster; neither may be relabeled as 1999 data.",
-  },
-  {
-    era: "2007",
-    status: "no-pack",
-    authorityPreset: "2007-default",
-    reason:
-      "Source authorizes US/UK/JP, but the preset has no complete Native pack. " +
-      "Source preset lanes fall back to 2019 and historical seats fall back " +
-      "to the 2020 roster; neither may be relabeled as 2007 data.",
-  },
-  {
-    era: "2023",
-    status: "no-pack",
-    authorityPreset: "2023-default",
-    reason:
-      "Source authorizes US/UK/JP, but the preset has no complete Native pack. " +
-      "Source preset lanes fall back to 2019 and historical seats fall back " +
-      "to the 2020 roster; neither may be relabeled as 2023 data.",
   },
 ];
 
@@ -219,7 +227,7 @@ export function isNewCharacterSelection(era: string, countryId: string): boolean
   return SUPPORTED_MATRIX.find((row) => row.era === era)?.newCharacterCountries.includes(countryId) ?? false;
 }
 
-/** True for the four eras with shipped packs. */
+/** True for eras with shipped packs. */
 export function isSupportedEra(era: string): boolean {
   return getPackByEra(era) !== undefined;
 }

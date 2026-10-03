@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { PACKS, pack1953, pack1979 } from "./packs/index.js";
+import { PACKS, pack1953, pack1979, pack1999, pack2007, pack2023 } from "./packs/index.js";
 import { validatePack } from "./validate.js";
 import type { SeedPack } from "./types.js";
 import US_SOURCE_YEAR_ELECTORATE from "./packs/usSourceYearElectorate.json";
@@ -14,7 +14,10 @@ describe("validatePack", () => {
       us2023StateContent: {
         regionOutput: { rowCount: number; sha256: string; rows: unknown[] };
         demographicOutput: { stateCount: number; sha256: string; states: Record<string, unknown> };
+        generatedDemographics: { rowCount: number; sha256: string; rows: Array<{ stateId: string; categoryWeights: Record<string, number>; groups: Record<string, unknown> }> };
       };
+      sourcePlayerPartyRosters: { presets: Array<{ year: number; countries: Array<{ countryId: string; rows: Array<{ id: string }> }> }>; sha256: string };
+      eras: Array<{ year: number; initialExchangeRates: Record<string, number>; playerCountries: string[]; historicalSeatOutput: { rowCount: number; sha256: string; recordedFallbacks: Array<{ label: string; preset: string }> }; budgetOutput: { rowCount: number; sha256: string; rows: Array<{ countryId: string; fiscalYear: number; gdp: number; sourceFiscalYear?: number; economicFactors?: { lastUpdated?: string } }> } }>;
       eras: Array<{
         year: number;
         preset: string;
@@ -37,6 +40,9 @@ describe("validatePack", () => {
     expect(sha256(artifact.us2023StateContent.regionOutput.rows)).toBe(artifact.us2023StateContent.regionOutput.sha256);
     expect(artifact.us2023StateContent.demographicOutput.stateCount).toBe(51);
     expect(sha256(artifact.us2023StateContent.demographicOutput.states)).toBe(artifact.us2023StateContent.demographicOutput.sha256);
+    expect(artifact.us2023StateContent.generatedDemographics.rowCount).toBe(51);
+    expect(sha256(artifact.us2023StateContent.generatedDemographics.rows)).toBe(artifact.us2023StateContent.generatedDemographics.sha256);
+    expect(artifact.us2023StateContent.generatedDemographics.rows.map((row) => row.stateId).sort()).toContain("DC");
     expect(artifact.eras.map((entry) => entry.year)).toEqual([1999, 2007, 2023]);
     const usBudgetGdp = new Map([[1999, 9_660_000_000_000], [2007, 14_450_000_000_000], [2023, 27_400_000_000_000]]);
     for (const entry of artifact.eras) {
@@ -55,9 +61,28 @@ describe("validatePack", () => {
     }
     expect(artifact.eras[0]!.budgetOutput.rows.find((row) => row.countryId === "UK")?.sourceFiscalYear).toBe(1991);
     expect(artifact.eras[2]!.budgetOutput.rows.find((row) => row.countryId === "UK")?.sourceFiscalYear).toBe(2020);
+    expect(artifact.sourcePlayerPartyRosters.sha256).toBe(sha256(artifact.sourcePlayerPartyRosters.presets));
+    for (const year of [1999, 2007, 2023]) {
+      const source = artifact.eras.find((entry) => entry.year === year)!;
+      const pack = [pack1999, pack2007, pack2023].find((entry) => entry.era.id === String(year))!;
+      expect(source.initialExchangeRates.US).toBeGreaterThan(0);
+      expect(pack.sourceProvenance?.sourceCommit).toBe(artifact.provenance.sourceCommit);
+      expect(pack.budgets?.map((row) => row.countryId).sort()).toEqual(source.budgetOutput.rows
+        .filter((row) => pack.countries.some((country) => country.id === row.countryId))
+        .map((row) => row.countryId).sort());
+      expect(pack.budgets?.find((row) => row.countryId === "UK")?.sourceFiscalYear)
+        .toBe(source.budgetOutput.rows.find((row) => row.countryId === "UK")?.sourceFiscalYear);
+      expect(pack.parties?.filter((row) => row.countryId === "US").map((row) => row.id).sort())
+        .toEqual(artifact.sourcePlayerPartyRosters.presets.find((preset) => preset.year === year)!.countries
+          .find((country) => country.countryId === "US")!.rows.map((row) => row.id).sort());
+    }
+    expect(pack1999.era.startDate).toBe("1999-01-01");
+    expect(pack2007.era.startDate).toBe("2007-01-01");
+    expect(pack2023.era.startDate).toBe("2023-01-01");
+    expect(pack2023.states?.filter((row) => row.countryId === "US")).toHaveLength(51);
   });
 
-  it("validates the exported US electorate anchors for unshipped reference years", () => {
+  it("validates the exported US electorate anchors used by source-era packs", () => {
     const artifact = US_SOURCE_YEAR_ELECTORATE as unknown as {
       provenance: { sourceRepository: string; sourceCommit: string; sourceAnchorYears: number[]; worldStartYears: number[] };
       anchors: Record<string, Record<string, Record<string, {
@@ -189,10 +214,10 @@ describe("validatePack", () => {
     expect(regions.every((region) => Object.keys(region.metrics).length > 0)).toBe(true);
   });
 
-  it("registry is exactly the four real mainline presets, no fabricated eras", async () => {
+  it("registry is exactly the seven real mainline presets, with no fabricated eras", async () => {
     const { PACKS } = await import("./packs/index.js");
     const ids = PACKS.map((p) => p.era.id).sort();
-    expect(ids).toEqual(["1953", "1979", "1991", "2019"]);
+    expect(ids).toEqual(["1953", "1979", "1991", "1999", "2007", "2019", "2023"]);
     for (const bad of ["1960", "1968", "1976"]) {
       expect(ids).not.toContain(bad);
     }
@@ -204,9 +229,10 @@ describe("validatePack", () => {
     expect(playable).toEqual(["DD", "RU", "UK", "US"]);
   });
 
-  it("keeps preview countries unavailable while adding bounded 2019 Germany starts without RU/DD entities", async () => {
-    // Germany's 2019 bounded start now has an authored tax-law path. Its
-    // 1991 content and Japan's post-Cold-War starts remain previews.
+  it("keeps preview countries unavailable while adding bounded Germany starts without RU/DD entities", async () => {
+    // Germany's 2019 start has a bounded authored tax-law path. Later raw
+    // packs retain source country records, while the public session boundary
+    // decides which countries can start a new character.
     const { pack1991, pack2019 } = await import("./packs/index.js");
     const playable = (p: SeedPack) => p.countries.filter((c) => c.playable).map((c) => c.id).sort();
     expect(playable(pack1991)).toEqual(["BR", "CN", "IE", "UK", "US"]);
