@@ -70,7 +70,7 @@ export const pack2019: SeedPack = {
     {
       id: "JP",
       name: "Japan",
-      playable: false,
+      playable: true,
       economy: { gdp: 5_188_679, growthRate: 0.006, inflationRate: 0.005, unemploymentRate: 0.024 },
     },
     {

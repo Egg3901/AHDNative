@@ -50,6 +50,28 @@ function sessionWithConstrainedCentralBankPool(): GameSession {
 }
 
 describe("singleplayer session", () => {
+  it("opens source player-tier Japan in later eras through public creation, turn and save/reload", () => {
+    for (const era of ["1991", "1999", "2007", "2019", "2023"] as const) {
+      const japan = gameChoices().find((choice) => choice.id === era)?.countries.find((country) => country.id === "JP");
+      expect(japan?.playerSelectable, `${era} source tier`).toBe(true);
+
+      const session = new GameSession();
+      const view = session.create({ ...options, era, countryId: "JP", mode: "career" });
+      expect(view).toMatchObject({ era, countryId: "JP", player: { mode: "career" } });
+      expect(view.regions.length).toBeGreaterThan(0);
+      expect(view.legislature.chambers.some((chamber) => chamber.key === "shugiin")).toBe(true);
+
+      const save = session.serialize(`2026-10-04T00:00:00.000Z`);
+      const restored = new GameSession();
+      expect(restored.load(save)).toMatchObject({ era, countryId: "JP", player: { mode: "career" } });
+      expect(restored.advance().turn).toBe(1);
+    }
+
+    for (const era of ["1953", "1979"] as const) {
+      expect(gameChoices().find((choice) => choice.id === era)?.countries.some((country) => country.id === "JP")).toBe(false);
+    }
+  });
+
   it("blocks source-unavailable new-character choices but keeps worldsim spectator creation distinct", () => {
     const player = new GameSession();
     expect(() => player.create({ ...options, era: "1991", countryId: "IE", mode: "career" }))
@@ -61,13 +83,13 @@ describe("singleplayer session", () => {
     expect(saved.world.player.countryId).toBe("IE");
   });
 
-  it("allows only ready US/UK characters in the 1999/2007/2023 source presets", () => {
+  it("allows source-tier JP characters while keeping other unready countries unavailable", () => {
     for (const era of ["1999", "2007", "2023"]) {
-      for (const countryId of ["US", "UK"]) {
+      for (const countryId of ["US", "UK", "JP"]) {
         const session = new GameSession();
         expect(session.create({ ...options, era, countryId }).countryId).toBe(countryId);
       }
-      for (const countryId of ["JP", "CN", "DE", "IE"]) {
+      for (const countryId of ["CN", "DE", "IE"]) {
         const unavailable = new GameSession();
         expect(() => unavailable.create({ ...options, era, countryId })).toThrow(/playable country/);
       }
@@ -82,8 +104,8 @@ describe("singleplayer session", () => {
     expect(pairs.map(({ era, countryId }) => `${era}/${countryId}`).sort()).toEqual([
       "1953/DD", "1953/RU", "1953/UK", "1953/US",
       "1979/DD", "1979/RU", "1979/UK", "1979/US",
-      "1991/UK", "1991/US", "1999/UK", "1999/US", "2007/UK", "2007/US",
-      "2019/UK", "2019/US", "2023/UK", "2023/US",
+      "1991/JP", "1991/UK", "1991/US", "1999/JP", "1999/UK", "1999/US", "2007/JP", "2007/UK", "2007/US",
+      "2019/JP", "2019/UK", "2019/US", "2023/JP", "2023/UK", "2023/US",
     ]);
 
     for (const { era, countryId } of pairs) {

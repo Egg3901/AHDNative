@@ -22,9 +22,9 @@ import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.j
  *    1953-default decolonization events) — mainline just starts a
  *    1991-default world with RU/DD already gone. This pack does the same:
  *    RU and DD are not present at all, not even as non-playable entries.
- *    JP and DE remain economy-preview entries in the AHDGame manifest; Native
- *    keeps them unavailable until their country-specific regional budget and
- *    political surfaces are ported.
+ *    Source eraRoster tiers JP as player and DE as economy-only for 1991.
+ *    JP's regional, budget, Diet and election surfaces are now seeded as a
+ *    playable character world; DE remains a bounded economy-preview entry.
  *  - src/lib/constants/countries.ts COUNTRY_CONFIGS (base legislature seat
  *    counts — ERA_COUNTRY_CONFIG_OVERRIDES has no "1991-default" entries
  *    either, so these are the same era-neutral base numbers 1979 uses)
@@ -67,7 +67,7 @@ export const pack1991: SeedPack = {
     {
       id: "JP",
       name: "Japan",
-      playable: false,
+      playable: true,
       economy: { gdp: 3_494_424, growthRate: 0.034, inflationRate: 0.033, unemploymentRate: 0.021 },
     },
     {

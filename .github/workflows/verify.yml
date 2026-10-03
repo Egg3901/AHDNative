@@ -37,6 +37,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      - uses: actions/checkout@v4
       - name: Check out the immutable source readiness contract
         uses: actions/checkout@v4
         with:
@@ -55,6 +56,11 @@ jobs:
       - name: Exercise source JP player readiness for 1991 and 2019
         run: npx vitest run src/lib/admin/seed/seedCountryGameStates.test.ts -t 'opens JP to players' --maxWorkers 1
         working-directory: .reference-game
+      - name: Probe actual source readiness reports for every JP player era
+        run: |
+          cp scripts/jp-source-readiness.test.ts .reference-game/src/lib/world/NativeJpSourceReadinessProbe.test.ts
+          cd .reference-game
+          npx vitest run src/lib/world/NativeJpSourceReadinessProbe.test.ts --maxWorkers 1
   era_player_flows:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

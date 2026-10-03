@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { NewGameScreen } from "./NewGameScreen";
 import type { EraChoice } from "../game/types";
 import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
+import { gameChoices } from "../game/session";
 
 type SetupCountry = EraChoice["countries"][number] & { regions: { id: string; name: string }[] };
 type SetupEra = Omit<EraChoice, "countries"> & { countries: SetupCountry[] };
@@ -27,6 +28,22 @@ const ERAS: SetupEra[] = [
 ];
 
 describe("NewGameScreen", () => {
+  it("offers Japan from the source player eras while keeping cold-era Japan economy-only", async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    render(<NewGameScreen eras={gameChoices()} busy={false} onStart={onStart} onBack={vi.fn()} />);
+
+    const countrySelect = screen.getByLabelText(/country/i) as HTMLSelectElement;
+    expect([...countrySelect.options].some((option) => option.value === "JP")).toBe(false);
+    await user.click(screen.getByLabelText("1991"));
+    expect([...countrySelect.options].some((option) => option.value === "JP")).toBe(true);
+    await user.selectOptions(countrySelect, "JP");
+    await user.type(screen.getByLabelText(/your name/i), "Aiko");
+    await user.click(screen.getByRole("button", { name: /^start$/i }));
+
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ era: "1991", countryId: "JP", mode: "career" }));
+  });
+
   it("filters source-unavailable countries for characters but leaves worldsim spectator choices separate", async () => {
     const user = userEvent.setup();
     const eraChoices: SetupEra[] = [{ id: "1991", label: "1991", countries: [

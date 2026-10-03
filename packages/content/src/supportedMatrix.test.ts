@@ -25,11 +25,11 @@ describe("supported era/country matrix (#118)", () => {
     const playables = new Map(SUPPORTED_MATRIX.map((r) => [r.era, r.playableCountries]));
     expect(playables.get("1953")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playables.get("1979")).toEqual(["DD", "RU", "UK", "US"]);
-    expect(playables.get("1991")).toEqual(["BR", "CN", "IE", "UK", "US"]);
-    expect(playables.get("1999")).toEqual(["CN", "DE", "IE", "UK", "US"]);
-    expect(playables.get("2007")).toEqual(["CN", "DE", "IE", "UK", "US"]);
-    expect(playables.get("2019")).toEqual(["CN", "DE", "IE", "UK", "US"]);
-    expect(playables.get("2023")).toEqual(["CN", "DE", "IE", "UK", "US"]);
+    expect(playables.get("1991")).toEqual(["BR", "CN", "IE", "JP", "UK", "US"]);
+    expect(playables.get("1999")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playables.get("2007")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playables.get("2019")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playables.get("2023")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
   });
 
   it("records the post-Cold-War playable deltas against the pinned authority explicitly", () => {
@@ -39,15 +39,15 @@ describe("supported era/country matrix (#118)", () => {
     expect(row1991.authorityPreset).toBe("1991-default");
     expect([...row1991.authorityPlayer].sort()).toEqual(["JP", "UK", "US"]);
     expect([...row1991.playableDelta].sort()).toEqual(["BR", "CN", "IE"]);
-    expect(row1991.newCharacterCountries).toEqual(["UK", "US"]);
-    expect([...row1991.authorityPlayerUnavailableInNative].sort()).toEqual(["JP"]);
+      expect(row1991.newCharacterCountries).toEqual(["JP", "UK", "US"]);
+      expect(row1991.authorityPlayerUnavailableInNative).toEqual([]);
     for (const era of ["1999", "2007", "2019", "2023"]) {
       const row = SUPPORTED_MATRIX.find((r) => r.era === era)!;
       expect(row.authorityPreset).toBe(`${era}-default`);
       expect([...row.authorityPlayer].sort()).toEqual(["JP", "UK", "US"]);
       expect([...row.playableDelta].sort()).toEqual(["CN", "DE", "IE"]);
-      expect(row.newCharacterCountries).toEqual(["UK", "US"]);
-      expect([...row.authorityPlayerUnavailableInNative].sort()).toEqual(["JP"]);
+      expect(row.newCharacterCountries).toEqual(["JP", "UK", "US"]);
+      expect(row.authorityPlayerUnavailableInNative).toEqual([]);
     }
     // Cold War eras match the authority exactly: no silent widening.
     for (const era of ["1953", "1979"]) {
@@ -89,13 +89,15 @@ describe("supported era/country matrix (#118)", () => {
     for (const [era, id] of [["1953", "US"], ["1953", "DD"], ["1979", "RU"], ["1991", "UK"], ["1999", "US"], ["2007", "UK"], ["2019", "US"], ["2023", "UK"]]) {
       expect(isNewCharacterSelection(era!, id!)).toBe(true);
     }
-    for (const [era, id] of [["1991", "JP"], ["1991", "IE"], ["1991", "BR"], ["1991", "CN"], ["1999", "JP"], ["1999", "CN"], ["1999", "DE"], ["1999", "IE"], ["2007", "JP"], ["2007", "CN"], ["2007", "DE"], ["2007", "IE"], ["2019", "JP"], ["2019", "DE"], ["2019", "IE"], ["2019", "CN"], ["2023", "JP"], ["2023", "DE"], ["2023", "IE"], ["2023", "CN"]]) {
+    for (const [era, id] of [["1991", "IE"], ["1991", "BR"], ["1991", "CN"], ["1999", "CN"], ["1999", "DE"], ["1999", "IE"], ["2007", "CN"], ["2007", "DE"], ["2007", "IE"], ["2019", "DE"], ["2019", "IE"], ["2019", "CN"], ["2023", "DE"], ["2023", "IE"], ["2023", "CN"]]) {
       expect(isNewCharacterSelection(era!, id!)).toBe(false);
     }
     // Engine packs keep internal fixture reachability; public new-character
     // access is checked separately at GameSession/client creation.
     expect(isPlayableCountry("1991", "IE")).toBe(true);
+    expect(isPlayableCountry("1991", "JP")).toBe(true);
     expect(isPlayableCountry("2019", "DE")).toBe(true);
+    expect(isPlayableCountry("2023", "JP")).toBe(true);
   });
 
   it("assertSupportedSelection accepts every supported combo and rejects the rest", () => {
@@ -106,8 +108,7 @@ describe("supported era/country matrix (#118)", () => {
         accepted++;
       }
     }
-    // Raw engine packs retain 18 authored combinations for internal use.
-    expect(accepted).toBe(33);
+    expect(accepted).toBe(38);
     // Unavailable eras.
     for (const era of ["1960", "1800"]) {
       expect(() => assertSupportedSelection(era, "US")).toThrow(/Unknown era/);
@@ -115,14 +116,12 @@ describe("supported era/country matrix (#118)", () => {
     // Unknown country.
     expect(() => assertSupportedSelection("1953", "ZZ")).toThrow(/Unknown country/);
     // Non-playable economy-preview entries are not selectable.
-    expect(() => assertSupportedSelection("1991", "JP")).toThrow(/not playable/);
     expect(() => assertSupportedSelection("1991", "DE")).toThrow(/not playable/);
-    expect(() => assertSupportedSelection("2019", "JP")).toThrow(/not playable/);
     expect(() => assertSupportedSelection("2019", "BR")).toThrow(/not playable/);
     for (const era of ["1999", "2007", "2023"]) {
       expect(() => assertSupportedSelection(era, "US")).not.toThrow();
       expect(() => assertSupportedSelection(era, "UK")).not.toThrow();
-      expect(() => assertSupportedSelection(era, "JP")).toThrow(/not playable/);
+      expect(() => assertSupportedSelection(era, "JP")).not.toThrow();
     }
   });
 });

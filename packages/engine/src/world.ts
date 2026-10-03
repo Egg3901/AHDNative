@@ -841,8 +841,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // resumes the sequence correctly.
   const playableIds = new Set(pack.countries.filter((c) => c.playable).map((c) => c.id));
   // AHDGame seeds JP political regions, parties, legislatures and elections in
-  // every supported preset even while JP character selection is disabled.
-  // Keep that background producer distinct from the public playable roster.
+  // every supported preset. Cold-era packs keep JP as background-only; later
+  // source player-tier packs also include JP in the public playable roster.
   const seededPoliticalIds = new Set(playableIds);
   if (
     pack.countries.some((country) => country.id === "JP") &&
@@ -1970,15 +1970,14 @@ function seedBudgets(
     };
   }
 
-  // Japan participates as a simulated source country even while the player
-  // creation gate remains closed. Keep its eight source regional-budget rows
-  // in the fiscal book only; putting these rows in the shared Region table
-  // would incorrectly seed elections and demographics from an economy-only
-  // action. The source seeds every JP regional StatePolicy at its center option
-  // in all eras; these remain fiscal rows and do not create voter regions.
+  // Japan has source regional-budget rows in every era. These fiscal rows
+  // preserve the source budget inputs; the separate JP political-region
+  // producer supplies electoral geography and is gated from new characters in
+  // the 1953 and 1979 economy-only packs. The source seeds each regional
+  // StatePolicy at its center option in all eras.
   // createWorld uses the same deterministic source baseline as the ordinary
-  // phase's legacy-row initializer. Neither path fabricates electoral regions
-  // or a minister's historical grant allocation.
+  // phase's legacy-row initializer without overwriting mutable population or
+  // property values on existing regions.
   if (budgets.JP) Object.assign(regionalBudgets, createJPRegionalBudgetRows(pack.era.id));
 
   return { budgets, regionalBudgets };

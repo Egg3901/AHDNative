@@ -29,11 +29,11 @@ describe("era coverage: selection (#118)", () => {
       listPlayableCountries(era).map((c) => c.id).sort();
     expect(playables("1953")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playables("1979")).toEqual(["DD", "RU", "UK", "US"]);
-    expect(playables("1991")).toEqual(["BR", "CN", "IE", "UK", "US"]);
-    expect(playables("1999")).toEqual(["CN", "DE", "IE", "UK", "US"]);
-    expect(playables("2007")).toEqual(["CN", "DE", "IE", "UK", "US"]);
-    expect(playables("2019")).toEqual(["CN", "DE", "IE", "UK", "US"]);
-    expect(playables("2023")).toEqual(["CN", "DE", "IE", "UK", "US"]);
+    expect(playables("1991")).toEqual(["BR", "CN", "IE", "JP", "UK", "US"]);
+    expect(playables("1999")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playables("2007")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playables("2019")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playables("2023")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
   });
 
   it("createWorld rejects unavailable eras without falling back", () => {
@@ -45,9 +45,9 @@ describe("era coverage: selection (#118)", () => {
     }
   });
 
-  it("derives exactly 33 engine-playable combos from the shipped packs", () => {
-    // Source-backed contract for #118: JP and economy-preview entries
-    // are economy-preview entries, not playable countries. The derived
+  it("derives exactly 38 source-tier engine-playable combos from the shipped packs", () => {
+    // Japan is economy-only in 1953/1979 and source player-tier from 1991;
+    // later packs seed its budgets, regions, Diet and elections. The derived
     // set below must stay in sync with SUPPORTED_MATRIX and the
     // world-validation/matrix docs; any playable-flag change fails here.
     const derived: string[] = [];
@@ -58,24 +58,22 @@ describe("era coverage: selection (#118)", () => {
     expect(derived).toEqual([
       "1953/DD", "1953/RU", "1953/UK", "1953/US",
       "1979/DD", "1979/RU", "1979/UK", "1979/US",
-      "1991/BR", "1991/CN", "1991/IE", "1991/UK", "1991/US",
-      "1999/CN", "1999/DE", "1999/IE", "1999/UK", "1999/US",
-      "2007/CN", "2007/DE", "2007/IE", "2007/UK", "2007/US",
-      "2019/CN", "2019/DE", "2019/IE", "2019/UK", "2019/US",
-      "2023/CN", "2023/DE", "2023/IE", "2023/UK", "2023/US",
+      "1991/BR", "1991/CN", "1991/IE", "1991/JP", "1991/UK", "1991/US",
+      "1999/CN", "1999/DE", "1999/IE", "1999/JP", "1999/UK", "1999/US",
+      "2007/CN", "2007/DE", "2007/IE", "2007/JP", "2007/UK", "2007/US",
+      "2019/CN", "2019/DE", "2019/IE", "2019/JP", "2019/UK", "2019/US",
+      "2023/CN", "2023/DE", "2023/IE", "2023/JP", "2023/UK", "2023/US",
     ]);
-    expect(derived).toHaveLength(33);
+    expect(derived).toHaveLength(38);
   });
 
   it("economy-preview entries stay present but fail closed on selection", () => {
-    // JP and other preview rows keep their authored economic
-    // records in the pack yet are unavailable: listCountries reports
+    // Other preview rows keep their authored economic records yet are unavailable: listCountries reports
     // playable:false and createWorld rejects them without fallback.
     const preview: Array<[string, string]> = [
-      ["1991", "JP"], ["1991", "DE"], ["1999", "JP"], ["2007", "JP"],
-      ["2019", "JP"], ["2019", "BR"], ["2023", "JP"],
+      ["1991", "DE"], ["2019", "BR"],
     ];
-    expect(preview.length).toBe(7);
+    expect(preview.length).toBe(2);
     for (const [era, countryId] of preview) {
       const entry = listCountries(era).find((c) => c.id === countryId);
       expect(entry, `${era}/${countryId} present in pack`).toBeDefined();
@@ -86,10 +84,8 @@ describe("era coverage: selection (#118)", () => {
     }
   });
 
-  it("createWorld rejects non-playable and unknown countries", () => {
-    expect(() =>
-      createWorld({ seed: "s", playerName: "P", countryId: "JP", era: "1991" }),
-    ).toThrow(/not playable/);
+  it("createWorld opens source-tier Japan and rejects non-playable and unknown countries", () => {
+    expect(createWorld({ seed: "s", playerName: "P", countryId: "JP", era: "1991" }).player.countryId).toBe("JP");
     expect(() =>
       createWorld({ seed: "s", playerName: "P", countryId: "DE", era: "1991" }),
     ).toThrow(/not playable/);
@@ -130,15 +126,15 @@ describe("era coverage: save/reload content identity (#118)", () => {
   const combos: Array<[string, string]> = [
     ["1953", "US"], ["1953", "UK"], ["1953", "RU"], ["1953", "DD"],
     ["1979", "US"], ["1979", "UK"], ["1979", "RU"], ["1979", "DD"],
-    ["1991", "US"], ["1991", "UK"], ["1991", "BR"], ["1991", "CN"], ["1991", "IE"],
-    ["1999", "US"], ["1999", "UK"], ["1999", "CN"], ["1999", "DE"], ["1999", "IE"],
-    ["2007", "US"], ["2007", "UK"], ["2007", "CN"], ["2007", "DE"], ["2007", "IE"],
-    ["2019", "US"], ["2019", "UK"], ["2019", "CN"], ["2019", "DE"], ["2019", "IE"],
-    ["2023", "US"], ["2023", "UK"], ["2023", "CN"], ["2023", "DE"], ["2023", "IE"],
+    ["1991", "US"], ["1991", "UK"], ["1991", "BR"], ["1991", "CN"], ["1991", "IE"], ["1991", "JP"],
+    ["1999", "US"], ["1999", "UK"], ["1999", "CN"], ["1999", "DE"], ["1999", "IE"], ["1999", "JP"],
+    ["2007", "US"], ["2007", "UK"], ["2007", "CN"], ["2007", "DE"], ["2007", "IE"], ["2007", "JP"],
+    ["2019", "US"], ["2019", "UK"], ["2019", "CN"], ["2019", "DE"], ["2019", "IE"], ["2019", "JP"],
+    ["2023", "US"], ["2023", "UK"], ["2023", "CN"], ["2023", "DE"], ["2023", "IE"], ["2023", "JP"],
   ];
 
-  it("covers all 33 supported era/country combinations", () => {
-    expect(combos.length).toBe(33);
+  it("covers all 38 supported era/country combinations", () => {
+    expect(combos.length).toBe(38);
   });
 
   it.each(combos)("(%s, %s) stamps content identity and survives a save round trip", (era, countryId) => {
