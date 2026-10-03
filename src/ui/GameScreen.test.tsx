@@ -1014,10 +1014,15 @@ describe("GameScreen navigation menu", () => {
     expect(within(restored).getByText("Acme Steel")).toBeInTheDocument();
   });
 
-  it("exposes the avatar/profile identity flow and keeps unreachable reference rows absent", async () => {
+  it("exposes profile identity and reaches the recorded currency exchange flow", async () => {
     const user = userEvent.setup();
-    const world = makeWorld();
-    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const world = makeWorld({ finance: makeFinance({ forex: { enabled: true, currencies: ["USD", "GBP"], balances: { USD: 1200 } } }) });
+    const onAction = vi.fn(async () => true);
+    const quoteForexTrade = vi.fn(async (fromCurrency: string, toCurrency: string, amount: number) => {
+      const spreadFee = Math.round(amount * 0.01);
+      return { ok: true as const, quote: { fromCurrency, toCurrency, fromAmount: amount, toAmount: Math.round((amount - spreadFee) * 0.357), crossRate: 0.357, anchorAmount: amount, feeRate: 0.01, spreadFee } };
+    });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={onAction} quoteForexTrade={quoteForexTrade} />);
     // Actions stays reachable from the identity flow: bottom nav + drawer group.
     expect(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Actions" })).toBeInTheDocument();
     const menu = await openMenu(user);
@@ -1031,11 +1036,18 @@ describe("GameScreen navigation menu", () => {
     // Reference destinations with no Native surface (My Corporation,
     // Unions and Crises) must not appear as placeholder rows. World
     // map and Hall of Fame exist as real routes (#73).
-    for (const label of ["My Corporation", "Unions", "Crises", "Currency Exchange", "Trade", "IMF"]) {
+    for (const label of ["My Corporation", "Unions", "Crises", "Trade", "IMF"]) {
       expect(within(menu).queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
     await user.click(within(menu).getByRole("button", { name: "World" }));
     expect(within(menu).getByRole("button", { name: "Hall of Fame" })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "Currency exchange" }));
+    expect(screen.getByRole("heading", { name: "Exchange Currency" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Amount (USD)"), "100");
+    expect(await screen.findByText("You receive")).toBeInTheDocument();
+    expect(quoteForexTrade).toHaveBeenCalledWith("USD", "GBP", 100);
+    await user.click(screen.getByRole("button", { name: "Exchange Now" }));
+    expect(onAction).toHaveBeenCalledWith("exchangeCurrency", { fromCurrency: "USD", toCurrency: "GBP", amount: 100 });
   });
 
   it("renders Banking from world.finance and deposits through the real action", async () => {

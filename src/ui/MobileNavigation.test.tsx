@@ -347,7 +347,7 @@ describe("MobileNavigation", () => {
     const nation = screen.getByRole("button", { name: "Nation" });
     const world = screen.getByRole("button", { name: "World" });
     expect(within(nation).getByText("16")).toBeInTheDocument();
-    expect(within(world).getByText("10")).toBeInTheDocument();
+    expect(within(world).getByText("11")).toBeInTheDocument();
     expect(nation).toHaveAttribute("aria-controls", "ahd-drawer-section-nation");
     expect(world).toHaveAttribute("aria-controls", "ahd-drawer-section-world");
     // Collapsed sections render no controlled region; expanding reveals it.
@@ -356,11 +356,12 @@ describe("MobileNavigation", () => {
     expect(nation).toHaveAttribute("aria-expanded", "true");
     expect(document.getElementById("ahd-drawer-section-nation")).not.toBeNull();
     expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
-    // No destination added or removed by the composition pass beyond the
-    // Sectors entry (#89) and the World directory entry (#73).
+    // The composition pass retains existing destinations and adds the source-backed
+    // Currency exchange route alongside the World directory and Sectors entries.
     const ids = drawerRouteIds();
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(36);
+    expect(ids).toContain("forex");
+    expect(ids).toHaveLength(37);
     expect(css).toMatch(/\.ahd-drawer-group\s*\+\s*\.ahd-drawer-group\s*\{[^}]*border-top:/);
   });
 
@@ -644,7 +645,7 @@ describe("MobileNavigation", () => {
     // Every drawer row carries its label in a truncating span with a hover
     // title, so long/localized strings cannot push neighbouring content out.
     const rows = document.querySelectorAll("#ahd-drawer .ahd-drawer-item");
-    expect(rows.length).toBe(36);
+    expect(rows.length).toBe(37);
     for (const row of Array.from(rows)) {
       const label = row.querySelector(":scope > .ahd-drawer-item-label");
       expect(label).not.toBeNull();
@@ -663,7 +664,7 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-drawer-item-label\s*\{[^}]*flex:\s*1 1 auto[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\.ahd-drawer-item\s+\.ahd-badge\s*\{[^}]*flex:\s*0 0 auto/);
     expect(css).toMatch(/\.ahd-drawer-item[^{]*\{[^}]*min-height:\s*44px/);
-    expect(drawerRouteIds()).toHaveLength(36);
+    expect(drawerRouteIds()).toHaveLength(37);
   });
 
   it("truncates long/localized bottom-nav labels in place at 320px without losing routes", () => {
