@@ -3,6 +3,7 @@ import { createWorld } from "../world.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { advanceTurn } from "../engine.js";
 import { playerSavingsInterestPhase } from "./playerSavingsInterest.js";
+import { rngFromSeed } from "../rng.js";
 
 const OPTS = {
   seed: "savings-phase",
@@ -10,11 +11,7 @@ const OPTS = {
   countryId: "US",
   era: "1953",
 } as const;
-const RNG = {
-  next: () => 0.5,
-  int: () => 0,
-  pick: <T>(items: T[]) => items[0]!,
-};
+const RNG = rngFromSeed("player-savings-interest-test");
 
 describe("playerSavingsInterestPhase", () => {
   it("accrues central-bank interest each turn and credits it on turn 12", () => {
@@ -37,7 +34,7 @@ describe("playerSavingsInterestPhase", () => {
     expect(world.player.savingsInterestEarnedLifetime).toBe(19.22);
     expect(world.centralBanks.US!.nationalSavingsBalance).toBe(48_000);
 
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     expect(loaded.player.pendingSavingsInterest).toBe(0);
     expect(loaded.player.savingsInterestEarnedLifetime).toBe(19.22);
     expect(loaded.centralBanks.US!.nationalSavingsBalance).toBe(48_000);
@@ -60,7 +57,7 @@ describe("playerSavingsInterestPhase", () => {
     expect(world.player.pendingSavingsInterest).toBe(3.83);
     expect(world.centralBanks.US!.nationalSavingsBalance).toBe(48_000);
 
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     expect(loaded.centralBanks.US!.nationalSavingsBalance).toBe(48_000);
     loaded.meta.turn = 12;
     playerSavingsInterestPhase.run(loaded, RNG);
@@ -82,7 +79,7 @@ describe("playerSavingsInterestPhase", () => {
     expect(world.player.pendingSavingsInterest).toBe(3.83);
     expect(world.centralBanks.US!.nationalSavingsBalance).toBe(48_000);
 
-    const resumed = deserializeSave(serializeSave(world));
+    const resumed = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     resumed.centralBanks.US!.primeRate = 5;
     resumed.budgets.US!.economicFactors.inflationRate = 2;
     advanceTurn(resumed);
@@ -112,7 +109,7 @@ describe("playerSavingsInterestPhase", () => {
       "Invalid national savings pool",
     );
     expect(JSON.stringify(world)).toBe(before);
-    expect(() => deserializeSave(serializeSave(world))).toThrow(
+    expect(() => deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"))).toThrow(
       "Invalid national savings pool",
     );
   });
@@ -167,7 +164,7 @@ describe("playerSavingsInterestPhase", () => {
     world.meta.turn = 5;
     playerSavingsInterestPhase.run(world, RNG);
 
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
 
     expect(loaded.player.pendingSavingsInterest).toBe(15.31);
     expect(loaded.player.savings).toBe(48_000);

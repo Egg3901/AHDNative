@@ -76,7 +76,7 @@ describe("source NPP capacity replacement", () => {
   it("matches the source frontier predicate and uses only observed local demand", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-frontier-use", playerName: "Alex" });
     world.corporateSectors = {};
-    const { commodity, rate } = SOURCE_FRONTIER_ENTRY_SUPPLY.manufacturing[0]!;
+    const { commodity, rate } = SOURCE_FRONTIER_ENTRY_SUPPLY.manufacturing![0]!;
     world.plantMarketDemand = {
       external: {}, corporateInputs: {},
       corporateInputsByState: { VA: { [commodity]: 120 } },
@@ -117,7 +117,7 @@ describe("source NPP capacity replacement", () => {
     corp.profitMargin = 35;
     corp.effectiveProfitMargin = 35;
     world.meta.turn = 1;
-    const { commodity } = SOURCE_FRONTIER_ENTRY_SUPPLY.manufacturing[0]!;
+    const { commodity } = SOURCE_FRONTIER_ENTRY_SUPPLY.manufacturing![0]!;
     world.plantMarketDemand = { external: {}, corporateInputs: {}, corporateInputsByState: { VA: { [commodity]: 10_000, food: 10_000 } } };
     world.corporateSectors = {
       prior: {
@@ -517,7 +517,7 @@ describe("source NPP capacity replacement", () => {
     world.corporateSectors = Object.fromEntries(fills.map((fill, index) => {
       const id = `ranked-plant-${index}`;
       return [id, {
-        id, corporationId: corp.id, countryId: "US", stateId: regionIds[index],
+        id, corporationId: corp.id, countryId: "US", stateId: regionIds[index]!,
         sectorType: "manufacturing" as const, capitalStock: 1_000,
         producedUnits: 1_000, soldUnits: fill * 1_000, revenue: 10_000,
         plantsPnl: { turn: world.meta.turn, revenue: 10_000, inputs: 1_000, otherOpex: 0, policyCredit: 0, growth: 0, operatingCost: 1_000, totalCost: 1_000, profit: 9_000 },
