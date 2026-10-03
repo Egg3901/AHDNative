@@ -1,7 +1,7 @@
 import type { WorldState } from "../types.js";
 import { isCampaignEligibleElection } from "../campaigns/isCampaignEligible.js";
 import { campaignKey } from "../campaigns/lifecycle.js";
-import { AD_BONUS_CAP, AD_MAX_ACTIONS, AD_BOOST_PER_ACTION, currentAdBonus, planAdPurchase, type TargetedAd } from "../campaigns/targetedAds.js";
+import { AD_BONUS_CAP, AD_MAX_ACTIONS, AD_BOOST_PER_ACTION, campaignAdTargetChoices, campaignCellsForRegion, currentAdBonus, planAdPurchase, type TargetedAd } from "../campaigns/targetedAds.js";
 
 export interface TargetedAdPurchaseParams {
   regionId?: string | undefined;
@@ -119,15 +119,17 @@ function validateTarget(world: WorldState, params: TargetedAdPurchaseParams, all
   }
   const category = (world.demographicCategories[world.player.countryId] ?? []).find((item) => item._id === demographicCategory);
   const group = category?.groups.find((item) => item.id === demographicGroup);
-  const audience = world.stateDemographics[regionId]?.groups[demographicGroup];
-  if (!category || !group || !audience || (world.demographicCategories[world.player.countryId] ?? []).every((item) =>
-    !item.groups.some((candidateGroup) => candidateGroup.id === demographicGroup))) {
+  const legacyAudience = Boolean(group && world.stateDemographics[regionId]?.groups[demographicGroup]);
+  const sourceAudience = campaignCellsForRegion(world, regionId).some((cell) => cell.buckets[demographicCategory] === demographicGroup);
+  if (!legacyAudience && !sourceAudience) {
     return { ok: false as const, error: "Choose a recorded demographic target in this region." };
   }
   const current = currentAdBonus(world.player.targetedAds ?? [], { stateId: regionId, dimension: demographicCategory, bucket: demographicGroup }, world.meta.turn);
   const maxCount = Math.min(AD_MAX_ACTIONS, Math.ceil(Math.max(0, AD_BONUS_CAP - current - 1e-10) / AD_BOOST_PER_ACTION));
   if ((params.count ?? 1) > maxCount) return { ok: false as const, error: "Invalid target or action count" };
-  return { ok: true as const, regionId, dimension: demographicCategory, bucket: demographicGroup, groupName: group.name, count: params.count ?? 1 };
+  const sourceLabel = campaignAdTargetChoices(world, [regionId]).find((choice) => choice.id === `${demographicCategory}:${demographicGroup}`)?.label;
+  const groupName = group?.name ?? sourceLabel?.replace(/\s*\([^)]*\)$/, "") ?? demographicGroup;
+  return { ok: true as const, regionId, dimension: demographicCategory, bucket: demographicGroup, groupName, count: params.count ?? 1 };
 }
 
 /** AHDGame /api/targeted-ads purchaseStandingAds, represented by a bounded batch of actions. */

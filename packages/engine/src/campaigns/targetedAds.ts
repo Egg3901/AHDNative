@@ -1,4 +1,5 @@
 import type { WorldState } from "../types.js";
+import { sourceCampaignCells1953 } from "./sourceCampaignElectorate.js";
 
 export interface TargetedAd {
   stateId: string;
@@ -23,6 +24,7 @@ export interface CampaignCell {
   buckets: Record<string, string>;
   identities: Record<string, { economicLean: number; socialLean: number }>;
 }
+export interface CampaignAdTargetChoice { id: string; label: string; categoryId: string; groupId: string }
 
 type Position = { economicLean: number; socialLean: number };
 type AdTarget = { stateId: string; dimension: string; bucket: string };
@@ -50,6 +52,13 @@ function campaignFit(candidate: Position, audience: Position): number {
 
 /** Project the demographic cells Native can author into Game's campaign-cell contract. */
 export function campaignCellsForRegion(world: WorldState, stateId: string): CampaignCell[] {
+  // AHDGame's 1953 US source constructs a joint Layer-1 race/age/education/
+  // wealth substrate, rather than the one-axis voterGroups fallback below.
+  // Only use it for authored regions that actually exist in this world.
+  if (world.player.countryId === "US" && world.meta.era === "1953" && world.regions[stateId]?.countryId === "US") {
+    const sourceCells = sourceCampaignCells1953(stateId);
+    if (sourceCells) return sourceCells;
+  }
   const demographics = world.stateDemographics[stateId];
   if (!demographics) return [];
   const categories = world.demographicCategories[demographics.countryId] ?? [];
@@ -85,6 +94,35 @@ export function campaignCellsForRegion(world: WorldState, stateId: string): Camp
       }];
     });
   });
+}
+
+const SOURCE_DIMENSION_LABELS: Record<string, string> = {
+  race: "Race", age: "Age", education: "Education", wealth: "Wealth",
+};
+function titleCaseBucket(bucket: string): string {
+  return bucket.split(/[_-]+/).filter(Boolean).map((part) => part[0]!.toUpperCase() + part.slice(1)).join(" ");
+}
+
+/** Distinct audiences actually represented by the region's source cells. */
+export function campaignAdTargetChoices(world: WorldState, regionIds: string[]): CampaignAdTargetChoice[] {
+  const choices = new Map<string, CampaignAdTargetChoice>();
+  for (const regionId of regionIds) {
+    const cells = campaignCellsForRegion(world, regionId);
+    for (const cell of cells) for (const [dimension, bucket] of Object.entries(cell.buckets)) {
+      const id = `${dimension}:${bucket}`;
+      if (choices.has(id)) continue;
+      const sourceDimension = SOURCE_DIMENSION_LABELS[dimension];
+      const category = (world.demographicCategories[world.player.countryId] ?? []).find((row) => row._id === dimension);
+      const group = category?.groups.find((row) => row.id === bucket);
+      choices.set(id, {
+        id,
+        label: sourceDimension ? `${titleCaseBucket(bucket)} (${sourceDimension})` : `${group?.name ?? titleCaseBucket(bucket)} (${category?.name ?? titleCaseBucket(dimension)})`,
+        categoryId: dimension,
+        groupId: bucket,
+      });
+    }
+  }
+  return [...choices.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
 export function adExposure(ad: TargetedAd, turn: number): number {
@@ -229,7 +267,9 @@ export function validateTargetedAds(value: unknown, path: string, world?: WorldS
       const state = world.regions[ad.stateId as string];
       const category = (world.demographicCategories[world.player.countryId] ?? []).find((row) => row._id === ad.dimension);
       const group = category?.groups.find((row) => row.id === ad.bucket);
-      if (state?.countryId !== world.player.countryId || !group || !world.stateDemographics[ad.stateId as string]?.groups[group.id]) {
+      const representedBySourceCells = campaignCellsForRegion(world, ad.stateId as string).some((cell) => cell.buckets[ad.dimension as string] === ad.bucket);
+      const representedByLegacyGroups = Boolean(group && world.stateDemographics[ad.stateId as string]?.groups[group.id]);
+      if (state?.countryId !== world.player.countryId || (!representedBySourceCells && !representedByLegacyGroups)) {
         throw new Error(`Invalid targeted ad region or audience at ${path}.${index}`);
       }
       if ((ad.lastPurchaseTurn as number) > world.meta.turn) throw new Error(`Future targeted ad purchase at ${path}.${index}`);
