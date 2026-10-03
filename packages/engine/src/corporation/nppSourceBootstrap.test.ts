@@ -55,7 +55,13 @@ describe("source NPP company bootstrap", () => {
         expect(world.parties[actor.partyId]?.countryId === "NG" || actor.partyId === "independent").toBe(true);
       }
       const ngCorporations = Object.values(world.corporations).filter((corporation) => corporation.countryId === "NG" && corporation.ceoType === "npp");
-      expect(ngCorporations.length).toBeGreaterThan(0);
+      // Game's seedNppCorporations preset allowlist explicitly excludes
+      // 2023-default; source governor identities still exist in that era.
+      if (era === "2023") {
+        expect(ngCorporations).toHaveLength(0);
+      } else {
+        expect(ngCorporations.length).toBeGreaterThan(0);
+      }
       expect(ngCorporations.every((corporation) => Boolean(world.corporateNppActors?.[corporation.ceoId ?? ""]))).toBe(true);
       if (era === "2023") {
         const raw = serializeSave(world, "2026-10-03T12:00:00.000Z");
