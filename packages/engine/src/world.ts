@@ -1268,7 +1268,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     governors: seedGovernors(regions),
     ...(countries.UK ? { ukDevolution: initialUKDevolutionState(Number(pack.era.startDate.slice(0, 4))) } : {}),
     ...(countries.UK && initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4)))
-      ? { northernIrelandConflict: initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4))) }
+      ? { northernIrelandConflict: initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4)))! }
       : {}),
     governorAddresses: [],
     governorOrders: [],

@@ -28,8 +28,8 @@ export function unlockNppCorporationTech(
     .map((node) => ({ node, cashCost: techNodeCashCost(node, dailyGrossRevenueLocal) }))
     .filter(({ node, cashCost }) => canUnlock({
       type: corp.sectorType,
-      unlockedTechNodeIds: corp.unlockedTechNodeIds,
-      techDecadeLane: corp.techDecadeLane,
+      ...(corp.unlockedTechNodeIds !== undefined ? { unlockedTechNodeIds: corp.unlockedTechNodeIds } : {}),
+      ...(corp.techDecadeLane !== undefined ? { techDecadeLane: corp.techDecadeLane } : {}),
     }, node.id, year, { rdScore, cashAvailable, cashCost }).ok)
     .sort((a, b) => a.node.lane === b.node.lane
       ? b.node.cost - a.node.cost || a.node.slot - b.node.slot

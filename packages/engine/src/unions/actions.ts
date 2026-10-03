@@ -117,15 +117,18 @@ export function mandateFromLocals(
     (local) => (local.unionization ?? density) >= STRIKE_CALL_MIN_UNIONIZATION
   ).length;
   return buildBargainingMandate({
-    locals: locals.map((local) => ({
-      workers: local.workers ?? 0,
-      unionization: local.unionization ?? density,
-      wageLevel: local.wageLevel ?? 1,
-      workerExpectationIndex: local.workerExpectationIndex,
-      costOfLivingIndex: local.stateId
+    locals: locals.map((local) => {
+      const costOfLivingIndex = local.stateId
         ? world.regionalMetrics[local.stateId]?.["economic.costOfLiving"]?.value
-        : undefined,
-    })),
+        : undefined;
+      return {
+        workers: local.workers ?? 0,
+        unionization: local.unionization ?? density,
+        wageLevel: local.wageLevel ?? 1,
+        ...(local.workerExpectationIndex !== undefined ? { workerExpectationIndex: local.workerExpectationIndex } : {}),
+        ...(costOfLivingIndex !== undefined ? { costOfLivingIndex } : {}),
+      };
+    }),
     laborTightness: macro.laborTightness,
     lawSupport: macro.lawSupport,
     treasury,
@@ -436,10 +439,14 @@ export function moveBargainingCampaignAsUnion(world: WorldState, args: UnionMove
       endedAtTurn: args.turn,
       lastActionTurn: args.turn,
       updatedAtTurn: args.turn,
-      ratification:
-        campaign.ratification?.status === "open"
-          ? { ...campaign.ratification, status: "void", closedAtTurn: args.turn }
-          : campaign.ratification,
+      ...(campaign.ratification !== undefined
+        ? {
+            ratification:
+              campaign.ratification?.status === "open"
+                ? { ...campaign.ratification, status: "void", closedAtTurn: args.turn }
+                : campaign.ratification,
+          }
+        : {}),
     };
     campaigns[next.id] = next;
     restoreEscalationExpectations(world, campaign);
@@ -526,12 +533,15 @@ function escalateCampaignAction(world: WorldState, campaign: BargainingCampaign,
     return { kind: "moved", campaign: claimed, sectorsStriking: plan.newStrikeLocalIds.length, cashSpent: plan.cashCost };
   } catch (error) {
     union.treasury = treasuryBefore;
-    union.lastCalledStrikeTurn = lastCalledBefore;
+    if (lastCalledBefore === undefined) delete union.lastCalledStrikeTurn;
+    else union.lastCalledStrikeTurn = lastCalledBefore;
     for (const [id, prior] of sectorBefore) {
       const asset = assets[id];
       if (asset) {
-        asset.strikeStartedAtTurn = prior.strike;
-        asset.workerExpectationIndex = prior.expectation;
+        if (prior.strike === undefined) delete asset.strikeStartedAtTurn;
+        else asset.strikeStartedAtTurn = prior.strike;
+        if (prior.expectation === undefined) delete asset.workerExpectationIndex;
+        else asset.workerExpectationIndex = prior.expectation;
       }
     }
     throw error;

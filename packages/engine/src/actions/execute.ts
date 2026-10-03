@@ -549,7 +549,7 @@ function executeActionInner(
       tickerSymbol: params.tickerSymbol ?? "",
       sectorType: params.sectorType!,
       ...(params.secondarySectorType ? { secondarySectorType: params.secondarySectorType } : {}),
-      startingCapital: params.startingCapital,
+      ...(params.startingCapital !== undefined ? { startingCapital: params.startingCapital } : {}),
     });
     return result.ok
       ? { ok: true, message: `Founded ${world.corporations[result.corporationId]!.name} (${world.corporations[result.corporationId]!.tickerSymbol}) with ${result.startingCapital} in starting capital.` }
