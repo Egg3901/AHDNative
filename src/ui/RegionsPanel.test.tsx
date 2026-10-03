@@ -156,6 +156,19 @@ describe("RegionsPanel", () => {
     expect(screen.queryByText("House of Representatives")).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["SCO", "First Minister"],
+    ["LON", "Mayor of London"],
+  ])("shows the source regional executive title for %s", (regionId, title) => {
+    const world = createWorld({ era: "1953", countryId: "UK", playerName: "Alex", seed: "regions-panel-uk-titles" });
+    const query = projectRegions(world, { regionId });
+    expect(query.selected?.office?.kind).toBe("governor");
+    render(<RegionsPanel query={query} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
+
+    expect(screen.getByText(title)).toBeInTheDocument();
+    expect(screen.queryByText("Governor")).not.toBeInTheDocument();
+  });
+
   it("renders the role-gated Governor Office, My Election, and My Office rows with linked destinations", () => {
     const world = electedWorld();
     world.governors.AL.governorId = "player";

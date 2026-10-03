@@ -21,6 +21,7 @@ import type { MarketListing } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { RegionExtractionControls } from "./RegionExtractionControls";
 import { RegionViewerCard } from "./RegionViewerCard";
+import { regionalExecutiveTitle } from "./regionalOfficeCopy";
 import { RegionEconomicIndicators, RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
 import { RegionSectorAssetsCard } from "./RegionSectorAssets";
 import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
@@ -331,7 +332,7 @@ function Directory({
   );
 }
 
-function OfficeCard({ office, clock }: { office: RegionOfficeView | null; clock: GameClock }) {
+function OfficeCard({ office, countryId, regionId, clock }: { office: RegionOfficeView | null; countryId: string; regionId: string; clock: GameClock }) {
   return (
     <div className="ahd-card ahd-card-pad">
       <h2 className="ahd-h2">Regional office</h2>
@@ -339,7 +340,7 @@ function OfficeCard({ office, clock }: { office: RegionOfficeView | null; clock:
         <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No regional office recorded.</div>
       ) : (
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
-          <KeyValue label="Office" value={humanize(office.kind)} />
+          <KeyValue label="Office" value={office.kind === "governor" ? regionalExecutiveTitle(countryId, regionId) : humanize(office.kind)} />
           <KeyValue label="Holder" value={office.holder?.name ?? "Vacant"} note={partyLabel(office.holder?.party ?? null)} />
           <KeyValue label="Term began" value={office.termStartTurn === null ? "Not recorded" : formatGameTurn(office.termStartTurn, clock)} />
           <KeyValue
@@ -532,7 +533,7 @@ function SelectedRegion({
       <RegionViewerCard rows={selected.viewer} clock={clock} busy={busy} onNavigate={onNavigate} />
 
       <div className="ahd-grid ahd-grid-2">
-        <OfficeCard office={selected.office} clock={clock} />
+        <OfficeCard office={selected.office} countryId={selected.countryId} regionId={selected.id} clock={clock} />
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Party support</h2>
           {selected.partySupport.length === 0 ? (

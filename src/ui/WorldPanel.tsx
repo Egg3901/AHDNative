@@ -10,6 +10,7 @@ import type {
   WorldRegionView,
 } from "../game/worldOverview";
 import { RegionViewerCard } from "./RegionViewerCard";
+import { regionalExecutiveTitle } from "./regionalOfficeCopy";
 import { RegionBudgetCard, RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
 import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 import type { DrawerRouteId } from "./MobileNavigation";
@@ -528,7 +529,7 @@ function RegionOffice({ region, clock }: { region: WorldRegionView; clock: GameC
         <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No regional office data recorded.</div>
       ) : (
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
-          <KeyValue label="Office" value={humanize(office.kind)} />
+          <KeyValue label="Office" value={office.kind === "governor" ? regionalExecutiveTitle(region.countryId, region.id) : humanize(office.kind)} />
           <KeyValue label="Holder" value={office.holder?.name ?? "Vacant"} note={office.holder?.party?.abbreviation} />
           <RegionMetric label="Term began" value={gameTurn(office.termStartTurn, clock)} note="game date" />
           <RegionMetric label="Office actions" value={office.availableActions === null ? "Not recorded" : `${number(office.availableActions)} actions available`} />
