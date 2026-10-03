@@ -31,15 +31,15 @@ describe("source-sized currency trade fees and volume pressure", () => {
     expect(computeVolumePressure({ buyVolume24: 1_000_000_000, sellVolume24: 0, effectiveTraders: 1 })).toBeCloseTo(0.00025);
   });
 
-  it("round-trips stamped trades in schema 66 and rejects malformed history", () => {
+  it("round-trips stamped trades in the current schema and rejects malformed history", () => {
     const world = createWorld({ era: "1979", countryId: "US", seed: "fx-save-vector", playerName: "Alex" });
     world.forexTradeHistory!.push({
       id: "fx-0-1", turn: 0, traderId: "player", fromCurrency: "USD", toCurrency: "GBP",
       amount: 100, anchorAmount: 100, spread: 1, source: "manual",
     });
     const raw = serializeSave(world, "2026-10-03T07:00:00.000Z");
-    expect(JSON.parse(raw).schemaVersion).toBe(66);
-    expect(SCHEMA_VERSION).toBe(66);
+    expect(JSON.parse(raw).schemaVersion).toBe(SCHEMA_VERSION);
+    expect(SCHEMA_VERSION).toBe(67);
     expect(deserializeSave(raw).forexTradeHistory).toEqual(world.forexTradeHistory);
     const malformed = JSON.parse(raw);
     malformed.world.forexTradeHistory[0].spread = -1;

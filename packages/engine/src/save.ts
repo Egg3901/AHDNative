@@ -58,6 +58,7 @@ import { validateNationalCorporations } from "./corporation/nationalCorporation.
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { validatePendingNationalizations } from "./corporation/pendingNationalizations.js";
 import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
+import { countPrStv, validateRankedBallots } from "./elections/prStv.js";
 import { validateNppStrategyState } from "./corporation/nppCorpStrategy.js";
 import { validateCorporateRelocationVote } from "./corporation/relocationVotes.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
@@ -1817,6 +1818,58 @@ function validatePresidentialGeneralMechanics(world: WorldState): void {
       }
       ids.add(row["id"] as string);
       if (row["isActive"] === true) activeGovernorStates.add(row["stateId"] as string);
+    }
+  }
+}
+
+function validatePrStvElectionState(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const race = rawRace;
+    const hasPrStvState = ["countingMethod", "rankedBallots", "rankedPreferenceModel", "prStvResult", "resolutionPath"]
+      .some((key) => race[key] !== undefined && (key !== "resolutionPath" || race[key] === "pr_stv"));
+    if (!hasPrStvState) continue;
+    if (race["countingMethod"] !== "pr_stv" || race["countryId"] !== "IE" ||
+      !["dail", "localCouncil"].includes(String(race["electionType"]))) {
+      throw new Error("Not a valid save file: ranked PR-STV state belongs only to an opted-in Irish Dail or local council race");
+    }
+    if (race["rankedPreferenceModel"] !== "same_party_then_policy_distance_v1" || !Array.isArray(race["rankedBallots"])) {
+      throw new Error("Not a valid save file: invalid ranked PR-STV ballot grammar");
+    }
+    const tally = race["tally"];
+    const candidates = race["candidates"];
+    if (!isRecord(tally) || !Array.isArray(candidates)) {
+      throw new Error("Not a valid save file: ranked PR-STV election is missing its tally or candidates");
+    }
+    try {
+      validateRankedBallots(race["rankedBallots"], tally as Record<string, number>);
+    } catch (error) {
+      throw new Error(`Not a valid save file: invalid ranked PR-STV ballots (${error instanceof Error ? error.message : "invalid evidence"})`);
+    }
+    if (race["conversionTerms"] !== undefined) {
+      throw new Error("Not a valid save file: ranked PR-STV cannot carry conversion terms or reserved seat floors");
+    }
+    const result = race["prStvResult"];
+    if (race["status"] === "resolved") {
+      if (!isRecord(result) || race["resolutionPath"] !== "pr_stv") {
+        throw new Error("Not a valid save file: resolved ranked PR-STV election is missing its count receipt");
+      }
+      const activeIds = candidates.flatMap((candidate) =>
+        isRecord(candidate) && candidate["status"] !== "withdrawn" && typeof candidate["id"] === "string"
+          ? [candidate["id"]]
+          : [],
+      );
+      let expected;
+      try {
+        expected = countPrStv(activeIds, race["totalSeats"] as number, race["rankedBallots"]);
+      } catch (error) {
+        throw new Error(`Not a valid save file: ranked PR-STV count cannot be reproduced (${error instanceof Error ? error.message : "invalid result"})`);
+      }
+      if (JSON.stringify(result) !== JSON.stringify(expected)) {
+        throw new Error("Not a valid save file: ranked PR-STV count receipt does not match the stored ballots");
+      }
+    } else if (result !== undefined || race["resolutionPath"] === "pr_stv") {
+      throw new Error("Not a valid save file: unresolved ranked PR-STV election carries a completed count receipt");
     }
   }
 }
@@ -3947,6 +4000,10 @@ export function deserializeSave(raw: string): WorldState {
   // have no reconstructable trade history: keep the field absent rather than
   // inferring trades from balances or exchange-rate snapshots.
   if (save.schemaVersion < 66) save.world.meta.schemaVersion = 66;
+  // v67: preserve genuinely absent ranked-count state on historical and
+  // default Irish races. The schema barrier makes opt-in ballot/result
+  // continuations unreadable to the prior tally grammar.
+  if (save.schemaVersion < 67) save.world.meta.schemaVersion = 67;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -4005,6 +4062,7 @@ export function deserializeSave(raw: string): WorldState {
   }
   validatePresidentialPrimaryLedger(save.world);
   validatePresidentialGeneralMechanics(save.world);
+  validatePrStvElectionState(save.world);
   validatePrimaryStateOrganizations(save.world);
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);

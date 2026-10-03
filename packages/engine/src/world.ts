@@ -196,7 +196,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // Older readers must refuse these continuations.
 // v66: persisted player FX trade witnesses drive source size-fee lookback and
 // 24-turn market-flow/breadth pressure. Older saves retain absent history.
-export const SCHEMA_VERSION = 66;
+// v67: explicit Irish Dail/local-council PR-STV ballot rankings and frozen
+// transfer-count result. The schema-66 reader must refuse this grammar.
+export const SCHEMA_VERSION = 67;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

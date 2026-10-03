@@ -29,6 +29,7 @@ import { electoralVoteUnitsForWorld } from "./presidentialElectoralCollege.js";
 import { appliesExplicitPresidentialLean, presidentialRulesetVersionFor } from "./presidentialRuleset.js";
 import { displayLean, PRESIDENTIAL_UNIT_LEAN, presidentialLeanVoteMultiplier, sourceFallbackStateLean } from "./presidentialLean.js";
 import { dcPresidentialDemographics } from "./dcPresidentialDemographics.js";
+import { castRankedBallots, countPrStv, mergeRankedBallots, validateRankedBallots } from "./prStv.js";
 
 /**
  * W21c tally wiring: feeds the ported accumulateVoteTurn from WorldState.
@@ -474,6 +475,7 @@ function runAccumulate(
   if (!result) return false;
   rec.tallyState = result.tallyState as unknown as ElectionRecord["tallyState"];
   rec.tally = { ...result.totals };
+  if (result.rankedBallots) rec.rankedBallots = result.rankedBallots;
   return true;
 }
 
@@ -493,8 +495,27 @@ function runAccumulateCore(
   presidentialModifierStateId: string = slice.stateId,
   index?: TallyTurnIndex,
   observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
-): { tallyState: unknown; totals: Record<string, number> } | null {
+): { tallyState: unknown; totals: Record<string, number>; rankedBallots?: ElectionRecord["rankedBallots"] } | null {
   const { stateId, state, demographics, turnout, statePartyOrgs } = slice;
+
+  if (rec.countingMethod === "pr_stv") {
+    if (rec.countryId !== "IE" || !["dail", "localCouncil"].includes(rec.electionType))
+      throw new Error("Ranked PR-STV is supported only for Irish Dail and local council races");
+    if (rec.conversionTerms)
+      throw new Error("Ranked PR-STV does not support conversion vote penalties or reserved seat floors");
+    const previous = priorTallyState as TallyInput | undefined;
+    if (rec.rankedBallots === undefined) {
+      const alreadyTallied = Object.values(rec.tally).some((votes) => votes > 0) ||
+        Object.values(previous?.totalVotes ?? {}).some((votes) => votes > 0) ||
+        (previous?.turnSnapshots.length ?? 0) > 0;
+      if (alreadyTallied)
+        throw new Error("Cannot reinitialize a PR-STV tally after ballots were cast");
+      rec.rankedBallots = [];
+    }
+    if (rec.rankedPreferenceModel !== undefined && rec.rankedPreferenceModel !== "same_party_then_policy_distance_v1")
+      throw new Error("Unsupported ranked PR-STV preference model");
+    rec.rankedPreferenceModel = "same_party_then_policy_distance_v1";
+  }
 
   const now = worldNow(world);
   const player = world.player;
@@ -647,7 +668,47 @@ function runAccumulateCore(
 
   const result = accumulateVoteTurn(input);
   if (!result) return null;
-  return { tallyState: result.tally, totals: { ...result.newTotals } };
+  if (!rec.countingMethod) return { tallyState: result.tally, totals: { ...result.newTotals } };
+
+  if (rec.countryId !== "IE" || !["dail", "localCouncil"].includes(rec.electionType))
+    throw new Error("Ranked PR-STV is supported only for Irish Dail and local council races");
+  if (rec.conversionTerms)
+    throw new Error("Ranked PR-STV does not support conversion vote penalties or reserved seat floors");
+  const previous = tallyState as TallyInput;
+  const totals = { ...(previous?.totalVotes ?? {}), ...result.newTotals };
+  const increments = Object.fromEntries(activeCandidates.map((candidate) => [
+    candidate.id,
+    (result.newTotals[candidate.id] ?? 0) - (previous?.totalVotes[candidate.id] ?? 0),
+  ]));
+  const ballots = mergeRankedBallots(
+    rec.rankedBallots ?? [],
+    castRankedBallots(
+      enriched.map((candidate) => ({
+        candidateId: candidate.candidateId,
+        party: candidate.party,
+        charEP: candidate.charEP,
+        charSP: candidate.charSP,
+      })),
+      increments,
+    ),
+  );
+  validateRankedBallots(ballots, totals);
+  const tallyWithRankedHistory = structuredClone(result.tally) as TallyInput;
+  tallyWithRankedHistory.totalVotes = totals;
+  if (ballots.length > 0) {
+    const seatsEstimate = countPrStv(enriched.map((candidate) => candidate.candidateId), rec.totalSeats, ballots).seats;
+    tallyWithRankedHistory.seatsEstimate = seatsEstimate;
+  }
+  const lastSnapshot = tallyWithRankedHistory.turnSnapshots.at(-1);
+  if (lastSnapshot) {
+    lastSnapshot.cumulativeVotes = { ...totals };
+    const sum = Object.values(totals).reduce((total, votes) => total + votes, 0);
+    lastSnapshot.sharesPct = Object.fromEntries(
+      Object.entries(totals).map(([candidateId, votes]) => [candidateId, sum > 0 ? Math.round((votes / sum) * 1000) / 10 : 0]),
+    );
+    if (ballots.length > 0) lastSnapshot.seatsEstimate = tallyWithRankedHistory.seatsEstimate!;
+  }
+  return { tallyState: tallyWithRankedHistory, totals, rankedBallots: ballots };
 }
 
 function scaledElectoralDistrictSlice(slice: StateSlice, unitId: string, share: number): StateSlice {
