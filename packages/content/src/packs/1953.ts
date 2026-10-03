@@ -4,6 +4,7 @@ import { ukRegions1953 } from "./ukRegions1953.js";
 import { ruRegions1953 } from "./ruRegions1953.js";
 import { ddRegions1953 } from "./ddRegions1953.js";
 import { cnRegions1953 } from "./cnRegions1953.js";
+import { JP_BUDGET_REGIONS_1953 } from "./jpBudgetRegionsColdWar.js";
 import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 import { EASTERN_BLOC_ELECTIONS_1953 } from "./easternBlocElections.js";
 
@@ -116,7 +117,7 @@ export const pack1953: SeedPack = {
     },
   ],
   states: [...usStates1953, ...ukRegions1953, ...ruRegions1953, ...ddRegions1953],
-  economyRegions: [...cnRegions1953],
+  economyRegions: [...cnRegions1953, ...JP_BUDGET_REGIONS_1953],
   corporationHeadquartersRegions: [...US_CORPORATION_HEADQUARTERS_REGIONS],
   countries: [
     {

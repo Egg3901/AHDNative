@@ -118,17 +118,24 @@ export interface CountryBudget {
 /**
  * Regional (state) budget — generic version.
  * Source: src/lib/turn/regionalBudget.ts BudgetCalculationInput/Result + StateBudget shape.
- * JP/DE country-specific variants are unported (issue #103); see regionalBudget.ts.
- * JP and DE are economy entries, not player countries, in the 1991 and 2019 packs.
- * A recorded regional budget uses the generic processor independently of player eligibility.
+ * The generic processor covers the supported country rows. Japan's source
+ * regional-budget subset uses its dedicated processor in budget/phases.ts;
+ * remaining source StatePolicy/subsidy/austerity state is not represented yet.
+ * Fiscal-only JP rows deliberately do not imply electoral Region entities or
+ * new-character eligibility.
  */
 export interface RegionalBudget {
   regionId: string;
   countryId: string;
+  /** Japan's authored Local Allocation Tax option cost, in JPY per capita. Schema v70. */
+  jpNationalGrantPerCapita?: number;
   revenue: {
     councilTax: number;
     businessRates: number;
     grant: number;
+    /** Japan source regional budget revenue lines (schema v70, absent on legacy rows). */
+    jpResidentTax?: number;
+    jpFixedAssetTax?: number;
     /**
      * Issue #100: regional (state-scope) tax revenue = Σ (phased rate% × the
      * region's GDP-derived tax base) for each enacted state tax. Source:

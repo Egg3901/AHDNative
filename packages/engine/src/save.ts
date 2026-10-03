@@ -359,6 +359,17 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const homeRegionId = player["homeRegionId"];
   const featureFlags = world["featureFlags"];
+  if (hasOwn(world, "jpRegionalBudgetAllocation")) {
+    return { ok: false, error: `Japan regional allocation state cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  const regionalBudgetsForProjection = isRecord(world["regionalBudgets"]) ? world["regionalBudgets"] : {};
+  for (const [regionId, row] of Object.entries(regionalBudgetsForProjection)) {
+    if (isRecord(row) && row["countryId"] === "JP" &&
+      (hasOwn(row, "jpNationalGrantPerCapita") ||
+        (isRecord(row["revenue"]) && (hasOwn(row["revenue"], "jpResidentTax") || hasOwn(row["revenue"], "jpFixedAssetTax"))))) {
+      return { ok: false, error: `Japan regional budget state for ${regionId} cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
+  }
   if (isRecord(featureFlags) && featureFlags["rpgStats"] === false) {
     return {
       ok: false,
@@ -1028,6 +1039,42 @@ function assertCurrentWorldState(world: WorldState): void {
     (player["homeRegionId"] !== null && typeof player["homeRegionId"] !== "string")
   ) {
     throw new Error("Not a valid save file: invalid world state");
+  }
+
+  const jpAllocation = value["jpRegionalBudgetAllocation"];
+  if (jpAllocation !== undefined) {
+    if (!isRecord(jpAllocation) || !isRecord(jpAllocation["allocationPercents"]) ||
+      !Number.isSafeInteger(jpAllocation["lastAllocationChangedTurn"]) ||
+      (jpAllocation["lastAllocationChangedTurn"] as number) < 0 ||
+      (jpAllocation["lastAllocationChangedTurn"] as number) > (meta["turn"] as number)) {
+      throw new Error("Not a valid save file: invalid Japan regional allocation state");
+    }
+    const shares = Object.values(jpAllocation["allocationPercents"]);
+    if (shares.length === 0 || shares.some((share) => typeof share !== "number" || !Number.isFinite(share) || share < 0 || share > 100) ||
+      Math.abs(shares.reduce((sum, share) => sum + (share as number), 0) - 100) > 0.1) {
+      throw new Error("Not a valid save file: invalid Japan regional allocation shares");
+    }
+  }
+
+  const jpBudgetRows = value["regionalBudgets"];
+  if (!isRecord(jpBudgetRows)) throw new Error("Not a valid save file: invalid regional budgets");
+  for (const [regionId, row] of Object.entries(jpBudgetRows)) {
+    if (!isRecord(row)) throw new Error(`Not a valid save file: invalid regional budget ${regionId}`);
+    const grantPerCapita = row["jpNationalGrantPerCapita"];
+    const revenue = row["revenue"];
+    const jpResidentTax = isRecord(revenue) ? revenue["jpResidentTax"] : undefined;
+    const jpFixedAssetTax = isRecord(revenue) ? revenue["jpFixedAssetTax"] : undefined;
+    if (grantPerCapita !== undefined || jpResidentTax !== undefined || jpFixedAssetTax !== undefined) {
+      if (row["countryId"] !== "JP" ||
+        (grantPerCapita !== undefined && (typeof grantPerCapita !== "number" || !Number.isFinite(grantPerCapita) || grantPerCapita < 0)) ||
+        (jpResidentTax !== undefined && (typeof jpResidentTax !== "number" || !Number.isFinite(jpResidentTax) || jpResidentTax < 0)) ||
+        (jpFixedAssetTax !== undefined && (typeof jpFixedAssetTax !== "number" || !Number.isFinite(jpFixedAssetTax) || jpFixedAssetTax < 0))) {
+        throw new Error(`Not a valid save file: invalid Japan regional budget ${regionId}`);
+      }
+      if (!isRecord(revenue) || typeof revenue["grant"] !== "number" || !Number.isFinite(revenue["grant"]) || revenue["grant"] < 0) {
+        throw new Error(`Not a valid save file: invalid Japan regional grant ${regionId}`);
+      }
+    }
   }
 
   // Schema 68 adds source metric-engine coexistence state only to the
@@ -4081,6 +4128,13 @@ export function deserializeSave(raw: string): WorldState {
   // purchase turn, state and exposure history cannot be reconstructed from
   // the old flat category/group map.
   if (save.schemaVersion < 69) save.world.meta.schemaVersion = 69;
+  // v70: Japan's Internal Affairs allocation is absent until the minister
+  // changes it. There is no truthful historical allocation to backfill, so
+  // legacy saves retain an absent field and the source budget phase applies
+  // its even-split default. Any absent immutable JP fiscal rows are rebuilt
+  // from the selected era's source pack at the next ordinary budget turn, not
+  // during load. This migration consumes no RNG.
+  if (save.schemaVersion < 70) save.world.meta.schemaVersion = 70;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

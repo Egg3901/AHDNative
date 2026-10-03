@@ -136,4 +136,38 @@ describe("CabinetOfficePanel", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent("Issued Emergency Fiscal Stimulus");
   });
+
+  it("reviews and saves JP grant shares from the Internal Affairs cabinet screen", async () => {
+    const user = userEvent.setup();
+    const onSetJPRegionalAllocation = vi.fn();
+    const office: CabinetOfficeView = {
+      ...makeOffice(),
+      countryId: "JP",
+      countryName: "Japan",
+      regions: [
+        { id: "HOK", name: "Hokkaido" }, { id: "TOH", name: "Tohoku" },
+        { id: "KAN", name: "Kanto" }, { id: "CHU", name: "Chubu" },
+        { id: "KNS", name: "Kansai" }, { id: "CGK", name: "Chugoku" },
+        { id: "SHI", name: "Shikoku" }, { id: "KYU", name: "Kyushu & Okinawa" },
+      ],
+      jpRegionalAllocation: {
+        canEdit: true,
+        percentages: Object.fromEntries(["HOK", "TOH", "KAN", "CHU", "KNS", "CGK", "SHI", "KYU"].map((id) => [id, 12.5])),
+        lastChangedTurn: null,
+      },
+    };
+
+    render(<CabinetOfficePanel office={office} busy={false} notice={null} onIssue={vi.fn()} onSetJPRegionalAllocation={onSetJPRegionalAllocation} />);
+    await user.clear(screen.getByRole("spinbutton", { name: "Hokkaido allocation percent" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Hokkaido allocation percent" }), "30");
+    await user.clear(screen.getByRole("spinbutton", { name: "Tohoku allocation percent" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Tohoku allocation percent" }), "0");
+    await user.clear(screen.getByRole("spinbutton", { name: "Kanto allocation percent" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Kanto allocation percent" }), "7.5");
+    expect(screen.getByText("Total: 100.0%", { exact: true })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save regional allocations" }));
+    expect(onSetJPRegionalAllocation).toHaveBeenCalledWith({
+      allocationPercents: { HOK: 30, TOH: 0, KAN: 7.5, CHU: 12.5, KNS: 12.5, CGK: 12.5, SHI: 12.5, KYU: 12.5 },
+    });
+  });
 });

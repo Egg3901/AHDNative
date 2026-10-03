@@ -229,6 +229,15 @@ export interface WorldState {
   /** Regional budgets per region (generic; JP/DE variants deferred). Schema v15. */
   regionalBudgets: Record<string, RegionalBudget>;
   /**
+   * Source cabinet allocation settings for Japan's Internal Affairs Minister.
+   * Optional: legacy worlds have no recoverable allocation choice and use the
+   * source's even-split default until the first authorized update. Schema v70.
+   */
+  jpRegionalBudgetAllocation?: {
+    allocationPercents: Record<string, number>;
+    lastAllocationChangedTurn: number;
+  };
+  /**
    * NPC relationship state (W37). Ports NPPRelationship (src/lib/db/types/npp.ts)
    * relationshipScore per politician↔third-party pair. Key `${sourceId}:${targetId}`
    * (e.g. "US-1:US-2" for politician-to-politician, "player:US-1" for player
