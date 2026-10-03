@@ -46,23 +46,24 @@ historical save schema.
 
 ## Reference-era export status
 
-The AHDGame source has preset IDs for 1999, 2007, and 2023, but these are not
-complete reference packs. Its `presetSelector.ts` explicitly falls back to
+The AHDGame source has preset IDs for 1999, 2007, and 2023, but its preset
+outputs contain lane-level fallbacks rather than complete year-specific
+reference bundles. Its `presetSelector.ts` explicitly falls back to
 2019 bundles when a lane is missing, and `historicalSeats.ts#getPresetSeats`
 returns the 2020 seat roster for these unrecognized preset IDs while recording
 that fallback. The 2023 US description names a genuine 118th-Congress/2023
 state-data lane, while non-US countries fall back to 2019. Such values must not
 be relabeled as 1999/2007/2023 historical data unless the individual source
 lane explicitly supplies that year.
-Native currently has a source-provenance US electorate reference export for
-selected source anchor years, including those years, at
-`packages/content/src/packs/usSourceYearElectorate.json`; it is an electorate
-substrate reference, not a complete playable pack or a substitute for the
-missing countries, offices, laws, and systems. Current source-ready ordinary
-player rosters include US/UK/JP in all three reference years; Native still
-withholds these years from new-character selection because no complete set of
-required pack records and mechanics has been qualified. The missing full pack
-exports remain an open part of issue #118.
+Native ships selectable US/UK packs for all three years. Japan remains
+unavailable to new characters because its complete player systems have not
+been qualified. The source-provenance electorate reference export at
+`packages/content/src/packs/usSourceYearElectorate.json` is supporting data,
+not the pack itself. The generated source outputs below feed the playable
+pack assembly, with each source or fallback lane recorded in pack
+provenance. This establishes creation and save identity for the stated
+matrix; it does not establish every era-specific mechanic or earned election
+outcome, which remain open verification dependencies for issue #118.
 
 The independently generated `sourceReferenceEraOutputs.json` records the
 actual `getPresetSeats()`, `getNationalBudgetSeedConfigsForPreset()`,
