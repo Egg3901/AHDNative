@@ -32,20 +32,21 @@ describe("source political baseline seeding", () => {
       scope: "national",
     }));
 
+    expect(world.budgets.US!.gdp).toBe(387_000_000_000);
     const baselineSpend = world.budgets.US!.spending.total;
     rebuildPolicyBudgets(world);
     expect(world.budgets.US!.spending.total).toBe(baselineSpend);
     expect(catalogPolicyOptionAnnualCost(armedForces!, "l3", world.budgets.US!.gdp, world.budgets.US!.population, 1953))
-      .toBeCloseTo(0.0554 * world.budgets.US!.gdp, 2);
+      .toBe(21_439_800_000);
     expect(catalogPolicyOptionAnnualCost(armedForces!, "l4", world.budgets.US!.gdp, world.budgets.US!.population, 1953))
-      .toBeCloseTo(0.0756 * world.budgets.US!.gdp, 2);
+      .toBe(29_257_200_000);
 
     const restored = deserializeSave(serializeSave(world, "2026-10-04T00:00:00.000Z"));
     expect(restored.policyLedger[baselineId]).toEqual(world.policyLedger[baselineId]);
     expect(restored.enactedLaws).toEqual(world.enactedLaws);
   });
 
-  it("keeps the source's absent regional row for a both-scope law", () => {
+  it("seeds the source's regional level-zero row for a both-scope law", () => {
     const world = createWorld({
       seed: "source-policy-regional-baseline",
       playerName: "Source Baseline",
@@ -55,10 +56,15 @@ describe("source political baseline seeding", () => {
     });
     const california = world.regions.US_CA;
     expect(california).toBeDefined();
-    expect(world.policyLedger["source-baseline:US_CA:us.environment.conservation.primary"]).toBeUndefined();
-    expect(Object.values(world.policyLedger).some((entry) =>
-      entry.legislationTypeId === "us.environment.conservation.primary" && entry.scope === "regional" && entry.regionId === "US_CA"
-    )).toBe(false);
+    const regionalId = "source-baseline:US_CA:us.environment.conservation.primary";
+    expect(world.policyLedger[regionalId]).toMatchObject({
+      legislationTypeId: "us.environment.conservation.primary",
+      policyOptionId: "0",
+      sourcePolicyOptionId: "l0",
+      scope: "regional",
+      regionId: "US_CA",
+      countryId: "US",
+    });
     expect(world.enactedLaws.some((law) => law.id === "us.environment.conservation.primary" && law.scope === "regional"))
       .toBe(false);
   });

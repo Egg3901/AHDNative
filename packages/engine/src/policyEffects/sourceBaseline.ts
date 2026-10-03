@@ -2,12 +2,12 @@
  * Current-source policy rows seeded on a fresh world.
  *
  * AHDGame's `src/lib/admin/seed/seedPoliticalLegislation.ts` writes the
- * authored current level to statePolicies and an enactedLaws row when that
- * level is above zero. For `both` laws, the regional reader defaults an absent
- * statePolicies row to level 0; the source does not write a regional baseline
- * row. These source-backed catalog rows already have Native metric consumers,
- * so store their national baseline instead of relying on a catalog-only
- * fallback. This is deliberately limited to SOURCE_METRIC_LAWS; legacy
+ * authored national current level to statePolicies and an enactedLaws row
+ * when that level is above zero. It also writes a level-0 regional
+ * statePolicies row for each `both` law (without a regional enactedLaws row).
+ * These source-backed catalog rows already have Native metric consumers, so
+ * store their baselines instead of relying on a catalog-only fallback. This
+ * is deliberately limited to SOURCE_METRIC_LAWS; legacy
  * reference laws and Native-only catalog entries do not acquire invented
  * source history here.
  */
@@ -48,6 +48,27 @@ export function seedSourceBaselinePolicies(world: WorldState): void {
         scope: "national",
         expiresAtTurn: null,
       });
+    }
+
+    if (law.allowedScope === "both") {
+      const regionalOption = resolveCatalogPolicyOption(law, "l0");
+      if (!regionalOption) continue;
+      for (const region of Object.values(world.regions)) {
+        if (region.countryId !== law.countryId) continue;
+        const regionalId = `${SOURCE_BASELINE_BILL_PREFIX}${region.id}:${law.id}`;
+        world.policyLedger[regionalId] = {
+          id: regionalId,
+          legislationTypeId: law.id,
+          policyOptionId: "0",
+          sourcePolicyOptionId: regionalOption.id,
+          effectDirection: regionalOption.effectDirection,
+          scope: "regional",
+          regionId: region.id,
+          countryId: law.countryId,
+          enactedTurn: 0,
+          enactedAt: world.meta.date,
+        };
+      }
     }
 
   }
