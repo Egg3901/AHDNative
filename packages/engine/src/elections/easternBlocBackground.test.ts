@@ -33,8 +33,14 @@ describe("source Eastern Bloc background election systems", () => {
     }
     expect(() => createWorld({ seed: `unavailable-${era}`, playerName: "Player", countryId: "PL", era })).toThrow(/not playable|Unknown country/);
     expect(world.regions.PL_MAZ?.houseSeats).toBe(era === "1953" ? 65 : 63);
-    expect(world.regions.PL_MAZ?.population).toBe(era === "1953" ? 3_600_000 : 4_900_000);
-    expect(world.regions.UKR_KYI?.houseSeats).toBe(era === "1953" ? 85 : 92);
+      expect(world.regions.PL_MAZ?.population).toBe(era === "1953" ? 3_600_000 : 4_900_000);
+      expect(world.regions.UKR_KYI?.houseSeats).toBe(era === "1953" ? 85 : 92);
+      const mazoviaDemographics = world.stateDemographics.PL_MAZ!;
+      expect(mazoviaDemographics.categoryWeights).toEqual({ pl_voterGroups: 100 });
+      expect(Object.keys(mazoviaDemographics.groups)).toEqual([
+        "party_nomenklatura", "industrial_worker", "collective_farmer", "intelligentsia", "religious_traditional", "youth",
+      ]);
+      expect(Object.values(mazoviaDemographics.groups).reduce((sum, group) => sum + group.population, 0)).toBeCloseTo(100, 1);
     expect(world.politicians.some((politician) => [...SATELLITES, ...REPUBLICS].includes(politician.countryId))).toBe(false);
 
     const historical = createWorld({ seed: `eastern-historical-${era}`, playerName: "Player", countryId: "US", era, initialization: "historical" });
@@ -82,7 +88,7 @@ describe("source Eastern Bloc background election systems", () => {
     expect(resumed.elections.filter((election) => SATELLITES.includes(election.countryId))).toEqual(rows);
   });
 
-  it("resolves an explicitly activated source-record fixture into a saved regional seat holder", () => {
+  it("resolves an explicitly activated source-record fixture into saved weighted regional holders", () => {
     const world = createWorld({ seed: "eastern-background-resolution-fixture", playerName: "Player", countryId: "US", era: "1953", autonomyLevel: "off" });
     advanceTurn(world);
     const race = world.elections.find((election) => election.countryId === "PL" && election.state === "PL_MAZ")!;
@@ -100,14 +106,16 @@ describe("source Eastern Bloc background election systems", () => {
     expect(race.status, JSON.stringify({ turn: world.meta.turn, startTurn: race.startTurn, primaryEndTurn: race.primaryEndTurn, endTurn: race.endTurn, totalSeats: race.totalSeats, status: race.status, tally: race.tally, candidates: race.candidates.length, partyRegion: world.partyRegions["PL_MAZ:PL_PZPR"], stateDemographics: world.stateDemographics.PL_MAZ, flags: world.featureFlags })).toBe("resolved");
     expect(race.tally).not.toEqual({});
     expect(race.winners?.length).toBeGreaterThan(0);
-    const holder = world.politicians.find((politician) => race.winners?.includes(politician.id));
-    expect(holder?.countryId).toBe("PL");
-    expect(holder?.electedState).toBe("PL_MAZ");
-    expect(holder?.seatsHeld).toBe(65);
-    expect(world.legislatures.PL!.chambers[0]!.composition.seatsByParty[holder!.partyId]).toBe(65);
+    const holders = world.politicians.filter((politician) => race.winners?.includes(politician.id));
+    expect(holders.length).toBeGreaterThan(0);
+    expect(holders.every((holder) => holder.countryId === "PL" && holder.electedState === "PL_MAZ")).toBe(true);
+    expect(holders.reduce((sum, holder) => sum + (holder.seatsHeld ?? 1), 0)).toBe(65);
+    expect(world.legislatures.PL!.chambers[0]!.composition.seatsByParty[holders[0]!.partyId]).toBe(460);
 
     const resumed = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
-    expect(resumed.elections.find((election) => election.id === race.id)).toEqual(race);
-    expect(resumed.politicians.find((politician) => politician.id === holder!.id)).toEqual(holder);
+    const resumedRace = resumed.elections.find((election) => election.id === race.id)!;
+    expect(resumedRace).toMatchObject({ id: race.id, status: "resolved", winners: race.winners, tally: race.tally, totalSeats: 65 });
+    expect(resumed.politicians.filter((politician) => race.winners?.includes(politician.id))).toEqual(holders);
+    expect(resumed.legislatures.PL!.chambers[0]!.composition.seatsByParty[holders[0]!.partyId]).toBe(460);
   });
 });

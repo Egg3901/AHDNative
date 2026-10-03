@@ -1,6 +1,10 @@
 import type { BackgroundElectionSeed } from "../types.js";
+import {
+  SOURCE_EASTERN_LAYER1_DEMOGRAPHICS,
+  type SourceLayer1RegionDemographics,
+} from "./easternBlocLayer1.js";
 
-type CountryRows = Omit<BackgroundElectionSeed, "initialSeatAllocations" | "regions"> & {
+type CountryRows = Omit<BackgroundElectionSeed, "demographicCategory" | "initialSeatAllocations" | "regions"> & {
   initiallyOccupied: boolean;
   regions: Array<{ id: string; name: string; seats: number }>;
 };
@@ -214,15 +218,56 @@ const SOURCE_REGIONS_1979: Record<string, SourceRegion> = {
   BAL_EST: { seats: 61, population: 1500000, gdp: 93000 },
 };
 
-function materialize(rows: CountryRows[], organization: Record<string, number>, sourceRegions: Record<string, SourceRegion>): BackgroundElectionSeed[] {
+const CATEGORY_ID_BY_COUNTRY: Record<string, string> = {
+  PL: "pl_voterGroups", CS: "cs_voterGroups", HU: "hu_voterGroups", RO: "ro_voterGroups",
+  BG: "bg_voterGroups", YU: "yu_voterGroups", UKR: "ua_voterGroups", BLR: "blr_voterGroups", BAL: "bal_voterGroups",
+};
+const CATEGORY_NAME_BY_COUNTRY: Record<string, string> = {
+  PL: "Poland Voter Groups", CS: "Czechoslovakia Voter Groups", HU: "Hungary Voter Groups",
+  RO: "Romania Voter Groups", BG: "Bulgaria Voter Groups", YU: "Yugoslavia Voter Groups",
+  UKR: "Ukraine Voter Groups", BLR: "Belarus Voter Groups", BAL: "Baltics Voter Groups",
+};
+const EASTERN_BLOC_GROUPS = [
+  { id: "party_nomenklatura", name: "Party Nomenklatura", defaultEconomicLean: -3, defaultSocialLean: 2 },
+  { id: "industrial_worker", name: "Industrial Worker", defaultEconomicLean: -3, defaultSocialLean: 0 },
+  { id: "collective_farmer", name: "Collective Farmer", defaultEconomicLean: -2, defaultSocialLean: 2 },
+  { id: "intelligentsia", name: "Technical Intelligentsia", defaultEconomicLean: 0, defaultSocialLean: -2 },
+  { id: "religious_traditional", name: "Religious / Traditional", defaultEconomicLean: -1, defaultSocialLean: 3 },
+  { id: "youth", name: "Youth", defaultEconomicLean: -1, defaultSocialLean: -1 },
+].map((group) => ({ ...group, defaultTurnout: 94 }));
+
+function layer1ByRegion(era: "1953" | "1979"): Record<string, SourceLayer1RegionDemographics> {
+  return Object.fromEntries(
+    Object.entries(SOURCE_EASTERN_LAYER1_DEMOGRAPHICS)
+      .filter(([key]) => key.startsWith(`${era}:`))
+      .flatMap(([, regions]) => regions.map((region) => [region._id, region])),
+  );
+}
+
+function materialize(
+  rows: CountryRows[],
+  organization: Record<string, number>,
+  sourceRegions: Record<string, SourceRegion>,
+  sourceDemographics: Record<string, SourceLayer1RegionDemographics>,
+): BackgroundElectionSeed[] {
   return rows.map(({ initiallyOccupied, ...row }) => ({
     ...row,
+    demographicCategory: {
+      id: CATEGORY_ID_BY_COUNTRY[row.countryId]!,
+      name: CATEGORY_NAME_BY_COUNTRY[row.countryId]!,
+      defaultWeight: 100,
+      groups: EASTERN_BLOC_GROUPS,
+    },
     regions: row.regions.map((entry) => ({
       ...entry,
       seats: sourceRegions[entry.id]!.seats,
       population: sourceRegions[entry.id]!.population,
       gdp: sourceRegions[entry.id]!.gdp,
       partyOrganization: organization[entry.id]!,
+      demographics: {
+        categoryWeights: sourceDemographics[entry.id]!.categoryWeights,
+        groups: sourceDemographics[entry.id]!.groups,
+      },
     })),
     ...(initiallyOccupied
       ? { initialSeatAllocations: row.regions.map(({ id, seats }) => ({ regionId: id, seats })) }
@@ -243,7 +288,7 @@ function materialize(rows: CountryRows[], organization: Record<string, number>, 
 export const EASTERN_BLOC_ELECTIONS_1953 = materialize([
   ...SATELLITE_1953,
   ...UNION_REPUBLICS,
-], ORG_1953, SOURCE_REGIONS_1953);
+], ORG_1953, SOURCE_REGIONS_1953, layer1ByRegion("1953"));
 
 const SEATS_1979: Record<string, Record<string, number>> = {
   HU: { HU_BUD: 68, HU_PES: 32, HU_TRW: 71, HU_TRS: 35, HU_NOR: 46, HU_ALF: 100 },
@@ -277,4 +322,4 @@ export const EASTERN_BLOC_ELECTIONS_1979 = materialize([
     initiallyOccupied: false,
     regions: row.regions.map((entry) => ({ ...entry })),
   })),
-], ORG_1979, SOURCE_REGIONS_1979);
+], ORG_1979, SOURCE_REGIONS_1979, layer1ByRegion("1979"));

@@ -58,6 +58,10 @@ describe("validatePack", () => {
     const selectable = structuredClone(pack1953) as SeedPack;
     selectable.countries.find((country) => country.id === "PL")!.playable = true;
     expect(() => validatePack(selectable)).toThrow(/selectable country/);
+
+    const missingSourceGroups = structuredClone(pack1953) as SeedPack;
+    missingSourceGroups.backgroundElections![0]!.regions[0]!.demographics.groups = {};
+    expect(() => validatePack(missingSourceGroups)).toThrow(/voter groups do not match/);
   });
 
   it("rejects invalid packVersion", () => {
