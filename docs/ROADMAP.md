@@ -1,3 +1,37 @@
+## Internal game-menu preview delivered, 2026-10-03 (#124 / #510 partial)
+
+Current GitHub state: **52 open: 38 partial, 9 not started, 3 deferred, 2 blocked**.
+Thirteen verified night closures remain the same; no issue closes from this preview.
+The added party-merger issue #737 accounts for the extra open issue since the
+previous 51-open checkpoint. Full parity work and the target of about 30 remaining
+continue; complete acceptance decides closure.
+
+Internal iOS **0.1.10 (1.23)** is Apple VALID, INTERNAL_ONLY, IN_BETA_TESTING and
+assigned to the existing Owner review group, confirmed by a fresh read. Source
+`52f4860db4d8f500d20f6cbbb1b6c43bc30dff0c` is tagged `preview/0.1.10-2`.
+The title/menu pass retains the canonical bell, offline ethereal globe and Fraunces,
+adds latest-save Continue and active-world Return, and preserves drawer destinations,
+conditions and turn/save/exit controls. Real 320px/390px/desktop entry, 200% text,
+multiplayer mail focus and SP save/relaunch/next-turn flows pass.
+
+Runtime source `d43ebc84ccb2113b95fe49d4b01cc83bbf2effbd` passed the complete
+[application, engine, content, browser and Rust gate](https://github.com/Egg3901/AHDNative/actions/runs/37084742443).
+The delivered commit changes only Mac bootstrap, workflow guard and iOS documentation;
+all runtime sources are identical. The corrected source passed 48 rules/workflow
+guards and repeated SP/recovery 3/3. The exact head's repeated
+[full gate](https://github.com/Egg3901/AHDNative/actions/runs/37088728120) passed
+every step. [PR #738](https://github.com/Egg3901/AHDNative/pull/738) merged as
+`15a6aa690800ccbe8c1c508df2e2d4d28afbff3f`.
+#124 and #510 stay partial; full route/capability coverage, mechanics, save interchange
+and named-device lifecycle/performance acceptance stay open. Schema 54 is retained;
+unqualified schema 65 integration is excluded. [Release evidence](RELEASE-0.1.10.md).
+
+The Homebrew setup failure was reviewed and repaired before one deliberate retry.
+Both private build attempts used 6.90 elapsed minutes combined, within the existing
+20-minute cap per attempt. Actual IPA metadata and approved packaged icons were
+verified; signed artifacts, checksum, identifiers and signing logs remain private.
+No new Windows/Android package or physical-iPhone result is claimed.
+
 ## Current parity count and ownership correction, 2026-10-02
 
 Current GitHub state: **51 open from 63: 38 partial, 8 not started, 3 deferred, 2 blocked**.
