@@ -4,7 +4,7 @@ import type { Bill } from "../legislation/types.js";
 const SOURCE_NPP_CONTROL_TENURE_MS = 48 * 60 * 60 * 1000;
 
 export function partyWhipEligibilityError(world: WorldState, bill: Bill, observedAt?: string): string | null {
-  if (bill.status !== "active" && bill.status !== "active_other") {
+  if (bill.status !== "active" && bill.status !== "active_other" && bill.status !== "veto_override") {
     return "A party whip requires an open chamber vote";
   }
   const partyId = world.player.partyId;
@@ -50,12 +50,18 @@ export function partyWhipEligibilityError(world: WorldState, bill: Bill, observe
     }
   }
 
-  const attempts = (world.partyWhips ?? []).filter((whip) =>
+  const attempts = currentNationalPartyWhipAttempts(world, bill, partyId);
+  return attempts.length >= 2 ? "Maximum two national NPP whip attempts per bill/chamber reached" : null;
+}
+
+export function currentNationalPartyWhipAttempts(world: WorldState, bill: Bill, partyId: string) {
+  const overrideStart = bill.status === "veto_override" ? bill.overrideVotingStartedAtTurn : undefined;
+  return (world.partyWhips ?? []).filter((whip) =>
     whip.billId === bill.id
     && whip.partyId === partyId
     && whip.countryId === bill.countryId
     && whip.chamber === bill.currentChamber
-    && whip.stateId === undefined,
+    && whip.stateId === undefined
+    && (overrideStart === undefined || whip.issuedAtTurn >= overrideStart),
   );
-  return attempts.length >= 2 ? "Maximum two national NPP whip attempts per bill/chamber reached" : null;
 }

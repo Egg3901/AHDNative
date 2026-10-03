@@ -84,7 +84,7 @@ import { chamberSeatWeights } from "../government/seatWeights.js";
 import { tallyVotes } from "../legislation/billVoteLogic.js";
 import { isEligibleNppBillVoter, resolveNppBillVote } from "../npp/voteDecision.js";
 import { hardNppWhipSuccessChance } from "../npp/partyWhipSuccess.js";
-import { partyWhipEligibilityError } from "../npp/partyWhipEligibility.js";
+import { currentNationalPartyWhipAttempts, partyWhipEligibilityError } from "../npp/partyWhipEligibility.js";
 import { proposeNationalizationBill } from "../legislation/nationalizationBills.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
@@ -131,6 +131,7 @@ export type ExecuteActionParams = {
   /** Source-generated program-law option id (`l0` through `l4`). */
   policyOptionId?: string;
   billId?: string;
+  vetoMessage?: string;
   vote?: "for" | "against" | "abstain";
   pmAppointmentVoteId?: string;
   pmVote?: "aye" | "nay";
@@ -1928,6 +1929,33 @@ function executeActionInner(
     election.votes["player"] = picks;
     return { ok: true, message: `Voted committee ${picks.join(",")} in ${electionId}` };
   }
+  if (actionId === "vetoBill") {
+    if (found.kind !== "player" || world.player.countryId !== "US" || world.executives.US?.presidentId !== actorId) {
+      return { ok: false, error: "Only the sitting US President may veto a national bill" };
+    }
+    const bill = world.bills.find((candidate) => candidate.id === params.billId);
+    if (!bill) return { ok: false, error: `Unknown bill: ${params.billId ?? ""}` };
+    if (bill.countryId !== "US" || bill.status !== "enrolled") {
+      return { ok: false, error: "Only an enrolled US bill may be vetoed" };
+    }
+
+    // Game's executePresidentialBillAction claims enrolled→veto_override,
+    // starts a new ballot, and removes passage-phase bill-whip rows. Native's
+    // turn unit keeps its existing two-turn override window.
+    bill.status = "veto_override";
+    bill.presidentAction = "vetoed";
+    bill.vetoMessage = params.vetoMessage?.trim() || undefined;
+    bill.vetoedByCharacterId = actorId;
+    bill.vetoedAtTurn = world.meta.turn;
+    bill.vetoOverrideVotes = {};
+    bill.vetoOverrideVotesFor = 0;
+    bill.vetoOverrideVotesAgainst = 0;
+    bill.overrideVotingStartedAtTurn = world.meta.turn;
+    bill.overrideVotingEndsOnTurn = world.meta.turn + 2;
+    bill.updatedAtTurn = world.meta.turn;
+    if (world.partyWhips) world.partyWhips = world.partyWhips.filter((whip) => whip.billId !== bill.id);
+    return { ok: true, message: `Vetoed ${bill.title}; the override vote is now open` };
+  }
   if (actionId === "issuePartyWhip") {
     if (found.kind !== "player") return { ok: false, error: "Only player can issue a party whip" };
     const partyId = world.player.partyId;
@@ -1948,7 +1976,7 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Party and bill must be in the same country" };
     }
-    if (bill.status !== "active" && bill.status !== "active_other") {
+    if (bill.status !== "active" && bill.status !== "active_other" && bill.status !== "veto_override") {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `Bill not in voting status: ${bill.status}` };
@@ -1964,17 +1992,14 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: eligibilityError };
     }
-    const existingAttempts = (world.partyWhips ?? []).filter((candidate) =>
-      candidate.billId === billId
-      && candidate.partyId === partyId
-      && candidate.countryId === bill.countryId
-      && candidate.chamber === bill.currentChamber
-      && candidate.stateId === undefined,
-    );
+    const existingAttempts = currentNationalPartyWhipAttempts(world, bill, partyId);
     const attemptNumber = (existingAttempts.length + 1) as 1 | 2;
     const issuerRole = world.parties[partyId]?.chairId === "player" ? "chair" : "viceChair";
+    const attemptPhase = bill.status === "veto_override" && bill.overrideVotingStartedAtTurn !== undefined
+      ? `override-${bill.overrideVotingStartedAtTurn}`
+      : "ordinary";
     const whip = {
-      id: `whip-${billId}-${partyId}-${attemptNumber}`,
+      id: `whip-${billId}-${partyId}-${attemptPhase}-${attemptNumber}`,
       billId,
       partyId,
       countryId: bill.countryId,
@@ -1994,7 +2019,11 @@ function executeActionInner(
     // recomputed with the hard instruction in its cross-pressure inputs.
     // Soft whips are advisory and never rewrite a recorded ballot here.
     if (mode === "hard" && (direction === "for" || direction === "against")) {
-      const voteMap = bill.status === "active_other" ? (bill.otherChamberVotes ??= {}) : bill.votes;
+      const voteMap = bill.status === "active_other"
+        ? (bill.otherChamberVotes ??= {})
+        : bill.status === "veto_override"
+          ? (bill.vetoOverrideVotes ??= {})
+          : bill.votes;
       const statecraft = effectivePlayerStats(world)?.statecraft ?? NEUTRAL_STAT;
       const statecraftBonus = Math.round((statMultiplier(statecraft) - 1) * 50);
       const rng = rngFromState(world.meta.rng);
@@ -2017,6 +2046,9 @@ function executeActionInner(
         bill.otherChamberVotesFor = tally.for;
         bill.otherChamberVotesAgainst = tally.against;
         bill.otherChamberVotesAbstain = tally.abstain;
+      } else if (bill.status === "veto_override") {
+        bill.vetoOverrideVotesFor = tally.for;
+        bill.vetoOverrideVotesAgainst = tally.against;
       } else {
         bill.votesFor = tally.for;
         bill.votesAgainst = tally.against;
@@ -2978,6 +3010,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.catalogId ? null : `${actionId} requires catalogId`;
     case "voteOnBill":
       return params.billId && params.vote ? null : "voteOnBill requires billId and vote";
+    case "vetoBill":
+      return params.billId ? null : "vetoBill requires billId";
     case "votePmAppointment":
       return params.pmAppointmentVoteId && (params.pmVote === "aye" || params.pmVote === "nay")
         ? null

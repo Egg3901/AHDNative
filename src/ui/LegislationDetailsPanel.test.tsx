@@ -123,6 +123,23 @@ describe("LegislationDetailsPanel", () => {
     expect(screen.getByRole("button", { name: "Show Senate bills" })).toBeInTheDocument();
   });
 
+  it("exposes the source executive veto only on an enrolled bill when projected available", async () => {
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    query.chambers[0]!.completed.push({
+      id: "bill-enrolled", title: "Enrolled Bill", status: "enrolled",
+      chamberKey: "house", chamberName: "House of Representatives", sponsorName: "Ada",
+      votesFor: 220, votesAgainst: 210, votesAbstain: 0, playerVote: null,
+      votingOpen: false, votingAvailable: false, voteDisabledReason: "Voting is not open on this bill.",
+      voteCost: 1, vetoAvailable: true,
+    });
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Veto Enrolled Bill" }));
+    expect(onAction).toHaveBeenCalledWith("vetoBill", { billId: "bill-enrolled" });
+  });
+
   it("opens real bill details on selection and keeps the enacted level distinct from the new proposal control", async () => {
     const LegislationDetailsPanel = await renderPanel();
     const query = makeQuery();

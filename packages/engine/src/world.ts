@@ -203,7 +203,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // consumed by union local mandates; readers without that lifecycle must refuse.
 // v69: standing targeted-ad exposure and its source election-year anchor.
 // v70: Japanese regional budget state is owned by the parallel country slice.
-// v71: persisted national whip attempts and source wall-clock party-control anchors.
+// v71: persisted national whip attempts, veto-override attempt-window start,
+// and source wall-clock party-control anchors.
 export const SCHEMA_VERSION = 71;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */

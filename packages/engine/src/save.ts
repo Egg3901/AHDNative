@@ -1030,7 +1030,7 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid world state");
   }
 
-  validatePartyWhipHistory(value["partyWhips"]);
+  validatePartyWhipHistory(value["partyWhips"], value["bills"]);
   const partyClockFields = ["partyJoinedAt", "lastPartySwitchAt"] as const;
   for (const field of partyClockFields) {
     const timestamp = player[field];
@@ -1289,6 +1289,22 @@ function assertCurrentWorldState(world: WorldState): void {
     if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
     }
+    if (rawBill["presidentAction"] !== undefined && rawBill["presidentAction"] !== "signed" && rawBill["presidentAction"] !== "vetoed") {
+      throw new Error("Not a valid save file: invalid bill presidentAction");
+    }
+    if (rawBill["vetoMessage"] !== undefined && typeof rawBill["vetoMessage"] !== "string") {
+      throw new Error("Not a valid save file: invalid bill vetoMessage");
+    }
+    if (rawBill["vetoedByCharacterId"] !== undefined && typeof rawBill["vetoedByCharacterId"] !== "string") {
+      throw new Error("Not a valid save file: invalid bill vetoedByCharacterId");
+    }
+    if (rawBill["vetoedAtTurn"] !== undefined && (!Number.isSafeInteger(rawBill["vetoedAtTurn"]) || (rawBill["vetoedAtTurn"] as number) < 0 || (rawBill["vetoedAtTurn"] as number) > (meta["turn"] as number))) {
+      throw new Error("Not a valid save file: invalid bill vetoedAtTurn");
+    }
+    const overrideStarted = rawBill["overrideVotingStartedAtTurn"];
+    if (overrideStarted !== undefined && (!Number.isSafeInteger(overrideStarted) || (overrideStarted as number) < 0 || (overrideStarted as number) > (meta["turn"] as number))) {
+      throw new Error("Not a valid save file: invalid bill overrideVotingStartedAtTurn");
+    }
     const provisions = rawBill["provisions"];
     if (!Array.isArray(provisions)) throw new Error("Not a valid save file: invalid bill provisions");
     for (const provision of provisions) {
@@ -1475,11 +1491,17 @@ function assertCurrentWorldState(world: WorldState): void {
   assertCountryPolitics(value["countryPolitics"]);
 }
 
-function validatePartyWhipHistory(raw: unknown): void {
+function validatePartyWhipHistory(raw: unknown, billsValue: unknown): void {
   if (raw === undefined) return;
   if (!Array.isArray(raw)) throw new Error("Not a valid save file: invalid party whip history");
   const groups = new Map<string, Array<{ attemptNumber?: number; id: string }>>();
   const ids = new Set<string>();
+  const overrideStartByBill = new Map<string, number>();
+  if (Array.isArray(billsValue)) for (const bill of billsValue) {
+    if (isRecord(bill) && typeof bill["id"] === "string" && Number.isSafeInteger(bill["overrideVotingStartedAtTurn"])) {
+      overrideStartByBill.set(bill["id"], bill["overrideVotingStartedAtTurn"] as number);
+    }
+  }
   for (const item of raw) {
     if (!isRecord(item)
       || Object.keys(item).some((key) => !["id", "billId", "partyId", "countryId", "stateId", "chamber", "direction", "mode", "attemptNumber", "issuedAtTurn", "issuerId", "issuerRole"].includes(key))
@@ -1497,11 +1519,17 @@ function validatePartyWhipHistory(raw: unknown): void {
       || (item["attemptNumber"] !== undefined && item["attemptNumber"] !== 1 && item["attemptNumber"] !== 2)) {
       throw new Error("Not a valid save file: invalid party whip record");
     }
-    const row = item as unknown as { id: string; billId: string; countryId: string; chamber: string; partyId: string; stateId?: string; attemptNumber?: number };
+    const row = item as unknown as { id: string; billId: string; countryId: string; chamber: string; partyId: string; stateId?: string; attemptNumber?: number; issuedAtTurn: number };
     if (ids.has(row.id)) throw new Error("Not a valid save file: duplicate party whip id");
     ids.add(row.id);
     if (row.stateId !== undefined) continue;
-    const key = JSON.stringify([row.billId, row.countryId, row.chamber, row.partyId]);
+    const overrideStart = overrideStartByBill.get(row.billId);
+    // Game resets the two-NPP-attempt window only for US veto override. The
+    // persisted local start-turn anchor separates that override sequence from
+    // the already completed passage-phase history; missing legacy anchors do
+    // not synthesize a reset.
+    const phase = overrideStart !== undefined && row.issuedAtTurn >= overrideStart ? `override:${overrideStart}` : "ordinary";
+    const key = JSON.stringify([row.billId, row.countryId, row.chamber, row.partyId, phase]);
     const entries = groups.get(key) ?? [];
     entries.push(row);
     groups.set(key, entries);
@@ -4148,7 +4176,8 @@ export function deserializeSave(raw: string): WorldState {
   // the old flat category/group map.
   if (save.schemaVersion < 69) save.world.meta.schemaVersion = 69;
   // v71: national NPP whips retain the source's two independent attempts per
-  // bill/chamber, and new custom-party/member wall-clock anchors preserve the
+  // bill/chamber phase; the explicit veto-override start separates the source
+  // reset window. New custom-party/member wall-clock anchors preserve the
   // source 48-hour control gate. Existing one-row histories and absent time
   // anchors remain absent; no history is inferred. Schema 70 is owned by the
   // independent JP budget continuation family.

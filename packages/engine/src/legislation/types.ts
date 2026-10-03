@@ -55,6 +55,11 @@ export interface Bill {
   proposalActionCost?: number;
   proposalNpiCost?: number;
   proposalCostsRefunded?: boolean;
+  /** Source presidential bill decision metadata for the veto-to-override transition. */
+  presidentAction?: "signed" | "vetoed";
+  vetoMessage?: string;
+  vetoedByCharacterId?: string;
+  vetoedAtTurn?: number;
   // Vote maps per chamber phase
   votes: Record<string, "for" | "against" | "abstain">;
   votesFor: number;
@@ -73,6 +78,8 @@ export interface Bill {
   otherChamberVotingEndsOnTurn?: number;
   presidentActionDeadlineOnTurn?: number;
   overrideVotingEndsOnTurn?: number;
+  /** Game `overrideVotingStartedAt`, in the local turn calendar for NPP-whip reset gating. */
+  overrideVotingStartedAtTurn?: number;
   // Cloture / filibuster
   filibusterInvocations: Array<{ characterId: string; characterName: string; invokedAtTurn: number }>;
   preFilibusterStatus?: "active" | "active_other";

@@ -70,6 +70,7 @@ export type ActionId =
   | "governorEndorsePresidentialCandidate"
   | "withdrawGovernorEndorsement"
   | "sponsorBill"
+  | "vetoBill"
   | "voteOnBill"
   | "proposePmAppointment"
   | "votePmAppointment"
@@ -543,6 +544,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 1,
     fundCost: 0,
     systems: ["legislation/bills"],
+    status: "available",
+  },
+  vetoBill: {
+    id: "vetoBill",
+    name: "Veto Bill",
+    description: "As the sitting US President, veto an enrolled bill and open the chamber override vote. This executive decision costs no action points or funds.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["legislation/executive-veto"],
     status: "available",
   },
   voteOnBill: {

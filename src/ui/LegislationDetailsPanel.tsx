@@ -186,6 +186,19 @@ function BillCard({
           ))}
         </div>
       ) : null}
+      {bill.vetoAvailable ? (
+        <div style={{ marginTop: "0.5rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            disabled={busy}
+            onClick={() => onAction("vetoBill", { billId: bill.id })}
+            aria-label={`Veto ${bill.title}`}
+          >
+            Veto bill
+          </button>
+        </div>
+      ) : null}
     </article>
   );
 }

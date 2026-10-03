@@ -57,6 +57,8 @@ export interface LegislationBillMeta {
   votingAvailable: boolean;
   voteDisabledReason?: string;
   voteCost: number;
+  /** Only the modeled sitting US President can use the source veto route. */
+  vetoAvailable?: boolean;
 }
 
 export interface LegislationChamberGroup {
@@ -413,6 +415,9 @@ export function buildLegislationDetails(
       votingAvailable: gate.available,
       ...(gate.disabledReason ? { voteDisabledReason: gate.disabledReason } : {}),
       voteCost: gate.cost,
+      ...(bill.countryId === "US" && bill.status === "enrolled" && world.executives.US?.presidentId === "player"
+        ? { vetoAvailable: true }
+        : {}),
     };
   };
 

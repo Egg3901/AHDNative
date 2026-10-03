@@ -6,7 +6,10 @@ import { executeAction } from "../actions/execute.js";
 import type { Bill } from "../legislation/types.js";
 import { nppBehaviorPhase } from "../npp/nppBehavior.js";
 import { hardNppWhipSuccessChance } from "../npp/partyWhipSuccess.js";
+import { resolveNppBillVote } from "../npp/voteDecision.js";
 import { rngFromSeed, rngFromState } from "../rng.js";
+import { effectivePlayerStats } from "../stats/allocation.js";
+import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
 import { projectPlayerPartyInfluence } from "../party/playerInfluence.js";
 import { GameSession } from "../../../../src/game/session.js";
 import { partyInfluenceTurnPhase } from "../party/phases.js";
@@ -383,6 +386,76 @@ describe("issue 102 leadership acceptance", () => {
       whipMode: "hard",
     });
     expect(afterReload).toMatchObject({ ok: false, error: expect.stringMatching(/maximum.*2|two.*whip/i) });
+  });
+
+  it("starts a new two-attempt hard-whip window only at a source veto-override boundary", () => {
+    const world = createWorld(OPTIONS);
+    world.meta.turn = 5;
+    world.player.partyId = "US_DEM";
+    world.parties.US_DEM!.chairId = "player";
+    const bill = activeBill("bill-whip-override");
+    bill.status = "veto_override";
+    bill.overrideVotingStartedAtTurn = 5;
+    bill.vetoOverrideVotes = {};
+    bill.votes = { "passage-ballot": "for" };
+    world.bills.push(bill);
+    world.partyWhips = [1, 2].map((attemptNumber) => ({
+      id: `bill-whip-override-US_DEM-ordinary-${attemptNumber}`,
+      billId: bill.id,
+      partyId: "US_DEM",
+      countryId: "US",
+      chamber: "house",
+      direction: attemptNumber === 1 ? "for" as const : "against" as const,
+      mode: "soft" as const,
+      attemptNumber: attemptNumber as 1 | 2,
+      issuedAtTurn: attemptNumber,
+      issuerId: "player",
+      issuerRole: "chair" as const,
+    }));
+    const voter = world.politicians.find((candidate) => candidate.partyId === "US_DEM")!;
+    for (const politician of world.politicians.filter((candidate) => candidate.partyId === "US_DEM")) {
+      politician.chamberKey = "senate";
+    }
+    voter.chamberKey = "house";
+    voter.personality = { loyalty: 0, ambition: 50, stubbornness: 100 };
+    voter.ideology = { economic: 5, social: 0 };
+    const expectedRng = rngFromState(world.meta.rng);
+    const statecraft = effectivePlayerStats(world)?.statecraft ?? NEUTRAL_STAT;
+    const statecraftBonus = Math.round((statMultiplier(statecraft) - 1) * 50);
+    const obeys = expectedRng.int(1, 100) <= hardNppWhipSuccessChance(voter.personality, statecraftBonus);
+    const expectedOverrideVote = obeys
+      ? "against"
+      : resolveNppBillVote(world, bill, voter, { direction: "against", mode: "hard" });
+
+    const first = executeAction(world, "player", "issuePartyWhip", {
+      billId: bill.id, whipDirection: "against", whipMode: "hard",
+    });
+    const second = executeAction(world, "player", "issuePartyWhip", {
+      billId: bill.id, whipDirection: "for", whipMode: "soft",
+    });
+    const third = executeAction(world, "player", "issuePartyWhip", {
+      billId: bill.id, whipDirection: "against", whipMode: "soft",
+    });
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    expect(third).toMatchObject({ ok: false, error: expect.stringMatching(/maximum.*2|two.*whip/i) });
+    expect(bill.votes).toEqual({ "passage-ballot": "for" });
+    expect(bill.vetoOverrideVotes?.[voter.id]).toBe(expectedOverrideVote);
+    expect(bill.vetoOverrideVotesAgainst).toBe(expectedOverrideVote === "against" ? 1 : 0);
+    expect(bill.vetoOverrideVotesFor).toBe(expectedOverrideVote === "for" ? 1 : 0);
+    expect(world.meta.rng).toEqual(expectedRng.state());
+    expect(world.partyWhips?.map((whip) => whip.attemptNumber)).toEqual([1, 2, 1, 2]);
+    expect(new Set(world.partyWhips?.map((whip) => whip.id)).size).toBe(4);
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    expect(restored.partyWhips).toEqual(world.partyWhips);
+    expect(restored.bills[0]?.overrideVotingStartedAtTurn).toBe(5);
+
+    const legacyWindow = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    legacyWindow.bills[0]!.overrideVotingStartedAtTurn = undefined;
+    expect(executeAction(legacyWindow, "player", "issuePartyWhip", {
+      billId: bill.id, whipDirection: "for", whipMode: "soft",
+    })).toMatchObject({ ok: false, error: expect.stringMatching(/maximum.*2|two.*whip/i) });
   });
 
   it("preserves a legacy single whip as one attempt when reading the previous schema", () => {
