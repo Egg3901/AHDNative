@@ -64,6 +64,14 @@ describe("schema 42 projection of public save envelopes", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
+  it("refuses recorded annual statehood evaluation rather than dropping its guard", () => {
+    const world = deserializeSave(loadAuthenticV42());
+    world.statehood!.lastEvaluatedYear = 1953;
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Statehood admission progress"),
+    });
+  });
+
   it("projects isolated source issuer identity without unsupported regional metric records", () => {
     const identityOnly = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
     // Isolate issuer identity on the genuine pre-control fixture. Fresh

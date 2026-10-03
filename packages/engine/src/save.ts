@@ -629,6 +629,11 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (hasOwn(world, "stateOwnershipLedger")) {
     return { ok: false, error: "State ownership history cannot be continued by schema 42. Keep this Native save." };
   }
+  const statehood = world["statehood"];
+  if (statehood !== undefined && (!isRecord(statehood) ||
+      Object.keys(statehood).some((key) => key !== "startingPreset"))) {
+    return { ok: false, error: "Statehood admission progress cannot be continued by schema 42. Keep this Native save." };
+  }
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
@@ -642,6 +647,11 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // reader. An empty backfill is reconstructable; a live ballot is refused
   // above because the old reader cannot advance its deadline or tally.
   delete candidateWorld["pmAppointmentVotes"];
+  // Loading a historical save restores the starting-preset guard without
+  // consuming RNG. Drop only that neutral default, then require the complete
+  // reload comparison below to reconstruct it. Recorded evaluation or
+  // admission progress is refused above.
+  delete candidateWorld["statehood"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
   delete candidateWorld["nppInfluenceAttempts"];
