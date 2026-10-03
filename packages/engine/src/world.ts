@@ -7,6 +7,7 @@ import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
 import type { BackgroundElectionSeed, SeedPack } from "@ahdclient/content";
 import { eraToPreset } from "./electionEngine/resolution/constants.js";
 import { createJPRegionalBudgetRows } from "./budget/jpRegionalBudget.js";
+import { seedSourceStateBudgets } from "./budget/sourceStateBudget.js";
 import { createPoliticiansForWorld, generatePolitician } from "./politician.js";
 import { CATEGORIES_BY_COUNTRY_1953 } from "./demographics/categories.js";
 import { US_STATE_DEMOGRAPHICS_1953, type StateDemographicsSeed } from "./demographics/usStateDemographics1953.js";
@@ -1031,6 +1032,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
 
   // ── Budgets (W2) ───────────────────────────────────────────
   const { budgets, regionalBudgets } = seedBudgets(pack, regions);
+  // NG's source state-budget writer is separate from Native's generic UK-style
+  // regional budget categories. Preserve its exact source fields and literal
+  // GDP denomination rather than synthesizing council/business-rate rows.
+  const sourceStateBudgets = seedSourceStateBudgets(regions, pack.era.id);
 
   // ── Central banks (W3) ────────────────────────────────────────
   const centralBanks = seedCentralBanks(countries);
@@ -1258,6 +1263,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     laborForces,
     budgets,
     regionalBudgets,
+    ...(Object.keys(sourceStateBudgets).length > 0 ? { sourceStateBudgets } : {}),
     nppRelationships: {},
     nppSponsorLastTurn: {},
     centralBanks,

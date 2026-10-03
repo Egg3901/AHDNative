@@ -59,6 +59,7 @@ import { validateNationalCorporations } from "./corporation/nationalCorporation.
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { validatePendingNationalizations } from "./corporation/pendingNationalizations.js";
 import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
+import { validateSourceStateBudgets } from "./budget/sourceStateBudgetValidation.js";
 import { countPrStv, validateRankedBallots } from "./elections/prStv.js";
 import { validateNppStrategyState } from "./corporation/nppCorpStrategy.js";
 import { validateCorporateRelocationVote } from "./corporation/relocationVotes.js";
@@ -391,6 +392,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const featureFlags = world["featureFlags"];
   if (hasOwn(world, "jpRegionalBudgetAllocation")) {
     return { ok: false, error: `Japan regional allocation state cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  if (isRecord(world["sourceStateBudgets"]) && Object.keys(world["sourceStateBudgets"]).length > 0) {
+    return { ok: false, error: `Source StateBudget snapshots cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
   const regionalBudgetsForProjection = isRecord(world["regionalBudgets"]) ? world["regionalBudgets"] : {};
   for (const [regionId, row] of Object.entries(regionalBudgetsForProjection)) {
@@ -1340,6 +1344,12 @@ function assertCurrentWorldState(world: WorldState): void {
         }
       }
     }
+  }
+  const sourceStateBudgets = value["sourceStateBudgets"];
+  if (sourceStateBudgets !== undefined) {
+    const regions = value["regions"];
+    if (!isRecord(regions)) throw new Error("Not a valid save file: invalid source StateBudget region map");
+    validateSourceStateBudgets(sourceStateBudgets, regions as unknown as WorldState["regions"], String(meta["era"]));
   }
 
   validatePartyWhipHistory(value["partyWhips"]);

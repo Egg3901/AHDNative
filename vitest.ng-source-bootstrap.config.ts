@@ -17,6 +17,7 @@ export default defineConfig({
       "packages/content/src/nigeriaSourceNpp.test.ts",
       "packages/engine/src/corporation/nppSourceBootstrap.test.ts",
       "packages/engine/src/corporation/sourceRegionalUnownedSeed.test.ts",
+      "packages/engine/src/budget/sourceStateBudget.test.ts",
     ],
     testTimeout: 120_000,
     maxWorkers: 1,

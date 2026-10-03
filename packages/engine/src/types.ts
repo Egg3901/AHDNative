@@ -191,6 +191,8 @@ export interface WorldState {
   extractionContracts: ExtractionContract[];
   /** Regions per playable country. W38: US 48 real states (AK/HI absent); UK/RU/DD retain 3 opaque each until W39. */
   regions: Record<string, Region>;
+  /** Exact source StateBudget snapshots for background Nigerian regions. Schema v72; absent on older saves. */
+  sourceStateBudgets?: Record<string, import("./budget/types.js").SourceStateBudgetSnapshot>;
   /** Per-region per-party org/reg. Key `${regionId}:${partyId}`. Ports StatePartyOrg. */
   partyRegions: Record<string, PartyRegion>;
   /** Per-region non-party registration buckets. Key regionId. Ports StateRegistrationPool. */
