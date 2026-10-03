@@ -40,6 +40,8 @@ export interface ExchangeRate {
   rateHistory: Array<{ turn: number; rate: number }>;
   /** Regime: pegged (Bretton Woods) or floating (post-1971). See regime.ts. */
   regime: "pegged" | "floating";
+  /** Source exchangeRates.capitalControls; absent is the source's false default. */
+  capitalControls?: boolean;
   /** Turn the rate was last updated. */
   updatedTurn: number;
   /** Source's most recently computed gross 24-turn anchor volume, when available. */

@@ -28,6 +28,11 @@ describe("46-fund catalog market participation", () => {
     expect(ukFund.targetConstituents.length).toBeGreaterThan(0);
     expect(ukFund.targetConstituents.every((row) => world.corporations[row.corporationId]?.countryId === "UK")).toBe(true);
     expect(Object.keys(ukFund.holdings).length).toBeGreaterThan(0);
+    for (const [corpId, holding] of Object.entries(ukFund.holdings)) {
+      const corporation = world.corporations[corpId]!;
+      expect(corporation.shareholders).toContainEqual(expect.objectContaining({ holder: "fund", fundSlug: ukFund.slug, shares: holding.shares }));
+      expect(corporation.shareholders.reduce((sum, row) => sum + row.shares, 0) + corporation.publicFloat).toBe(corporation.totalShares);
+    }
     expect(ukFund.cashAnchor).toBeLessThan(seedCash);
     expect(world.indexFundBook!.transactions.some((row) => row.fundSlug === "uk_top_25" && row.kind === "floatPurchase")).toBe(true);
     const sectorFund = world.indexFundBook!.funds.global_sector_manufacturing!;

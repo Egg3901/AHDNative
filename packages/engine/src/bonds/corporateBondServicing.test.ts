@@ -52,6 +52,40 @@ function fund(
 
 // ── Coupon success (source: bondTurn.ts Phase 1 + corpBondCashflows.ts) ──
 describe("corporate coupon servicing", () => {
+  it("credits tracked fund holders in anchor cash and preserves fund/bond custody on save", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId(world);
+    const bond = issue(world, corpId);
+    fund(world, corpId);
+    const fundRecord = world.indexFundBook!.funds.global_corporate_ig!;
+    bond.holders = [{ holderId: `index-fund:${fundRecord.slug}`, units: 10 }];
+    bond.publicFloat -= 10;
+    fundRecord.bondHoldings ??= {};
+    fundRecord.bondHoldings[bond.id] = { units: 10, averageCostPerUnitAnchor: 1_000, lastValueAnchor: 10_000 };
+    const cashBefore = fundRecord.cashAnchor;
+    const perUnit = corporateCouponPerUnit(bond);
+
+    const result = processCorporateBondTurn(world);
+
+    expect(result.couponsPaid).toBe(0);
+    expect(fundRecord.cashAnchor).toBeCloseTo(cashBefore + perUnit * 10, 8);
+    expect(world.indexFundBook!.transactions).toContainEqual(expect.objectContaining({
+      fundSlug: fundRecord.slug, kind: "bondCoupon", bondId: bond.id, units: 10,
+    }));
+    bond.maturityTurn = world.meta.turn;
+    const afterCoupon = fundRecord.cashAnchor;
+    processCorporateBondTurn(world);
+    expect(bond.matured).toBe(true);
+    expect(fundRecord.cashAnchor).toBeCloseTo(afterCoupon + 10 * bond.faceValue, 8);
+    expect(fundRecord.bondHoldings?.[bond.id]).toBeUndefined();
+    expect(world.indexFundBook!.transactions).toContainEqual(expect.objectContaining({
+      fundSlug: fundRecord.slug, kind: "bondMaturity", bondId: bond.id, units: 10,
+    }));
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T15:00:00.000Z"));
+    expect(restored.indexFundBook!.funds[fundRecord.slug]!.cashAnchor).toBeCloseTo(fundRecord.cashAnchor, 8);
+    expect(restored.bonds[bond.id]!.holders).toEqual(bond.holders);
+  });
+
   it("debits the issuer for every outstanding unit and pays holders in the bond denomination", () => {
     const world = createWorld(OPTS);
     const corpId = usCorpId(world);

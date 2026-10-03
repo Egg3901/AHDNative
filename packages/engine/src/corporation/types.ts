@@ -123,6 +123,8 @@ export interface Corporation {
   ceoVacant?: boolean;
   /** Current shareholder-vote leader awaiting acceptance. */
   pendingCeoId?: string;
+  /** Last source-style issuer grade used by global corporate-bond mandates; absent reads BBB. */
+  creditRatingSnapshot?: import("../bonds/corporateCredit.js").CorporateCreditRating;
   /** Latest ballot by holder, weighted by the holder's actual shares. */
   ceoVotes?: Array<{ voterId: string; candidateId: string; shares: number }>;
   /** CEO compensation in local currency per Native turn (one week). */
@@ -254,7 +256,7 @@ export interface Corporation {
    * sentiment/order-flow multipliers. Source: Corporation.fundamentalSharePrice.
    */
   fundamentalSharePrice: number;
-  /** Shares owned by identified holders (NPC founder, player). Source: Corporation.shareholders (Shareholder[]). */
+  /** Shares owned by the NPC founder, player, or a tracked index fund. Source: Corporation.shareholders. */
   shareholders: ShareholderEntry[];
   /** Shares available for purchase from the corp's own treasury-backed market maker. Source: Corporation.publicFloat. */
   publicFloat: number;
@@ -303,13 +305,15 @@ export interface Corporation {
  * doc). So there is no "state" holder kind here; it would not match anything
  * mainline actually does.
  */
-export type ShareholderKind = "npc" | "player";
+export type ShareholderKind = "npc" | "player" | "fund";
 
 export interface ShareholderEntry {
   holder: ShareholderKind;
   shares: number;
   /** Weighted-average purchase price per share; undefined for the founding NPC block (no purchase event). */
   avgCostPerShare?: number;
+  /** Fund catalogue key when holder is `fund`; mirrors Game Shareholder.fundId. */
+  fundSlug?: string;
 }
 
 /**

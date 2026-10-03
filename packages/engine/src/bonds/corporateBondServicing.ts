@@ -5,6 +5,7 @@ import { isCorpStateOwned } from "./corporateBonds.js";
 import { calculateNativeCorporateCreditRating, corporateRatingSpread } from "./corporateCredit.js";
 import { nativeBondPoolForCurrency, nativeCurrencyRate, quoteNativeCorporateBondPool } from "./bondMarketPool.js";
 import { resolveBondCurrency, resolveCountryCurrency } from "./denomination.js";
+import { fundBondHolderId, settleIndexFundBondReceipt } from "../indexFunds/bondReserve.js";
 
 /**
  * Corporate bond servicing — #308.
@@ -164,6 +165,21 @@ export function processCorporateBondTurn(
     const maturing = turn >= bond.maturityTurn;
     const maturityCost = maturing ? units * bond.faceValue : 0;
     const totalCost = couponCost + maturityCost;
+    const held = playerUnits(bond);
+    const fundHolders = bond.holders.filter((holder) => holder.holderId.startsWith("index-fund:") && holder.units > 0);
+    let fundSettlementValid = true;
+    const fundReceipts = fundHolders.map((holder) => {
+      const slug = holder.holderId.slice("index-fund:".length);
+      const fund = world.indexFundBook?.funds[slug];
+      const position = fund?.bondHoldings?.[bond.id];
+      const amountLocal = (couponDue > 0 ? couponPerUnit * holder.units : 0) + (maturing ? holder.units * bond.faceValue : 0);
+      const rate = nativeCurrencyRate(world, bond.currencyCode);
+      if (!fund || position?.units !== holder.units || !rate || rate <= 0 || !Number.isFinite(amountLocal) || !Number.isFinite(fund.cashAnchor + amountLocal / rate)) {
+        fundSettlementValid = false;
+      }
+      return { holder, amountLocal };
+    });
+    if (!fundSettlementValid) continue;
 
     // Private issuers that cannot cover the turn's obligation default with
     // zero flows (atomic all-or-nothing). State-owned issuers never default
@@ -178,11 +194,17 @@ export function processCorporateBondTurn(
     if (totalCost > 0) {
       corp.liquidCapital -= totalCost;
     }
-    const held = playerUnits(bond);
     if (couponDue > 0 && held > 0) {
       const pay = couponPerUnit * held;
       creditPlayerBondCurrency(world, bond, pay);
       result.couponsPaid += pay;
+    }
+    for (const { holder, amountLocal } of fundReceipts) {
+      if (amountLocal > 0 && !settleIndexFundBondReceipt(world, bond, holder.holderId, holder.units, amountLocal, maturing ? "bondMaturity" : "bondCoupon")) {
+        // Preflight above makes this unreachable unless the world was mutated
+        // concurrently, which ordinary turn execution does not permit.
+        throw new Error(`Could not settle index fund bond claim ${bond.id}/${holder.holderId}`);
+      }
     }
     if (bond.lastCouponTurn !== turn) {
       bond.lastCouponTurn = turn;

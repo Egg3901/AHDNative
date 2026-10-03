@@ -225,6 +225,22 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         return { ok: false, error: `Active currency-volume pressure cannot be continued by the schema 42 turn reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
       }
     }
+    if (row["capitalControls"] !== undefined && typeof row["capitalControls"] !== "boolean") {
+      return { ok: false, error: `Exchange-rate ${countryId} has invalid capitalControls state; keep this Native save.` };
+    }
+    if (row["capitalControls"] === true) {
+      return { ok: false, error: `Exchange-rate ${countryId} has active capital controls that cannot be continued by the schema 42 reader. Keep this Native save.` };
+    }
+  }
+  if (world["indexFundBondLiquidityEnabled"] !== undefined && typeof world["indexFundBondLiquidityEnabled"] !== "boolean") {
+    return { ok: false, error: "Index fund bond-liquidity rollout state is invalid; keep this Native save." };
+  }
+  if (world["indexFundBondLiquidityEnabled"] === true) {
+    return { ok: false, error: "Index fund bond-liquidity rollout state cannot be continued by the schema 42 reader. Keep this Native save." };
+  }
+  const bondPools = world["bondMarketPools"];
+  if (isRecord(bondPools) && Object.values(bondPools).some((pool) => isRecord(pool) && isRecord(pool["appetiteByCountry"]) && Object.keys(pool["appetiteByCountry"]).length > 0)) {
+    return { ok: false, error: "Sovereign bond-market appetite snapshots cannot be continued by the schema 42 reader. Keep this Native save." };
   }
   if (hasOwn(world, "pendingNationalizations")) {
     return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
@@ -1039,13 +1055,17 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
   const transactionSums = new Map<string, Record<string, number>>();
   for (const rawItem of transactionRows) {
     const item = rawItem as Record<string, unknown>;
-    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "turn", "fundSlug", "kind", "corporationId", "units", "cashAnchor"].includes(key)) ||
+    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "turn", "fundSlug", "kind", "corporationId", "bondId", "units", "cashAnchor"].includes(key)) ||
         typeof item["id"] !== "string" || item["id"].length === 0 || transactionIds.has(item["id"]) ||
         !Number.isSafeInteger(item["turn"]) || (item["turn"] as number) < 0 || (item["turn"] as number) > turn ||
         typeof item["fundSlug"] !== "string" || !isRecord(funds[item["fundSlug"]]) ||
-        !["subscription", "redemption", "redemptionPayout", "floatPurchase", "floatSale", "dividendReceipt", "dividendPayout", "bondPurchase", "bondCoupon", "bondSale"].includes(String(item["kind"])) ||
+        !["subscription", "redemption", "redemptionPayout", "floatPurchase", "floatSale", "dividendReceipt", "dividendPayout", "equityLiquidationReceipt", "bondPurchase", "bondCoupon", "bondMaturity", "bondDefaultReceipt", "bondSale"].includes(String(item["kind"])) ||
         !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
-        !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0) fail();
+        !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0 ||
+        (["bondPurchase", "bondCoupon", "bondMaturity", "bondDefaultReceipt", "bondSale"].includes(String(item["kind"]))
+          ? typeof item["bondId"] !== "string" || item["bondId"].length === 0
+          : item["bondId"] !== undefined) ||
+        (item["kind"] === "equityLiquidationReceipt" && (typeof item["corporationId"] !== "string" || item["corporationId"].length === 0))) fail();
     transactionIds.add(item["id"] as string);
     const slug = item["fundSlug"] as string;
     const sums = transactionSums.get(slug) ?? {};
@@ -1118,7 +1138,7 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
     const redeemedCash = (sums["redemption"] ?? 0) + (sums["redemptionPayout"] ?? 0);
     const assetPurchases = (sums["floatPurchase"] ?? 0) + (sums["bondPurchase"] ?? 0);
     const assetSales = (sums["floatSale"] ?? 0) + (sums["bondSale"] ?? 0);
-    const receipts = (sums["dividendReceipt"] ?? 0) + (sums["bondCoupon"] ?? 0);
+    const receipts = (sums["dividendReceipt"] ?? 0) + (sums["equityLiquidationReceipt"] ?? 0) + (sums["bondCoupon"] ?? 0) + (sums["bondMaturity"] ?? 0) + (sums["bondDefaultReceipt"] ?? 0);
     const payouts = sums["dividendPayout"] ?? 0;
     const initialUnits = legacySingleFund ? (slug === "us_top_25" ? expectedReserve : 0) : expectedReserve;
     const initialCash = legacySingleFund ? (slug === "us_top_25" ? INDEX_FUND_SEED_CASH_ANCHOR : 0) : INDEX_FUND_SEED_CASH_ANCHOR;
@@ -1129,6 +1149,34 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
         // rejecting the source's per-trade FX arithmetic at ordinary scale.
         Math.abs((rawFund["cashAnchor"] as number) - (initialCash + subscribedCash - redeemedCash - assetPurchases + assetSales + receipts - payouts)) > 1e-6 ||
         Math.abs((rawFund["quotedNav"] as number) - ((rawFund["cashAnchor"] as number) + holdingValue) / ((rawFund["unitSupply"] as number) + queue.units)) > 1e-6) fail();
+  }
+}
+
+function validateIndexFundBondCustody(world: WorldState): void {
+  const book = world.indexFundBook;
+  if (!book) return;
+  for (const fund of Object.values(book.funds)) {
+    for (const [bondId, holding] of Object.entries(fund.bondHoldings ?? {})) {
+      const bond = world.bonds[bondId];
+      const holderId = `index-fund:${fund.slug}`;
+      const bondUnits = bond?.holders.filter((holder) => holder.holderId === holderId).reduce((sum, holder) => sum + holder.units, 0) ?? 0;
+      if (!bond || fund.kind !== "bond" || bond.issuerType !== fund.bondUniverse?.issuerType || bondUnits !== holding.units) {
+        throw new Error(`Not a valid save file: index fund bond custody does not reconcile for ${fund.slug}/${bondId}`);
+      }
+    }
+  }
+  for (const bond of Object.values(world.bonds)) {
+    const fundHolders = new Set<string>();
+    for (const holder of bond.holders) {
+      if (!holder.holderId.startsWith("index-fund:")) continue;
+      if (fundHolders.has(holder.holderId)) throw new Error(`Not a valid save file: duplicate index fund bond holder ${holder.holderId}`);
+      fundHolders.add(holder.holderId);
+      const slug = holder.holderId.slice("index-fund:".length);
+      const fund = book.funds[slug];
+      if (!fund || (fund.bondHoldings?.[bond.id]?.units ?? 0) !== holder.units) {
+        throw new Error(`Not a valid save file: orphaned index fund bond holder ${holder.holderId}/${bond.id}`);
+      }
+    }
   }
 }
 
@@ -1163,8 +1211,11 @@ function assertCurrentWorldState(world: WorldState): void {
   }
   const indexFundBook = value["indexFundBook"];
   if (indexFundBook !== undefined) validateIndexFundBook(indexFundBook, meta["turn"] as number);
+  if (isRecord(value["bonds"]) && isRecord(value["corporations"])) validateIndexFundBondCustody(value as unknown as WorldState);
   if (isRecord(indexFundBook) && isRecord(indexFundBook["funds"]) && isRecord(value["corporations"])) {
     const shareHoldingsByCorporation = new Map<string, number>();
+    const fundShareHoldings = new Map<string, number>();
+    const fundDefinitions = indexFundBook["funds"] as Record<string, unknown>;
     for (const rawFund of Object.values(indexFundBook["funds"])) {
       if (!isRecord(rawFund) || !isRecord(rawFund["holdings"])) continue;
       for (const [corpId, rawHolding] of Object.entries(rawFund["holdings"])) {
@@ -1172,21 +1223,53 @@ function assertCurrentWorldState(world: WorldState): void {
         shareHoldingsByCorporation.set(corpId, (shareHoldingsByCorporation.get(corpId) ?? 0) + (rawHolding["shares"] as number));
       }
     }
+    for (const [slug, rawFund] of Object.entries(fundDefinitions)) {
+      if (!isRecord(rawFund) || !isRecord(rawFund["holdings"])) continue;
+      for (const [corpId, rawHolding] of Object.entries(rawFund["holdings"])) {
+        if (!isRecord(rawHolding)) continue;
+        fundShareHoldings.set(`${corpId}:${slug}`, rawHolding["shares"] as number);
+      }
+    }
     for (const [corpId, rawCorp] of Object.entries(value["corporations"])) {
       if (!isRecord(rawCorp)) throw new Error("Not a valid save file: invalid corporation record");
       const shareholderRows = Array.isArray(rawCorp["shareholders"]) ? rawCorp["shareholders"] : [];
-      const namedShares = shareholderRows.reduce((sum, row) => sum + (isRecord(row) && Number.isFinite(row["shares"]) ? row["shares"] as number : 0), 0);
-      const fundShares = shareHoldingsByCorporation.get(corpId) ?? 0;
-      if (Math.abs(namedShares + fundShares + (rawCorp["publicFloat"] as number) - (rawCorp["totalShares"] as number)) > 1) {
+      let namedShares = 0;
+      const seenFunds = new Set<string>();
+      for (const rawRow of shareholderRows) {
+        if (!isRecord(rawRow) || Object.keys(rawRow).some((key) => !["holder", "shares", "avgCostPerShare", "fundSlug"].includes(key)) ||
+            !["npc", "player", "fund"].includes(String(rawRow["holder"])) || !Number.isSafeInteger(rawRow["shares"]) || (rawRow["shares"] as number) <= 0 ||
+            (rawRow["avgCostPerShare"] !== undefined && (!Number.isFinite(rawRow["avgCostPerShare"]) || (rawRow["avgCostPerShare"] as number) <= 0))) {
+          throw new Error("Not a valid save file: invalid corporate shareholder row");
+        }
+        if (rawRow["holder"] === "fund") {
+          const slug = rawRow["fundSlug"];
+          const key = `${corpId}:${String(slug)}`;
+          if (typeof slug !== "string" || !isRecord(fundDefinitions[slug]) || seenFunds.has(slug) || fundShareHoldings.get(key) !== rawRow["shares"]) {
+            throw new Error("Not a valid save file: fund shareholder does not reconcile with its position");
+          }
+          seenFunds.add(slug);
+          fundShareHoldings.delete(key);
+        } else if (rawRow["fundSlug"] !== undefined) {
+          throw new Error("Not a valid save file: non-fund shareholder has a fund id");
+        }
+        namedShares += rawRow["shares"] as number;
+      }
+      if (Math.abs(namedShares + (rawCorp["publicFloat"] as number) - (rawCorp["totalShares"] as number)) > 1) {
         throw new Error("Not a valid save file: index fund shares do not reconcile with corporate float");
       }
     }
+    if (fundShareHoldings.size > 0) throw new Error("Not a valid save file: index fund position lacks issuer shareholder custody");
     for (const corpId of shareHoldingsByCorporation.keys()) if (!Object.hasOwn(value["corporations"] as object, corpId)) {
       throw new Error("Not a valid save file: index fund holds an unknown corporation");
     }
     for (const tx of Array.isArray(indexFundBook["transactions"]) ? indexFundBook["transactions"] : []) {
       if (isRecord(tx) && tx["corporationId"] !== undefined && !Object.hasOwn(value["corporations"] as object, String(tx["corporationId"]))) {
-        throw new Error("Not a valid save file: index fund transaction references an unknown corporation");
+        const settledIssuer = Array.isArray(value["corporateBondSettlementLedger"]) &&
+          (value["corporateBondSettlementLedger"] as unknown[]).some((entry) => {
+            if (!isRecord(entry) || entry["corporationId"] !== tx["corporationId"] || !Array.isArray(entry["fundSharePayouts"])) return false;
+            return true;
+          });
+        if (!settledIssuer) throw new Error("Not a valid save file: index fund transaction references an unknown corporation");
       }
     }
   }
@@ -4493,8 +4576,14 @@ export function deserializeSave(raw: string): WorldState {
   for (const exchangeRate of Object.values(save.world.exchangeRates)) {
     if (
       exchangeRate.buyVolume24 !== undefined && (!Number.isFinite(exchangeRate.buyVolume24) || exchangeRate.buyVolume24 < 0) ||
-      exchangeRate.sellVolume24 !== undefined && (!Number.isFinite(exchangeRate.sellVolume24) || exchangeRate.sellVolume24 < 0)
+      exchangeRate.sellVolume24 !== undefined && (!Number.isFinite(exchangeRate.sellVolume24) || exchangeRate.sellVolume24 < 0) ||
+      exchangeRate.capitalControls !== undefined && typeof exchangeRate.capitalControls !== "boolean"
     ) throw new Error("Not a valid save file: invalid forex volume snapshot");
+  }
+  for (const corporation of Object.values(save.world.corporations)) {
+    if (corporation.creditRatingSnapshot !== undefined && !["AAA", "AA", "A", "BBB", "BB", "B", "CCC"].includes(corporation.creditRatingSnapshot)) {
+      throw new Error(`Not a valid save file: invalid issuer credit rating snapshot for ${corporation.id}`);
+    }
   }
   return save.world;
 }

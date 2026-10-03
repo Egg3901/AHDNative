@@ -37,6 +37,77 @@ function craftCorporate(
 }
 
 describe("corporate default at the public seam", () => {
+  it("settles an owned corporate bond fund claim into cash and removes both custody rows", () => {
+    const world = createWorld({ ...OPTS, seed: "corporate-default-fund-claim" });
+    const corp = world.corporations[CORP_ID]!;
+    corp.ceoType = "npp";
+    corp.revenue = 0;
+    corp.profitMargin = 0;
+    corp.effectiveProfitMargin = 0;
+    corp.currentGrowthCost = 0;
+    corp.liquidCapital = 10_000;
+    const bond = craftCorporate(world, { units: 10_000, couponRate: 4800, held: 0 });
+    const fund = world.indexFundBook!.funds.global_corporate_ig!;
+    bond.defaulted = true;
+    bond.defaultedAtTurn = 0;
+    bond.holders = [{ holderId: `index-fund:${fund.slug}`, units: 1_000 }];
+    bond.publicFloat = 9_000;
+    fund.bondHoldings ??= {};
+    fund.bondHoldings[bond.id] = { units: 1_000, averageCostPerUnitAnchor: 1_000, lastValueAnchor: 1_000_000 };
+    world.meta.turn = 30;
+    const cashBefore = fund.cashAnchor;
+
+    const result = settleCorporateBondDefault(world, CORP_ID);
+
+    expect(result.ok).toBe(true);
+    expect(fund.cashAnchor).toBe(cashBefore + 1_000);
+    expect(fund.bondHoldings[bond.id]).toBeUndefined();
+    expect(world.indexFundBook!.transactions).toContainEqual(expect.objectContaining({
+      fundSlug: fund.slug, kind: "bondDefaultReceipt", bondId: bond.id, units: 1_000, cashAnchor: 1_000,
+    }));
+    expect(world.corporateBondSettlementLedger![0]!.bondClaims[0]!.fundClaims).toEqual([
+      { fundSlug: fund.slug, units: 1_000, paidLocal: 1_000, unpaidLocal: 999_000 },
+    ]);
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T15:00:00.000Z"));
+    expect(restored.indexFundBook!.funds[fund.slug]!.cashAnchor).toBe(fund.cashAnchor);
+    expect(restored.corporateBondSettlementLedger).toEqual(world.corporateBondSettlementLedger);
+  });
+
+  it("pays and removes the actual fund equity shareholder on corporate dissolution", () => {
+    const world = createWorld({ ...OPTS, seed: "corporate-default-fund-equity" });
+    const corp = world.corporations[CORP_ID]!;
+    corp.revenue = 0;
+    corp.profitMargin = 0;
+    corp.effectiveProfitMargin = 0;
+    corp.currentGrowthCost = 0;
+    corp.liquidCapital = 20_000_000;
+    const fund = world.indexFundBook!.funds.global_top_50!;
+    const shares = 1_000_000;
+    corp.shareholders.push({ holder: "fund", fundSlug: fund.slug, shares, avgCostPerShare: 1 });
+    corp.publicFloat -= shares;
+    fund.holdings[CORP_ID] = { shares, averageCostPerShare: 1, lastValueAnchor: shares };
+    const bond = craftCorporate(world, { units: 10_000, couponRate: 4800, held: 0 });
+    bond.defaulted = true;
+    bond.defaultedAtTurn = 0;
+    world.meta.turn = 30;
+    const fundCashBefore = fund.cashAnchor;
+
+    const result = settleCorporateBondDefault(world, CORP_ID);
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.settlement.fundSharePayoutAnchor).toBe(1_000_000);
+    expect(fund.cashAnchor).toBe(fundCashBefore + 1_000_000);
+    expect(fund.holdings[CORP_ID]).toBeUndefined();
+    expect(world.indexFundBook!.transactions).toContainEqual(expect.objectContaining({
+      fundSlug: fund.slug, corporationId: CORP_ID, kind: "equityLiquidationReceipt", units: shares, cashAnchor: 1_000_000,
+    }));
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T15:00:00.000Z"));
+    expect(restored.indexFundBook!.funds[fund.slug]!.holdings[CORP_ID]).toBeUndefined();
+    expect(restored.corporateBondSettlementLedger![0]!.fundSharePayouts).toEqual([
+      { fundSlug: fund.slug, shares, payoutAnchor: 1_000_000 },
+    ]);
+  });
+
   it("freezes the paper with zero flows when the issuer cannot cover the turn", () => {
     const [a, b] = twinWorlds();
     // Coupon 4800%/yr => 1000/unit/turn; 200M units => 200B obligation,
@@ -61,6 +132,7 @@ describe("corporate default at the public seam", () => {
   it("settles a lingering NPP default from the liquidation estate and clears creditor holdings", () => {
     const world = createWorld({ ...OPTS, seed: "corporate-default-estate" });
     const corp = world.corporations[CORP_ID]!;
+    corp.ceoType = "npp";
     corp.revenue = 0;
     corp.profitMargin = 0;
     corp.effectiveProfitMargin = 0;
@@ -70,27 +142,35 @@ describe("corporate default at the public seam", () => {
       (asset) => asset.corporationId === CORP_ID,
     )!.id;
     const bond = craftCorporate(world, { units: 10_000, couponRate: 4800, held: 1_000 });
-    const playerCashBefore = world.player.cash;
 
     advanceTurn(world);
     expect(world.bonds[bond.id]!.defaulted).toBe(true);
     expect(world.corporations[CORP_ID]).toBeDefined();
     expect(world.corporateSectors![sectorId]).toBeDefined();
 
-    // Game's lingering NPP default rule settles after 30 turns. With zero
-    // sector revenue, source sector NPV is zero; the $10,000 liquid estate is
-    // shared pro-rata across $10,000,000 face, so this 10% holder receives
-    // exactly $1,000. Public float recovery belongs to Game's market pool,
-    // which Native does not model.
+    // Game's lingering NPP default rule settles after 30 turns. The real
+    // ordinary turn before liquidation updates issuer cash, so payout is
+    // derived from the actual saved settlement inputs rather than the pre-turn
+    // $10,000 fixture balance. Source: Game fff42a4 corporateBondDefault.ts
+    // previewDissolveSettlement + executeCorporationBondDefaultDissolution.
     world.meta.turn = bond.defaultedAtTurn! + 29;
+    const cashBeforeSettlement = world.player.cash;
     let cashAtBondPhase = world.player.cash;
     advanceTurn(world, {
       afterPhase(name, state) {
-        if (name === "bondCouponMaturity") cashAtBondPhase = state.player.cash;
+        if (name === "bondCouponMaturity") {
+          cashAtBondPhase = state.player.cash;
+        }
       },
     });
 
-    expect(cashAtBondPhase - playerCashBefore).toBe(1_000);
+    const settlementLedger = world.corporateBondSettlementLedger![0]!;
+    const claim = settlementLedger.bondClaims[0]!;
+    const sourceRecoveryRatio = settlementLedger.bondRecoveryPool / settlementLedger.totalBondClaims;
+    const expectedPlayerBondPayout = Math.round(sourceRecoveryRatio * claim.playerUnits * claim.faceValue * 100) / 100;
+    const expectedFloatRecovery = Math.round(sourceRecoveryRatio * claim.publicFloatUnits * claim.faceValue * 100) / 100;
+    expect(cashAtBondPhase - cashBeforeSettlement).toBe(expectedPlayerBondPayout);
+    expect(claim.playerPaid).toBe(expectedPlayerBondPayout);
     expect(world.corporations[CORP_ID]).toBeUndefined();
     expect(world.corporateSectors![sectorId]).toBeUndefined();
     expect(world.bonds[bond.id]).toBeUndefined();
@@ -99,17 +179,14 @@ describe("corporate default at the public seam", () => {
         id: `${CORP_ID}:${bond.defaultedAtTurn! + 30}`,
         corporationId: CORP_ID,
         settledAtTurn: bond.defaultedAtTurn! + 30,
-        totalBondClaims: 10_000_000,
-        bondRecoveryPool: 10_000,
-        unpaidBondClaims: 9_990_000,
         bondClaims: [
           {
             bondId: bond.id,
             playerUnits: 1_000,
-            playerPaid: 1_000,
-            playerUnpaid: 999_000,
+            playerPaid: expectedPlayerBondPayout,
+            playerUnpaid: 1_000_000 - expectedPlayerBondPayout,
             publicFloatUnits: 9_000,
-            publicFloatRecoveryUnposted: 9_000,
+            publicFloatRecoveryUnposted: expectedFloatRecovery,
           },
         ],
       },

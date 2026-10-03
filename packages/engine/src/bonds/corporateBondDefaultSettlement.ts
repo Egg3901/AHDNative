@@ -4,6 +4,8 @@ import { GROWTH_RATE_TURNS_PER_YEAR } from "../corporation/constants.js";
 import { isCorpStateOwned, validateBondIssuerIdentity } from "./corporateBonds.js";
 import { resolveBondCurrency } from "./denomination.js";
 import type { Bond } from "./types.js";
+import { nativeCurrencyRate } from "./bondMarketPool.js";
+import { refreshIndexFundNav, settleIndexFundBondReceipt } from "../indexFunds/bondReserve.js";
 import {
   BUDGET_SOFTNESS_FOLD_THRESHOLD,
   COMMAND_CEILING,
@@ -27,6 +29,7 @@ export interface CorporateDefaultSettlement {
   playerBondPayout: number;
   playerSharePayout: number;
   publicFloatSharePayout: number;
+  fundSharePayoutAnchor: number;
 }
 
 export interface CorporateBondSettlementClaimRecord {
@@ -35,6 +38,8 @@ export interface CorporateBondSettlementClaimRecord {
   faceValue: number;
   totalUnits: number;
   playerUnits: number;
+  /** Absent on historical 71 records written before Native fund bond custody. */
+  fundClaims?: Array<{ fundSlug: string; units: number; paidLocal: number; unpaidLocal: number }>;
   publicFloatUnits: number;
   totalClaim: number;
   playerPaid: number;
@@ -66,6 +71,10 @@ export interface CorporateBondSettlementRecord {
   publicFloatSharePayout: number;
   /** Native has NPC share units but no NPC personal-wallet destination. */
   npcSharePayoutUnposted: number;
+  /** Absent on historical records written before fund shareholder custody. */
+  fundSharePayouts?: Array<{ fundSlug: string; shares: number; payoutAnchor: number }>;
+  /** Absent on historical records written before fund shareholder custody. */
+  fundSharePayoutAnchor?: number;
 }
 
 export type CorporateDefaultSettlementResult =
@@ -120,6 +129,23 @@ export function validateCorporateBondSettlementLedger(value: unknown): asserts v
     ]) {
       if (!finiteNonNegative(record[key])) throw new Error(`Invalid corporate bond settlement ${key} in ${id}`);
     }
+    if (record["fundSharePayouts"] !== undefined && !Array.isArray(record["fundSharePayouts"])) {
+      throw new Error(`Invalid fund share payout ledger in ${id}`);
+    }
+    const seenFundPayouts = new Set<string>();
+    let fundPayoutTotal = 0;
+    for (const rawPayout of (record["fundSharePayouts"] as unknown[] | undefined) ?? []) {
+      if (!rawPayout || typeof rawPayout !== "object") throw new Error(`Invalid fund share payout in ${id}`);
+      const payout = rawPayout as Record<string, unknown>;
+      if (typeof payout["fundSlug"] !== "string" || seenFundPayouts.has(payout["fundSlug"]) || !Number.isSafeInteger(payout["shares"]) || (payout["shares"] as number) <= 0 || !finiteNonNegative(payout["payoutAnchor"])) {
+        throw new Error(`Invalid fund share payout in ${id}`);
+      }
+      seenFundPayouts.add(payout["fundSlug"]);
+      fundPayoutTotal += payout["payoutAnchor"] as number;
+    }
+    if (record["fundSharePayoutAnchor"] !== undefined && (!finiteNonNegative(record["fundSharePayoutAnchor"]) || record["fundSharePayoutAnchor"] !== fundPayoutTotal)) {
+      throw new Error(`Inconsistent fund share payout total in ${id}`);
+    }
     const seenBonds = new Set<string>();
     let claimTotal = 0;
     for (const rawClaim of record["bondClaims"]) {
@@ -143,9 +169,24 @@ export function validateCorporateBondSettlementLedger(value: unknown): asserts v
       ]) {
         if (!finiteNonNegative(claim[key])) throw new Error(`Invalid bond claim ${key} in ${id}`);
       }
+      if (claim["fundClaims"] !== undefined && !Array.isArray(claim["fundClaims"])) throw new Error(`Invalid bond fund claims in ${id}`);
+      let fundUnits = 0;
+      for (const rawFund of (claim["fundClaims"] as unknown[] | undefined) ?? []) {
+        if (!rawFund || typeof rawFund !== "object") throw new Error(`Invalid bond fund claim in ${id}`);
+        const fund = rawFund as Record<string, unknown>;
+        if (typeof fund["fundSlug"] !== "string" || !Number.isSafeInteger(fund["units"]) || (fund["units"] as number) <= 0 || !finiteNonNegative(fund["paidLocal"]) || !finiteNonNegative(fund["unpaidLocal"])) {
+          throw new Error(`Invalid bond fund claim in ${id}`);
+        }
+        const face = claim["faceValue"] as number;
+        const due = (fund["units"] as number) * face;
+        if ((fund["paidLocal"] as number) > due || (fund["paidLocal"] as number) + (fund["unpaidLocal"] as number) !== due) {
+          throw new Error(`Inconsistent bond fund claim in ${id}`);
+        }
+        fundUnits += fund["units"] as number;
+      }
       if (
         typeof claim["currencyCode"] !== "string" ||
-        claim["totalUnits"] !== (claim["playerUnits"] as number) + (claim["publicFloatUnits"] as number) ||
+        claim["totalUnits"] !== (claim["playerUnits"] as number) + fundUnits + (claim["publicFloatUnits"] as number) ||
         claim["totalClaim"] !== (claim["totalUnits"] as number) * (claim["faceValue"] as number) ||
         (claim["playerPaid"] as number) > (claim["playerUnits"] as number) * (claim["faceValue"] as number) ||
         (claim["playerPaid"] as number) + (claim["playerUnpaid"] as number) !==
@@ -219,8 +260,9 @@ function creditPlayer(world: WorldState, bond: Bond, amount: number): void {
 /**
  * Source-backed settlement for a private corporation with at least one
  * defaulted, non-matured bond. Native has one human holder, NPC equity, and
- * public float; Game-only imperial, cross-corporate, fund, FX-pool, and escrow
- * buckets have no Native state and are not fabricated here.
+ * public float; Game-only imperial, cross-corporate, FX-pool, and escrow
+ * buckets have no Native state and are not fabricated. Native index-fund bond
+ * and equity holders settle through real fund cash and the liquidation ledger.
  */
 export function settleCorporateBondDefault(
   world: WorldState,
@@ -272,8 +314,18 @@ export function settleCorporateBondDefault(
     if (!Number.isInteger(bond.publicFloat) || bond.publicFloat < 0) {
       return { ok: false, error: `Bond ${bond.id} has invalid public float ownership` };
     }
-    if (bond.holders.some((holder) => holder.units > 0 && holder.holderId !== "player")) {
-      return { ok: false, error: `Bond ${bond.id} has an unsupported Native creditor holder` };
+    for (const holder of bond.holders) {
+      if (holder.units <= 0 || holder.holderId === "player") continue;
+      const fundSlug = holder.holderId.startsWith("index-fund:") ? holder.holderId.slice("index-fund:".length) : "";
+      if (!fundSlug || world.indexFundBook?.funds[fundSlug]?.bondHoldings?.[bond.id]?.units !== holder.units) {
+        return { ok: false, error: `Bond ${bond.id} has an unsupported or unreconciled Native creditor holder` };
+      }
+      const rate = nativeCurrencyRate(world, bond.currencyCode);
+      const fund = world.indexFundBook!.funds[fundSlug]!;
+      const maximumReceipt = holder.units * bond.faceValue / (rate ?? 0);
+      if (!rate || rate <= 0 || !Number.isFinite(maximumReceipt) || !Number.isFinite(fund.cashAnchor + maximumReceipt)) {
+        return { ok: false, error: `Fund ${fundSlug} cannot receive its bond claim for ${bond.id}` };
+      }
     }
     const claim = units * bond.faceValue;
     totalBondClaims += claim;
@@ -323,9 +375,26 @@ export function settleCorporateBondDefault(
     .filter((holder) => holder.holder === "npc")
     .reduce((sum, holder) => sum + holder.shares, 0);
   const npcSharePayoutUnposted = totalShares > 0 ? Math.floor((shareholderPool * npcShares) / totalShares) : 0;
+  const corporateCurrencyRate = nativeCurrencyRate(world, homeCurrencyFor(world, corporation));
+  const fundSharePayouts: Array<{ fundSlug: string; shares: number; payoutAnchor: number }> = [];
+  if (totalShares > 0) {
+    for (const holder of corporation.shareholders.filter((row) => row.holder === "fund" && row.shares > 0)) {
+      const fund = holder.fundSlug ? world.indexFundBook?.funds[holder.fundSlug] : undefined;
+      if (!fund || fund.holdings[corporationId]?.shares !== holder.shares || !corporateCurrencyRate || corporateCurrencyRate <= 0) {
+        return { ok: false, error: `Fund shareholder custody is unavailable for ${corporationId}` };
+      }
+      // Game allocates in anchor currency and floors each holder's payout.
+      const payoutAnchor = Math.floor((shareholderPool / corporateCurrencyRate * holder.shares) / totalShares);
+      if (!Number.isFinite(payoutAnchor) || !Number.isFinite(fund.cashAnchor + payoutAnchor)) {
+        return { ok: false, error: `Fund ${fund.slug} cannot receive its corporate liquidation payout` };
+      }
+      fundSharePayouts.push({ fundSlug: fund.slug, shares: holder.shares, payoutAnchor });
+    }
+  }
+  const fundSharePayoutAnchor = fundSharePayouts.reduce((sum, row) => sum + row.payoutAnchor, 0);
 
   if (![salvagedSectorValue, liquidCapital, estate, bondRecoveryPool, shareholderPool,
-    resolvedPlayerBondPayout, playerSharePayout, publicFloatSharePayout, npcSharePayoutUnposted].every(Number.isFinite)) {
+    resolvedPlayerBondPayout, playerSharePayout, publicFloatSharePayout, npcSharePayoutUnposted, fundSharePayoutAnchor].every(Number.isFinite)) {
     return { ok: false, error: `Corporation ${corporationId} has non-finite settlement proceeds` };
   }
   const centralBank = world.centralBanks[corporation.countryId];
@@ -383,6 +452,12 @@ export function settleCorporateBondDefault(
       const totalUnits = bond.holders.reduce((sum, holder) => sum + holder.units, 0) + bond.publicFloat;
       const totalClaim = totalUnits * bond.faceValue;
       const playerClaim = playerUnits * bond.faceValue;
+      const fundClaims = bond.holders.filter((holder) => holder.holderId.startsWith("index-fund:") && holder.units > 0).map((holder) => {
+        const units = holder.units;
+        const due = units * bond.faceValue;
+        const paidLocal = Math.round(bondRecoveryRatio * due * 100) / 100;
+        return { fundSlug: holder.holderId.slice("index-fund:".length), units, paidLocal, unpaidLocal: Math.max(0, due - paidLocal) };
+      });
       const publicFloatClaim = bond.publicFloat * bond.faceValue;
       const playerPaid = playerUnits > 0 ? Math.round(bondRecoveryRatio * playerClaim * 100) / 100 : 0;
       const publicFloatRecoveryUnposted = bond.publicFloat > 0
@@ -394,6 +469,7 @@ export function settleCorporateBondDefault(
         faceValue: bond.faceValue,
         totalUnits,
         playerUnits,
+        fundClaims,
         publicFloatUnits: bond.publicFloat,
         totalClaim,
         playerPaid,
@@ -421,6 +497,8 @@ export function settleCorporateBondDefault(
     playerSharePayout,
     publicFloatSharePayout,
     npcSharePayoutUnposted,
+    fundSharePayouts,
+    fundSharePayoutAnchor,
   };
 
   // Compute the whole settlement first, then apply all supported balances and
@@ -433,11 +511,24 @@ export function settleCorporateBondDefault(
     playerBondPayout: resolvedPlayerBondPayout,
     playerSharePayout,
     publicFloatSharePayout,
+    fundSharePayoutAnchor,
   };
   const homeCurrency = homeCurrencyFor(world, corporation);
   if (resolvedPlayerBondPayout > 0) {
     const playerBond = bonds.find((bond) => bond.holders.some((holder) => holder.holderId === "player"))!;
     creditPlayer(world, playerBond, resolvedPlayerBondPayout);
+  }
+  for (let index = 0; index < bonds.length; index++) {
+    const bond = bonds[index]!;
+    const claim = bondClaims.find((row) => row.bondId === bond.id)!;
+    for (const fundClaim of claim.fundClaims) {
+      const holderId = `index-fund:${fundClaim.fundSlug}`;
+      if (!settleIndexFundBondReceipt(world, bond, holderId, fundClaim.units, fundClaim.paidLocal, "bondDefaultReceipt")) {
+        // All FX, position, and cash overflow conditions were checked before
+        // any mutation; failing here would indicate unexpected re-entrancy.
+        throw new Error(`Could not settle fund claim ${bond.id}/${fundClaim.fundSlug}`);
+      }
+    }
   }
   if (playerSharePayout > 0) {
     const playerCurrency = world.budgets[world.player.countryId]?.currencyCode?.trim() || "USD";
@@ -449,6 +540,23 @@ export function settleCorporateBondDefault(
   }
   if (publicFloatSharePayout > 0) {
     centralBank!.reserveBalance = (centralBank!.reserveBalance ?? 0) + publicFloatSharePayout;
+  }
+  for (const payout of fundSharePayouts) {
+    const fund = world.indexFundBook!.funds[payout.fundSlug]!;
+    if (payout.payoutAnchor > 0) {
+      fund.cashAnchor += payout.payoutAnchor;
+      world.indexFundBook!.transactions.push({
+        id: `fund-${world.meta.turn}-${world.indexFundBook!.transactions.length + 1}`,
+        turn: world.meta.turn,
+        fundSlug: fund.slug,
+        kind: "equityLiquidationReceipt",
+        corporationId,
+        units: payout.shares,
+        cashAnchor: payout.payoutAnchor,
+      });
+    }
+    delete fund.holdings[corporationId];
+    refreshIndexFundNav(world, fund);
   }
 
   if (sectorAssets.length > 0) {

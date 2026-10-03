@@ -59,7 +59,11 @@ export interface WorldState {
     m2Local: number;
     liquidityTargetLocal: number;
     lifetime: Record<string, number>;
+    /** Source bond market sovereign appetite snapshot, absent uses neutral quote skew. */
+    appetiteByCountry?: Record<string, number>;
   }>;
+  /** Source gameConfig.indexFundBondLiquidityEnabled; absent is the authored false default. */
+  indexFundBondLiquidityEnabled?: boolean;
   /**
    * Singleplayer difficulty chosen at world creation (issue #334). Says how
    * competently autonomous politicians perform via `singleplayerNppTuning`;

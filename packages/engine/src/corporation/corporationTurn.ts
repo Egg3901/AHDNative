@@ -77,6 +77,7 @@ import { getSectorTechEffects } from "./techTree/selectors.js";
 import { assembleSourcePlantPnl, sourcePlantPolicyCredit } from "./physicalPlantCosts.js";
 import { resolveDueCorporateRelocationVotes } from "./relocationVotes.js";
 import { settleIndexFundDividend } from "../indexFunds/dividends.js";
+import { calculateNativeCorporateCreditRating } from "../bonds/corporateCredit.js";
 import {
   RD_EXTRACTION_BOOST_MAX,
   RD_EXTRACTION_BOOST_MIN,
@@ -430,6 +431,21 @@ export const corporationTurnPhase: TurnPhase = {
         softBudget,
         ...(plannedTargetRate !== undefined ? { plannedTargetRate } : {}),
       }, plantOperatingMargin, tech.growthCostMultiplier * corporatePlantsRealizationRatio(world, corp.id));
+      const activeCorporateBonds = Object.values(world.bonds).filter((bond) =>
+        bond.issuerType === "corporation" && bond.corporationId === corp.id && !bond.matured,
+      );
+      const currentNativeIssuerRating = calculateNativeCorporateCreditRating({
+        liquidCapital: corp.liquidCapital,
+        totalDebt: activeCorporateBonds.reduce((sum, bond) => sum + bond.totalIssued, 0),
+        annualIncome: corp.earningsHistory.at(-1) ?? 0,
+        annualInterestPayments: activeCorporateBonds.reduce((sum, bond) => sum + bond.couponRate / 100 * bond.totalIssued, 0),
+        totalEquity: corp.liquidCapital + corp.sharePrice * corp.totalShares * 0.1,
+      });
+      // Game writes a turn-produced creditRatingSnapshot. Native applies its
+      // existing source-derived corporate score to its actual local issuer
+      // statement; BBB is the source read default and stays absent.
+      if (currentNativeIssuerRating === "BBB") delete corp.creditRatingSnapshot;
+      else corp.creditRatingSnapshot = currentNativeIssuerRating;
       // Game sectorCosts carries the tapered expansion bill through the
       // physical statement even after plant capacity becomes authoritative.
       // Native has one real asset per issuer; a revenue share keeps this

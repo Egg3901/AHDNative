@@ -25,6 +25,7 @@
 
 import type { WorldState } from "../types.js";
 import type { Bond, BondMaturityTurns } from "./types.js";
+import { canSettleIndexFundBondReceipt, settleIndexFundBondReceipt } from "../indexFunds/bondReserve.js";
 import { resolveBondCurrency, resolveCountryCurrency } from "./denomination.js";
 import {
   BOND_UNIT_FACE_VALUE,
@@ -183,6 +184,9 @@ export function payCouponsAndUpdatePrices(world: WorldState): { totalToPlayer: n
     if (bond.matured || bond.defaulted) continue;
     // #308 owns corporate servicing — corporate issues stay inert here.
     if (bond.issuerType === "corporation") continue;
+    const couponPerUnit = perTurnCouponPayment(bond.couponRate, bond.faceValue);
+    if (bond.holders.some((holder) => holder.holderId.startsWith("index-fund:") &&
+      !canSettleIndexFundBondReceipt(world, bond, holder.holderId, holder.units, couponPerUnit * holder.units))) continue;
 
     const turnsRemaining = bond.maturityTurn - turn;
     // Market price vs W3 prime rate: price = f(couponRate, currentRate=primeRate)
@@ -194,7 +198,6 @@ export function payCouponsAndUpdatePrices(world: WorldState): { totalToPlayer: n
     bond.marketPrice = calculateBondMarketPrice(bond.couponRate, currentRate, turnsRemaining, false);
 
     // Coupon per unit local (same currency as bond/ budget)
-    const couponPerUnit = perTurnCouponPayment(bond.couponRate, bond.faceValue);
     const unitsTotal = Math.floor(bond.totalIssued / bond.faceValue);
     const totalCouponThisTurn = couponPerUnit * unitsTotal;
 
@@ -209,6 +212,8 @@ export function payCouponsAndUpdatePrices(world: WorldState): { totalToPlayer: n
           creditPlayerBondCurrency(world, bond, pay);
           totalToPlayer += pay;
         }
+      } else if (h.holderId.startsWith("index-fund:")) {
+        settleIndexFundBondReceipt(world, bond, h.holderId, h.units, couponPerUnit * h.units, "bondCoupon");
       }
     }
   }
@@ -235,12 +240,16 @@ export function settleMaturedBonds(world: WorldState): number {
     // #308 owns corporate settlement — corporate issues stay inert here.
     if (bond.issuerType === "corporation") continue;
     if (turn < bond.maturityTurn) continue;
+    if (bond.holders.some((holder) => holder.holderId.startsWith("index-fund:") &&
+      !canSettleIndexFundBondReceipt(world, bond, holder.holderId, holder.units, holder.units * bond.faceValue))) continue;
 
     // Pay face value to player holders
     for (const h of bond.holders) {
       if (h.holderId === "player" && h.units > 0) {
         const face = h.units * bond.faceValue;
         creditPlayerBondCurrency(world, bond, face);
+      } else if (h.holderId.startsWith("index-fund:") && h.units > 0) {
+        settleIndexFundBondReceipt(world, bond, h.holderId, h.units, h.units * bond.faceValue, "bondMaturity");
       }
     }
     // Budget linkage: reverse the issuance adjustment (principal and annual coupon) at maturity.

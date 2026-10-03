@@ -51,8 +51,9 @@ export interface IndexFundTransaction {
   id: string;
   turn: number;
   fundSlug: string;
-  kind: "subscription" | "redemption" | "redemptionPayout" | "floatPurchase" | "floatSale" | "dividendReceipt" | "dividendPayout";
+  kind: "subscription" | "redemption" | "redemptionPayout" | "floatPurchase" | "floatSale" | "dividendReceipt" | "dividendPayout" | "equityLiquidationReceipt" | "bondPurchase" | "bondCoupon" | "bondMaturity" | "bondDefaultReceipt";
   corporationId?: string;
+  bondId?: string;
   units: number;
   cashAnchor: number;
 }

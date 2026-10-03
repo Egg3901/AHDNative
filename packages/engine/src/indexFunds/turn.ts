@@ -4,6 +4,8 @@ import type { WorldState } from "../types.js";
 import { resolveCountryCurrency } from "../bonds/denomination.js";
 import { settleQueuedIndexFundRedemptions } from "./book.js";
 import type { IndexFundRecord } from "./types.js";
+import { deployIndexFundBondReserve, refreshIndexFundNav } from "./bondReserve.js";
+import { applyIndexFundEquityCustody } from "./equityCustody.js";
 
 const MAX_EQUITY_ALLOCATION = 0.75;
 const MAX_SINGLE_NAME_WEIGHT = 0.2;
@@ -130,7 +132,8 @@ function rebalanceEquityFund(world: WorldState, fund: IndexFundRecord, absorptio
     const holding = fund.holdings[intent.corpId];
     const amountLocal = intent.shares * intent.priceLocal;
     const amountAnchor = intent.shares * intent.priceAnchor;
-    if (!holding || intent.shares < 1 || intent.corp.liquidCapital < amountLocal) continue;
+    if (!holding || intent.shares < 1 || intent.corp.liquidCapital < amountLocal ||
+        (intent.corp.shareholders.find((row) => row.holder === "fund" && row.fundSlug === fund.slug)?.shares ?? 0) !== holding.shares) continue;
     intent.corp.liquidCapital -= amountLocal;
     intent.corp.publicFloat += intent.shares;
     if (intent.corp.totalShares > 0 && intent.corp.publicFloat / intent.corp.totalShares >= 0.05) {
@@ -139,6 +142,7 @@ function rebalanceEquityFund(world: WorldState, fund: IndexFundRecord, absorptio
     holding.shares -= intent.shares;
     holding.lastValueAnchor = holding.shares * intent.priceAnchor;
     if (holding.shares === 0) delete fund.holdings[intent.corpId];
+    applyIndexFundEquityCustody(intent.corp, fund.slug, -intent.shares, intent.priceLocal);
     fund.cashAnchor += amountAnchor;
     book.transactions.push({ id: `fund-${world.meta.turn}-${book.transactions.length + 1}`, turn: world.meta.turn, fundSlug: fund.slug, kind: "floatSale", corporationId: intent.corpId, units: intent.shares, cashAnchor: amountAnchor });
   }
@@ -149,7 +153,8 @@ function rebalanceEquityFund(world: WorldState, fund: IndexFundRecord, absorptio
     const perFundCap = Math.max(1, Math.floor(intent.corp.totalShares / 100));
     const affordable = Math.floor(cashBudget / intent.priceAnchor);
     const shares = Math.min(intent.shares, perFundCap, plannedCap, affordable);
-    if (shares < 1) continue;
+    if (shares < 1 ||
+        (intent.corp.shareholders.find((row) => row.holder === "fund" && row.fundSlug === fund.slug)?.shares ?? 0) !== (fund.holdings[intent.corpId]?.shares ?? 0)) continue;
     const amountLocal = shares * intent.priceLocal;
     const amountAnchor = shares * intent.priceAnchor;
     const holding = fund.holdings[intent.corpId] ?? { shares: 0, averageCostPerShare: intent.priceAnchor, lastValueAnchor: 0 };
@@ -157,6 +162,7 @@ function rebalanceEquityFund(world: WorldState, fund: IndexFundRecord, absorptio
     holding.shares += shares;
     holding.lastValueAnchor = holding.shares * intent.priceAnchor;
     fund.holdings[intent.corpId] = holding;
+    applyIndexFundEquityCustody(intent.corp, fund.slug, shares, intent.priceLocal);
     intent.corp.publicFloat -= shares;
     intent.corp.liquidCapital += amountLocal;
     if (intent.corp.totalShares > 0 && intent.corp.publicFloat / intent.corp.totalShares >= 0.05) {
@@ -224,15 +230,18 @@ function allocateSharedFloatCap(world: WorldState, funds: IndexFundRecord[]): Ma
 }
 
 /**
- * Source AHDGame runs a full catalog pass. In the SP graph, a fund can only
- * acquire cash-backed issuer treasury float that is present in WorldState;
- * there is no Mongo equity-pool account or persisted fund order book to debit.
+ * Source AHDGame runs a full catalog pass. Native settles against its real
+ * issuer treasuries, source-shaped bond-market pools, and persisted bond float.
  */
 export const indexFundTurnPhase: TurnPhase = {
   name: "indexFunds",
   run(world) {
     const funds = Object.values(world.indexFundBook?.funds ?? {}).filter((fund) => fund.status === "active");
     const equityFunds = funds.filter((row) => row.kind !== "bond");
+    for (const fund of funds) {
+      deployIndexFundBondReserve(world, fund);
+      refreshIndexFundNav(world, fund);
+    }
     for (const fund of equityFunds) fundTarget(world, fund);
     const absorptionShares = allocateSharedFloatCap(world, equityFunds);
     for (const fund of equityFunds) rebalanceEquityFund(world, fund, absorptionShares);

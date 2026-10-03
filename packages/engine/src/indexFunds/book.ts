@@ -1,6 +1,7 @@
 import type { WorldState } from "../types.js";
 import { resolveCountryCurrency } from "../bonds/denomination.js";
 import type { IndexFundBook, IndexFundRecord } from "./types.js";
+import { applyIndexFundEquityCustody } from "./equityCustody.js";
 
 export const INDEX_FUND_INITIAL_NAV = 100;
 export const INDEX_FUND_SEED_CASH_ANCHOR = 50_000_000;
@@ -172,7 +173,8 @@ function sellFundHoldingsForCash(world: WorldState, fund: IndexFundRecord, cashN
     const shares = plan.get(row.corpId) ?? 0;
     const amountLocal = shares * row.price;
     const amount = amountLocal / row.rate;
-    if (shares < 1 || row.corp.liquidCapital < amountLocal || row.holding.shares < shares) continue;
+    if (shares < 1 || row.corp.liquidCapital < amountLocal || row.holding.shares < shares ||
+        (row.corp.shareholders.find((entry) => entry.holder === "fund" && entry.fundSlug === fund.slug)?.shares ?? 0) !== row.holding.shares) continue;
     row.corp.liquidCapital -= amountLocal;
     row.corp.publicFloat += shares;
     if (row.corp.totalShares > 0 && row.corp.publicFloat / row.corp.totalShares >= 0.05) {
@@ -181,6 +183,7 @@ function sellFundHoldingsForCash(world: WorldState, fund: IndexFundRecord, cashN
     row.holding.shares -= shares;
     row.holding.lastValueAnchor = row.holding.shares * row.price / row.rate;
     if (row.holding.shares === 0) delete fund.holdings[row.corpId];
+    applyIndexFundEquityCustody(row.corp, fund.slug, -shares, row.price);
     const book = world.indexFundBook!;
     book.transactions.push({ id: `fund-${world.meta.turn}-${book.transactions.length + 1}`, turn: world.meta.turn, fundSlug: fund.slug, kind: "floatSale", units: shares, cashAnchor: amount });
     fund.cashAnchor += amount;
