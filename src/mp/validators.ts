@@ -478,6 +478,9 @@ export interface MpElectionDetailView {
   leaderParty: string | null;
   incumbentName: string | null;
   incumbentParty: string | null;
+  /** Source-authenticated candidate's running mate, when the race summary identifies isYou. */
+  currentRunningMateCharacterId: string | null;
+  currentRunningMateName: string | null;
 }
 
 /**
@@ -502,6 +505,26 @@ export function parseElectionDetail(bodyText: string): MpElectionDetailView | nu
   if (!id || !electionType || !countryId || cycle === null || !status) return null;
   if (inPrimary === null || isEnded === null || isUpcoming === null || inGeneral === null) return null;
   if (!Array.isArray(election.candidates)) return null;
+  const candidates = election.candidates.map(asRecord);
+  const ownCandidates = candidates.filter((candidate) => candidate?.isYou === true);
+  if (ownCandidates.length > 1) return null;
+  let currentRunningMateCharacterId: string | null = null;
+  let currentRunningMateName: string | null = null;
+  const ownCandidate = ownCandidates[0];
+  if (ownCandidate) {
+    const rawMateId = ownCandidate.runningMateCharacterId;
+    if (rawMateId !== undefined && rawMateId !== null) {
+      const mateId = asTrimmedString(rawMateId);
+      if (!mateId || !HEX_OBJECT_ID.test(mateId)) return null;
+      currentRunningMateCharacterId = mateId;
+    }
+    const rawMateName = ownCandidate.runningMateName;
+    if (rawMateName !== undefined && rawMateName !== null) {
+      const mateName = asTrimmedString(rawMateName);
+      if (!mateName || !currentRunningMateCharacterId) return null;
+      currentRunningMateName = mateName;
+    }
+  }
   // Decorations degrade to null individually: a mistyped polling or
   // incumbent object never invalidates the race, it just reads as absent.
   const polling = asRecord(election.polling);
@@ -523,6 +546,8 @@ export function parseElectionDetail(bodyText: string): MpElectionDetailView | nu
     leaderParty: polling ? asTrimmedString(polling.leaderParty ?? null) : null,
     incumbentName: incumbent ? asTrimmedString(incumbent.name ?? null) : null,
     incumbentParty: incumbent ? asTrimmedString(incumbent.party ?? null) : null,
+    currentRunningMateCharacterId,
+    currentRunningMateName,
   };
 }
 

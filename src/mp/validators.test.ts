@@ -495,7 +495,34 @@ describe("election-detail reference and payload (#359 election slice)", () => {
       leaderParty: "Labor",
       incumbentName: "Bo",
       incumbentParty: "Tory",
+      currentRunningMateCharacterId: null,
+      currentRunningMateName: null,
     });
+  });
+
+  it("reads back only the authenticated player's source-selected running mate", () => {
+    const mateId = "507f1f77bcf86cd799439013";
+    expect(parseElectionDetail(summary({
+      electionType: "president",
+      candidates: [
+        { isYou: false, runningMateCharacterId: "507f1f77bcf86cd799439014", runningMateName: "Other candidate's mate" },
+        { isYou: true, runningMateCharacterId: mateId, runningMateName: "Bea" },
+      ],
+    }))).toMatchObject({
+      currentRunningMateCharacterId: mateId,
+      currentRunningMateName: "Bea",
+    });
+    expect(parseElectionDetail(summary({
+      electionType: "president",
+      candidates: [{ isYou: true, runningMateCharacterId: null, runningMateName: null }],
+    }))).toMatchObject({
+      currentRunningMateCharacterId: null,
+      currentRunningMateName: null,
+    });
+    expect(parseElectionDetail(summary({
+      electionType: "president",
+      candidates: [{ isYou: true, runningMateCharacterId: "player", runningMateName: "Bad identity" }],
+    }))).toBeNull();
   });
 
   it("degrades absent decorations to null without losing the race", () => {

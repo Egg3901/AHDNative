@@ -18,15 +18,64 @@ describe("Native MP running-mate action", () => {
     const user = userEvent.setup();
     const onLoad = vi.fn();
     const onSave = vi.fn();
-    const { rerender } = render(<MpRunningMatePicker electionId="68a000000000000000000001" options={null} busy={false} onLoad={onLoad} onSave={onSave} />);
+    const { rerender } = render(<MpRunningMatePicker electionId="68a000000000000000000001" options={null} currentRunningMateCharacterId={null} currentRunningMateName={null} busy={false} onLoad={onLoad} onSave={onSave} />);
 
     await user.click(screen.getByRole("button", { name: "Load eligible players" }));
     expect(onLoad).toHaveBeenCalledWith("68a000000000000000000001");
 
-    rerender(<MpRunningMatePicker electionId="68a000000000000000000001" options={[option]} busy={false} onLoad={onLoad} onSave={onSave} />);
+    rerender(<MpRunningMatePicker electionId="68a000000000000000000001" options={[option]} currentRunningMateCharacterId={null} currentRunningMateName={null} busy={false} onLoad={onLoad} onSave={onSave} />);
     await user.selectOptions(screen.getByRole("combobox", { name: "Choose a running mate" }), option.id);
     await user.click(screen.getByRole("button", { name: "Save running mate" }));
     expect(onSave).toHaveBeenCalledWith("68a000000000000000000001", option.id);
     expect(screen.getByText(/another eligible player/)).toBeInTheDocument();
+  });
+
+  it("shows the source-selected mate and clears it through the null source action", async () => {
+    const user = userEvent.setup();
+    const onLoad = vi.fn();
+    const onSave = vi.fn();
+    render(<MpRunningMatePicker
+      electionId="US-president"
+      options={[]}
+      currentRunningMateCharacterId={option.id}
+      currentRunningMateName={option.name}
+      busy={false}
+      onLoad={onLoad}
+      onSave={onSave}
+    />);
+
+    expect(screen.getAllByRole("status")[0]?.textContent).toContain("Bea");
+    await user.click(screen.getByRole("button", { name: "Clear running mate" }));
+    expect(onSave).toHaveBeenCalledWith("US-president", null);
+  });
+
+  it("discards a selected option when the race or eligible option list changes", async () => {
+    const user = userEvent.setup();
+    const onLoad = vi.fn();
+    const onSave = vi.fn();
+    const { rerender } = render(<MpRunningMatePicker
+      electionId="US-president"
+      options={[option]}
+      currentRunningMateCharacterId={null}
+      currentRunningMateName={null}
+      busy={false}
+      onLoad={onLoad}
+      onSave={onSave}
+    />);
+    const select = screen.getByRole("combobox", { name: "Choose a running mate" });
+    await user.selectOptions(select, option.id);
+    expect(select).toHaveValue(option.id);
+
+    rerender(<MpRunningMatePicker
+      electionId="UK-president"
+      options={[{ ...option, id: "507f1f77bcf86cd799439014" }]}
+      currentRunningMateCharacterId={null}
+      currentRunningMateName={null}
+      busy={false}
+      onLoad={onLoad}
+      onSave={onSave}
+    />);
+    expect(select).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Save running mate" })).toBeDisabled();
   });
 });
