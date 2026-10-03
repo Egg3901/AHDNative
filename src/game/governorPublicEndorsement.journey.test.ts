@@ -9,7 +9,7 @@ const STAMP = "2026-10-03T00:00:00.000Z";
 const GOVERNOR_RACE = "governor:US:WY:c1";
 const PRESIDENT_RACE = "president:US:-:c1";
 const FAVORABLE_GROUPS = ["evangelicals", "rural_traditionalists", "small_business", "libertarians"];
-const EVIDENCE_DIR = join(tmpdir(), "ahdnative-governor-public-journey");
+const EVIDENCE_DIR = process.env.AHD_PUBLIC_ELECTION_JOURNEY_DIR ?? join(tmpdir(), "ahdnative-governor-public-journey");
 const PRIMARY_SAVE = join(EVIDENCE_DIR, "after-primary.json");
 const GOVERNOR_SAVE = join(EVIDENCE_DIR, "after-governor.json");
 const PRESIDENT_READY_SAVE = join(EVIDENCE_DIR, "president-ready.json");
@@ -91,6 +91,9 @@ describe.sequential("earned governor presidential endorsement journey", () => {
     expect(session.act("declareCandidacy", { electionId: GOVERNOR_RACE }).ok).toBe(true);
 
     const filed = session.serialize(STAMP);
+    const filedMeta = (JSON.parse(filed) as { world: { meta: { schemaVersion: number; startingYear?: number } } }).world.meta;
+    expect(filedMeta.startingYear).toBe(1953);
+    expect(filedMeta.schemaVersion).toBeGreaterThanOrEqual(69);
     const primaryReload = new GameSession();
     view = primaryReload.load(filed);
     const filedRace = (JSON.parse(filed) as { world: { elections: Array<{ id: string; primaryEndTurn: number }> } })
@@ -133,10 +136,6 @@ describe.sequential("earned governor presidential endorsement journey", () => {
             regionId: "WY",
             demographicCategory: target.category,
             demographicGroup: target.group,
-            expectedRevision: campaign.targetedAds.revision,
-            expectedTurn: campaign.targetedAds.quoteTurn,
-            expectedCost: campaign.targetedAds.quoteUnitCost,
-            count: 1,
           });
           if (result.ok) successfulAds++;
           adAttempt++;
@@ -266,6 +265,23 @@ describe.sequential("earned governor presidential endorsement journey", () => {
       expect(oddsMultiplier).toBeGreaterThan(1);
       expect(oddsMultiplier).toBeLessThanOrEqual(SOURCE_GOVERNOR_ENDORSEMENT_MULTIPLIER + 0.005);
       expect(treatmentPresidential.resolved).toBe(true);
+      const treatmentState = JSON.parse(nextTreatmentSave) as {
+        world: { meta: { startingYear?: number }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
+      };
+      const controlState = JSON.parse(nextControlSave) as {
+        world: { meta: { startingYear?: number }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
+      };
+      expect(treatmentState.world.meta.startingYear).toBe(1953);
+      expect(controlState.world.meta.startingYear).toBe(1953);
+      // Public GameSession turns 192 and 193 resolve source calendar turns 193 and 194.
+      // The source road-to-1960 checkpoint starts at 193 and writes after that
+      // turn's tally, so both matched worlds persist two exact durable steps.
+      expect(treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean)
+        .toBeCloseTo(2 * (-0.75 / 192), 12);
+      expect(treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean)
+        .toBeCloseTo(2 * (0.6 / 192), 12);
+      expect(controlState.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean)
+        .toBeCloseTo(2 * (-0.75 / 192), 12);
       const proof = {
         name: "president-resolved",
         sha256: createHash("sha256").update(nextTreatmentSave).digest("hex"),
@@ -274,10 +290,48 @@ describe.sequential("earned governor presidential endorsement journey", () => {
         endorsedCandidateId,
         sourceMultiplier: SOURCE_GOVERNOR_ENDORSEMENT_MULTIPLIER,
         aggregateOddsMultiplier: oddsMultiplier,
+        sourceStartingYear: treatmentState.world.meta.startingYear,
+        wyEducationNoCollegeEconomicOverlay: treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean,
+        wyMiddleWealthEconomicOverlay: treatmentState.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean,
       };
       writeFileSync(join(EVIDENCE_DIR, "president-resolved.json"), nextTreatmentSave);
       writeFileSync(join(EVIDENCE_DIR, "milestones", "president-resolved.json"), JSON.stringify(proof, null, 2));
       console.log(`PUBLIC_MILESTONE ${JSON.stringify(proof)}`);
+
+      const nextControlView = control.advance();
+      const nextTreatmentView = treatment.advance();
+      expect(nextControlView.turn).toBe(treatmentAfterMeta.turn + 1);
+      expect(nextTreatmentView.turn).toBe(treatmentAfterMeta.turn + 1);
+      const continuedControlSave = control.serialize(STAMP);
+      const continuedTreatmentSave = treatment.serialize(STAMP);
+      const continuedControl = new GameSession();
+      const continuedTreatment = new GameSession();
+      const continuedControlView = continuedControl.load(continuedControlSave);
+      const continuedTreatmentView = continuedTreatment.load(continuedTreatmentSave);
+      expect(continuedControlView.turn).toBe(continuedTreatmentView.turn);
+      const continuedTreatmentWorld = JSON.parse(continuedTreatmentSave) as {
+        world: { meta: { startingYear?: number; rng: unknown }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
+      };
+      const continuedControlWorld = JSON.parse(continuedControlSave) as {
+        world: { meta: { rng: unknown }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
+      };
+      expect(continuedTreatmentWorld.world.meta.startingYear).toBe(1953);
+      expect(continuedTreatmentWorld.world.meta.rng).toEqual(continuedControlWorld.world.meta.rng);
+      expect(continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean)
+        .toBeCloseTo(3 * (-0.75 / 192), 12);
+      expect(continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean)
+        .toBeCloseTo(3 * (0.6 / 192), 12);
+      const continuationProof = {
+        name: "source-checkpoint-ordinary-continuation",
+        sha256: createHash("sha256").update(continuedTreatmentSave).digest("hex"),
+        turn: continuedTreatmentView.turn,
+        sourceStartingYear: continuedTreatmentWorld.world.meta.startingYear,
+        wyEducationNoCollegeEconomicOverlay: continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.education?.no_college?.economicLean,
+        wyMiddleWealthEconomicOverlay: continuedTreatmentWorld.world.baselineDemographics.WY?.layer1PositionOverrides?.wealth?.middle?.economicLean,
+      };
+      writeFileSync(join(EVIDENCE_DIR, "source-checkpoint-ordinary-continuation.json"), continuedTreatmentSave);
+      writeFileSync(join(EVIDENCE_DIR, "milestones", "source-checkpoint-ordinary-continuation.json"), JSON.stringify(continuationProof, null, 2));
+      console.log(`PUBLIC_MILESTONE ${JSON.stringify(continuationProof)}`);
       nextTreatmentSave = "";
     }, 900_000);
   }
