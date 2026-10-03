@@ -406,11 +406,9 @@ describe("UK Commons vacancy plumbing", () => {
         JSON.stringify(
           {
             provenance: {
-              sourceCommit: "0a68fee4c03f2c48692661501d539ac05f338571",
-              nativeRuntimeCommit:
-                "056b3334e4ddf71b0327679e6245a45db316e663",
-              strategyCommit:
-                "6ab2a01d559a2f46b793bced5cfa36e298ab4522",
+              sourceCommit: process.env.AHD_SOURCE_COMMIT ?? null,
+              nativeRuntimeCommit: process.env.AHD_NATIVE_RUNTIME_COMMIT ?? null,
+              strategyOriginCommit: "6ab2a01d559a2f46b793bced5cfa36e298ab4522",
               seed: "commons-public-player-nir-sf-probe",
               regionId: "NIR",
               electionId: regular!.id,
@@ -435,13 +433,14 @@ describe("UK Commons vacancy plumbing", () => {
         ),
       );
     }
-    // This must replay the observed legal public-action journey exactly before
-    // its input trace is accepted as source-comparison data. The current
-    // integrated candidate slate is independently source-checked turn by turn.
+    // This must replay the observed legal public-action journey exactly. Every
+    // observed per-turn distributor output matched pinned Game 0538, and the
+    // source tally rounds each candidate increment before adding it to the
+    // persisted total.
     expect({
       turn: world.meta.turn,
       playerVotes: regular!.tally.player,
-    }).toEqual({ turn: 123, playerVotes: 128114 });
+    }).toEqual({ turn: 123, playerVotes: 104179 });
     const topVotes = [...Object.entries(regular!.tally)]
       .sort(([, a], [, b]) => b - a)
       .slice(0, 12);
