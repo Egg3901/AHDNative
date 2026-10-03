@@ -50,6 +50,7 @@ export type GameCommand =
   | { type: "unionCommand"; op: "move"; campaignId: string; action: "accept" | "counter" | "withdraw" | "escalate"; terms?: import("@ahdclient/engine").BargainingTerms }
   | { type: "unionCommand"; op: "ratify"; campaignId: string; vote: "ratify" | "reject" }
   | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
+  | { type: "serializeWithMetadata"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "load"; contents: string }
   | { type: "notificationsRead"; id: string }
   | { type: "notificationsDelete"; id: string }

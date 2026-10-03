@@ -73,6 +73,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
         break;
       }
       case "serialize": value = session.serialize(command.savedAt, command.includeSaveNotice); break;
+      case "serializeWithMetadata": value = session.serializeWithMetadata(command.savedAt, command.includeSaveNotice); break;
       case "load": value = session.load(command.contents); break;
       case "notificationsRead": value = session.markNotificationRead(command.id); break;
       case "notificationsDelete": value = session.deleteNotification(command.id); break;

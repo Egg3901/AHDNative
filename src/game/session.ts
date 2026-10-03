@@ -50,6 +50,7 @@ import {
   type NotificationDraft, type NotificationItem, type TurnSnapshot,
   type ActionChange, type ActionOutcome, type ActionTarget,
 } from "./notifications";
+import type { SerializedSave } from "./serializedSave";
 
 /**
  * Player Actions hub membership. Categories mirror AHDGame src/app/actions
@@ -372,6 +373,21 @@ export class GameSession {
     // serializeSave returns a compact object. Append app metadata without
     // parsing and copying the full world a second time on every autosave.
     return envelope.slice(0, -1) + ",\"notifications\":" + JSON.stringify(parseNotifications(items)) + "}";
+  }
+
+  /** Serialize the same bytes while returning small metadata from that world. */
+  serializeWithMetadata(savedAt: string, includeSaveNotice = false): SerializedSave {
+    const world = this.requireWorld();
+    return {
+      contents: this.serialize(savedAt, includeSaveNotice),
+      metadata: {
+        savedAt,
+        schemaVersion: world.meta.schemaVersion,
+        turn: world.meta.turn,
+        countryId: world.player.countryId,
+        playerName: world.player.name,
+      },
+    };
   }
 
   load(contents: string): GameView {
