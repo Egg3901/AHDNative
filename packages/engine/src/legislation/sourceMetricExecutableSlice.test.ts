@@ -145,7 +145,9 @@ describe("RU/DD source-backed economy laws (#285)", () => {
     world.player.actions = 100;
     world.player.nationalInfluence = 30;
     const regionId = Object.values(world.regions).find((region) => region.countryId === "DD")!.id;
-    const metricBefore = world.regionalMetrics[regionId]?.["economy.workerSecurity"]?.value;
+    const metricBefore = world.regionalPoliticalMetrics?.[regionId]?.values["economy.workerSecurity"];
+    expect(metricBefore).toBeDefined();
+    expect(world.regionalPoliticalMetrics?.[regionId]?.residuals?.["economy.workerSecurity"]).toBeDefined();
     const result = executeAction(world, "player", "sponsorBill", {
       catalogId: "dd.economy.workerSecurity.primary", policyOptionId: "l3", regionId,
     });
@@ -160,10 +162,13 @@ describe("RU/DD source-backed economy laws (#285)", () => {
     expect(resumed.policyLedger[bill.id]).toEqual(world.policyLedger[bill.id]);
     advanceTurn(world);
     advanceTurn(resumed);
-    expect(resumed.regionalMetrics[regionId]?.["economy.workerSecurity"])
-      .toEqual(world.regionalMetrics[regionId]?.["economy.workerSecurity"]);
-    expect(world.regionalMetrics[regionId]?.["economy.workerSecurity"]?.value).toBeDefined();
-    expect(world.regionalMetrics[regionId]?.["economy.workerSecurity"]?.value).not.toBe(metricBefore);
+    expect(resumed.regionalPoliticalMetrics?.[regionId]?.values["economy.workerSecurity"])
+      .toEqual(world.regionalPoliticalMetrics?.[regionId]?.values["economy.workerSecurity"]);
+    expect(resumed.regionalPoliticalMetrics?.[regionId]?.residuals?.["economy.workerSecurity"])
+      .toEqual(world.regionalPoliticalMetrics?.[regionId]?.residuals?.["economy.workerSecurity"]);
+    const metricAfter = world.regionalPoliticalMetrics?.[regionId]?.values["economy.workerSecurity"];
+    expect(metricAfter).toBeGreaterThan(metricBefore!);
+    expect(metricAfter).toBeGreaterThan(78);
     expect(resumed.budgets.DD?.policySpendingByCategory)
       .toEqual(world.budgets.DD?.policySpendingByCategory);
   });
