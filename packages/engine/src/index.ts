@@ -69,6 +69,8 @@ export * from "./actions/fundGeneration.js";
 export { actionFundCost } from "./actions/fundCost.js";
 export type { FundCostInput } from "./actions/fundCost.js";
 export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
+export { campaignCellsForRegion, targetedAdBonuses, meanAdBonus, campaignPrimaryScore, currentAdBonus, planAdPurchase, adExposure, targetedAdBonusByGroup, type TargetedAd, type CampaignCell } from "./campaigns/targetedAds.js";
+export { standingTargetedAdRegions, campaignTargetedAdRegions } from "./actions/campaignTargetedAd.js";
 export * from "./actions/polling.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
 export { proposalNpiCost, BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST } from "./legislation/proposalCosts.js";

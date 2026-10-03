@@ -194,7 +194,7 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // stamps, source UK devolution institutions/Northern Ireland conflict state,
 // and UK Commons recall petition clocks/signatures/declarations/support samples.
 // Older readers must refuse these continuations.
-export const SCHEMA_VERSION = 65;
+export const SCHEMA_VERSION = 69;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

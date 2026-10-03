@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWorld } from "../../world.js";
+import { createWorld, SCHEMA_VERSION } from "../../world.js";
 import { advanceTurn } from "../../engine.js";
 import { deserializeSave, serializeSave } from "../../save.js";
 import { corporatePlantProductionPhase, sourceCorpDailyGrossRevenueLocal, technologyOutputUnitsMultiplier } from "../plantProduction.js";
@@ -141,7 +141,7 @@ describe("source corporate technology state", () => {
       delete corp.techDecadeChosenTurn;
     }
     const restored = deserializeSave(JSON.stringify(raw));
-    expect(restored.meta.schemaVersion).toBe(65);
+    expect(restored.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(restored.corporations["US-energy"]!.unlockedTechNodeIds).toBeUndefined();
     expect(restored.corporations["US-energy"]!.techDecadeLane).toBeUndefined();
     expect(restored.corporateCashLedger).toBeUndefined();

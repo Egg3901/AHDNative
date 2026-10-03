@@ -133,6 +133,7 @@ describe.sequential("earned governor presidential endorsement journey", () => {
             regionId: "WY",
             demographicCategory: target.category,
             demographicGroup: target.group,
+            expectedRevision: campaign.targetedAds.revision,
           });
           if (result.ok) successfulAds++;
           adAttempt++;
