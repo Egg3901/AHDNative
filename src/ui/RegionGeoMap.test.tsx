@@ -24,8 +24,7 @@ function fetchShard() {
   return async () => ({ json: async () => structuredClone(SHARD) });
 }
 
-function usRecorded() {
-  const world = createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "region-geo-map" });
+function usRecorded(world = createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "region-geo-map" })) {
   const view = projectRegions(world, { directoryPage: 0, directoryPageSize: 100 });
   return new Map(view.directory.map((row) => [row.id, row.name] as const));
 }
@@ -36,7 +35,8 @@ beforeEach(() => {
 
 describe("RegionGeoMap", () => {
   it("renders real recorded shapes with click, keyboard, and selected highlight", async () => {
-    const recorded = usRecorded();
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "region-geo-map" });
+    const recorded = usRecorded(world);
     const onSelect = vi.fn();
     const { rerender } = render(
       <RegionGeoMap
@@ -51,12 +51,15 @@ describe("RegionGeoMap", () => {
 
     const map = await screen.findByRole("group", { name: /united states regions geographic map/i });
     const shapes = map.querySelectorAll("path[data-region-id]");
-    // 1953 directory: 48 political states plus the recorded DC corporation HQ.
+    // AHDGame's usStates1953 records AK/HI as territories with no seats.
+    // Geography includes those territories, 48 states, and the DC corporation HQ.
     expect(shapes.length).toBe(recorded.size);
-    expect(shapes.length).toBe(49);
-    // AK/HI are absent until statehood; DC is browsable without electoral seats.
-    expect(map.querySelector("path[data-region-id='AK']")).toBeNull();
-    expect(map.querySelector("path[data-region-id='HI']")).toBeNull();
+    expect(shapes.length).toBe(51);
+    for (const id of ["AK", "HI"]) {
+      expect(world.regions[id]).toMatchObject({ countryId: "US", houseSeats: 0, senateSeats: 0 });
+      expect(world.elections.some((race) => race.state === id)).toBe(false);
+      expect(map.querySelector(`path[data-region-id='${id}']`)).not.toBeNull();
+    }
     expect(map.querySelector("path[data-region-id='DC']")).not.toBeNull();
     // Source label override: the code sits on the map, full name in tooltip.
     const california = within(map).getByRole("button", { name: "Select California region" });
@@ -70,6 +73,9 @@ describe("RegionGeoMap", () => {
     expect(onSelect).toHaveBeenCalledWith("TX");
     fireEvent.keyDown(within(map).getByRole("button", { name: "Select Ohio region" }), { key: " " });
     expect(onSelect).toHaveBeenCalledWith("OH");
+
+    fireEvent.click(within(map).getByRole("button", { name: "Select Hawaii region" }));
+    expect(onSelect).toHaveBeenCalledWith("HI");
 
     rerender(
       <RegionGeoMap
