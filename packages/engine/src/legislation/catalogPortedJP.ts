@@ -706,7 +706,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     description: "Prefectural governance — local government transparency, public participation mechanisms, and administrative efficiency funded from the regional budget.",
     category: "governance",
     allowedScope: "both",
-    policyOptionCosts: [{"id":"jp_regional_governance_opt_0","annualCostPerCapita":8000},{"id":"jp_regional_governance_opt_1","annualCostPerCapita":6000},{"id":"jp_regional_governance_opt_2","annualCostPerCapita":4000},{"id":"jp_regional_governance_opt_3","annualCostPerCapita":2500},{"id":"jp_regional_governance_opt_4","annualCostPerCapita":1500},{"id":"jp_regional_governance_opt_5","annualCostPerCapita":800},{"id":"jp_regional_governance_opt_6","annualCostPerCapita":500}],
+    policyOptionCosts: [{"id":"jp_regional_governance_opt_0","annualCostPerCapita":8000},{"id":"jp_regional_governance_opt_1","annualCostPerCapita":6000},{"id":"jp_regional_governance_opt_2","annualCostPerCapita":4000},{"id":"jp_regional_governance_opt_3","annualCostPerCapita":2500},{"id":"jp_regional_governance_opt_4","annualCostPerCapita":1500},{"id":"jp_regional_governance_opt_5","annualCostPerCapita":700},{"id":"jp_regional_governance_opt_6","annualCostPerCapita":0}],
     baselinePolicyOptionId: "jp_regional_governance_opt_3",
     budgetCostClass: "gdpFraction",
     targets: [{"metricId":"governance.integrity","weight":1},{"metricId":"society.integration","weight":0.3},{"metricId":"governance.openness","weight":0.2}],
