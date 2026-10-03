@@ -19,6 +19,11 @@ describe("W61 background roster: 2019 JP", () => {
     world = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     for (let i = 200; i < 400; i++) advanceTurn(world);
     for (const key of ["shugiin", "sangiin", "regionalCouncil"]) expect(seated(world, "JP", key), `JP:${key}`).toBe(seats(world, "JP", key));
+    // Current source 2019 maps: 465 Shugiin districts, 248 Sangiin seats,
+    // and 2,679 regional council seats across the eight source regions.
+    expect(seats(world, "JP", "shugiin")).toBe(465);
+    expect(seats(world, "JP", "sangiin")).toBe(248);
+    expect(seats(world, "JP", "regionalCouncil")).toBe(2679);
     expect(world.governments["JP"]?.status).toBe("formed");
     expect(world.countries.JP?.playable).toBe(false);
   });
