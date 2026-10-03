@@ -202,6 +202,29 @@ export const JP_SANGIIN_SEATS_1991: Record<string, number> = {
   KYU: 28,
 };
 
+/**
+ * Source `getJpShugiinSeats(preset)` is authoritative for ordinary Shugiin
+ * races. It uses 1953 and 1991 historical maps, then the modern 465-seat map
+ * for every other preset. This intentionally differs from some authored
+ * physical `StateSeed.houseSeats` rows (for example 1979 carries a 511-seat
+ * geography table while the live source election spawner uses its 465-seat
+ * fallback). Keep geography intact and apply this map only at race creation.
+ */
+export const JP_SHUGIIN_SEATS_1953: Record<string, number> = {
+  HOK: 21, TOH: 66, KAN: 109, CHU: 78, KNS: 84, CGK: 31, SHI: 18, KYU: 59,
+};
+export const JP_SHUGIIN_SEATS_1991: Record<string, number> = {
+  HOK: 23, TOH: 50, KAN: 145, CHU: 86, KNS: 92, CGK: 34, SHI: 20, KYU: 62,
+};
+export const JP_SHUGIIN_SEATS: Record<string, number> = {
+  HOK: 12, TOH: 37, KAN: 150, CHU: 81, KNS: 82, CGK: 28, SHI: 14, KYU: 61,
+};
+export function jpShugiinSeatsForEra(era: string): Record<string, number> {
+  if (era === "1953") return JP_SHUGIIN_SEATS_1953;
+  if (era === "1991") return JP_SHUGIIN_SEATS_1991;
+  return JP_SHUGIIN_SEATS;
+}
+
 /** The source uses the historical 252-seat map only for the 1991 preset. */
 export function jpSangiinSeatsForEra(era: string): Record<string, number> {
   return era === "1991" ? JP_SANGIIN_SEATS_1991 : JP_SANGIIN_SEATS;

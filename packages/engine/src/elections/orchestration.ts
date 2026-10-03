@@ -40,6 +40,7 @@ import {
   LOWER_CHAMBER_PER_REGION,
   SUBNATIONAL_CHAMBER_PER_REGION,
   jpSangiinSeatsForEra,
+  jpShugiinSeatsForEra,
   UK_DEVOLVED_GOVERNOR_REGIONS,
 } from "../government/constants.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
@@ -228,6 +229,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   };
   const regions = world.regions ?? {};
   const jpSangiinSeats = jpSangiinSeatsForEra(world.meta.era);
+  const jpShugiinSeats = jpShugiinSeatsForEra(world.meta.era);
   const cycleContext = cycleContextForWorld(world);
   const cycleAnchors = getCycleAnchors(cycleContext);
   const ukInstitutionState =
@@ -333,13 +335,16 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
       typeof r.houseSeats === "number" &&
       r.houseSeats > 0
     ) {
-      specs.push({
-        electionType: lower.electionType,
-        countryId: r.countryId,
-        chamberKey: lower.chamberKey,
-        state: r.id,
-        totalSeats: r.houseSeats,
-      });
+      const totalSeats = r.countryId === "JP" ? jpShugiinSeats[r.id] : r.houseSeats;
+      if (typeof totalSeats === "number" && totalSeats > 0) {
+        specs.push({
+          electionType: lower.electionType,
+          countryId: r.countryId,
+          chamberKey: lower.chamberKey,
+          state: r.id,
+          totalSeats,
+        });
+      }
     }
     if (
       r.countryId === "BR" &&

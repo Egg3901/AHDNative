@@ -11,9 +11,9 @@ const seats = (w: WorldState, cid: string, key: string) => w.legislatures[cid]!.
 
 describe("W61 background roster: 2019 JP", () => {
   it("resolves Shugiin, Sangiin (two classes), regional councils and forms a government by t400 without JP player selection", () => {
-    // JP is source-seeded as an ordinary background political system while
-    // its character-selection gate remains closed. Run the same resolver
-    // through a supported public US world rather than starting as a JP player.
+    // Exercise the source-seeded JP institutions as a background country in a
+    // supported public US world; the same source-tier pack also supports JP
+    // career creation through the separate public-player flow tests.
     let world = createWorld({ seed: "w61-jp-background", playerName: "P", countryId: "US", era: "2019" });
     for (let i = 0; i < 200; i++) advanceTurn(world);
     world = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
@@ -25,6 +25,6 @@ describe("W61 background roster: 2019 JP", () => {
     expect(seats(world, "JP", "sangiin")).toBe(248);
     expect(seats(world, "JP", "regionalCouncil")).toBe(2679);
     expect(world.governments["JP"]?.status).toBe("formed");
-    expect(world.countries.JP?.playable).toBe(false);
+    expect(world.countries.JP?.playable).toBe(true);
   });
 });

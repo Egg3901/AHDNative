@@ -14,7 +14,8 @@ import { ieRegions1991 } from "./ieRegions1991.js";
  * - src/lib/npp/seedHistorical.ts SLUG_TO_NAME / INDEPENDENT_SLUGS (party slug resolution)
  *
  * Party ids follow the pack convention `${countryId}_${ABBREVIATION}`.
- * Independents and unrostered slugs are vacancies (1953 pack convention).
+ * The source's JP `jp_independent` group is retained as a distinct source-backed
+ * holder bucket; other unrostered slugs remain vacancies where the pack records them.
  */
 export const ROSTER_1991_PARTIES: PartySeed[] = [
     { id: "JP_LDP", name: "Liberal Democratic Party", countryId: "JP", abbreviation: "LDP", color: "#2BA547", economicPosition: 2, socialPosition: 2 },
@@ -22,6 +23,7 @@ export const ROSTER_1991_PARTIES: PartySeed[] = [
     { id: "JP_JCP", name: "Japanese Communist Party", countryId: "JP", abbreviation: "JCP", color: "#D71920", economicPosition: -4, socialPosition: -3 },
     { id: "JP_JSP", name: "Japan Socialist Party", countryId: "JP", abbreviation: "JSP", color: "#C8102E", economicPosition: -3, socialPosition: -2 },
     { id: "JP_DSP", name: "Democratic Socialist Party", countryId: "JP", abbreviation: "DSP", color: "#0E5FAA", economicPosition: -1, socialPosition: -1 },
+    { id: "JP_IND", name: "Independents", countryId: "JP", abbreviation: "IND", color: "#808080", economicPosition: 0, socialPosition: 0 },
     { id: "DE_SPD", name: "Sozialdemokratische Partei Deutschlands", countryId: "DE", abbreviation: "SPD", color: "#E3000F", economicPosition: -2, socialPosition: -2 },
     { id: "DE_CDU", name: "Christlich Demokratische Union", countryId: "DE", abbreviation: "CDU", color: "#000000", economicPosition: 2, socialPosition: 1 },
     { id: "DE_CSU", name: "Christlich-Soziale Union in Bayern", countryId: "DE", abbreviation: "CSU", color: "#0080C8", economicPosition: 2, socialPosition: 2 },
@@ -55,14 +57,16 @@ export const ROSTER_1991_LEGISLATURES: LegislatureSeed[] = [
     bicameral: true,
     chambers: [
       {
-        // seats = sum jpRegions1991.houseDistricts (per-region shugiin races, mainline ensureJPElections); config 465; table sum 512 (26 independent/unrostered -> vacancies)
+        // Source 1990 result: 512 chamber seats. The 1991 geographic rows
+        // sum to 511; source election races independently use a 512 seat map.
+        // Source jp_independent combines one SDF seat and 25 independents.
         key: "shugiin",
         name: "Shūgiin",
         shortName: "Shūgiin",
-        seats: 511,
+        seats: 512,
         elected: true,
-        description: "465 members elected by FPTP from regional constituencies. Invests confidence in the Cabinet.",
-        composition: { seatsByParty: {"JP_LDP":275,"JP_JSP":136,"JP_KMT":45,"JP_JCP":16,"JP_DSP":14}, vacancies: 25 },
+        description: "512 members elected by FPTP from regional constituencies. Invests confidence in the Cabinet.",
+        composition: { seatsByParty: {"JP_LDP":275,"JP_JSP":136,"JP_KMT":45,"JP_JCP":16,"JP_DSP":14,"JP_IND":26}, vacancies: 0 },
       },
       {
         // seats = sum constants/states.ts JP_SANGIIN_SEATS (per-region, two classes: class 1 ceil / class 2 floor per mainline JP_SANGIIN_2020 header); table sum 206 (14 independent/unrostered -> vacancies)
