@@ -25,7 +25,7 @@ import { buildNationwideElectoratePreload } from "../electionEngine/nationwideEl
 import { distributeVotesByGroupLevelAllocation } from "../electionEngine/voteDistribution.js";
 import { distributeVotesBySwingFlow } from "../electionEngine/voteDistributionSwingFlow.js";
 import { CAMPAIGN_TARGETED_AD_CAP } from "../actions/campaignTargetedAd.js";
-import { targetedAdBonusByGroup } from "../campaigns/targetedAds.js";
+import { policyPosition, targetedAdBonusByGroup } from "../campaigns/targetedAds.js";
 import { electoralVoteUnitsForWorld } from "./presidentialElectoralCollege.js";
 import { appliesExplicitPresidentialLean, presidentialRulesetVersionFor } from "./presidentialRuleset.js";
 import { displayLean, PRESIDENTIAL_UNIT_LEAN, presidentialLeanVoteMultiplier, sourceFallbackStateLean } from "./presidentialLean.js";
@@ -131,7 +131,7 @@ function campaignTargetedAdBonuses(
     if (bonus > 0) legacy[groupId] = (legacy[groupId] ?? 0) + bonus;
   }
   const standing = useStandingAds && candidateId === "player" && world.player.targetedAds?.length
-    ? targetedAdBonusByGroup(world, stateId, world.player.policies ?? { economic: 0, social: 0 }, world.player.targetedAds, world.meta.turn)
+    ? targetedAdBonusByGroup(world, stateId, policyPosition(world.player.policies ?? { economic: 0, social: 0 }), world.player.targetedAds, world.meta.turn)
     : {};
   const groups = new Set([...Object.keys(legacy), ...Object.keys(standing)]);
   const bonuses = Object.fromEntries([...groups].map((groupId) => {

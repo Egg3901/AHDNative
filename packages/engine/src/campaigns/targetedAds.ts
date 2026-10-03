@@ -25,6 +25,7 @@ export interface CampaignCell {
 }
 
 type Position = { economicLean: number; socialLean: number };
+type PlayerPolicies = { economic: number; social: number };
 type AdTarget = { stateId: string; dimension: string; bucket: string };
 
 export const AD_BONUS_CAP = 0.25;
@@ -37,6 +38,11 @@ function clamp(value: number, min: number, max: number): number {
 
 function finiteOr(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+/** Player/candidate policies use `economic`/`social`; campaign cells use `*Lean`. */
+export function policyPosition(policies: PlayerPolicies): Position {
+  return { economicLean: policies.economic, socialLean: policies.social };
 }
 
 function distanceSquared(a: Position, b: Position): number {
