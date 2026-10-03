@@ -16,6 +16,7 @@ import {
   createWorld,
   deserializeSave,
   executeAction,
+  quoteForexTrade,
   projectSaveToV42,
   serializeSave,
 } from "./index.js";
@@ -413,6 +414,32 @@ it("refuses a corporate currency that schema 42 would infer differently from the
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected relabel refusal");
     expect(projected.error).toMatch(/countryPolitics|not an authentic schema 42/i);
+  });
+});
+
+it("refuses a real player currency trade whose fee and volume history schema 42 cannot continue", () => {
+  const world = loadHistoricalFresh();
+  const quote = quoteForexTrade(world, "USD", "GBP", 100);
+  expect(quote.ok).toBe(true);
+  const result = executeAction(world, "player", "exchangeCurrency", {
+    fromCurrency: "USD", toCurrency: "GBP", amount: 100,
+  });
+  expect(result.ok).toBe(true);
+  expect(world.forexTradeHistory).toHaveLength(1);
+  const saved = serializeSave(world, SAVED_AT);
+  expect(projectSaveToV42(saved)).toMatchObject({
+    ok: false,
+    error: expect.stringContaining("Manual currency trade history"),
+  });
+});
+
+it("keeps empty FX state reversible but refuses active derived volume snapshots", () => {
+  const world = loadHistoricalFresh();
+  expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({ ok: true });
+  world.exchangeRates.US!.buyVolume24 = 1;
+  expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+    ok: false,
+    error: expect.stringContaining("currency-volume pressure"),
   });
 });
 
