@@ -130,7 +130,9 @@ export function sovereignDemandForCountry(world: WorldState, countryId: string):
   // An absent clock is the source's never-defaulted state; only modeled player/fund holders count.
   const demand = computeSovereignMarketDemand({
     debtToGdp,
-    inflationRate: world.countries[countryId]?.economy.inflationRate ?? budget.economicFactors.inflationRate / 100,
+    // Game snapshotLoader reads only federalBudget.economicFactors and stores
+    // its percentage value as a fraction at the market-demand seam.
+    inflationRate: budget.economicFactors.inflationRate / 100,
     trust: trustFor(world, countryId),
     sovereignCouponRate: sovereignCouponRate(world, countryId),
     fxDepreciationRate10t: fxDepreciation10t(world, countryId),

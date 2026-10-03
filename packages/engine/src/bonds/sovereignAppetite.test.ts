@@ -43,6 +43,10 @@ describe("AHDGame sovereign demand source equations", () => {
     expect(boards.length).toBeGreaterThan(0);
     const seededTrust = boards.reduce((sum, board) => sum + (board.values["governance.integrity"] ?? 50), 0) / boards.length / 100;
     const before = sovereignDemandForCountry(world, "US")!;
+    const originalCountryInflation = world.countries.US!.economy.inflationRate;
+    world.countries.US!.economy.inflationRate = 0.8;
+    expect(sovereignDemandForCountry(world, "US")).toBe(before);
+    world.countries.US!.economy.inflationRate = originalCountryInflation;
     // Deliberately poison the policy cache. It is not the source PoliticalMetricsDoc values input.
     for (const region of Object.values(world.regions).filter((row) => row.countryId === "US")) {
       world.regionalMetrics[region.id] = { "governance.integrity": { value: 0 } };

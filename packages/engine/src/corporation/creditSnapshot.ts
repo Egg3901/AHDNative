@@ -18,11 +18,15 @@ function anchorRate(world: WorldState, currency: string | undefined, countryId: 
 export function refreshNativeCorporateCreditSnapshots(world: WorldState): void {
   for (const corp of Object.values(world.corporations)) {
     const issuerAssets = Object.values(world.corporateSectors ?? {}).filter((asset) => asset.corporationId === corp.id);
+    // Game stores sector revenue in the issuer's liquid currency even when the
+    // sector is hosted in another country. Native asset rows use that issuer
+    // currency for their P&L as well, so normalize through issuer FX.
+    const issuerRate = anchorRate(world, corp.liquidCurrencyCode, corp.countryId);
     let sectorNpv = 0;
     let constructionInProgressAnchor = 0;
     for (const asset of issuerAssets) {
       const sourceRevenueLocal = asset.realizedRevenue ?? asset.revenue ?? 0;
-      const dailyRevenueAnchor = sourceRevenueLocal / DAYS_PER_TURN / anchorRate(world, undefined, asset.countryId);
+      const dailyRevenueAnchor = sourceRevenueLocal / DAYS_PER_TURN / issuerRate;
       const margin = asset.effectiveProfitMargin ?? asset.profitMargin ?? corp.effectiveProfitMargin ?? corp.profitMargin ?? 35;
       const dailyProfitAnchor = dailyRevenueAnchor * margin / 100;
       const yearly = dailyProfitAnchor * TURNS_PER_YEAR / TURNS_PER_DAY;
