@@ -109,6 +109,7 @@ export function runCorporationTurn(
     indexFundBook?: import("../indexFunds/types.js").IndexFundBook;
     playerCurrencyCode?: string;
     foreignExchangeEnabled?: boolean;
+    exchangeRates?: Record<string, { rate: number; currencyCode: string }>;
     turn?: number;
   },
   plantsTier: boolean = false,
@@ -196,6 +197,8 @@ export function runCorporationTurn(
         player: settlement.player,
         playerCurrencyCode: settlement.playerCurrencyCode ?? settlement.currencyCode,
         foreignExchangeEnabled: settlement.foreignExchangeEnabled === true,
+        ...(settlement.exchangeRates ? { exchangeRates: settlement.exchangeRates } : {}),
+        ...(rdContext.localPerAnchor !== undefined ? { corporationLocalPerAnchor: rdContext.localPerAnchor } : {}),
         turn: settlement.turn ?? 0,
       })
     : 0;
@@ -415,9 +418,10 @@ export const corporationTurnPhase: TurnPhase = {
       runCorporationTurn(corp, taxRatePct, labourAndSubsidy, {
         player: world.player,
         currencyCode,
-        indexFundBook: world.indexFundBook,
+        ...(world.indexFundBook ? { indexFundBook: world.indexFundBook } : {}),
         playerCurrencyCode: world.budgets?.[world.player.countryId]?.currencyCode ?? world.exchangeRates?.[world.player.countryId]?.currencyCode ?? "XXX",
         foreignExchangeEnabled: world.featureFlags.foreignExchange !== false,
+        exchangeRates: world.exchangeRates,
         turn: world.meta.turn,
       }, true, {
         localPerAnchor: fx,

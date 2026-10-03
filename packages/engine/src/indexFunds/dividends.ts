@@ -4,10 +4,9 @@ import type { IndexFundBook } from "./types.js";
 
 /**
  * Source dividendPassThrough.ts receives the fund's pro-rata issuer payment,
- * retains 75%, then distributes 25% per unit to non-reserve positions. This
- * Native adapter supports the represented USD fund and player holder only;
- * unsupported holder/currency legs remain in fund cash rather than being
- * credited to a fabricated account.
+ * retains 75%, then distributes 25% per unit to non-reserve positions. Native
+ * currently has one reachable character holder; NPP/imperial custody remains
+ * outside the represented single-player account model.
  */
 export function settleIndexFundDividend(input: {
   book: IndexFundBook | undefined;
@@ -17,17 +16,22 @@ export function settleIndexFundDividend(input: {
   player: PlayerCharacter;
   playerCurrencyCode: string;
   foreignExchangeEnabled: boolean;
+  exchangeRates?: Record<string, { rate: number; currencyCode: string }>;
+  corporationLocalPerAnchor?: number;
   turn: number;
 }): number {
-  const { book, corporation, corporationCurrencyCode, dividendPoolAnchor, player, playerCurrencyCode, foreignExchangeEnabled, turn } = input;
-  if (!book || !Number.isFinite(dividendPoolAnchor) || dividendPoolAnchor <= 0 || corporation.totalShares <= 0) return 0;
+  const { book, corporation, corporationCurrencyCode, dividendPoolAnchor, player, playerCurrencyCode, foreignExchangeEnabled, exchangeRates, corporationLocalPerAnchor, turn } = input;
+  const corpRate = Number.isFinite(corporationLocalPerAnchor) && (corporationLocalPerAnchor ?? 0) > 0
+    ? corporationLocalPerAnchor!
+    : Object.values(exchangeRates ?? {}).find((row) => row.currencyCode === corporationCurrencyCode)?.rate ?? (corporationCurrencyCode === "USD" ? 1 : undefined);
+  if (!book || !Number.isFinite(dividendPoolAnchor) || dividendPoolAnchor <= 0 || corporation.totalShares <= 0 || !Number.isFinite(corpRate) || (corpRate ?? 0) <= 0) return 0;
 
   let dividendReceived = 0;
   for (const fund of Object.values(book.funds)) {
-    if (fund.status !== "active" || fund.countryId !== corporation.countryId || fund.currencyCode !== corporationCurrencyCode) continue;
+    if (fund.status !== "active") continue;
     const holding = fund.holdings[corporation.id];
     if (!holding || holding.shares <= 0 || holding.shares > corporation.totalShares || fund.unitSupply <= 0) continue;
-    const gross = dividendPoolAnchor * (holding.shares / corporation.totalShares);
+    const gross = (dividendPoolAnchor / corpRate!) * (holding.shares / corporation.totalShares);
     if (!Number.isFinite(gross) || gross <= 0) continue;
 
     const passThroughPool = gross * 0.25;
@@ -38,17 +42,21 @@ export function settleIndexFundDividend(input: {
     );
     const canCreditHome = playerCurrencyCode === fund.currencyCode;
     const canCreditForeign = foreignExchangeEnabled;
+    const fundRate = foreignExchangeEnabled
+      ? Object.values(exchangeRates ?? {}).find((row) => row.currencyCode === fund.currencyCode)?.rate ?? 1
+      : 1;
     for (const position of playerPositions) {
       if (!canCreditHome && !canCreditForeign) continue;
-      const payout = Math.floor((position.units * passThroughPool / fund.unitSupply) * 100) / 100;
-      if (payout <= 0) continue;
+      const payoutAnchor = Math.floor((position.units * passThroughPool / fund.unitSupply) * 100) / 100;
+      if (payoutAnchor <= 0) continue;
+      const payout = payoutAnchor * fundRate;
       if (canCreditHome) player.cash += payout;
       else {
         player.currencyBalances ??= { personal: {} };
         const personal = player.currencyBalances.personal;
         personal[fund.currencyCode] = (personal[fund.currencyCode] ?? 0) + payout;
       }
-      paidOut += payout;
+      paidOut += payoutAnchor;
       paidUnits += position.units;
     }
 

@@ -1,6 +1,6 @@
 import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
-import { INDEX_FUND_INITIAL_NAV, INDEX_FUND_SEED_CASH_ANCHOR, INDEX_FUND_SEED_RESERVE_UNITS } from "./indexFunds/book.js";
+import { INDEX_FUND_DEFINITIONS, INDEX_FUND_INITIAL_NAV, INDEX_FUND_SEED_CASH_ANCHOR, INDEX_FUND_SEED_RESERVE_UNITS } from "./indexFunds/book.js";
 import { COUNTRY_CONFIGS } from "./electionEngine/countryElectionConstants.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
 import { pmAppointmentExecutiveTitle } from "./government/pmAppointment.js";
@@ -976,105 +976,160 @@ const REQUIRED_WORLD_RECORDS = [
 ] as const;
 
 function validateIndexFundBook(raw: unknown, turn: number): void {
-  const fail = (): never => { throw new Error("Not a valid save file: invalid index fund custody state"); };
+  function fail(): never { throw new Error("Not a valid save file: invalid index fund custody state"); }
   if (!isRecord(raw) || Object.keys(raw).some((key) => !["funds", "positions", "redemptions", "transactions"].includes(key)) ||
       !isRecord(raw["funds"]) || !Array.isArray(raw["positions"]) || !Array.isArray(raw["redemptions"]) || !Array.isArray(raw["transactions"])) fail();
   const record = raw as Record<string, unknown>;
   const funds = record["funds"] as Record<string, unknown>;
-  if (Object.keys(funds).length !== 1 || !isRecord(funds["us_top_25"])) fail();
-  const fund = funds["us_top_25"] as Record<string, unknown>;
-  if (fund["slug"] !== "us_top_25" || fund["name"] !== "US Large-Cap 25 Index" || fund["ticker"] !== "US25" ||
-      fund["kind"] !== "broad" || fund["scope"] !== "country" || fund["countryId"] !== "US" || fund["currencyCode"] !== "USD" ||
-      fund["topN"] !== 25 || fund["status"] !== "active" || !Number.isFinite(fund["quotedNav"]) || (fund["quotedNav"] as number) <= 0 ||
-      !Number.isSafeInteger(fund["unitSupply"]) || (fund["unitSupply"] as number) < 0 ||
-      !Number.isSafeInteger(fund["reserveUnits"]) || (fund["reserveUnits"] as number) < 0 ||
-      !Number.isFinite(fund["cashAnchor"]) || (fund["cashAnchor"] as number) < 0 ||
-      !Array.isArray(fund["targetConstituents"]) || !isRecord(fund["holdings"])) fail();
-  const constituentIds = new Set<string>();
-  for (const row of fund["targetConstituents"]) {
-    if (!isRecord(row) || Object.keys(row).some((key) => !["corporationId", "targetWeight", "marketCapAnchor", "rank"].includes(key)) ||
-        typeof row["corporationId"] !== "string" || row["corporationId"].length === 0 || constituentIds.has(row["corporationId"]) ||
-        !Number.isFinite(row["targetWeight"]) || (row["targetWeight"] as number) < 0 || (row["targetWeight"] as number) > 0.2 ||
-        !Number.isFinite(row["marketCapAnchor"]) || (row["marketCapAnchor"] as number) <= 0 || !Number.isSafeInteger(row["rank"]) || (row["rank"] as number) < 1) fail();
-    constituentIds.add(row["corporationId"] as string);
-  }
-  let holdingValue = 0;
-  const holdings = fund["holdings"] as Record<string, unknown>;
-  for (const [corpId, row] of Object.entries(holdings)) {
-    if (!isRecord(row) || Object.keys(row).some((key) => !["shares", "averageCostPerShare", "lastValueAnchor"].includes(key)) ||
-        !corpId || !Number.isSafeInteger(row["shares"]) || (row["shares"] as number) < 1 ||
-        !Number.isFinite(row["averageCostPerShare"]) || (row["averageCostPerShare"] as number) <= 0 ||
-        !Number.isFinite(row["lastValueAnchor"]) || (row["lastValueAnchor"] as number) < 0) fail();
-    holdingValue += row["lastValueAnchor"] as number;
-  }
+  const definitions = new Map(INDEX_FUND_DEFINITIONS.map((definition) => [definition.slug, definition]));
+  // Keep the pre-catalog Native book readable during the unpublished 71
+  // integration. It is a precisely known one-fund shape, not a rule that
+  // permits arbitrary subsets of the source catalog.
+  const legacySingleFund = Object.keys(funds).length === 1 && isRecord(funds["us_top_25"]);
+  if (!legacySingleFund && Object.keys(funds).length !== definitions.size) fail();
+  if (Object.keys(funds).some((slug) => !definitions.has(slug))) fail();
 
-  const positions = record["positions"] as unknown[];
+  const expectedReserve = INDEX_FUND_SEED_RESERVE_UNITS;
+  const positionsByFund = new Map<string, number>();
   const holderKeys = new Set<string>();
-  let positionUnits = 0;
-  for (const rawItem of positions) {
+  for (const rawItem of record["positions"] as unknown[]) {
     const item = rawItem as Record<string, unknown>;
     if (!isRecord(item) || Object.keys(item).some((key) => !["fundSlug", "holderKind", "holderId", "units", "averageNavAnchor"].includes(key)) ||
-        item["fundSlug"] !== "us_top_25" || !["fund_reserve", "player"].includes(String(item["holderKind"])) ||
-        typeof item["holderId"] !== "string" || item["holderId"].length === 0 || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
+        typeof item["fundSlug"] !== "string" || !isRecord(funds[item["fundSlug"]]) ||
+        !["fund_reserve", "player"].includes(String(item["holderKind"])) ||
+        typeof item["holderId"] !== "string" || item["holderId"].length === 0 ||
+        !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
         !Number.isFinite(item["averageNavAnchor"]) || (item["averageNavAnchor"] as number) <= 0) fail();
-    const key = `${String(item["fundSlug"])}:${String(item["holderKind"])}:${String(item["holderId"])}`;
+    const slug = item["fundSlug"] as string;
+    const key = `${slug}:${String(item["holderKind"])}:${String(item["holderId"])}`;
     if (holderKeys.has(key)) fail();
     holderKeys.add(key);
-    if (item["holderKind"] === "fund_reserve" && (item["holderId"] !== "reserve:us_top_25" || item["units"] !== fund["reserveUnits"])) fail();
+    if (item["holderKind"] === "fund_reserve" && (item["holderId"] !== `reserve:${slug}` || item["units"] !== expectedReserve)) fail();
     if (item["holderKind"] === "player" && item["holderId"] !== "player") fail();
-    positionUnits += item["units"] as number;
+    positionsByFund.set(slug, (positionsByFund.get(slug) ?? 0) + (item["units"] as number));
   }
-  if (positionUnits !== fund["unitSupply"]) fail();
 
-  const redemptions = record["redemptions"] as unknown[];
-  let queuedUnits = 0;
-  let queuedCash = 0;
-  const ids = new Set<string>();
-  for (const rawItem of redemptions) {
+  const queuedByFund = new Map<string, { units: number; cash: number }>();
+  const redemptionIds = new Set<string>();
+  for (const rawItem of record["redemptions"] as unknown[]) {
     const item = rawItem as Record<string, unknown>;
-    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "fundSlug", "holderId", "requestedUnits", "paidUnits", "queuedUnits", "queuedAmountAnchor", "createdTurn", "status"].includes(key)) ||
-        typeof item["id"] !== "string" || item["id"].length === 0 || ids.has(item["id"]) || item["fundSlug"] !== "us_top_25" || item["holderId"] !== "player" ||
-        !Number.isSafeInteger(item["requestedUnits"]) || (item["requestedUnits"] as number) < 1 || !Number.isSafeInteger(item["paidUnits"]) || (item["paidUnits"] as number) < 0 ||
+    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "fundSlug", "holderId", "requestedUnits", "paidUnits", "queuedUnits", "queuedAmountAnchor", "queuedNavAnchor", "createdTurn", "status"].includes(key)) ||
+        typeof item["id"] !== "string" || item["id"].length === 0 || redemptionIds.has(item["id"]) ||
+        typeof item["fundSlug"] !== "string" || !isRecord(funds[item["fundSlug"]]) || item["holderId"] !== "player" ||
+        !Number.isSafeInteger(item["requestedUnits"]) || (item["requestedUnits"] as number) < 1 ||
+        !Number.isSafeInteger(item["paidUnits"]) || (item["paidUnits"] as number) < 0 ||
         !Number.isSafeInteger(item["queuedUnits"]) || (item["queuedUnits"] as number) < 1 ||
         !Number.isFinite(item["queuedNavAnchor"]) || (item["queuedNavAnchor"] as number) <= 0 ||
-        (item["paidUnits"] as number) + (item["queuedUnits"] as number) !== item["requestedUnits"] || item["queuedAmountAnchor"] !== (item["queuedUnits"] as number) * (item["queuedNavAnchor"] as number) ||
+        (item["paidUnits"] as number) + (item["queuedUnits"] as number) !== item["requestedUnits"] ||
+        item["queuedAmountAnchor"] !== (item["queuedUnits"] as number) * (item["queuedNavAnchor"] as number) ||
         !Number.isSafeInteger(item["createdTurn"]) || (item["createdTurn"] as number) < 0 || (item["createdTurn"] as number) > turn ||
-        !["partial", "queued"].includes(String(item["status"])) || (item["status"] === "queued" && item["paidUnits"] !== 0) || (item["status"] === "partial" && (item["paidUnits"] as number) < 1)) fail();
-    ids.add(item["id"] as string);
-    queuedUnits += item["queuedUnits"] as number;
-    queuedCash += item["queuedAmountAnchor"] as number;
+        !["partial", "queued"].includes(String(item["status"])) ||
+        (item["status"] === "queued" && item["paidUnits"] !== 0) ||
+        (item["status"] === "partial" && (item["paidUnits"] as number) < 1)) fail();
+    redemptionIds.add(item["id"] as string);
+    const slug = item["fundSlug"] as string;
+    const queued = queuedByFund.get(slug) ?? { units: 0, cash: 0 };
+    queued.units += item["queuedUnits"] as number;
+    queued.cash += item["queuedAmountAnchor"] as number;
+    queuedByFund.set(slug, queued);
   }
-  if ((fund["cashAnchor"] as number) + 1e-8 < queuedCash || positionUnits + queuedUnits < 1) fail();
 
-  const transactions = record["transactions"] as unknown[];
-  const txIds = new Set<string>();
-  for (const rawItem of transactions) {
+  const transactionRows = record["transactions"] as Array<Record<string, unknown>>;
+  const transactionIds = new Set<string>();
+  const transactionSums = new Map<string, Record<string, number>>();
+  for (const rawItem of transactionRows) {
     const item = rawItem as Record<string, unknown>;
     if (!isRecord(item) || Object.keys(item).some((key) => !["id", "turn", "fundSlug", "kind", "corporationId", "units", "cashAnchor"].includes(key)) ||
-        typeof item["id"] !== "string" || item["id"].length === 0 || txIds.has(item["id"]) || !Number.isSafeInteger(item["turn"]) ||
-        (item["turn"] as number) < 0 || (item["turn"] as number) > turn || item["fundSlug"] !== "us_top_25" ||
-        !["subscription", "redemption", "redemptionPayout", "floatPurchase", "floatSale", "dividendReceipt", "dividendPayout"].includes(String(item["kind"])) || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
-        !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0 ||
-        (["floatPurchase", "floatSale", "dividendReceipt", "dividendPayout"].includes(String(item["kind"])) && (typeof item["corporationId"] !== "string" || item["corporationId"].length === 0)) ||
-        (!(["floatPurchase", "floatSale", "dividendReceipt", "dividendPayout"].includes(String(item["kind"]))) && item["corporationId"] !== undefined)) fail();
-    txIds.add(item["id"] as string);
+        typeof item["id"] !== "string" || item["id"].length === 0 || transactionIds.has(item["id"]) ||
+        !Number.isSafeInteger(item["turn"]) || (item["turn"] as number) < 0 || (item["turn"] as number) > turn ||
+        typeof item["fundSlug"] !== "string" || !isRecord(funds[item["fundSlug"]]) ||
+        !["subscription", "redemption", "redemptionPayout", "floatPurchase", "floatSale", "dividendReceipt", "dividendPayout", "bondPurchase", "bondCoupon", "bondSale"].includes(String(item["kind"])) ||
+        !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
+        !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0) fail();
+    transactionIds.add(item["id"] as string);
+    const slug = item["fundSlug"] as string;
+    const sums = transactionSums.get(slug) ?? {};
+    const kind = item["kind"] as string;
+    sums[kind] = (sums[kind] ?? 0) + (item["cashAnchor"] as number);
+    sums[`${kind}:units`] = (sums[`${kind}:units`] ?? 0) + (item["units"] as number);
+    transactionSums.set(slug, sums);
   }
-  const txRows = transactions as Array<Record<string, unknown>>;
-  const sumField = (kind: string, field: "units" | "cashAnchor") => txRows
-    .filter((row) => row["kind"] === kind)
-    .reduce((sum, row) => sum + (row[field] as number), 0);
-  const subscribedUnits = sumField("subscription", "units");
-  const redeemedUnits = sumField("redemption", "units");
-  const subscribedCash = sumField("subscription", "cashAnchor");
-  const redeemedCash = sumField("redemption", "cashAnchor") + sumField("redemptionPayout", "cashAnchor");
-  const floatPurchases = sumField("floatPurchase", "cashAnchor");
-  const floatSales = sumField("floatSale", "cashAnchor");
-  const dividendReceipts = sumField("dividendReceipt", "cashAnchor");
-  const dividendPayouts = sumField("dividendPayout", "cashAnchor");
-  const queuedUnitsTotal = redemptions.reduce((sum, item) => sum + (item as Record<string, number>)["queuedUnits"], 0);
-  if (fund["unitSupply"] !== INDEX_FUND_SEED_RESERVE_UNITS + subscribedUnits - redeemedUnits ||
-      Math.abs((fund["cashAnchor"] as number) - (INDEX_FUND_SEED_CASH_ANCHOR + subscribedCash - redeemedCash - floatPurchases + floatSales + dividendReceipts - dividendPayouts)) > 1e-8 ||
-      Math.abs((fund["quotedNav"] as number) - ((fund["cashAnchor"] as number) + holdingValue) / ((fund["unitSupply"] as number) + queuedUnitsTotal)) > 1e-6) fail();
+
+  for (const [slug, rawFund] of Object.entries(funds)) {
+    if (!isRecord(rawFund)) fail();
+    const definition = definitions.get(slug);
+    if (!definition) fail();
+    const expectedFields = new Set([
+      "slug", "name", "ticker", "kind", "scope", "currencyCode", "status", "quotedNav", "unitSupply",
+      "reserveUnits", "cashAnchor", "targetConstituents", "holdings", "bondHoldings",
+      ...(definition.countryId ? ["countryId"] : []),
+      ...(definition.sectorType ? ["sectorType"] : []),
+      ...(definition.topN ? ["topN"] : []),
+      ...(definition.bondUniverse ? ["bondUniverse"] : []),
+    ]);
+    if (Object.keys(rawFund).some((key) => !expectedFields.has(key)) ||
+        rawFund["slug"] !== slug || rawFund["name"] !== definition.name || rawFund["ticker"] !== definition.ticker ||
+        rawFund["kind"] !== definition.kind || rawFund["scope"] !== definition.scope ||
+        rawFund["countryId"] !== definition.countryId || rawFund["sectorType"] !== definition.sectorType ||
+        rawFund["currencyCode"] !== definition.currencyCode || rawFund["topN"] !== definition.topN ||
+        JSON.stringify(rawFund["bondUniverse"]) !== JSON.stringify(definition.bondUniverse) ||
+        rawFund["status"] !== "active" || !Number.isFinite(rawFund["quotedNav"]) || (rawFund["quotedNav"] as number) <= 0 ||
+        !Number.isSafeInteger(rawFund["unitSupply"]) || (rawFund["unitSupply"] as number) < 0 ||
+        !Number.isSafeInteger(rawFund["reserveUnits"]) || (rawFund["reserveUnits"] as number) < 0 ||
+        !Number.isFinite(rawFund["cashAnchor"]) || (rawFund["cashAnchor"] as number) < 0 ||
+        !Array.isArray(rawFund["targetConstituents"]) || !isRecord(rawFund["holdings"])) fail();
+    if (definition.kind !== "bond" && rawFund["bondHoldings"] !== undefined) fail();
+    if (definition.kind === "bond" && !isRecord(rawFund["bondHoldings"])) fail();
+
+    const constituentIds = new Set<string>();
+    for (const row of rawFund["targetConstituents"] as unknown[]) {
+      if (!isRecord(row) || Object.keys(row).some((key) => !["corporationId", "targetWeight", "marketCapAnchor", "rank"].includes(key)) ||
+          typeof row["corporationId"] !== "string" || row["corporationId"].length === 0 || constituentIds.has(row["corporationId"]) ||
+          !Number.isFinite(row["targetWeight"]) || (row["targetWeight"] as number) < 0 || (row["targetWeight"] as number) > 0.2 ||
+          !Number.isFinite(row["marketCapAnchor"]) || (row["marketCapAnchor"] as number) <= 0 ||
+          !Number.isSafeInteger(row["rank"]) || (row["rank"] as number) < 1) fail();
+      constituentIds.add(row["corporationId"] as string);
+    }
+    let holdingValue = 0;
+    for (const [corpId, row] of Object.entries(rawFund["holdings"] as Record<string, unknown>)) {
+      if (definition.kind === "bond" || !isRecord(row) ||
+          Object.keys(row).some((key) => !["shares", "averageCostPerShare", "lastValueAnchor"].includes(key)) ||
+          !corpId || !Number.isSafeInteger(row["shares"]) || (row["shares"] as number) < 1 ||
+          !Number.isFinite(row["averageCostPerShare"]) || (row["averageCostPerShare"] as number) <= 0 ||
+          !Number.isFinite(row["lastValueAnchor"]) || (row["lastValueAnchor"] as number) < 0) fail();
+      holdingValue += row["lastValueAnchor"] as number;
+    }
+    const bondHoldings = (rawFund["bondHoldings"] ?? {}) as Record<string, unknown>;
+    for (const [bondId, row] of Object.entries(bondHoldings)) {
+      if (definition.kind !== "bond" || !bondId || !isRecord(row) ||
+          Object.keys(row).some((key) => !["units", "averageCostPerUnitAnchor", "lastValueAnchor"].includes(key)) ||
+          !Number.isSafeInteger(row["units"]) || (row["units"] as number) < 1 ||
+          !Number.isFinite(row["averageCostPerUnitAnchor"]) || (row["averageCostPerUnitAnchor"] as number) <= 0 ||
+          !Number.isFinite(row["lastValueAnchor"]) || (row["lastValueAnchor"] as number) < 0) fail();
+      holdingValue += row["lastValueAnchor"] as number;
+    }
+    const queue = queuedByFund.get(slug) ?? { units: 0, cash: 0 };
+    if ((rawFund["cashAnchor"] as number) + 1e-8 < queue.cash ||
+        (positionsByFund.get(slug) ?? 0) + queue.units !== rawFund["unitSupply"]) fail();
+    const sums = transactionSums.get(slug) ?? {};
+    const subscribedUnits = sums["subscription:units"] ?? 0;
+    const redeemedUnits = sums["redemption:units"] ?? 0;
+    const subscribedCash = sums["subscription"] ?? 0;
+    const redeemedCash = (sums["redemption"] ?? 0) + (sums["redemptionPayout"] ?? 0);
+    const assetPurchases = (sums["floatPurchase"] ?? 0) + (sums["bondPurchase"] ?? 0);
+    const assetSales = (sums["floatSale"] ?? 0) + (sums["bondSale"] ?? 0);
+    const receipts = (sums["dividendReceipt"] ?? 0) + (sums["bondCoupon"] ?? 0);
+    const payouts = sums["dividendPayout"] ?? 0;
+    const initialUnits = legacySingleFund ? (slug === "us_top_25" ? expectedReserve : 0) : expectedReserve;
+    const initialCash = legacySingleFund ? (slug === "us_top_25" ? INDEX_FUND_SEED_CASH_ANCHOR : 0) : INDEX_FUND_SEED_CASH_ANCHOR;
+    if ((rawFund["unitSupply"] as number) !== initialUnits + subscribedUnits - redeemedUnits ||
+        // Foreign-currency issuer settlements are converted at live rates, so
+        // their anchor legs can be repeating decimals accumulated per fill.
+        // A sub-cent aggregate tolerance keeps conservation strict without
+        // rejecting the source's per-trade FX arithmetic at ordinary scale.
+        Math.abs((rawFund["cashAnchor"] as number) - (initialCash + subscribedCash - redeemedCash - assetPurchases + assetSales + receipts - payouts)) > 1e-6 ||
+        Math.abs((rawFund["quotedNav"] as number) - ((rawFund["cashAnchor"] as number) + holdingValue) / ((rawFund["unitSupply"] as number) + queue.units)) > 1e-6) fail();
+  }
 }
 
 function assertCurrentWorldState(world: WorldState): void {
@@ -1108,19 +1163,25 @@ function assertCurrentWorldState(world: WorldState): void {
   }
   const indexFundBook = value["indexFundBook"];
   if (indexFundBook !== undefined) validateIndexFundBook(indexFundBook, meta["turn"] as number);
-  if (isRecord(indexFundBook) && isRecord(indexFundBook["funds"]) && isRecord(indexFundBook["funds"]["us_top_25"]) && isRecord(value["corporations"])) {
-    const fund = indexFundBook["funds"]["us_top_25"] as Record<string, unknown>;
-    const holdings = isRecord(fund["holdings"]) ? fund["holdings"] : {};
+  if (isRecord(indexFundBook) && isRecord(indexFundBook["funds"]) && isRecord(value["corporations"])) {
+    const shareHoldingsByCorporation = new Map<string, number>();
+    for (const rawFund of Object.values(indexFundBook["funds"])) {
+      if (!isRecord(rawFund) || !isRecord(rawFund["holdings"])) continue;
+      for (const [corpId, rawHolding] of Object.entries(rawFund["holdings"])) {
+        if (!isRecord(rawHolding)) throw new Error("Not a valid save file: invalid index fund holding");
+        shareHoldingsByCorporation.set(corpId, (shareHoldingsByCorporation.get(corpId) ?? 0) + (rawHolding["shares"] as number));
+      }
+    }
     for (const [corpId, rawCorp] of Object.entries(value["corporations"])) {
       if (!isRecord(rawCorp)) throw new Error("Not a valid save file: invalid corporation record");
       const shareholderRows = Array.isArray(rawCorp["shareholders"]) ? rawCorp["shareholders"] : [];
       const namedShares = shareholderRows.reduce((sum, row) => sum + (isRecord(row) && Number.isFinite(row["shares"]) ? row["shares"] as number : 0), 0);
-      const fundShares = isRecord(holdings[corpId]) ? (holdings[corpId] as Record<string, number>)["shares"] : 0;
+      const fundShares = shareHoldingsByCorporation.get(corpId) ?? 0;
       if (Math.abs(namedShares + fundShares + (rawCorp["publicFloat"] as number) - (rawCorp["totalShares"] as number)) > 1) {
         throw new Error("Not a valid save file: index fund shares do not reconcile with corporate float");
       }
     }
-    for (const corpId of Object.keys(holdings)) if (!Object.hasOwn(value["corporations"] as object, corpId)) {
+    for (const corpId of shareHoldingsByCorporation.keys()) if (!Object.hasOwn(value["corporations"] as object, corpId)) {
       throw new Error("Not a valid save file: index fund holds an unknown corporation");
     }
     for (const tx of Array.isArray(indexFundBook["transactions"]) ? indexFundBook["transactions"] : []) {
