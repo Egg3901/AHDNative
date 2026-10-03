@@ -1,11 +1,15 @@
 import type { WorldState } from "../types.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
+import { getRateForCountry, anchorToLocal, localToAnchor } from "../forex/conversion.js";
 import { GROWTH_RATE_TURNS_PER_YEAR } from "../corporation/constants.js";
 import { isCorpStateOwned, validateBondIssuerIdentity } from "./corporateBonds.js";
 import { resolveBondCurrency } from "./denomination.js";
 import type { Bond } from "./types.js";
 import { nativeCurrencyRate } from "./bondMarketPool.js";
 import { refreshIndexFundNav, settleIndexFundBondReceipt } from "../indexFunds/bondReserve.js";
+import { sourceUnownedHeadroomUnits } from "../corporation/nppCapacityReinvestment.js";
+import { corporateSectorBasePrices, sectorSupplyMix } from "../corporation/plantCapacity.js";
+import type { CorporateSectorAsset } from "../corporation/corporateSectorAssets.js";
 import {
   BUDGET_SOFTNESS_FOLD_THRESHOLD,
   COMMAND_CEILING,
@@ -214,6 +218,101 @@ function activeBondsFor(world: WorldState, corporationId: string): Bond[] {
 
 function homeCurrencyFor(world: WorldState, corporation: WorldState["corporations"][string]): string {
   return world.budgets[corporation.countryId]?.currencyCode?.trim() || "USD";
+}
+
+interface UnownedRestoreDelta {
+  key: string;
+  countryId: string;
+  sectorType: CorporateSectorAsset["sectorType"];
+  regionId?: string;
+  revenueLocal: number;
+}
+
+function sectorUnitYield(world: WorldState, sector: CorporateSectorAsset): number {
+  const prices = corporateSectorBasePrices(world);
+  let total = 0;
+  for (const [commodity, rate] of Object.entries(sectorSupplyMix(sector.sectorType, sector.strategyId))) {
+    const price = prices[commodity as keyof typeof prices];
+    if ((rate ?? 0) > 0 && Number.isFinite(price) && (price ?? 0) > 0) total += rate! / price!;
+  }
+  return Number.isFinite(total) ? total : 0;
+}
+
+/**
+ * Build the market-restoration leg from each asset's actual location and basis.
+ * Game restores plants capacity to the deleted sector's stateId pool; older
+ * Native assets with no stateId can use only an already-present national pool.
+ * We never infer a legacy asset's region from regional market shares.
+ */
+function planUnownedRestores(
+  world: WorldState,
+  corporation: WorldState["corporations"][string],
+  sectors: CorporateSectorAsset[],
+): { ok: true; deltas: UnownedRestoreDelta[] } | { ok: false; error: string } {
+  const deltas: UnownedRestoreDelta[] = [];
+  for (const sector of sectors) {
+    let countryId: string;
+    let regionId: string | undefined;
+    let key: string;
+    if (sector.stateId !== null) {
+      const region = world.regions[sector.stateId];
+      if (!region) return { ok: false, error: `Corporate sector ${sector.id} has no source region for restoration` };
+      countryId = region.countryId;
+      regionId = sector.stateId;
+      key = `${countryId}:${regionId}:${sector.sectorType}`;
+    } else {
+      key = `${sector.countryId}:${sector.sectorType}`;
+      if (!world.unownedSectors[key]) {
+        return { ok: false, error: `Corporate sector ${sector.id} has no recorded source location or legacy market pool` };
+      }
+      countryId = sector.countryId;
+    }
+
+    const hasPlantBasis = typeof sector.capitalStock === "number" || Array.isArray(sector.buildQueue);
+    let revenueLocal = 0;
+    if (hasPlantBasis) {
+      const pool = world.unownedSectors[key] ?? { countryId, sectorType: sector.sectorType, regionId, revenue: 0 };
+      const fxRate = getRateForCountry(world, countryId);
+      // One unit of source-local revenue at the current host rate is one anchor
+      // unit, so this read yields the source default-mix headroom per anchor.
+      const defaultYield = sourceUnownedHeadroomUnits(world, { ...pool, revenue: fxRate });
+      const sectorYield = sectorUnitYield(world, sector);
+      const stock = typeof sector.capitalStock === "number" && Number.isFinite(sector.capitalStock)
+        ? Math.max(0, sector.capitalStock)
+        : 0;
+      const queued = (sector.buildQueue ?? []).reduce((sum, order) =>
+        sum + (Number.isFinite(order.unitsOrdered) && order.unitsOrdered > 0 ? order.unitsOrdered : 0), 0);
+      if (!(defaultYield > 0) || !(sectorYield > 0) || !Number.isFinite(stock + queued)) {
+        return { ok: false, error: `Corporate sector ${sector.id} has invalid capacity for source restoration` };
+      }
+      // Game converts the asset's capacity mix to the unowned default mix before
+      // crediting headroom. The era term cancels between its per-capacity and
+      // per-anchor helpers, leaving the ratio of these two unit yields.
+      const returnedHeadroom = (stock + queued) * defaultYield / sectorYield;
+      revenueLocal = anchorToLocal(returnedHeadroom / defaultYield, fxRate);
+    } else {
+      const localRevenue = typeof sector.revenue === "number" && Number.isFinite(sector.revenue)
+        ? Math.max(0, sector.revenue)
+        : sectors.length === 1 ? Math.max(0, corporation.revenue) : NaN;
+      if (!Number.isFinite(localRevenue)) {
+        return { ok: false, error: `Corporate sector ${sector.id} has no attributable legacy revenue` };
+      }
+      revenueLocal = anchorToLocal(localToAnchor(localRevenue, getRateForCountry(world, sector.countryId)), getRateForCountry(world, countryId));
+    }
+    if (!Number.isFinite(revenueLocal) || revenueLocal < 0) {
+      return { ok: false, error: `Corporate sector ${sector.id} cannot be restored to its source market` };
+    }
+    if (revenueLocal > 0) deltas.push({ key, countryId, sectorType: sector.sectorType, regionId, revenueLocal });
+  }
+
+  const totals = new Map<string, number>();
+  for (const delta of deltas) totals.set(delta.key, (totals.get(delta.key) ?? 0) + delta.revenueLocal);
+  for (const delta of deltas) {
+    const pool = world.unownedSectors[delta.key];
+    const finalRevenue = (pool?.revenue ?? 0) + totals.get(delta.key)!;
+    if (!Number.isFinite(finalRevenue)) return { ok: false, error: `Unowned sector pool ${delta.key} cannot accept restored capacity` };
+  }
+  return { ok: true, deltas };
 }
 
 function isNppIssuerSparedBySoftBudget(world: WorldState, corporation: WorldState["corporations"][string]): boolean {
@@ -429,11 +528,8 @@ export function settleCorporateBondDefault(
     }
   }
 
-  const unownedPoolKey = `${corporation.countryId}:${corporation.sectorType}`;
-  const unownedPool = world.unownedSectors[unownedPoolKey];
-  if (sectorAssets.length > 0 && !Number.isFinite((unownedPool?.revenue ?? 0) + Math.max(0, corporation.revenue))) {
-    return { ok: false, error: `Unowned sector pool ${unownedPoolKey} cannot accept restored revenue` };
-  }
+  const restorePlan = planUnownedRestores(world, corporation, sectorAssets);
+  if (!restorePlan.ok) return restorePlan;
   if (publicFloatSharePayout > 0 && !Number.isFinite((centralBank?.reserveBalance ?? 0) + publicFloatSharePayout)) {
     return { ok: false, error: `Corporation ${corporationId} public-float payout overflows the central bank reserve` };
   }
@@ -559,16 +655,14 @@ export function settleCorporateBondDefault(
     refreshIndexFundNav(world, fund);
   }
 
-  if (sectorAssets.length > 0) {
-    // Native's one-sector-per-corporation, pre-plants model has no separate
-    // CorporateSector revenue row. Its aggregate corporation revenue is the
-    // source-backed legacy revenue returned to the country/sector pool.
-    const pool = (world.unownedSectors[unownedPoolKey] ??= {
-      countryId: corporation.countryId,
-      sectorType: corporation.sectorType,
+  for (const delta of restorePlan.deltas) {
+    const pool = (world.unownedSectors[delta.key] ??= {
+      countryId: delta.countryId,
+      ...(delta.regionId ? { regionId: delta.regionId } : {}),
+      sectorType: delta.sectorType,
       revenue: 0,
     });
-    pool.revenue += Math.max(0, corporation.revenue);
+    pool.revenue += delta.revenueLocal;
   }
 
   (world.corporateBondSettlementLedger ??= []).push(ledgerRecord);

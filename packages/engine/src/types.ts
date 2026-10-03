@@ -285,6 +285,8 @@ export interface WorldState {
    * single-sector — see corporation/types.ts file doc). Schema v19.
    */
   corporations: Record<string, Corporation>;
+  /** Source NPP CEOs for current source-seeded companies; absent on historical saves. */
+  corporateNppActors?: Record<string, CorporateNppActor>;
   /** Source-backed index-fund book. Absent in genuine saves before schema 71. */
   indexFundBook?: import("./indexFunds/types.js").IndexFundBook;
   /** Distinct CorporateSector assets with stateId null until regional ownership is sourced. Optional on pre-#293 schema-44 saves. */
@@ -1852,6 +1854,20 @@ export interface PoliticianPersonality {
   ambition: number;
   /** Stubbornness 0-100: high resists stance drift, low drifts fast */
   stubbornness: number;
+}
+
+/** First-class source NPP identity held by a newly seeded issuer; no personal balance is synthesized. */
+export interface CorporateNppActor {
+  /** Stable source-NPP identity, deliberately separate from Native politicians. */
+  id: string;
+  countryId: string;
+  homeRegionId: string;
+  partyId: string;
+  politicalInfluence: number;
+  sequentialId: number;
+  retiredAtTurn: number | null;
+  /** Source createNPP fallback when the seeded country has no eligible free NPP. */
+  generatedForFounding?: true;
 }
 
 export interface NppRelationship {

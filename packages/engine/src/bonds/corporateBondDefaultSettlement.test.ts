@@ -7,6 +7,9 @@ import { resetBondIdSequenceForTests } from "./bondTurn.js";
 import { issueCorporateBond } from "./corporateBonds.js";
 import { settleCorporateBondDefault, settleLingeringCorporateBondDefaults } from "./corporateBondDefaultSettlement.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
+import { executeAction } from "../actions/execute.js";
+import { sourceUnownedHeadroomUnits } from "../corporation/nppCapacityReinvestment.js";
+import { getEraNominalScale } from "../commodity/constants.js";
 
 const OPTS = { seed: "bond-phase-order", playerName: "Tester", countryId: "US", era: "1953" } as const;
 const CORP_ID = "US-manufacturing";
@@ -277,6 +280,48 @@ describe("corporate default at the public seam", () => {
     expect(world.unownedSectors[poolKey]!.revenue).toBe(unownedBefore + corp.revenue);
     expect(world.corporateSectors![sector.id]).toBeUndefined();
     expect(world.player.cash).toBeGreaterThan(playerCashBefore);
+  });
+
+  it("returns a publicly acquired located plant to its source regional pool on default", () => {
+    const world = createWorld({ ...OPTS, homeRegionId: "VA", seed: "located-corporate-default" });
+    world.player.cash = 1_000_000;
+    const startingCapital = Math.round(20_000_000 * getEraNominalScale(world.meta.era));
+    const founded = executeAction(world, "player", "foundCorporation", {
+      corporationName: "District Works",
+      tickerSymbol: "DIST",
+      sectorType: "manufacturing",
+      startingCapital,
+    });
+    expect(founded.ok, JSON.stringify(founded)).toBe(true);
+    const corp = Object.values(world.corporations).find((row) => row.tickerSymbol === "DIST")!;
+    const regionalKey = "US:VA:manufacturing";
+    const nationalKey = "US:manufacturing";
+    const regionalPool = world.unownedSectors[regionalKey]!;
+    const headroomBefore = sourceUnownedHeadroomUnits(world, regionalPool);
+
+    const expanded = executeAction(world, "player", "expandCorporationSector", {
+      corporationId: corp.id,
+      regionId: "VA",
+      sectorType: "manufacturing",
+    });
+    expect(expanded.ok, JSON.stringify(expanded)).toBe(true);
+    const asset = Object.values(corporateSectorAssets(world)).find((row) => row.corporationId === corp.id)!;
+    expect(asset.stateId).toBe("VA");
+    expect(sourceUnownedHeadroomUnits(world, regionalPool)).toBeLessThan(headroomBefore);
+    const bond = craftCorporate(world, { units: 1, couponRate: 4800, held: 1 }, corp.id);
+    bond.defaulted = true;
+    bond.defaultedAtTurn = world.meta.turn;
+
+    const result = settleCorporateBondDefault(world, corp.id);
+
+    expect(result.ok, result.ok ? "" : result.error).toBe(true);
+    expect(sourceUnownedHeadroomUnits(world, regionalPool)).toBeCloseTo(headroomBefore, 8);
+    expect(world.unownedSectors[nationalKey]).toBeUndefined();
+    expect(world.corporateSectors![asset.id]).toBeUndefined();
+
+    const reloaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    expect(reloaded.unownedSectors[regionalKey]).toEqual(world.unownedSectors[regionalKey]);
+    expect(reloaded.corporateSectors?.[asset.id]).toBeUndefined();
   });
 
   it("rejects an unsupported player-owned sector before settling any claimant", () => {

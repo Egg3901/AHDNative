@@ -6,6 +6,7 @@ import { serializeSave, deserializeSave } from "../save.js";
 import { runReferendumLifecycle } from "./lifecycle.js";
 import { corporationTurnPhase } from "../corporation/corporationTurn.js";
 import { materializeSourceParentSectorRows } from "../corporation/sourceRegionalSectorSeed.js";
+import { CORPORATION_TYPES } from "../corporation/types.js";
 
 describe("referendum secession sector fan-out", () => {
   it("materializes the source parent-sector rows before the independence event", () => {

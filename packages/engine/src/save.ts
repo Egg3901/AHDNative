@@ -1239,10 +1239,13 @@ function assertCurrentWorldState(world: WorldState): void {
       let namedShares = 0;
       const seenFunds = new Set<string>();
       for (const rawRow of shareholderRows) {
-        if (!isRecord(rawRow) || Object.keys(rawRow).some((key) => !["holder", "shares", "avgCostPerShare", "fundSlug"].includes(key)) ||
+        if (!isRecord(rawRow) || Object.keys(rawRow).some((key) => !["holder", "shares", "avgCostPerShare", "fundSlug", "nppId"].includes(key)) ||
             !["npc", "player", "fund"].includes(String(rawRow["holder"])) || !Number.isSafeInteger(rawRow["shares"]) || (rawRow["shares"] as number) <= 0 ||
             (rawRow["avgCostPerShare"] !== undefined && (!Number.isFinite(rawRow["avgCostPerShare"]) || (rawRow["avgCostPerShare"] as number) <= 0))) {
           throw new Error("Not a valid save file: invalid corporate shareholder row");
+        }
+        if (rawRow["nppId"] !== undefined && (rawRow["holder"] !== "npc" || typeof rawRow["nppId"] !== "string" || !isRecord(value["corporateNppActors"]) || !isRecord(value["corporateNppActors"][rawRow["nppId"]]))) {
+          throw new Error("Not a valid save file: corporate shareholder has no source NPP identity");
         }
         if (rawRow["holder"] === "fund") {
           const slug = rawRow["fundSlug"];
@@ -4292,6 +4295,10 @@ export function deserializeSave(raw: string): WorldState {
   // v71 introduces the index fund book. Historical saves deliberately retain
   // absence: no seed reserves or positions are reconstructed from the schema.
   if (save.schemaVersion < 71) save.world.meta.schemaVersion = 71;
+  // v72: source-seeded NPP issuers have named CEO/holder identities, a real
+  // regional HQ asset, and an explicit starting-capital grant witness. Older
+  // worlds keep actor and grant history absent; neither is reconstructed.
+  if (save.schemaVersion < 72) save.world.meta.schemaVersion = 72;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -4359,6 +4366,29 @@ export function deserializeSave(raw: string): WorldState {
   validateStateOwnershipLedger(save.world);
   validatePendingNationalizations(save.world);
   if (save.world.corporateCashLedger !== undefined) validateCorporateCashLedger(save.world.corporateCashLedger);
+  if (save.world.corporateNppActors !== undefined) {
+    const actors = save.world.corporateNppActors as unknown;
+    if (!isRecord(actors)) throw new Error("Not a valid save file: invalid corporate NPP actor map");
+    const referenced = new Set<string>();
+    for (const [id, rawActor] of Object.entries(actors)) {
+      if (!isRecord(rawActor) || Object.keys(rawActor).some((key) => !["id", "countryId", "homeRegionId", "partyId", "politicalInfluence", "sequentialId", "retiredAtTurn", "generatedForFounding"].includes(key)) ||
+          rawActor["id"] !== id || typeof rawActor["countryId"] !== "string" || !save.world.countries[rawActor["countryId"]] ||
+          typeof rawActor["homeRegionId"] !== "string" || save.world.regions[rawActor["homeRegionId"]]?.countryId !== rawActor["countryId"] ||
+          typeof rawActor["partyId"] !== "string" || (rawActor["partyId"] !== "independent" && save.world.parties[rawActor["partyId"]]?.countryId !== rawActor["countryId"]) ||
+          typeof rawActor["politicalInfluence"] !== "number" || !Number.isFinite(rawActor["politicalInfluence"]) || rawActor["politicalInfluence"] < 0 || rawActor["politicalInfluence"] > 100 ||
+          typeof rawActor["sequentialId"] !== "number" || !Number.isSafeInteger(rawActor["sequentialId"]) || rawActor["sequentialId"] < 1 ||
+          (rawActor["retiredAtTurn"] !== null && (typeof rawActor["retiredAtTurn"] !== "number" || !Number.isSafeInteger(rawActor["retiredAtTurn"]) || rawActor["retiredAtTurn"] < 0)) ||
+          (rawActor["generatedForFounding"] !== undefined && rawActor["generatedForFounding"] !== true)) {
+        throw new Error(`Not a valid save file: invalid corporate NPP actor ${id}`);
+      }
+      referenced.add(id);
+    }
+    for (const corporation of Object.values(save.world.corporations)) {
+      if (corporation.ceoType === "npp" && corporation.ceoId && !referenced.has(corporation.ceoId)) {
+        throw new Error(`Not a valid save file: corporate NPP CEO ${corporation.ceoId} is not recorded`);
+      }
+    }
+  }
   validateNationalizationEligibilityState(save.world);
   validateNationalCorporations(save.world);
   validateCanvassState(save.world);

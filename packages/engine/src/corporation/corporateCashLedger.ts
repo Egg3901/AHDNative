@@ -4,7 +4,7 @@ import type { Corporation } from "./types.js";
 /** Source financialTxLog row for a successful NPP technology cash write. */
 export interface CorporateCashLedgerRecord {
   id: string;
-  type: "corp_tech_unlock" | "corp_capacity_build" | "corp_sector_founding";
+  type: "corp_tech_unlock" | "corp_capacity_build" | "corp_sector_founding" | "corp_starting_grant";
   turn: number;
   corporationId: string;
   corporationName: string;
@@ -13,6 +13,8 @@ export interface CorporateCashLedgerRecord {
   currencyCode: string;
   meta: {
     ledgerKey: string;
+    source?: "npp_seed";
+    grantAnchor?: number;
     nodeId?: string;
     nodeName?: string;
     decadeId?: string;
@@ -120,19 +122,23 @@ export function validateCorporateCashLedger(value: unknown): void {
     const details = meta as Record<string, unknown>;
     const isCapacity = row["type"] === "corp_capacity_build";
     const isFounding = row["type"] === "corp_sector_founding";
+    const isStartingGrant = row["type"] === "corp_starting_grant";
     const isAssetCash = isCapacity || isFounding;
-    const identity = [row["corporationId"], isAssetCash ? details["sectorId"] : details["nodeId"], row["turn"]];
+    const identity = [row["corporationId"], isAssetCash ? details["sectorId"] : isStartingGrant ? "t1" : details["nodeId"], row["turn"]];
     const expectedId = typeof identity[0] === "string" && typeof identity[1] === "string" && Number.isInteger(identity[2])
-      ? isCapacity ? `capacity-build:${identity[0]}:${identity[1]}:t${identity[2]}` : isFounding ? `sector-founding:${identity[0]}:${identity[1]}:t${identity[2]}` : corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
+      ? isCapacity ? `capacity-build:${identity[0]}:${identity[1]}:t${identity[2]}` : isFounding ? `sector-founding:${identity[0]}:${identity[1]}:t${identity[2]}` : isStartingGrant ? `starting-grant:${identity[0]}:t0` : corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
       : "";
     if (!expectedId || row["id"] !== expectedId || details["ledgerKey"] !== expectedId || ids.has(expectedId)) {
       throw new Error("Invalid corporate cash ledger identity");
     }
-    if ((row["type"] !== "corp_tech_unlock" && !isAssetCash) || typeof identity[2] !== "number" || (identity[2] as number) < 0) {
+    if ((row["type"] !== "corp_tech_unlock" && !isAssetCash && !isStartingGrant) || typeof identity[2] !== "number" || (identity[2] as number) < 0 || (isStartingGrant && identity[2] !== 1)) {
       throw new Error(`Invalid corporate cash ledger type or turn for ${expectedId}`);
     }
-    if (typeof row["amount"] !== "number" || !Number.isFinite(row["amount"]) || row["amount"] >= 0) {
+    if (typeof row["amount"] !== "number" || !Number.isFinite(row["amount"]) || (isStartingGrant ? row["amount"] <= 0 : row["amount"] >= 0)) {
       throw new Error(`Invalid corporate cash ledger amount for ${expectedId}`);
+    }
+    if (isStartingGrant && (details["source"] !== "npp_seed" || typeof details["grantAnchor"] !== "number" || !Number.isFinite(details["grantAnchor"]) || details["grantAnchor"] <= 0)) {
+      throw new Error(`Invalid corporate starting grant provenance for ${expectedId}`);
     }
     if (typeof row["currencyCode"] !== "string" || row["currencyCode"].length === 0) {
       throw new Error(`Invalid corporate cash ledger currency for ${expectedId}`);
@@ -140,7 +146,7 @@ export function validateCorporateCashLedger(value: unknown): void {
     for (const key of ["corporationName"] as const) {
       if (typeof row[key] !== "string" || row[key].length === 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
-    for (const key of (isAssetCash ? ["sectorType"] : ["nodeName", "decadeId", "lane"]) as string[]) {
+    for (const key of (isStartingGrant ? [] : isAssetCash ? ["sectorType"] : ["nodeName", "decadeId", "lane"]) as string[]) {
       if (typeof details[key] !== "string" || details[key].length === 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
     for (const key of (isAssetCash ? ["units", "costAnchor", "onlineTurn"] : ["slot", "rdCost"]) as string[]) {

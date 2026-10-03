@@ -321,6 +321,8 @@ export interface ShareholderEntry {
   avgCostPerShare?: number;
   /** Fund catalogue key when holder is `fund`; mirrors Game Shareholder.fundId. */
   fundSlug?: string;
+  /** Stable source NPP identity for a named NPC block; absent on legacy aggregates. */
+  nppId?: string;
 }
 
 /**

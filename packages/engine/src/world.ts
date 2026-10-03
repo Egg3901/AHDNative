@@ -38,6 +38,7 @@ import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/co
 import type { CentralBank } from "./centralBank/types.js";
 import { seedCorporations, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
 import { materializeSourceParentSectorRows, seedSourceRegionalUnownedMarkets } from "./corporation/sourceRegionalSectorSeed.js";
+import { seedSourceNppCorporations } from "./corporation/nppSourceBootstrap.js";
 import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { seedNpcBanks } from "./banking/npcBanks.js";
 import { seedUnions } from "./unions/founding.js";
@@ -202,7 +203,10 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v71: source-seeded index fund definitions, custody positions, units, redemption claims,
 // and source-written issuer credit/default continuation consumed by bond-fund mandates.
 // Older worlds retain absence; no fund seed or credit history is fabricated during migration.
-export const SCHEMA_VERSION = 71;
+// v72: source-seeded market corporations carry their real per-issuer NPP CEO identity,
+// located HQ asset and starting treasury grant. Historical GDP aggregate issuers keep
+// their old unlocated projection and do not receive inferred actors or market history.
+export const SCHEMA_VERSION = 72;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1385,6 +1389,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   world.countryPolitics = seedCountryPolitics(world);
   materializeSourceParentSectorRows(world);
   seedSourceRegionalUnownedMarkets(world);
+  seedSourceNppCorporations(world);
   if (options.foundingElections === true && stampFoundingMarker(world)) {
     runFoundingSweep(world, rng);
     world.meta.rng = rng.state();
