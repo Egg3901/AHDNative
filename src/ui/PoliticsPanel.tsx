@@ -452,10 +452,17 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
       `${target.category}:${target.group}` === current) ? current : "");
   }, [campaign.canvassing.targets]);
   const [targetedAdTarget, setTargetedAdTarget] = useState("");
+  const [targetedAdRegion, setTargetedAdRegion] = useState(campaign.targetedAds.regionId ?? "");
   useEffect(() => {
-    setTargetedAdTarget((current) => campaign.targetedAds.targets.some((target) =>
+    setTargetedAdRegion((current) => campaign.targetedAds.regions.some((region) => region.id === current)
+      ? current
+      : campaign.targetedAds.regionId ?? campaign.targetedAds.regions[0]?.id ?? "");
+  }, [campaign.targetedAds.regions, campaign.targetedAds.regionId]);
+  const regionTargetedAds = campaign.targetedAds.targets.filter((target) => target.regionId === targetedAdRegion);
+  useEffect(() => {
+    setTargetedAdTarget((current) => regionTargetedAds.some((target) =>
       `${target.category}:${target.group}` === current) ? current : "");
-  }, [campaign.targetedAds.targets]);
+  }, [regionTargetedAds]);
   const [strengthTargetId, setStrengthTargetId] = useState("player");
   useEffect(() => {
     setStrengthTargetId((current) =>
@@ -464,7 +471,7 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
         : campaign.strength.targets.find((target) => target.isPlayer)?.candidateId
           ?? campaign.strength.targets[0]?.candidateId ?? "player");
   }, [campaign.strength.targets]);
-  const selectedTargetedAd = campaign.targetedAds.targets.find((target) =>
+  const selectedTargetedAd = regionTargetedAds.find((target) =>
     `${target.category}:${target.group}` === targetedAdTarget);
   const targetSelectionAvailable = campaign.oppositionResearch.action.available
     || campaign.oppositionResearch.action.disabledReason === "Select an opposition target.";
@@ -488,12 +495,13 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
     });
   };
   const buyTargetedAd = () => {
-    if (busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed || !campaign.targetedAds.regionId) return;
+    if (busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed || !targetedAdRegion) return;
     onAction("campaignTargetedAd", {
       electionId,
-      regionId: campaign.targetedAds.regionId,
+      regionId: targetedAdRegion,
       demographicCategory: selectedTargetedAd.category,
       demographicGroup: selectedTargetedAd.group,
+      expectedRevision: campaign.targetedAds.revision,
     });
   };
   const contributeStrength = (
@@ -772,8 +780,21 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
       <section aria-label="Targeted advertising" style={{ marginTop: "0.6rem" }}>
         <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Targeted advertising</h4>
         <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>
-          Region: {campaign.targetedAds.regionId ?? "none"}. Each purchase costs one action and 100 funds; exposure decays over 24 turns and caps at 25%.
+          Each purchase costs one action and 100 funds; exposure halves every 24 turns and caps at 25%.
         </p>
+        <label className="ahd-field" style={{ maxWidth: "24rem" }}>
+          <span className="ahd-label">Ad region</span>
+          <select
+            className="ahd-select"
+            aria-label="Targeted ad region"
+            value={targetedAdRegion}
+            onChange={(event) => setTargetedAdRegion(event.target.value)}
+            disabled={busy || !campaign.targetedAds.action.available || campaign.targetedAds.regions.length === 0}
+          >
+            {campaign.targetedAds.regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
+            {campaign.targetedAds.regions.length === 0 ? <option value="">No eligible regions</option> : null}
+          </select>
+        </label>
         <label className="ahd-field" style={{ maxWidth: "24rem" }}>
           <span className="ahd-label">Ad target</span>
           <select
@@ -784,7 +805,7 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
             disabled={busy || !campaign.targetedAds.action.available}
           >
             <option value="">Select an ad target</option>
-            {campaign.targetedAds.targets.map((target) => (
+            {regionTargetedAds.map((target) => (
               <option key={`${target.category}:${target.group}`} value={`${target.category}:${target.group}`}>
                 {target.groupName} ({target.categoryName}) - {(target.bonus * 100).toFixed(1)}%{target.maxed ? " (cap)" : ""}
               </option>
@@ -795,8 +816,8 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
           <button
             type="button"
             className="ahd-btn ahd-btn-sm"
-            disabled={busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed}
-            aria-disabled={busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed}
+            disabled={busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed || !targetedAdRegion}
+            aria-disabled={busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed || !targetedAdRegion}
             aria-label="Buy targeted ads for selected target"
             onClick={buyTargetedAd}
           >

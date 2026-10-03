@@ -43,6 +43,7 @@ export type ActionId =
   | "fundraise"
   | "campaign"
   | "advertise"
+  | "targetedAds"
   | "buildDonorBase"
   | "poll"
   | "pollLarge"
@@ -1237,6 +1238,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "campaignTargetedAd",
     name: "Buy targeted ads",
     description: "Spend one action and 100 funds to buy targeted ads for a demographic group in the campaign region.",
+    baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
+    cooldown: 0,
+    fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
+    systems: ["campaign/targeting"],
+    status: "available",
+  },
+  targetedAds: {
+    id: "targetedAds",
+    name: "Targeted Ads",
+    description: "Spend one action and 100 funds on voter exposure in an eligible region. Ads decay over 24 turns and cap at 25%.",
     baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
     cooldown: 0,
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,

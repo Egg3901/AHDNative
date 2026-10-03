@@ -214,6 +214,8 @@ export type ExecuteActionParams = {
   managerId?: string;
   demographicCategory?: string;
   demographicGroup?: string;
+  /** Optimistic quote revision for standing ad purchase. */
+  expectedRevision?: number;
   // #68 campaign strength
   /** Batched single-click count for campaignContribute; "max" resolves server-side. */
   clicks?: number | "max";
@@ -1117,6 +1119,23 @@ function executeActionInner(
       regionId: params.regionId,
       demographicCategory: params.demographicCategory,
       demographicGroup: params.demographicGroup,
+      expectedRevision: params.expectedRevision,
+    });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "targetedAds") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can buy standing targeted ads" };
+    const res = CampaignTargetedAd.purchaseStandingTargetedAd(world, {
+      regionId: params.regionId,
+      demographicCategory: params.demographicCategory,
+      demographicGroup: params.demographicGroup,
+      expectedRevision: params.expectedRevision,
     });
     if (!res.ok) {
       actor.actions += cost;
@@ -2855,9 +2874,13 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         ? null
         : "campaignCanvass requires electionId, regionId, demographicCategory, and demographicGroup";
     case "campaignTargetedAd":
-      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
+      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup && typeof params.expectedRevision === "number"
         ? null
-        : "campaignTargetedAd requires electionId, regionId, demographicCategory, and demographicGroup";
+        : "campaignTargetedAd requires electionId, regionId, demographicCategory, demographicGroup, and expectedRevision";
+    case "targetedAds":
+      return params.regionId && params.demographicCategory && params.demographicGroup && typeof params.expectedRevision === "number"
+        ? null
+        : "targetedAds requires regionId, demographicCategory, demographicGroup, and expectedRevision";
     case "campaignContribute":
       return params.electionId ? null : "campaignContribute requires electionId";
     case "sponsorBill":

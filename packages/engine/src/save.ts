@@ -67,6 +67,7 @@ import {
   validateBargainingCampaigns,
   validateCollectiveAgreements,
 } from "./unions/campaigns.js";
+import { validateTargetedAds } from "./campaigns/targetedAds.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -212,6 +213,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         return { ok: false, error: `Active currency-volume pressure cannot be continued by the schema 42 turn reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
       }
     }
+  }
+  const standingAds = isRecord(world["player"]) ? world["player"]["targetedAds"] : undefined;
+  if (Array.isArray(standingAds) && standingAds.length > 0) {
+    return { ok: false, error: "Standing targeted-ad exposure cannot be continued by the schema 42 turn reader; keep this Native save." };
   }
   if (hasOwn(world, "pendingNationalizations")) {
     return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
@@ -4029,6 +4034,11 @@ export function deserializeSave(raw: string): WorldState {
   // v68: preserve genuinely absent regional rows and coexistence baselines
   // until their first ordinary cost-of-living metric turn.
   if (save.schemaVersion < 68) save.world.meta.schemaVersion = 68;
+  // v69: source-shaped standing ad flights and quote revision are optional
+  // player state. Leave prior campaign-targeted-ad modifiers untouched: their
+  // purchase turn, state and exposure history cannot be reconstructed from
+  // the old flat category/group map.
+  if (save.schemaVersion < 69) save.world.meta.schemaVersion = 69;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -4063,6 +4073,16 @@ export function deserializeSave(raw: string): WorldState {
     // backfill above, and tolerant of absent values for old saves. No version
     // renumber is needed.
     if (typeof campaign.campaignStrength !== "number") campaign.campaignStrength = 0;
+  }
+  if (save.world.player.targetedAds !== undefined) {
+    validateTargetedAds(save.world.player.targetedAds, "player.targetedAds", save.world);
+    if (!Number.isSafeInteger(save.world.player.targetedAdsRevision) || (save.world.player.targetedAdsRevision ?? -1) < 0) {
+      throw new Error("Invalid targetedAdsRevision at player");
+    }
+  }
+  if (save.world.player.targetedAdsRevision !== undefined &&
+    (!Number.isSafeInteger(save.world.player.targetedAdsRevision) || save.world.player.targetedAdsRevision < 0)) {
+    throw new Error("Invalid targetedAdsRevision at player");
   }
   // Pre-#48 Native saves always applied recorded stats. Preserve that ruleset
   // when the new key is absent; present malformed values still fail closed.

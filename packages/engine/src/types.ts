@@ -1083,6 +1083,10 @@ export interface PlayerCharacter {
   lastUndergroundDriveTurn?: number | null;
   /** Campaign funds (local) for player. */
   funds: number;
+  /** Source Character.targetedAds standing exposure, shared across candidacies. */
+  targetedAds?: import("./campaigns/targetedAds.js").TargetedAd[];
+  /** Revision guarding quote-to-purchase state for standing targeted ads. */
+  targetedAdsRevision?: number;
   donorBaseLevel: number;
   politicalInfluence: number;
   /** Accumulated national reputation. Legacy saves omit it and start at zero. */

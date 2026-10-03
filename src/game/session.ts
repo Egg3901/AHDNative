@@ -29,7 +29,7 @@ import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
-  isCorpStateOwned, privateEnterprisePermittedInCountry,
+  isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, currentAdBonus,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -63,6 +63,7 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "campaign", category: "influence" },
   { id: "advertise", category: "influence" },
   { id: "canvass", category: "influence", prerequisite: "Choose a demographic in your eligible state." },
+  { id: "targetedAds", requires: "targetedAd", category: "influence", prerequisite: "Choose an eligible region and voter group." },
   { id: "joinParty", requires: "party", category: "influence", prerequisite: "Choose a party." },
   { id: "leaveParty", category: "influence", prerequisite: "Requires party membership." },
   { id: "fundraise", category: "fundraising", prerequisite: "Requires a donor network." },
@@ -78,6 +79,7 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "relocatePlayerWithCorporation", requires: "corporationRegion", category: "executive", prerequisite: "Requires residence at the corporation headquarters and an active CEO; relocation starts a 72-turn personal cooldown." },
 ];
 const HOS_ACTIONS: typeof ACTIONS = [
+  { id: "targetedAds", requires: "targetedAd", category: "influence", prerequisite: "Choose an eligible region and voter group." },
   { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
   { id: "adjustTaxRate", requires: "taxRate", category: "executive", prerequisite: "Phases in from the next turn boundary, like enacted tax law." },
   { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting head of government and an eligible domestic issuer." },
@@ -967,6 +969,15 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   const capabilityNav = projectCapabilityNav(world);
   const myCorporation = projectMyCorporation(world);
   const canvassing = projectCanvassing(world);
+  const targetedAdRegions = standingTargetedAdRegions(world);
+  const targetedAdChoices = [...new Map((world.demographicCategories[player.countryId] ?? []).flatMap((category) =>
+    category.groups.map((group) => [`${category._id}:${group.id}`, {
+      id: `${category._id}:${group.id}`,
+      label: `${group.name} (${category.name})`,
+      categoryId: category._id,
+      groupId: group.id,
+    }] as const),
+  )).values()];
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     foundingActive: isFoundingActive(world.elections),
@@ -1025,7 +1036,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       // advertises an action executeAction unconditionally refuses (the
       // statless quick-create path); the engine error stays authoritative.
       const characterReason = characterActionDisabledReason(world, id);
-      const choices = id === "nationalizeCorporation" ? nationalizationTargets(world)
+      const choices = id === "targetedAds" ? targetedAdChoices.map(({ id, label }) => ({ id, label }))
+        : id === "nationalizeCorporation" ? nationalizationTargets(world)
         : id === "voteCorporateRelocation" ? corporateRelocationChoices(world, id)
         : id === "openCorporateRelocationVote" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation"
           ? corporateRelocationChoices(world, id) : undefined;
@@ -1045,10 +1057,18 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "debatePrep" && !world.featureFlags.rpgStats ? "The stat system is not currently enabled."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
         : id === "canvass" && canvassing.error ? canvassing.error
+        : id === "targetedAds" && targetedAdRegions.length === 0 ? "Choose a home region before buying targeted ads."
+        : id === "targetedAds" && targetedAdChoices.length === 0 ? "No recorded demographic targets are available."
+        : id === "targetedAds" && targetedAdRegions.every((regionId) => targetedAdChoices.every((target) =>
+          currentAdBonus(player.targetedAds ?? [], { stateId: regionId, dimension: target.categoryId, bucket: target.groupId }, world.meta.turn) >= 0.25 - 1e-10)) ? "All eligible ad audiences are at the bonus cap."
         : id === "leaveParty" && !player.partyId ? "You are independent."
         : id === "joinParty" ? joinPartyDisabledReason(world) : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
+        ...(id === "targetedAds" ? {
+          regionChoices: targetedAdRegions.map((regionId) => ({ id: regionId, label: world.regions[regionId]?.name ?? regionId })),
+          quoteRevision: player.targetedAdsRevision ?? 0,
+        } : {}),
         ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: campaignAnchorToLocal(fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)), player.countryId) } : {}),
         ...(requires ? { requires } : {}), ...(choices ? { choices } : {}), ...(destinations ? { destinations } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };

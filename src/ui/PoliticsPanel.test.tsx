@@ -379,7 +379,9 @@ describe("PoliticsPanel elections", () => {
       },
       targetedAds: {
         regionId: "AL",
-        targets: [{ category: "voterGroups", categoryName: "Voter Groups", group: "young_renters", groupName: "Young Renters", bonus: 0, maxed: false }],
+        regions: [{ id: "AL", name: "Alabama" }, { id: "NY", name: "New York" }],
+        revision: 0,
+        targets: ["AL", "NY"].map((regionId) => ({ regionId, category: "voterGroups", categoryName: "Voter Groups", group: "young_renters", groupName: "Young Renters", bonus: 0, maxed: false })),
         action: { id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1, available: true },
       },
       activity: [{
@@ -419,13 +421,15 @@ describe("PoliticsPanel elections", () => {
       demographicCategory: "voterGroups",
       demographicGroup: "young_renters",
     });
+    await user.selectOptions(screen.getByLabelText("Targeted ad region"), "NY");
     await user.selectOptions(screen.getByLabelText("Targeted ad target"), "voterGroups:young_renters");
     await user.click(screen.getByRole("button", { name: "Buy targeted ads for selected target" }));
     expect(onAction).toHaveBeenCalledWith("campaignTargetedAd", {
       electionId: "house:US:AL:c1",
-      regionId: "AL",
+      regionId: "NY",
       demographicCategory: "voterGroups",
       demographicGroup: "young_renters",
+      expectedRevision: 0,
     });
     expect(screen.getByText(/1,500 strength · \+3\.0% vote boost/)).toBeInTheDocument();
     expect(screen.getByText(/Contribute x1/)).toBeInTheDocument();
@@ -527,6 +531,8 @@ describe("PoliticsPanel elections", () => {
       },
       targetedAds: {
         regionId: "AL",
+        regions: [{ id: "AL", name: "Alabama" }],
+        revision: 0,
         targets: [],
         action: {
           id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1,
@@ -836,7 +842,7 @@ function makeCampaignView(): NonNullable<RaceDetail["playerCampaign"]> {
     oppositionResearch: { targetId: null, targetName: null, cooldownTurns: 0, targets: [], action: { id: "campaignRetarget", name: "Set opposition target", description: "", cost: 0, available: true } },
     manager: { managerId: null, managerName: null, managers: [], action: { id: "campaignManager", name: "Set campaign manager", description: "", cost: 0, available: true } },
     canvassing: { regionId: null, targets: [], action: { id: "campaignCanvass", name: "Canvass", description: "", cost: 1, available: true } },
-    targetedAds: { regionId: null, targets: [], action: { id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1, available: true } },
+    targetedAds: { regionId: null, regions: [], revision: 0, targets: [], action: { id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1, available: true } },
     activity: [],
     levers: [],
   };

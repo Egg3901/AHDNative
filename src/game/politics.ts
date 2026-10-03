@@ -11,6 +11,7 @@ import {
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
   CAMPAIGN_TARGETED_AD_CAP,
+  campaignTargetedAdRegions, currentAdBonus,
   requiresPrimaryResolution,
   ukCommonsByElectionGate, type CommonsByElectionGate,
   UK_DEVOLUTION_REGIONS,
@@ -130,7 +131,10 @@ export interface PoliticsCampaignCanvassingView {
 
 export interface PoliticsCampaignTargetedAdsView {
   regionId: string | null;
+  revision: number;
+  regions: { id: string; name: string }[];
   targets: {
+    regionId: string;
     category: string;
     categoryName: string;
     group: string;
@@ -828,32 +832,45 @@ function campaignTargetedAdsAction(
   campaign: Campaign,
   campaignReason?: string,
 ): PoliticsCampaignTargetedAdsView {
-  const regionId = election.state ?? campaign.countryId;
-  const state = world.stateDemographics[regionId];
+  const regions = campaignTargetedAdRegions(world, election);
+  const defaultRegion = world.player.homeRegionId && regions.includes(world.player.homeRegionId)
+    ? world.player.homeRegionId
+    : regions[0];
   const categories = world.demographicCategories[campaign.countryId] ?? [];
-  const targets = categories.flatMap((category) => category.groups
-    .filter((group) => state?.groups[group.id] != null)
-    .map((group) => {
-      const bonus = campaign.targetedAdModifiers?.[`${category._id}:${group.id}`] ?? 0;
-      return {
-        category: category._id,
-        categoryName: category.name,
-        group: group.id,
-        groupName: group.name,
-        bonus,
-        maxed: bonus >= CAMPAIGN_TARGETED_AD_CAP - 1e-10,
-      };
-    }));
+  const targets = regions.flatMap((regionId) => {
+    const state = world.stateDemographics[regionId];
+    return categories.flatMap((category) => category.groups
+      .filter((group) => state?.groups[group.id] != null)
+      .map((group) => {
+        const bonus = currentAdBonus(world.player.targetedAds ?? [], {
+          stateId: regionId,
+          dimension: category._id,
+          bucket: group.id,
+        }, world.meta.turn);
+        return {
+          regionId,
+          category: category._id,
+          categoryName: category.name,
+          group: group.id,
+          groupName: group.name,
+          bonus,
+          maxed: bonus >= CAMPAIGN_TARGETED_AD_CAP - 1e-10,
+        };
+      }));
+  });
   const entry = ACTION_CATALOG.campaignTargetedAd;
   const cost = getActionCost(entry, world.player.donorBaseLevel, world.player.politicalInfluence, world.player.favorability);
+  const fundCost = campaignAnchorToLocal(entry.fundCost, world.player.countryId);
   const reason = campaignReason
-    ?? (!state ? "No campaign region is available." : undefined)
+    ?? (!defaultRegion ? "No campaign region is available." : undefined)
     ?? (targets.length === 0 ? "No eligible campaign demographic targets." : undefined)
     ?? (targets.every((target) => target.maxed) ? "All targeted ad audiences are at the bonus cap." : undefined)
     ?? (world.player.actions < cost ? "Not enough action points." : undefined)
-    ?? (world.player.funds < entry.fundCost ? "Not enough funds." : undefined);
+    ?? (world.player.funds < fundCost ? "Not enough funds." : undefined);
   return {
-    regionId: state ? regionId : null,
+    regionId: defaultRegion ?? null,
+    regions: regions.map((regionId) => ({ id: regionId, name: world.regions[regionId]?.name ?? regionId })),
+    revision: world.player.targetedAdsRevision ?? 0,
     targets,
     action: {
       id: "campaignTargetedAd",
