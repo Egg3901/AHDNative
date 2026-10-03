@@ -151,18 +151,30 @@ describe("schema 42 projection of public save envelopes", () => {
       expect(projected.error, field).toContain("CEO governance or compensation state");
     }
 
-    // The retained pre-control Native writer isolates the public CEO actions
-    // from unrelated incompatibilities now present in every fresh world.
-    const playerWorld = deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
-    playerWorld.regionalMetrics = {};
-    expect(executeAction(playerWorld, "player", "buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
-    expect(executeAction(playerWorld, "player", "voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    const playerWorld = createWorld({
+      seed: "v42-ceo-refusal", playerName: "Validator", countryId: "US", era: "1953", homeRegionId: "DC",
+    });
+    expect(executeAction(playerWorld, "player", "buyShares", { corpId: "US-media", shares: 1 })).toMatchObject({ ok: true });
+    expect(executeAction(playerWorld, "player", "voteCeo", { corpId: "US-media", candidateId: "player" })).toMatchObject({ ok: true });
     expect(projectSaveToV42(serializeSave(playerWorld, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("source 48-turn election clock"),
+    });
+    // Transfer the actual public-action relationship to a migrated authentic
+    // v42 world to isolate its refusal. The complete modern world is retained.
+    const recorded = deserializeSave(loadAuthenticV42());
+    const produced = playerWorld.corporations["US-media"]!;
+    Object.assign(recorded.corporations["US-media"]!, {
+      ceoVotes: structuredClone(produced.ceoVotes), pendingCeoId: produced.pendingCeoId,
+    });
+    expect(projectSaveToV42(serializeSave(recorded, SAVED_AT))).toMatchObject({
       ok: false,
       error: expect.stringContaining("CEO governance or compensation state"),
     });
-    expect(executeAction(playerWorld, "player", "acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
-    expect(projectSaveToV42(serializeSave(playerWorld, SAVED_AT))).toMatchObject({
+    expect(executeAction(playerWorld, "player", "acceptCeoAppointment", { corpId: "US-media" })).toMatchObject({ ok: true });
+    Object.assign(recorded.corporations["US-media"]!, {
+      ceoType: produced.ceoType, ceoId: produced.ceoId, ceoVacant: produced.ceoVacant,
+    });
+    expect(projectSaveToV42(serializeSave(recorded, SAVED_AT))).toMatchObject({
       ok: false,
       error: expect.stringContaining("CEO governance or compensation state"),
     });

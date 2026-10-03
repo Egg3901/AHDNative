@@ -13,6 +13,7 @@ function recordedJapaneseOfficeSave(): string {
   // This recorded consumer fixture isolates an eligible office continuation.
   // It is not an authentic historical Native writer or an earned appointment.
   // New JP character creation stays unavailable.
+  world.countries.JP!.playable = true;
   world.player.countryId = "JP";
   world.player.homeRegionId = null;
   world.cabinetMembers.push({
