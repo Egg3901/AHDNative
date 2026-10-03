@@ -11,6 +11,10 @@ describe("validatePack", () => {
     const artifact = SOURCE_REFERENCE_ERA_OUTPUTS as unknown as {
       provenance: { sourceRepository: string; sourceCommit: string; sourceFiles: string[]; normalizedRuntimeFields: string[] };
       historicalSeatRoster2020Fallback: { rowCount: number; sha256: string; rows: unknown[] };
+      us2023StateContent: {
+        regionOutput: { rowCount: number; sha256: string; rows: unknown[] };
+        demographicOutput: { stateCount: number; sha256: string; states: Record<string, unknown> };
+      };
       eras: Array<{
         year: number;
         preset: string;
@@ -29,6 +33,10 @@ describe("validatePack", () => {
     );
     expect(artifact.historicalSeatRoster2020Fallback.rowCount).toBe(1007);
     expect(sha256(artifact.historicalSeatRoster2020Fallback.rows)).toBe(artifact.historicalSeatRoster2020Fallback.sha256);
+    expect(artifact.us2023StateContent.regionOutput.rowCount).toBe(51);
+    expect(sha256(artifact.us2023StateContent.regionOutput.rows)).toBe(artifact.us2023StateContent.regionOutput.sha256);
+    expect(artifact.us2023StateContent.demographicOutput.stateCount).toBe(51);
+    expect(sha256(artifact.us2023StateContent.demographicOutput.states)).toBe(artifact.us2023StateContent.demographicOutput.sha256);
     expect(artifact.eras.map((entry) => entry.year)).toEqual([1999, 2007, 2023]);
     const usBudgetGdp = new Map([[1999, 9_660_000_000_000], [2007, 14_450_000_000_000], [2023, 27_400_000_000_000]]);
     for (const entry of artifact.eras) {

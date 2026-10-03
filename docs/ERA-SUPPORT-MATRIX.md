@@ -81,6 +81,9 @@ back to their 2019 bundles. Native's electorate reference captures the US
 year anchors; the exported source budget rows retain each row's
 `sourceFiscalYear`. Neither this mixture nor the logged 2020 seat fallback may
 be presented as a complete 2023 historical pack.
+The reference export also includes the source's 51 2023 US state region rows
+and 51 state demographic records. These are validated as source output, but
+are not yet wired as a playable era pack or tested through an earned 2023 race.
 
 1960 remains migration-only. Its old save label and calendar migration do not
 define an authorized source preset or make a new 1960 world selectable.

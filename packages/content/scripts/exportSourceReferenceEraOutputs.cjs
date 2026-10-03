@@ -26,6 +26,8 @@ const { getPresetSeats } = require(path.join(sourceRoot, 'src/lib/constants/hist
 const { getNationalBudgetSeedConfigsForPreset } = require(path.join(sourceRoot, 'src/lib/seeds/reference/budgets.ts'));
 const { tierFor } = require(path.join(sourceRoot, 'src/lib/world/eraRoster.ts'));
 const { COUNTRY_ORDER } = require(path.join(sourceRoot, 'src/lib/constants/countries.ts'));
+const { states2023 } = require(path.join(sourceRoot, 'src/lib/seeds/reference/states2023.ts'));
+const { stateCensusData2023 } = require(path.join(sourceRoot, 'src/lib/countries/us/data/usStateCensusData2023.ts'));
 const { getPresetFallbacks, resetPresetFallbacks } = require(path.join(sourceRoot, 'src/lib/seeds/presetSelector.ts'));
 const hash = (value) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -90,6 +92,14 @@ const artifact = {
     sha256: sharedSeatHash,
     rows: sharedSeatRoster,
   },
+  us2023StateContent: {
+    sourceFiles: [
+      'src/lib/seeds/reference/states2023.ts#states2023',
+      'src/lib/countries/us/data/usStateCensusData2023.ts#stateCensusData2023',
+    ],
+    regionOutput: { rowCount: states2023.length, sha256: hash(states2023), rows: states2023 },
+    demographicOutput: { stateCount: Object.keys(stateCensusData2023).length, sha256: hash(stateCensusData2023), states: stateCensusData2023 },
+  },
   eras,
 };
 fs.writeFileSync(nativeOutput, `${JSON.stringify(artifact)}\n`);
@@ -101,4 +111,6 @@ console.log(JSON.stringify({
     budgetRows: budgetOutput.rowCount, budgetHash: budgetOutput.sha256,
   })),
   sharedSeatHash,
+  us2023Regions: states2023.length,
+  us2023DemographicStates: Object.keys(stateCensusData2023).length,
 }, null, 2));
