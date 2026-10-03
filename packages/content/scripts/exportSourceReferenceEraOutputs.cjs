@@ -25,9 +25,14 @@ require(path.join(sourceRoot, 'node_modules/tsconfig-paths')).register({
 const { getPresetSeats } = require(path.join(sourceRoot, 'src/lib/constants/historicalSeats.ts'));
 const { getNationalBudgetSeedConfigsForPreset } = require(path.join(sourceRoot, 'src/lib/seeds/reference/budgets.ts'));
 const { tierFor } = require(path.join(sourceRoot, 'src/lib/world/eraRoster.ts'));
+const { partySeedsForPreset } = require(path.join(sourceRoot, 'src/lib/seeds/partySeedRegistry.ts'));
+const { getInitialRatesForYear } = require(path.join(sourceRoot, 'src/lib/constants/currencies.ts'));
 const { COUNTRY_ORDER } = require(path.join(sourceRoot, 'src/lib/constants/countries.ts'));
+const { SENATE_CLASSES_BY_STATE } = require(path.join(sourceRoot, 'src/lib/constants/states.ts'));
 const { states2023 } = require(path.join(sourceRoot, 'src/lib/seeds/reference/states2023.ts'));
 const { stateCensusData2023 } = require(path.join(sourceRoot, 'src/lib/countries/us/data/usStateCensusData2023.ts'));
+const { buildAllRegistrationSeeds } = require(path.join(sourceRoot, 'src/lib/seeds/registration/registrationLanes.ts'));
+const { generateStateDemographicsForTest } = require(path.join(sourceRoot, 'src/lib/seeds/stateDemographics.ts'));
 const { getPresetFallbacks, resetPresetFallbacks } = require(path.join(sourceRoot, 'src/lib/seeds/presetSelector.ts'));
 const hash = (value) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -60,6 +65,9 @@ const eras = years.map((year) => {
     preset,
     playerCountries: COUNTRY_ORDER.filter((id) => tierFor(preset, id) === 'player'),
     sourceYearElectorateAnchor: year,
+    initialExchangeRates: year === 1999 || year === 2007 || year === 2023
+      ? getInitialRatesForYear(year)
+      : undefined,
     historicalSeatOutput: {
       sharedDataKey: 'historicalSeatRoster2020Fallback',
       rowCount: seats.length,
@@ -74,6 +82,55 @@ const eras = years.map((year) => {
   };
 });
 
+const registrationByState = new Map(buildAllRegistrationSeeds()
+  .filter((row) => row.countryId === 'US')
+  .map((row) => [row.stateId, row]));
+const us2023StatePack = states2023.map((state) => {
+  const registration = registrationByState.get(state._id);
+  if (!registration) throw new Error(`2023 US state has no source registration lane: ${state._id}`);
+  return {
+    id: state._id,
+    name: state.name,
+    countryId: state.countryId,
+    population: state.population,
+    gdp: state.gdp,
+    houseSeats: state.houseDistricts,
+    senateSeats: state.stateSenateSeats,
+    region: state.region,
+    // DC has no state Senate class; [1, 2] is the pack's existing neutral
+    // placeholder convention for non-staggered jurisdictions.
+    senateClasses: SENATE_CLASSES_BY_STATE[state._id] ?? [1, 2],
+    registration: {
+      parties: registration.parties.map(({ abbr, org, reg }) => ({ abbr, org, reg })),
+      independent: registration.independent,
+      unregistered: registration.unregistered,
+      unaffiliatedOrg: registration.unaffiliatedOrg,
+    },
+  };
+});
+const us2023Demographics = Object.entries(stateCensusData2023).map(([stateId, config]) =>
+  generateStateDemographicsForTest(stateId, config, '2023', { layer1Positions: false })
+);
+const sourcePartyRosters = years.map((year) => {
+  const preset = `${year}-default`;
+  return {
+    year,
+    preset,
+    countries: ['US', 'UK'].map((countryId) => ({
+      countryId,
+      rows: partySeedsForPreset(countryId, preset).map((party) => ({
+        id: `${countryId}_${party.abbreviation}`,
+        name: party.name,
+        countryId,
+        abbreviation: party.abbreviation,
+        color: party.color,
+        economicPosition: party.economicPosition,
+        socialPosition: party.socialPosition,
+      })),
+    })),
+  };
+});
+
 const artifact = {
   provenance: {
     sourceRepository: 'Egg3901/AHDGame',
@@ -82,8 +139,12 @@ const artifact = {
       'src/lib/constants/historicalSeats.ts#getPresetSeats',
       'src/lib/seeds/reference/budgets.ts#getNationalBudgetSeedConfigsForPreset',
       'src/lib/world/eraRoster.ts#tierFor',
+      'src/lib/constants/currencies.ts#getInitialRatesForYear',
+      'src/lib/seeds/partySeedRegistry.ts#partySeedsForPreset',
+      'src/lib/seeds/registration/registrationLanes.ts#buildAllRegistrationSeeds',
+      'src/lib/seeds/stateDemographics.ts#generateStateDemographicsForTest',
     ],
-    nativeExportScope: 'Source-returned preset roster and budget outputs plus explicit 2020 seat fallback; not complete playable packs.',
+    nativeExportScope: 'Source-returned preset roster, budget, 2023 state/demographic and exchange-rate outputs plus explicit 2020 seat fallback; pack generation remains a separate step.',
     normalizedRuntimeFields: ['budgetOutput.rows[].economicFactors.lastUpdated: source assigns current seed time; non-epoch Date values use a stable marker.'],
   },
   historicalSeatRoster2020Fallback: {
@@ -99,6 +160,15 @@ const artifact = {
     ],
     regionOutput: { rowCount: states2023.length, sha256: hash(states2023), rows: states2023 },
     demographicOutput: { stateCount: Object.keys(stateCensusData2023).length, sha256: hash(stateCensusData2023), states: stateCensusData2023 },
+    playablePackOutput: { rowCount: us2023StatePack.length, sha256: hash(us2023StatePack), rows: us2023StatePack },
+    generatedDemographics: { rowCount: us2023Demographics.length, sha256: hash(us2023Demographics), rows: us2023Demographics },
+    registrationSource: 'buildAllRegistrationSeeds current/default lane (the source has no 2023-specific registration builder)',
+    senateClassSource: 'SENATE_CLASSES_BY_STATE; non-state DC uses the existing neutral [1,2] placeholder convention',
+  },
+  sourcePlayerPartyRosters: {
+    sourceFile: 'src/lib/seeds/partySeedRegistry.ts#partySeedsForPreset',
+    presets: sourcePartyRosters,
+    sha256: hash(sourcePartyRosters),
   },
   eras,
 };
@@ -113,4 +183,8 @@ console.log(JSON.stringify({
   sharedSeatHash,
   us2023Regions: states2023.length,
   us2023DemographicStates: Object.keys(stateCensusData2023).length,
+  us2023PackStates: us2023StatePack.length,
+  us2023PackHash: hash(us2023StatePack),
+  us2023GeneratedDemographics: us2023Demographics.length,
+  partyRosterSha256: hash(sourcePartyRosters),
 }, null, 2));

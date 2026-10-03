@@ -1,8 +1,8 @@
 /**
- * Authored national budgets for the 1979 / 1991 / 2019 packs (every playable
- * country of each era), from mainline's own per-preset budget configs.
+ * Authored national budgets for the supported source presets (every country
+ * with a budget row in each era), from mainline's own per-preset configs.
  *
- * Emits packages/content/src/packs/budgets{1979,1991,2019}.ts (BudgetSeed[]).
+ * Emits packages/content/src/packs/budgets{1979,1991,1999,2007,2019,2023}.ts (BudgetSeed[]).
  *
  * Run FROM THE MAINLINE CHECKOUT so its `@/` alias resolves:
  *   npx tsx ../AHDClient/packages/content/scripts/generateBudgets.ts
@@ -45,7 +45,7 @@ type TaxType = (typeof TAX_TYPES)[number] | "solidaritySurcharge";
 type Opt = { rate?: number; economic?: number; social?: number };
 type LT = { _id: string; policyOptions?: Opt[] };
 type Cfg = {
-  countryId: string; fiscalYear: number; population: number; gdp: number; currencyCode: string;
+  countryId: string; fiscalYear: number; sourceFiscalYear?: number; population: number; gdp: number; currencyCode: string;
   economicFactors: { gdpGrowth: number; wageGrowth: number; inflationRate: number; tradeGrowth: number };
   taxBaseRatios: { taxableIncome: number; corporateProfits: number; wagesAndSalaries: number; importValue: number; taxableSales: number };
   otherRevenue: number; debt: { principal: number; interestRate: number; ceiling: number }; creditRating: string;
@@ -54,10 +54,13 @@ type Cfg = {
   policyOptionOverrides: Record<string, number>; seedTaxRatesOverride?: Partial<Record<TaxType, number>>; taxRateOverrides?: Partial<Record<TaxType, number>>;
 };
 
-const PLAYABLE: Record<string, string[]> = {
+const PACK_COUNTRIES: Record<string, string[]> = {
   "1979": ["US", "UK", "RU", "DD"],
   "1991": ["US", "UK", "JP", "DE", "CN", "BR", "IE"],
+  "1999": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],
+  "2007": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],
   "2019": ["US", "UK", "JP", "DE", "CN", "IE"],
+  "2023": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],
 };
 
 const typesById = new Map<string, LT>();
@@ -114,7 +117,7 @@ function deriveTaxRates(cfg: Cfg): { rates: Record<TaxType, number>; notes: stri
 
 const fmtNum = (n: number) => (Number.isInteger(n) && Math.abs(n) >= 10_000 ? n.toLocaleString("en-US").replace(/,/g, "_") : String(n));
 
-for (const [era, countries] of Object.entries(PLAYABLE)) {
+for (const [era, countries] of Object.entries(PACK_COUNTRIES)) {
   const cfgs = getNationalBudgetSeedConfigsForPreset(`${era}-default`) as unknown as Cfg[];
   const lines: string[] = [
     `import type { BudgetSeed } from "../types.js";`,
@@ -135,6 +138,7 @@ for (const [era, countries] of Object.entries(PLAYABLE)) {
       `    // taxRates: ${notes.join("; ")}`,
       `    countryId: "${c}",`,
       `    fiscalYear: ${cfg.fiscalYear},`,
+      `    sourceFiscalYear: ${cfg.sourceFiscalYear ?? cfg.fiscalYear},`,
       `    population: ${fmtNum(cfg.population)},`,
       `    gdp: ${fmtNum(cfg.gdp)},`,
       `    currencyCode: ${JSON.stringify(cfg.currencyCode)},`,

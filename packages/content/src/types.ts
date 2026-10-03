@@ -227,6 +227,8 @@ export interface BudgetSeed {
   /** Country id — must match a CountrySeed id. */
   countryId: string;
   fiscalYear: number;
+  /** Source data year before an explicitly authored preset overlay/fallback. */
+  sourceFiscalYear?: number;
   population: number;
   gdp: number; // absolute local currency
   currencyCode: string;
