@@ -23,6 +23,7 @@ import {
 import { calculateSubsidyCostForCountry, SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
 import { getTurnInYear, FISCAL_YEAR_START_TURN_IN_YEAR, TURNS_PER_YEAR } from "./fiscalYear.js";
 import { advanceTaxRatePhaseIn } from "./taxRatePhaseIn.js";
+import { createJPRegionalBudgetRows, processJPRegionalBudget } from "./jpRegionalBudget.js";
 
 function sourcePipelineGdpGrowth(world: import("../types.js").WorldState, countryId: string): number {
   const national = world.nationalMetrics?.[countryId]?.["economic.gdpGrowth"]?.value;
@@ -180,6 +181,13 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
           rb.taxRatePhaseIn = ramp.pending;
         }
       }
+      // Japan uses the source prefectural revenue formula when its source
+      // budget row exists; generic UK-style council/business revenue is not a
+      // substitute. JP policy-spending and forced-austerity records are still
+      // unrepresented and are intentionally not synthesized here.
+      if (region.countryId === "JP") {
+        continue;
+      }
       const pop = region.population ?? 0;
       const nationalPop = countryBudget.population;
       const regionGdpAbs = regionalGdpAbsolute(region, countryBudget);
@@ -211,6 +219,23 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
       else rb.consecutiveDeficits = 0;
       // Austerity trigger (>1 consecutive deficit) is deferred — would need enacted law downgrade
       // Cited as deferred: src/lib/turn/regionalBudget.ts forced austerity (most expensive programme downgraded)
+    }
+    // JP source geography is retained as budget-only rows. A legacy save with
+    // no prior JP fiscal rows receives the source-authored baseline on its
+    // first ordinary processing turn; no historical cabinet allocation or
+    // mutable regional policy is guessed. It is deliberately
+    // not inserted into the shared electoral Region map while JP remains
+    // unplayable; the source pack supplies the eight immutable prefectoral
+    // identities/populations to the country-specific processor. Game seeds
+    // each JP regional policy at its center option for every preset; the
+    // shared row builder records those exact center rates and grant cost.
+    if (world.budgets?.JP) {
+      for (const [regionId, row] of Object.entries(createJPRegionalBudgetRows(world.meta.era))) {
+        if (!world.regionalBudgets[regionId]) world.regionalBudgets[regionId] = row;
+      }
+    }
+    for (const [regionId, row] of Object.entries(world.regionalBudgets ?? {})) {
+      if (row.countryId === "JP") processJPRegionalBudget(world, regionId);
     }
   },
 };

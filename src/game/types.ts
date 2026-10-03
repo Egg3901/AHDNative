@@ -342,6 +342,7 @@ export interface GameScreenProps {
   loadCabinetOffice?: () => Promise<import("./cabinetOffice").CabinetOfficeView>;
   /** Validated ministerial order issue; present alongside loadCabinetOffice. */
   onIssueCabinetOrder?: (input: import("./cabinetOffice").IssueCabinetOrderInput) => void;
+  onSetJPRegionalAllocation?: (input: import("./cabinetOffice").SetJPRegionalAllocationInput) => void;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
   loadStateOwnership?: (countryId?: string) => Promise<import("./stateOwnership").StateOwnershipView>;

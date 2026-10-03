@@ -15,6 +15,9 @@ export function setJPRegionalBudgetAllocation(
   world: WorldState,
   allocationPercents: Record<string, number>,
 ): JPAllocationResult {
+  if (world.player.countryId !== "JP") {
+    return { ok: false, error: "Only the Japanese player can set regional allocations." };
+  }
   const holder = world.cabinetMembers.find(
     (member) => member.countryId === "JP" && member.positionId === JP_INTERNAL_AFFAIRS_MINISTER,
   );

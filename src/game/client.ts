@@ -60,6 +60,9 @@ export class GameClient {
   issueCabinetOrder(input: IssueCabinetOrderInput) {
     return this.send<{ result: { ok: true; message: string } | { ok: false; error: string }; view: GameView }>({ type: "issueCabinetOrder", ...input });
   }
+  setJPRegionalAllocation(input: import("./cabinetOffice").SetJPRegionalAllocationInput) {
+    return this.send<{ result: { ok: true } | { ok: false; error: string }; view: GameView }>({ type: "setJPRegionalAllocation", input });
+  }
   caucusManagement() { return this.send<CaucusManagementView>({ type: "caucusManagement" }); }
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }
