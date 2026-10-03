@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourceCampaignCells1953, sourceCampaignUnits1953 } from "./sourceCampaignElectorate.js";
+import { targetedAdBonuses, type TargetedAd } from "./targetedAds.js";
 
 describe("current source 1953 US campaign electorate", () => {
   it("derives PA's joint cells from raw source marginals and coalesces counted units", () => {
@@ -27,8 +28,16 @@ describe("current source 1953 US campaign electorate", () => {
       share: 0.25698680936272017,
       economicLean: 0.14813294558468204,
       socialLean: -0.35186705441531807,
-      turnout: 59.6,
+      turnout: 59.55186705441532,
     });
+    const ad: TargetedAd = { stateId: "PA", dimension: "race", bucket: "white", bonus: 0.01, lastPurchaseTurn: 10 };
+    const cellBonuses = targetedAdBonuses(cells, { economicLean: -2, socialLean: -1 }, [ad], "PA", 10);
+    const firstUnit = units[0]!;
+    const unitWeight = firstUnit.campaignCells.reduce((sum, cell) => sum + cell.share * cell.turnout, 0);
+    const unitBonus = firstUnit.campaignCells.reduce((sum, cell) => sum + cell.share * cell.turnout * (cellBonuses[cell.id] ?? 0), 0) / unitWeight;
+    // Captured independently from AHDGame's buildGranularElectorateSubstrate
+    // and campaignTargeting/rules.ts at the source head documented above.
+    expect(unitBonus).toBeCloseTo(0.006312350447829809, 12);
     expect(sourceCampaignCells1953("AK")).not.toBeNull();
     expect(sourceCampaignCells1953("not-a-source-region")).toBeNull();
   });

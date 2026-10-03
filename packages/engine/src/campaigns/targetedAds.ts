@@ -1,5 +1,5 @@
 import type { WorldState } from "../types.js";
-import { sourceCampaignCells1953 } from "./sourceCampaignElectorate.js";
+import { sourceArchetypeBucketValues, sourceCampaignCells1953 } from "./sourceCampaignElectorate.js";
 
 export interface TargetedAd {
   stateId: string;
@@ -50,13 +50,63 @@ function campaignFit(candidate: Position, audience: Position): number {
   return 0.2 + 0.8 * Math.exp(-distanceSquared(candidate, audience) / 18);
 }
 
+export function sourceLayer1Overlays(world: WorldState, stateId: string, extraArchetypeTurnout: Record<string, number> = {}) {
+  const leanValues = { economicLean: {} as Record<string, number>, socialLean: {} as Record<string, number> };
+  const current = world.stateDemographics[stateId]?.groups ?? {};
+  const baseline = world.baselineDemographics[stateId]?.groups ?? {};
+  for (const [groupId, group] of Object.entries(current)) {
+    const seeded = baseline[groupId];
+    if (!seeded) continue;
+    const economic = group.economicLean - seeded.economicLean;
+    const social = group.socialLean - seeded.socialLean;
+    if (economic !== 0) leanValues.economicLean[groupId] = economic;
+    if (social !== 0) leanValues.socialLean[groupId] = social;
+  }
+  const economicBucket = sourceArchetypeBucketValues(leanValues.economicLean);
+  const socialBucket = sourceArchetypeBucketValues(leanValues.socialLean);
+  const leanBucketDeltas: Record<string, { economicLean?: number; socialLean?: number }> = {};
+  for (const key of new Set([...Object.keys(economicBucket), ...Object.keys(socialBucket)])) {
+    leanBucketDeltas[key] = { economicLean: economicBucket[key] ?? 0, socialLean: socialBucket[key] ?? 0 };
+  }
+  const turnoutBucketDeltas: Record<string, number> = {};
+  for (const [key, delta] of Object.entries(sourceArchetypeBucketValues(extraArchetypeTurnout))) {
+    turnoutBucketDeltas[key] = (turnoutBucketDeltas[key] ?? 0) + delta;
+  }
+  const regionTurnout = world.regionTurnouts[stateId];
+  const activeTurnoutModifiers = regionTurnout?.campaignModifiers ?? regionTurnout?.modifiers;
+  for (const [dimension, groups] of Object.entries(activeTurnoutModifiers ?? {})) {
+      if (dimension === "voterGroups") {
+        for (const [groupId, value] of Object.entries(groups)) {
+          const mapped = sourceArchetypeBucketValues({ [groupId]: value });
+          for (const [key, delta] of Object.entries(mapped)) turnoutBucketDeltas[key] = (turnoutBucketDeltas[key] ?? 0) + delta;
+        }
+      } else {
+        for (const [bucket, value] of Object.entries(groups)) {
+          const key = `${dimension}:${bucket}`;
+          turnoutBucketDeltas[key] = (turnoutBucketDeltas[key] ?? 0) + value;
+        }
+      }
+  }
+  return { leanBucketDeltas, turnoutBucketDeltas };
+}
+
+export function hasSource1953DemographicShape(world: WorldState, stateId: string): boolean {
+  if (world.player.countryId !== "US" || world.meta.era !== "1953" || world.regions[stateId]?.countryId !== "US") return false;
+  const category = (world.demographicCategories.US ?? []).find((row) => row._id === "voterGroups");
+  const demographics = world.stateDemographics[stateId];
+  const baseline = world.baselineDemographics[stateId];
+  if (!category || !demographics || !baseline || demographics.countryId !== "US") return false;
+  const required = ["young_renters", "evangelicals", "rural_traditionalists", "union_trades", "soccer_moms", "college_liberals", "small_business", "public_sector", "retirees", "libertarians", "new_immigrants", "secular_professionals"];
+  return required.every((id) => category.groups.some((group) => group.id === id) && demographics.groups[id] && baseline.groups[id]);
+}
+
 /** Project the demographic cells Native can author into Game's campaign-cell contract. */
 export function campaignCellsForRegion(world: WorldState, stateId: string): CampaignCell[] {
   // AHDGame's 1953 US source constructs a joint Layer-1 race/age/education/
   // wealth substrate, rather than the one-axis voterGroups fallback below.
   // Only use it for authored regions that actually exist in this world.
-  if (world.player.countryId === "US" && world.meta.era === "1953" && world.regions[stateId]?.countryId === "US") {
-    const sourceCells = sourceCampaignCells1953(stateId);
+  if (hasSource1953DemographicShape(world, stateId)) {
+    const sourceCells = sourceCampaignCells1953(stateId, sourceLayer1Overlays(world, stateId));
     if (sourceCells) return sourceCells;
   }
   const demographics = world.stateDemographics[stateId];
@@ -148,8 +198,15 @@ function targetAudience(cells: CampaignCell[], dimension: string, bucket: string
     },
     { economicLean: 0, socialLean: 0 },
   );
+  const mean = members.reduce(
+    (weightedMean, cell) => ({
+      economicLean: weightedMean.economicLean + (cell.share * cell.economicLean) / share,
+      socialLean: weightedMean.socialLean + (cell.share * cell.socialLean) / share,
+    }),
+    { economicLean: 0, socialLean: 0 },
+  );
   const variance = members.reduce(
-    (sum, cell) => sum + (cell.share * distanceSquared(cell, position)) / share,
+    (sum, cell) => sum + (cell.share * distanceSquared(cell, mean)) / share,
     0,
   );
   return { position, cohesion: 0.5 + 0.5 * Math.exp(-variance / 4.5) };
