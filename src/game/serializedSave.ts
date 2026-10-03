@@ -1,3 +1,5 @@
+import { encodeSavePayload, type GzipSavePayload } from "./savePayload";
+
 /** Metadata derived from the same in-memory world used to serialize the save. */
 export interface SerializedSaveMetadata {
   savedAt: string;
@@ -11,4 +13,14 @@ export interface SerializedSaveMetadata {
 export interface SerializedSave {
   contents: string;
   metadata: SerializedSaveMetadata;
+}
+
+/** Browser saves cross the worker boundary as the compressed storage payload. */
+export interface EncodedSerializedSave {
+  contents: GzipSavePayload;
+  metadata: SerializedSaveMetadata;
+}
+
+export async function encodeSerializedSave(save: SerializedSave): Promise<EncodedSerializedSave> {
+  return { contents: await encodeSavePayload(save.contents), metadata: save.metadata };
 }
