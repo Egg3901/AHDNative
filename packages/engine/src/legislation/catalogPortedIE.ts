@@ -17,10 +17,9 @@ export const CATALOG_IE: CatalogEntry[] = [
     description: "Sets the headline rate of corporation tax on company profits",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 33, step: 2, baselineRate: 12.5 },
+    taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 33, step: 2, baselineRate: 12.5, options: [{"id":"ie_corporate_tax_rate_opt_0","rate":0,"effectDirection":1,"economic":5,"social":2},{"id":"ie_corporate_tax_rate_opt_1","rate":5,"effectDirection":1,"economic":4,"social":1},{"id":"ie_corporate_tax_rate_opt_2","rate":9,"effectDirection":1,"economic":3,"social":1},{"id":"ie_corporate_tax_rate_opt_3","rate":12.5,"effectDirection":0,"economic":0,"social":0},{"id":"ie_corporate_tax_rate_opt_4","rate":15,"effectDirection":0,"economic":0,"social":0},{"id":"ie_corporate_tax_rate_opt_5","rate":18,"effectDirection":-1,"economic":-1,"social":-1},{"id":"ie_corporate_tax_rate_opt_6","rate":20,"effectDirection":-1,"economic":-2,"social":-1},{"id":"ie_corporate_tax_rate_opt_7","rate":23,"effectDirection":-1,"economic":-3,"social":-1},{"id":"ie_corporate_tax_rate_opt_8","rate":26,"effectDirection":-1,"economic":-4,"social":-1},{"id":"ie_corporate_tax_rate_opt_9","rate":30,"effectDirection":-1,"economic":-5,"social":-2},{"id":"ie_corporate_tax_rate_opt_10","rate":33,"effectDirection":-1,"economic":-5,"social":-2}] },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.unemploymentRate","weight":0.4},{"metricId":"society.socialMobility","weight":-0.3},{"metricId":"governance.budgetBalance","weight":-0.4}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: ieLegislationTypes.ts ie_foreign_corporate_tax_rate; baselineRate from budget policyDefaults option ie_foreign_corporate_tax_rate_opt_3

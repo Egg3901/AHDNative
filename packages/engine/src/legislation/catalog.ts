@@ -23,6 +23,15 @@ export interface CatalogLawLevel {
   gdpRevenueFraction?: number;
 }
 
+/** Source option prices retained even when the law's political effect is not
+ * yet executable. The budget consumer uses only laws explicitly marked
+ * available; keeping the authored rows here avoids losing their source data. */
+export interface CatalogPolicyOptionCost {
+  id: string;
+  annualCostPerCapita?: number;
+  gdpPerCapitaMultiplier?: number;
+}
+
 export interface CatalogEntry {
   id: string;
   /** Country id. US/UK/RU/DD are hand-ported; JP/DE/IE/CN/BR come from catalogPorted*.ts (W61 M2). */
@@ -38,6 +47,10 @@ export interface CatalogEntry {
   /** Exact per-option political directions where the source law's ladder is not the shared five-step shape. */
   optionEffectDirections?: readonly (-1 | 0 | 1)[];
   levels?: CatalogLawLevel[];
+  policyOptionCosts?: CatalogPolicyOptionCost[];
+  baselinePolicyOptionId?: string;
+  /** Source legislationCostCatalog classification for year-aware pricing. */
+  budgetCostClass?: "none" | "gdpFraction" | "perCapita";
   taxPolicy?: {
     scope: "federal" | "state";
     taxType: string;
