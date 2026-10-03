@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { appendFileSync } from "node:fs";
 import { corporateSectorAssets, createWorld, deserializeSave } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
 const UNION_ID = "UK-manufacturing";
 const STAMP = "2026-10-03T00:00:00Z";
 const TERMS = { wageLevel: 1.5, agreementDurationTurns: 48, noStrikeTurns: 24 };
-const session = new GameSession();
+let session = new GameSession();
 let employerId: string;
 let resourceTurns = 0;
 
@@ -38,6 +39,43 @@ function sourceFormulaGrievance(world: ReturnType<typeof createWorld>, employer:
     return sum + Math.min(100, Math.max(0, relativeGap * 400)) * Math.max(0, local.workers);
   }, 0);
   return workers > 0 ? Math.round((weighted / workers) * 10) / 10 : 0;
+}
+
+function recordPublicOracleInput(
+  world: ReturnType<typeof createWorld>,
+  employer: string,
+  campaign: ReturnType<GameSession["callUnionBargaining"]>,
+) {
+  const tracePath = process.env.AHD_COL_ORACLE_TRACE;
+  if (!tracePath) return;
+  const union = world.unions[UNION_ID]!;
+  const density = Math.max(0, Math.min(100, union.unionization ?? 0));
+  const locals = Object.values(corporateSectorAssets(world))
+    .filter((asset) => asset.countryId === "UK" && asset.sectorType === "manufacturing" && asset.corporationId === employer)
+    .map((local) => ({
+      stateId: local.stateId ?? null,
+      workers: local.workers ?? 0,
+      unionization: local.unionization ?? density,
+      wageLevel: local.wageLevel ?? 1,
+      workerExpectationIndex: local.workerExpectationIndex,
+      costOfLivingIndex: local.stateId
+        ? world.regionalMetrics[local.stateId]?.["economic.costOfLiving"]?.value
+        : undefined,
+    }));
+  const strikeCost = locals.filter((local) => local.unionization >= 30).length * 400;
+  appendFileSync(tracePath, `${JSON.stringify({
+    label: "earned-public-UK-session",
+    inputs: {
+      locals,
+      // These are the exact Native macro inputs recorded on the public
+      // campaign mandate. Their upstream economic-mode parity is out of scope.
+      laborTightness: campaign.mandate.laborTightness,
+      lawSupport: campaign.mandate.lawSupport,
+      treasury: union.treasury,
+      strikeCost,
+    },
+    nativeOutput: campaign.mandate,
+  })}\n`);
 }
 
 describe.sequential("UK cost-of-living bargaining through the public GameSession journey", () => {
@@ -106,8 +144,7 @@ describe.sequential("UK cost-of-living bargaining through the public GameSession
     const reloaded = new GameSession();
     reloaded.load(saved);
     expect(reloaded.serialize(STAMP)).toBe(saved);
-    // Keep the same public session instance used to earn the prerequisites;
-    // the saved copy above proves the ordinary-turn metric survives reload.
+    session = reloaded;
   }, 120_000);
 
   it("calls bargaining through the public session from the saved earned union", () => {
@@ -115,6 +152,7 @@ describe.sequential("UK cost-of-living bargaining through the public GameSession
     const campaign = session.callUnionBargaining(UNION_ID, employerId, TERMS);
     expect(campaign.status).toBe("negotiating");
     expect(campaign.mandate.grievance).toBe(sourceFormulaGrievance(persisted, employerId));
+    recordPublicOracleInput(persisted, employerId, campaign);
     const savedAfterCall = session.serialize(STAMP);
     const restored = new GameSession();
     restored.load(savedAfterCall);

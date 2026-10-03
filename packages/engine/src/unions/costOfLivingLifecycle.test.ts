@@ -1,9 +1,44 @@
 import { describe, expect, it } from "vitest";
+import { appendFileSync } from "node:fs";
 import { createWorld } from "../world.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
-import { mandateFromLocals } from "./actions.js";
+import { bargainingMacroInputs, mandateFromLocals } from "./actions.js";
+import { strikeCallCost } from "./bargaining.js";
+
+function recordOracleInput(
+  label: string,
+  world: ReturnType<typeof createWorld>,
+  unionId: string,
+  locals: ReturnType<typeof corporateSectorAssets>[string][],
+  mandate: ReturnType<typeof mandateFromLocals>,
+) {
+  const tracePath = process.env.AHD_COL_ORACLE_TRACE;
+  if (!tracePath) return;
+  const union = world.unions[unionId]!;
+  const density = Math.max(0, Math.min(100, union.unionization ?? 0));
+  const sourceLocals = locals.map((local) => ({
+    stateId: local.stateId ?? null,
+    workers: local.workers ?? 0,
+    unionization: local.unionization ?? density,
+    wageLevel: local.wageLevel ?? 1,
+    workerExpectationIndex: local.workerExpectationIndex,
+    costOfLivingIndex: local.stateId
+      ? world.regionalMetrics[local.stateId]?.["economic.costOfLiving"]?.value
+      : undefined,
+  }));
+  const organizedCount = sourceLocals.filter((local) => local.unionization >= 30).length;
+  const macro = bargainingMacroInputs(world, union.countryId);
+  const inputs = {
+    locals: sourceLocals,
+    laborTightness: macro.laborTightness,
+    lawSupport: macro.lawSupport,
+    treasury: union.treasury,
+    strikeCost: strikeCallCost(organizedCount),
+  };
+  appendFileSync(tracePath, `${JSON.stringify({ label, inputs, nativeOutput: mandate })}\n`);
+}
 
 describe("source regional cost-of-living lifecycle", () => {
   it("seeds from urbanization, advances with source inertia, and carries the metric through save/reload", async () => {
@@ -62,6 +97,7 @@ describe("source regional cost-of-living lifecycle", () => {
     const sourceCost = loaded.regionalMetrics[local.stateId ?? ""]?.["economic.costOfLiving"]?.value;
     expect(sourceCost).toBeGreaterThan(100);
     const mandate = mandateFromLocals(loaded, union, relevantLocals, union.treasury);
+    recordOracleInput("declared-phase-metric", loaded, union.id, employerLocals, mandate);
 
     // Game 0538's buildBargainingMandate uses realWage = wage / (COL / 100),
     // relativeGap = max(0, expectation - realWage) / max(0.8, realWage),
@@ -93,12 +129,20 @@ describe("source regional cost-of-living lifecycle", () => {
       controlLocals,
       control.unions[union.id]!.treasury,
     );
+    recordOracleInput(
+      "declared-phase-neutral-COL-control",
+      control,
+      union.id,
+      Object.values(corporateSectorAssets(control)).filter(
+        (asset) => asset.corporationId === local.corporationId && asset.countryId === "UK" && asset.sectorType === "manufacturing",
+      ),
+      baselineControl,
+    );
     expect(baselineControl.grievance).toBe(0);
     expect(mandate.grievance).not.toBe(baselineControl.grievance);
 
-    // Current saved player union lacks enough organized workers to open a
-    // campaign, and bargaining is not registered in executeAction. Therefore
-    // this does not claim an earned player action or public campaign journey.
+    // This declared metric phase fixture has no player leadership or campaign
+    // authority. A separate staged public GameSession journey proves those.
   });
 
   it("keeps absent legacy baselines absent and rejects malformed present baselines", () => {
