@@ -20,14 +20,16 @@ function subsetWithTotal(values: Array<{ id: string; ev: number }>, target: numb
 }
 
 describe("presidential EC resolved save", () => {
-  it("serializes a first-seen unit tie and exact overall tie through contingent resolution", () => {
+  it("serializes a source hashed unit tie and exact overall tie through contingent resolution", () => {
     const world = createWorld({ seed: "ec-overall-tie-source", playerName: "Tester", countryId: "US", era: "1979" });
     const units = electoralVoteUnitsForWorld(world, "US");
     expect(units.reduce((sum, unit) => sum + unit.ev, 0)).toBe(538);
     const wyoming = units.find((unit) => unit.unitId === "WY");
     expect(wyoming?.ev).toBe(3);
     const nonWyoming = units.filter((unit) => unit.unitId !== "WY").map((unit) => ({ id: unit.unitId, ev: unit.ev }));
-    const awardedToA = subsetWithTotal(nonWyoming, 266);
+    // Independently executed Game electionCalculations at c0f39acd awards
+    // WY:A:B to B, so A needs all 269 electors from other units.
+    const awardedToA = subsetWithTotal(nonWyoming, 269);
 
     const race: ElectionRecord = {
       id: "president:US:-:source-exact-overall-tie",
@@ -57,7 +59,7 @@ describe("presidential EC resolved save", () => {
     applyPresidentialResolution(world, race);
 
     expect(race.electoralCollegeResult).toMatchObject({
-      stateWinners: { WY: "A" },
+      stateWinners: { WY: "B" },
       evByCandidate: { A: 269, B: 269 },
       totalEv: 538,
       resolutionMode: "contingent_deadlock",

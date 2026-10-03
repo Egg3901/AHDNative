@@ -4,6 +4,7 @@ import { BUDGETS_2019 } from "../../../content/src/packs/budgets2019.js";
 import { calculateBudgetRevenue } from "./revenue.js";
 import { createWorld } from "../world.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
+import { projectHistoricalConsumer } from "../testing/historicalProjection.js";
 
 describe("German solidarity surcharge budget line", () => {
   it("uses the source income-tax-receipt basis and preserves total revenue", () => {
@@ -36,7 +37,8 @@ describe("German solidarity surcharge budget line", () => {
     const before = world.budgets.DE!.revenue.total;
     expect(world.budgets.DE!.revenue.solidaritySurcharge).toBe(47_817_000_000);
     expect(world.budgets.DE!.revenue.total).toBe(before);
-    const projected = projectSaveToV42(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    expect(projectSaveToV42(serializeSave(world, "2026-10-03T00:00:00.000Z")).ok).toBe(false);
+    const projected = projectHistoricalConsumer(world, ["budgets"]);
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("An active solidarity surcharge must refuse historical export");
     expect(projected.error).toContain("solidarity surcharge");

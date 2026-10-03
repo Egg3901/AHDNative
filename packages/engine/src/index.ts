@@ -168,10 +168,8 @@ export {
   PARTY_MERGE_VOTE_WINDOW_TURNS,
 } from "./party/mergerProposals.js";
 export type { ElectionRecord, ElectionCandidate, ElectionStatus, PrimaryResults, PrimaryResultEntry } from "./elections/types.js";
-// W24b real Electoral College (#69): the read-only display adapter shares the
-// SAME per-state winner-take-all allocation, live EV apportionment, and
-// majority threshold the resolution phase seats presidents with, so a rendered
-// electoral count can never disagree with `applyPresidentialResolution`.
+// Source live projections and final resolution share apportionment and majority
+// rules, but use distinct exact-unit tie rules. Resolved views use the saved result.
 export {
   allocateElectoralVotes,
   electoralVotesByState,

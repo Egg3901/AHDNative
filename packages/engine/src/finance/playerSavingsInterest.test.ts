@@ -4,6 +4,7 @@ import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { advanceTurn } from "../engine.js";
 import { playerSavingsInterestPhase } from "./playerSavingsInterest.js";
 import { rngFromSeed } from "../rng.js";
+import { projectHistoricalConsumer } from "../testing/historicalProjection.js";
 
 const OPTS = {
   seed: "savings-phase",
@@ -93,8 +94,9 @@ describe("playerSavingsInterestPhase", () => {
   it("refuses to project an active pool into the historical reader", () => {
     const world = createWorld(OPTS);
     world.centralBanks.US!.nationalSavingsBalance = 48_000;
+    expect(projectSaveToV42(serializeSave(world, "2026-10-01T00:00:00.000Z")).ok).toBe(false);
     expect(
-      projectSaveToV42(serializeSave(world, "2026-10-01T00:00:00.000Z")),
+      projectHistoricalConsumer(world, ["centralBanks"]),
     ).toMatchObject({
       ok: false,
       error: expect.stringContaining("national savings pool state"),

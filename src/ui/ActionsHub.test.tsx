@@ -741,6 +741,7 @@ describe("ActionsHub", () => {
         },
       ],
       tally: { player: 1000 },
+      stateTallyStates: { WY: { totalVotes: { player: 1000 } } },
     };
     world.elections.push(election);
     applyPresidentialResolution(world, election);

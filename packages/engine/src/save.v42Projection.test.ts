@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
+import { projectHistoricalConsumer } from "./testing/historicalProjection.js";
 import {
   SCHEMA_VERSION,
   advanceTurn,
@@ -91,11 +92,12 @@ describe("projectSaveToV42 public envelope", () => {
     const world = createWorld(WORLD_OPTS);
     expect(world.player.homeRegionId).toBe("AL");
     expect(world.regionalMetrics.CA?.["education.workforceSkill"]?.value).toBe(50);
-    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT)).ok).toBe(false);
+    expect(projectHistoricalConsumer(world, ["regionalMetrics"])).toMatchObject({
       ok: false, error: expect.stringContaining("Regional metric records"),
     });
     expect(executeAction(world, "player", "convertCash", { amount: 2000 }).ok).toBe(true);
-    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+    expect(projectHistoricalConsumer(world, ["regionalMetrics"])).toMatchObject({
       ok: false, error: expect.stringContaining("Regional metric records"),
     });
   });
@@ -282,7 +284,7 @@ describe("projectSaveToV42 public envelope", () => {
 
   it("refuses a Native world with a non-default difficulty axis", () => {
     const world = createWorld({ ...WORLD_OPTS, difficulty: "hard" });
-    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    const projected = projectHistoricalConsumer(world, ["difficulty"]);
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected difficulty refusal");
     expect(projected.error).toMatch(/difficulty/);
@@ -290,7 +292,9 @@ describe("projectSaveToV42 public envelope", () => {
 
   it("refuses a Native worldsim spectator world (issue #346)", () => {
     const world = createWorld({ ...WORLD_OPTS, mode: "worldsim" });
-    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    const historical = loadHistoricalFresh();
+    historical.player.mode = world.player.mode;
+    const projected = projectSaveToV42(serializeSave(historical, SAVED_AT));
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected worldsim refusal");
     expect(projected.error).toMatch(/worldsim|play mode/);
@@ -310,7 +314,7 @@ describe("projectSaveToV42 public envelope", () => {
 
   it("refuses a Native world with a non-default autonomy tier", () => {
     const world = createWorld({ ...WORLD_OPTS, autonomyLevel: "off" });
-    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    const projected = projectHistoricalConsumer(world, ["nppAutonomyLevel"]);
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected autonomy refusal");
     expect(projected.error).toMatch(/autonomy/);

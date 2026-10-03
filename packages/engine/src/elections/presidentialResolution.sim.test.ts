@@ -35,6 +35,7 @@ describe("applyPresidentialResolution — majority path", () => {
         { id: "cand-B", name: "B", partyId: "US_REP", isNPP: true, incumbent: false },
       ],
       tally: { "cand-A": 2000, "cand-B": 500 },
+      stateTallyStates: { CA: { totalVotes: { "cand-A": 2000, "cand-B": 500 } } },
     });
     world.elections.push(rec);
 
@@ -65,7 +66,7 @@ describe("applyPresidentialResolution — majority path", () => {
 });
 
 describe("applyPresidentialResolution — 12th Amendment contingent path", () => {
-  it("resolves via the House/Senate contingent ballot when no candidate clears a national majority", () => {
+  it("resolves via the House/Senate contingent ballot when no candidate clears an electoral majority", () => {
     const world = createWorld(OPTS);
     const rec = baseRecord({
       candidates: [
@@ -73,8 +74,13 @@ describe("applyPresidentialResolution — 12th Amendment contingent path", () =>
         { id: "cand-B", name: "B", partyId: "US_REP", isNPP: true, incumbent: false },
         { id: "cand-C", name: "C", partyId: "independent", isNPP: true, incumbent: false },
       ],
-      // Fragmented three-way field: no candidate reaches floor(2997/2)+1 = 1499.
+      // Source 1953 units award A32, B24 and C45. None reaches51.
       tally: { "cand-A": 1000, "cand-B": 999, "cand-C": 998 },
+      stateTallyStates: {
+        CA: { totalVotes: { "cand-A": 100 } },
+        TX: { totalVotes: { "cand-B": 100 } },
+        NY: { totalVotes: { "cand-C": 100 } },
+      },
     });
     world.elections.push(rec);
 
@@ -97,6 +103,11 @@ describe("applyPresidentialResolution — 12th Amendment contingent path", () =>
           { id: "cand-C", name: "C", partyId: "independent", isNPP: true, incumbent: false },
         ],
         tally: { "cand-A": 1000, "cand-B": 999, "cand-C": 998 },
+        stateTallyStates: {
+          CA: { totalVotes: { "cand-A": 100 } },
+          TX: { totalVotes: { "cand-B": 100 } },
+          NY: { totalVotes: { "cand-C": 100 } },
+        },
       });
       world.elections.push(rec);
       return { world, rec };

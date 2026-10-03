@@ -3,6 +3,7 @@ import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { applyUnionLawProvision, lawAdjustedUnionizationThreshold } from "./unionLaws.js";
 import { executeAction } from "../actions/execute.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
+import { projectHistoricalConsumer } from "../testing/historicalProjection.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import { labourFactorsForCorporation, loadCorporationLabourState, stepCorporateSectorStrikes } from "../corporation/corporationLabour.js";
 
@@ -148,7 +149,8 @@ describe("enacted union law state", () => {
     expect(executeAction(world, "player", "sponsorBill", { catalogId: "labour.union_law", banAction: "ban" }).ok).toBe(true);
     const contents = serializeSave(world, "2026-10-02T00:00:00.000Z");
     expect(deserializeSave(contents).budgets.US?.unionsBanned).toBe(true);
-    expect(projectSaveToV42(contents)).toMatchObject({ ok: false, error: expect.stringMatching(/union-law state/) });
+    expect(projectSaveToV42(contents).ok).toBe(false);
+    expect(projectHistoricalConsumer(world, ["budgets"])).toMatchObject({ ok: false, error: expect.stringMatching(/union-law state/) });
 
     const invalidBudgetSave = JSON.parse(contents) as {
       world: { budgets: Record<string, Record<string, unknown>> };

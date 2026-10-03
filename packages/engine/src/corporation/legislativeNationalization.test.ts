@@ -3,6 +3,7 @@ import { createWorld } from "../world.js";
 import { advanceTurn } from "../index.js";
 import { executeAction } from "../actions/execute.js";
 import { deserializeSave, serializeSave, projectSaveToV42 } from "../save.js";
+import { projectHistoricalConsumer } from "../testing/historicalProjection.js";
 
 // Public executive command boundary. Source's country nationalize route
 // authorizes discounted/seizure; a fair-value taking requires a passed bill.
@@ -45,7 +46,8 @@ describe("source nationalization authority", () => {
     expect(saved.world.corporations["US-media"]).toBeDefined();
     expect(saved.world.stateOwnershipLedger).toBeUndefined();
     expect(saved.world.pendingNationalizations).toMatchObject([{ targetCorporationId: "US-media", countryId: "US", method: "legislative", tier: "fair", status: "pending", postedAtTurn: 0, noticeDeadlineTurn: 48 }]);
-    expect(projectSaveToV42(JSON.stringify(saved))).toMatchObject({ ok: false, error: expect.stringMatching(/notice|pending nationalization/i) });
+    expect(projectSaveToV42(JSON.stringify(saved)).ok).toBe(false);
+    expect(projectHistoricalConsumer(world, ["pendingNationalizations", "bills"])).toMatchObject({ ok: false, error: expect.stringMatching(/notice|pending nationalization/i) });
     const resumed = deserializeSave(JSON.stringify(saved));
     expect(JSON.parse(serializeSave(resumed, "1953-01-01T00:00:00.000Z")).world.pendingNationalizations).toEqual(saved.world.pendingNationalizations);
   });

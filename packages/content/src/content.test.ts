@@ -487,13 +487,13 @@ describe("state layer (regions, apportionment) per pack", () => {
     }
   });
 
-  it("US: 50 political states and 435 House seats; 2023 DC is a zero-seat federal district", () => {
+  it("US: 50 political states and 435 House seats with source-authored zero-seat federal districts", () => {
     for (const pack of PACKS) {
       const us = (pack.states ?? []).filter((s) => s.countryId === "US");
       if (pack.era.id === "1953") expect(us.length).toBe(48); // AK/HI territories
-      else expect(us.length, pack.era.id).toBe(pack.era.id === "2023" ? 51 : 50);
-      if (pack.era.id === "2023") {
-        expect(us.find((state) => state.id === "DC"), "2023 federal district").toMatchObject({ houseSeats: 0, senateSeats: 0 });
+      else expect(us.length, pack.era.id).toBe(["1999", "2007", "2023"].includes(pack.era.id) ? 51 : 50);
+      if (["1999", "2007", "2023"].includes(pack.era.id)) {
+        expect(us.find((state) => state.id === "DC"), `${pack.era.id} federal district`).toMatchObject({ houseSeats: 0, senateSeats: 0 });
       } else {
         expect(us.some((s) => s.id === "DC"), `${pack.era.id} DC`).toBe(false);
       }
@@ -507,8 +507,9 @@ describe("state layer (regions, apportionment) per pack", () => {
       const stateRows = (pack.states ?? []).filter((region) => region.id === "DC");
       const hqRows = (pack.corporationHeadquartersRegions ?? []).filter((region) => region.id === "DC");
       expect(stateRows.length + hqRows.length, pack.era.id).toBe(1);
-      if (pack.era.id === "2023") {
-        expect(stateRows[0]).toMatchObject({ id: "DC", population: 678972, houseSeats: 0, senateSeats: 0 });
+      if (["1999", "2007", "2023"].includes(pack.era.id)) {
+        const sourceDcPopulation = { "1999": 519000, "2007": 588292, "2023": 678972 };
+        expect(stateRows[0]).toMatchObject({ id: "DC", population: sourceDcPopulation[pack.era.id as keyof typeof sourceDcPopulation], houseSeats: 0, senateSeats: 0 });
         expect(hqRows).toHaveLength(0);
       } else {
         expect(stateRows).toHaveLength(0);

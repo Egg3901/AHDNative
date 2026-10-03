@@ -6,6 +6,7 @@ import { deserializeSave, serializeSave, projectSaveToV42 } from "../save.js";
 import { advanceTurn } from "../engine.js";
 import { runVoteAccumulation } from "../elections/orchestration.js";
 import { rngFromSeed } from "../rng.js";
+import { projectHistoricalConsumer } from "../testing/historicalProjection.js";
 
 const source = JSON.parse(readFileSync(new URL("../../../../docs/fixtures/canvass-08820d1.json", import.meta.url), "utf8")) as {
   vectors: { candidate: { economicLean: number; socialLean: number }; audience: { economicLean: number; socialLean: number }; current: number; count: number; closing: boolean; after: number; legacyAfter: number; decayed: number }[];
@@ -77,7 +78,8 @@ describe("standalone source canvassing through execute/save/turn", () => {
     const { world, ...target } = setup();
     expect(executeAction(world, "player", "canvass", target).ok).toBe(true);
     const raw = serializeSave(world, savedAt);
-    expect(projectSaveToV42(raw)).toMatchObject({ ok: false, error: expect.stringContaining("campaignModifiers") });
+    expect(projectSaveToV42(raw).ok).toBe(false);
+    expect(projectHistoricalConsumer(world, ["regionTurnouts"])).toMatchObject({ ok: false, error: expect.stringContaining("campaignModifiers") });
     for (const value of [null, [], { age: [] }, { age: { voters: "1" } }, { age: { voters: 21 } }]) {
       const corrupt = JSON.parse(raw);
       corrupt.world.regionTurnouts[target.regionId].campaignModifiers = value;
