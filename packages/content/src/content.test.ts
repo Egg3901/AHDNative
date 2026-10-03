@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PACKS, pack1953 } from "./packs/index.js";
+import { PACKS, pack1953, pack1979 } from "./packs/index.js";
 import { validatePack } from "./validate.js";
 import type { SeedPack } from "./types.js";
 
@@ -40,6 +40,38 @@ describe("validatePack", () => {
     expect(() => validatePack(bad2)).toThrow(/growthRate/i);
   });
 
+  it("strictly validates economy-only regions without allowing political field leakage", () => {
+    const bad = structuredClone(pack1953) as SeedPack;
+    bad.economyRegions![0]!.metrics["economic.gdpGrowth"] = Number.NaN;
+    expect(() => validatePack(bad)).toThrow(/economyRegions.*metrics/i);
+    const unknownField = structuredClone(pack1953) as SeedPack;
+    (unknownField.economyRegions![0] as unknown as Record<string, unknown>)["registration"] = {};
+    expect(() => validatePack(unknownField)).toThrow(/unknown field/i);
+  });
+
+  it("validates Eastern Bloc background source calendars and historical weighted allocations", () => {
+    expect(() => validatePack(pack1953)).not.toThrow();
+    const hungarian1953 = pack1953.backgroundElections!.find((row) => row.countryId === "HU")!.party;
+    expect([hungarian1953.name, hungarian1953.abbreviation, hungarian1953.economicPosition, hungarian1953.socialPosition]).toEqual([
+      "Magyar Dolgozók Pártja", "MDP", -4, 2,
+    ]);
+    const hungarian1979 = pack1979.backgroundElections!.find((row) => row.countryId === "HU")!.party;
+    expect([hungarian1979.name, hungarian1979.abbreviation, hungarian1979.economicPosition, hungarian1979.socialPosition]).toEqual([
+      "Magyar Szocialista Munkáspárt", "MSZMP", -3, 1,
+    ]);
+    const invalid = structuredClone(pack1953) as SeedPack;
+    invalid.backgroundElections![0]!.initialSeatAllocations![0]!.seats = Number.MAX_SAFE_INTEGER;
+    expect(() => validatePack(invalid)).toThrow(/invalid initial seat allocation/);
+
+    const selectable = structuredClone(pack1953) as SeedPack;
+    selectable.countries.find((country) => country.id === "PL")!.playable = true;
+    expect(() => validatePack(selectable)).toThrow(/selectable country/);
+
+    const missingSourceGroups = structuredClone(pack1953) as SeedPack;
+    missingSourceGroups.backgroundElections![0]!.regions[0]!.demographics.groups = {};
+    expect(() => validatePack(missingSourceGroups)).toThrow(/voter groups do not match/);
+  });
+
   it("rejects invalid packVersion", () => {
     const bad = structuredClone(PACKS[0]!) as SeedPack;
     (bad as unknown as Record<string, unknown>)["packVersion"] = 0;
@@ -61,6 +93,19 @@ describe("validatePack", () => {
     const playable = new Set(pack1953.countries.filter((c) => c.playable).map((c) => c.id));
     const partyCountries = new Set((pack1953.parties ?? []).map((p) => p.countryId));
     for (const id of playable) expect(partyCountries.has(id)).toBe(true);
+  });
+
+  it("ports authored 1953 China economy regions without treating them as political states", () => {
+    const regions = pack1953.economyRegions ?? [];
+    expect(pack1953.countries.find((country) => country.id === "CN")?.playable).toBe(false);
+    expect(regions.map((region) => region.id)).toEqual(["DB", "HB", "HD", "HZ", "HN", "XN", "XB"]);
+    expect(regions.reduce((sum, region) => sum + region.population, 0)).toBe(585_000_000);
+    expect(regions.reduce((sum, region) => sum + region.gdp, 0)).toBe(33_333);
+    expect(regions.reduce((sum, region) => sum + region.houseSeats, 0)).toBe(1_226);
+    expect(regions.reduce((sum, region) => sum + region.senateSeats, 0)).toBe(3_781);
+    expect(pack1953.states?.some((state) => state.countryId === "CN")).toBe(false);
+    expect((pack1953.parties ?? []).filter((party) => party.countryId === "CN").map((party) => party.id)).toEqual(["CN_CCP", "CN_CDL", "CN_CNDCA"]);
+    expect(regions.every((region) => Object.keys(region.metrics).length > 0)).toBe(true);
   });
 
   it("registry is exactly the four real mainline presets, no fabricated eras", async () => {

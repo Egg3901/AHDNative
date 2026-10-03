@@ -32,6 +32,8 @@ export interface WorldState {
   meta: WorldMeta;
   /** Source acquisition history. Older worlds preserve the absence of history. */
   stateOwnershipLedger?: import("./corporation/stateOwnershipLedger.js").StateOwnershipEntry[];
+  /** Source notice history; absent in genuine historical saves. */
+  pendingNationalizations?: import("./corporation/pendingNationalizations.js").PendingNationalization[];
   /**
    * Optional source gameConfig rollout anchor. It is written lazily on the
    * first financial phase so untouched and historical saves retain their
@@ -84,6 +86,8 @@ export interface WorldState {
    * which both validate the effective `v4` default.
    */
   nppAutonomyLevel?: import("./nppAutonomyLevel.js").NppAutonomyLevel;
+  /** Source GameState.frontierEntryExperimentEnabled; absent is fail-closed. */
+  frontierEntryExperimentEnabled?: boolean;
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;
@@ -101,6 +105,8 @@ export interface WorldState {
   news: NewsItem[];
   /** Parties seeded from mainline party seeds. Keyed by party id. */
   parties: Record<string, Party>;
+  /** Party merger committee proposals. Optional until the first merger proposal exists (schema 65 family). */
+  partyMergerProposals?: PartyMergerProposal[];
   /** Legislatures seeded from mainline country configs. Keyed by country id. */
   legislatures: Record<string, Legislature>;
   /** Politicians holding legislature seats. Populated at world creation. */
@@ -214,6 +220,8 @@ export interface WorldState {
   demographicCategories: Record<string, import("./demographics/categories.js").DemographicCategory[]>;
   /** Census reapportionment state. Ports src/lib/turn/census.ts GameState.lastCensusYear/lastCensus. Schema v14. */
   census: { lastCensusYear?: number; lastCensus?: { year: number; deltas: import("./demographics/census.js").SeatDelta[] } };
+  /** Annual statehood-admission evaluation guard, mirroring GameState.lastStatehoodYear. */
+  statehood?: { lastEvaluatedYear?: number; startingPreset?: string };
   /** Per-region labor force headcount (civilian). Computed from workingAge + conscription + participation. Schema v14. */
   laborForces: Record<string, number>;
   /** National budgets per country (fiscal system). Ports FederalBudget shape. Schema v15. */
@@ -275,6 +283,13 @@ export interface WorldState {
   corporations: Record<string, Corporation>;
   /** Distinct CorporateSector assets with stateId null until regional ownership is sourced. Optional on pre-#293 schema-44 saves. */
   corporateSectors?: Record<string, import("./corporation/corporateSectorAssets.js").CorporateSectorAsset>;
+  /**
+   * Successful NPP cash writes for source-sector technology unlocks. Native
+   * mutates the offline corporation record directly, so the deterministic row
+   * is appended in the same turn operation as the cash/R&D debit and unlock.
+   * Optional on older saves; validated at the save boundary.
+   */
+  corporateCashLedger?: Array<import("./corporation/corporateCashLedger.js").CorporateCashLedgerRecord>;
   /**
    * Per-country aggregate corporate revenue, one turn apart, feeding the
    * macroCountryTurn growth signal. Maintained by corporationTurn.ts. Schema v19.
@@ -400,6 +415,21 @@ export interface WorldState {
    * unchanged on top.
    */
   governors: Record<string, import("./governor/types.js").GovernorState>;
+  /**
+   * UK devolved-executive institutions and their first election anchors.
+   * New worlds seed the authored settlement; legacy saves may omit this state
+   * and retain that absence until a national policy actually changes it.
+   * Schema v63.
+   */
+  ukDevolution?: import("./devolution/ukInstitutions.js").UKDevolutionState;
+  /** Distinct political living conflict; never merged into military `conflicts`. Schema v63. */
+  northernIrelandConflict?: import("./livingConflict/northernIreland.js").NorthernIrelandLivingConflict;
+  /** Belfast Agreement public consent poll; intentionally separate from reunification referendum actuation. */
+  northernIrelandPeacePoll?: import("./livingConflict/northernIreland.js").NorthernIrelandPeacePoll;
+  /** Source-shaped UK Commons vacancy ledger. Absent on saves predating #2886 parity work. */
+  ukCommonsVacancies?: import("./elections/ukCommonsVacancies.js").UkCommonsVacancy[];
+  /** Source-shaped MP recall petition pipeline; absent on legacy saves. Schema v65. */
+  ukCommonsRecallPetitions?: import("./elections/ukCommonsRecall.js").UkCommonsRecallPetition[];
   governorAddresses: import("./governor/types.js").GovernorAddress[];
   governorOrders: import("./governor/types.js").GovernorOrder[];
   /**
@@ -742,6 +772,15 @@ export interface Campaign {
   createdAtTurn: number;
 }
 
+/** Native projection of a source CharacterStateOrg row for presidential primaries. */
+export interface PrimaryStateOrganization {
+  level: number;
+  totalInvested: number;
+  updatedAtTurn: number;
+  lastBuildTurn: number;
+  lastBuildFunds: number;
+}
+
 export interface Politician {
   /** Deterministic id sequential per country, e.g. "US-1" */
   id: string;
@@ -751,6 +790,8 @@ export interface Politician {
   partyId: string;
   /** Chamber key this politician holds (e.g. "house", "volkskammer"); "" = unseated. */
   chamberKey: string;
+  /** Source ElectedOfficial.seatsHeld; absent legacy or single-seat offices weigh one. */
+  seatsHeld?: number;
   /** US state whose seat is held (house/senate). */
   electedState?: string | undefined;
   /** Source NPP homeState; independent of electedState when an officeholder moves or loses their seat. */
@@ -1011,9 +1052,15 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** Source character-relocation cooldown anchor; absent means never relocated. */
+  lastRelocatedTurn?: number;
+  /** Source CharacterStateOrg rows keyed by US state. */
+  primaryStateOrganizations?: Record<string, PrimaryStateOrganization>;
   /** One normalized UK office constituency selection, valid only in its saved region. */
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
+  /** Source per-user 168-turn corporation-founding cooldown; absent means never founded. */
+  lastCorporationFoundedTurn?: number;
   /**
    * Optional foreign-currency personal balances. Bond cash flows use the
    * bond's denomination, matching AHDGame Character.currencyBalances.personal.
@@ -1026,6 +1073,8 @@ export interface PlayerCharacter {
    * ACTION_HOARD_PENALTY=4, threshold 100, cap 200 at PORT-STUB neutral.
    */
   actions: number;
+  /** Turn of the player's last illicit union drive, enforcing one drive across cells per turn. */
+  lastUndergroundDriveTurn?: number | null;
   /** Campaign funds (local) for player. */
   funds: number;
   donorBaseLevel: number;
@@ -1123,6 +1172,8 @@ export interface PlayerCharacter {
   legislativeSeat: {
     chamberKey: string;
     countryId: string;
+    /** Source ElectedOfficial.seatsHeld; absent legacy or single-seat offices weigh one. */
+    seatsHeld?: number;
     /** Region won in the election. Required for constituency-bound offices. */
     regionId?: string;
   } | null;
@@ -1291,6 +1342,8 @@ export interface Party {
   countryId: string;
   abbreviation: string;
   color: string;
+  /** Source party merger successor; stale election records resolve through this chain. */
+  mergedIntoPartyId?: string | null;
   /**
    * Party-authored logo URL (reference PoliticalParty.logoUrl, chair-uploaded
    * custom art). Seeded from the content pack; every authored pack carries
@@ -1373,6 +1426,20 @@ export interface Party {
   customElectionDurationTurns?: number;
   leadershipElectionMethod?: "party" | "influence" | "committee";
   coalitionId?: string | null;
+}
+
+export interface PartyMergerProposal {
+  id: string;
+  proposerPartyId: string;
+  targetPartyId: string;
+  countryId: string;
+  proposerId: string;
+  createdTurn: number;
+  expiresTurn: number;
+  resolvedTurn?: number;
+  status: "open" | "passed" | "rejected";
+  proposingVotes: Array<{ voterId: string; vote: "yes" | "no"; turn: number }>;
+  targetVotes: Array<{ voterId: string; vote: "yes" | "no"; turn: number }>;
 }
 
 /**
@@ -1618,6 +1685,8 @@ export interface Region {
   /** Migration provenance: this HQ-only row was absent from the legacy save. */
   legacyProjectionDefault?: true;
   /** Optional enriched state metadata for US states (W38+). Mirrors StateSeed fields. */
+  /** In-game admission year for a territory admitted after its starting pack. */
+  admittedYear?: number;
   population?: number;
   houseSeats?: number;
   senateSeats?: number;
@@ -1803,6 +1872,8 @@ export interface CrisisRecord {
   effects: Array<{ type: string; value: number; effectType: "flat" | "tick" | "decay" }>;
   status: "active" | "resolved";
   endTurn?: number;
+  /** Source union-ban general strike's once-per-turn underground extension guard. */
+  lastUndergroundExtensionTurn?: number;
   wireMessageOnStart: string;
   wireMessageOnEnd: string;
   playerResponse?: string | null;

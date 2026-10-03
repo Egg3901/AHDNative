@@ -16,6 +16,7 @@ import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
 import { ARREARS_DEFAULT_TURNS, RESERVE_REQUIREMENT, TURNS_PER_YEAR } from "./constants.js";
 import { bankCurrency, charterMay } from "./capabilities.js";
+import { worldBankDeposits } from "./worldDeposits.js";
 
 /** Max share of lendable headroom one lender may place on interbank. Source: rules/decide.ts INTERBANK_MAX_SHARE_OF_LENDABLE. */
 export const INTERBANK_MAX_SHARE_OF_LENDABLE = 0.5;
@@ -55,12 +56,14 @@ function activeCharter(corp: Corporation | undefined): corp is Corporation & { b
  * Cash a deposit-taking bank may put behind NEW lending: the lendable share
  * of its deposit base after reserves and the book already out.
  * Source: rules/loans.ts namedLoanHeadroom via rules/reserves.ts
- * getLendableHeadroom. Solo charters carry no playerDeposits field (player
- * savings are a pointer balance, never bank cash), so npcDeposits are the
- * whole cash-backed base — cited here, not silently equated.
+ * getLendableHeadroom. An authoritative player balance adds to the book only
+ * when its domestic holder pointer and saved currency read cohort agree.
  */
-export function interbankHeadroom(charter: NonNullable<Corporation["bankCharter"]>): number {
-  return Math.max(0, Math.max(0, charter.npcDeposits) * (1 - RESERVE_REQUIREMENT) - Math.max(0, charter.totalLoans));
+export function interbankHeadroom(
+  charter: NonNullable<Corporation["bankCharter"]>,
+  cashBackedDeposits = Math.max(0, charter.npcDeposits),
+): number {
+  return Math.max(0, Math.max(0, cashBackedDeposits) * (1 - RESERVE_REQUIREMENT) - Math.max(0, charter.totalLoans));
 }
 
 /** Live (status current) exposure this lender has placed on the market. Source: interbank.ts sumLenderInterbankOutstanding. */
@@ -80,7 +83,7 @@ export function lenderInterbankOutstanding(world: WorldState, lenderCorpId: stri
 export function quoteInterbankMax(world: WorldState, lenderCorpId: string): InterbankQuote {
   const lender = world.corporations[lenderCorpId];
   if (!world.featureFlags.banking || world.bankPropTradingEnabled === false || !activeCharter(lender) || !charterMay(lender.bankCharter, "interbankLending")) return { maxByShare: 0, lenderCash: 0, max: 0 };
-  const headroom = interbankHeadroom(lender.bankCharter);
+  const headroom = interbankHeadroom(lender.bankCharter, worldBankDeposits(world, lender).cashBackedDeposits);
   const maxByShare = Math.max(0, INTERBANK_MAX_SHARE_OF_LENDABLE * headroom - lenderInterbankOutstanding(world, lenderCorpId));
   const lenderCash = Math.max(0, lender.bankCharter.cashReserves);
   return { maxByShare, lenderCash, max: Math.min(maxByShare, lenderCash) };
@@ -125,7 +128,7 @@ export function lendInterbank(
   if (principal === null) return { ok: false, error: "Amount must be a positive number" };
   if (!Number.isFinite(ratePercent) || ratePercent < 0) return { ok: false, error: "Rate must be a non-negative number" };
 
-  const headroom = interbankHeadroom(lender.bankCharter);
+  const headroom = interbankHeadroom(lender.bankCharter, worldBankDeposits(world, lender).cashBackedDeposits);
   const maxByShare = INTERBANK_MAX_SHARE_OF_LENDABLE * headroom;
   const outstanding = lenderInterbankOutstanding(world, lenderCorpId);
   if (principal > maxByShare + 1e-9 || outstanding + principal > maxByShare + 1e-9) {

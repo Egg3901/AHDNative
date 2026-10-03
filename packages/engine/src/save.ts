@@ -15,12 +15,14 @@ import { normalizeShares } from "./alignment/alignment.js";
 import { validateAlignmentRecords } from "./alignment/recordValidation.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
 import { assignUsSeatGeography } from "./elections/seatGeography.js";
+import { PRIMARY_WAVES } from "./elections/data/usPrimaryCalendar.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION, corporationIdentity } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
 import { CORPORATION_TYPES, type CorporationType, type ShareholderEntry } from "./corporation/types.js";
+import { CURRENCY_CODE_BY_COUNTRY } from "./forex/constants.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -52,7 +54,12 @@ import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
 import { validatePoliticalState } from "./politicalMetrics/validate.js";
 import { validateNationalizationEligibilityState } from "./corporation/nationalizationEligibility.js";
+import { validateNationalCorporations } from "./corporation/nationalCorporation.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
+import { validatePendingNationalizations } from "./corporation/pendingNationalizations.js";
+import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
+import { validateNppStrategyState } from "./corporation/nppCorpStrategy.js";
+import { validateCorporateRelocationVote } from "./corporation/relocationVotes.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -180,6 +187,16 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  if (hasOwn(world, "pendingNationalizations")) {
+    return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
+  const weightedPlayer = world["player"];
+  const weightedSeat = isRecord(weightedPlayer) ? weightedPlayer["legislativeSeat"] : undefined;
+  const weightedOfficials = world["politicians"];
+  if ((isRecord(weightedSeat) && hasOwn(weightedSeat, "seatsHeld")) ||
+    (Array.isArray(weightedOfficials) && weightedOfficials.some(official => isRecord(official) && hasOwn(official, "seatsHeld")))) {
+    return { ok: false, error: "Weighted elected seats cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
   const partyWhips = world["partyWhips"];
   if (Array.isArray(partyWhips) && partyWhips.some((whip) => isRecord(whip) && typeof whip["stateId"] === "string" && whip["stateId"].length > 0)) {
     return { ok: false, error: `Home-state party whip behavior cannot be projected to the schema 42 turn reader. Keep this Native save.` };
@@ -206,6 +223,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const budgets = world["budgets"];
   if (isRecord(budgets)) for (const [countryId, row] of Object.entries(budgets)) {
     if (!isRecord(row)) continue;
+    if (row["unionsBanned"] === true || (typeof row["unionLawBias"] === "number" && row["unionLawBias"] !== 0)) {
+      return { ok: false, error: `Budget ${countryId} union-law state cannot be continued by the schema 42 turn reader; keep this Native save.` };
+    }
     const rates = row["taxRates"];
     const phaseIn = row["taxRatePhaseIn"];
     if (
@@ -311,6 +331,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       error: `RPG stats are disabled in this ruleset. Schema 42 always applies RPG stats; keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
+  if (world["frontierEntryExperimentEnabled"] === true) {
+    return { ok: false, error: `Frontier-entry experiment state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   if (hasOwn(world, "bankingLaws") || hasOwn(world, "bankPropTradingEnabled")) {
     return { ok: false, error: `Banking policies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
@@ -339,6 +362,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       ok: false,
       error: "player.homeRegionId is not a nullable string. Schema 42 cannot store that identity",
     };
+  }
+  if (hasOwn(player, "lastRelocatedTurn")) {
+    return { ok: false, error: `Player relocation cooldown cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
   // Issue #334: schema 42 has no difficulty axis. An absent or normal
   // axis projects cleanly (dropped below; absent reloads as the identical
@@ -445,6 +471,19 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     if (!isRecord(value)) {
       return { ok: false, error: `Corporation ${corpId} cannot be projected to schema 42` };
     }
+    if (value["isPrivate"] === true || value["relocationVote"] !== undefined) {
+      return { ok: false, error: `Corporation ${corpId} has private-company or relocation-vote state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
+    const liquidCurrencyCode = value["liquidCurrencyCode"];
+    if (liquidCurrencyCode !== undefined) {
+      const countryId = String(value["countryId"] ?? "");
+      const expectedCurrency = CURRENCY_CODE_BY_COUNTRY[countryId] ??
+        (isRecord(world["budgets"]) && isRecord(world["budgets"][countryId]) && typeof world["budgets"][countryId]!["currencyCode"] === "string"
+          ? world["budgets"][countryId]!["currencyCode"] as string : "USD");
+      if (typeof liquidCurrencyCode !== "string" || !/^[A-Z]{3}$/.test(liquidCurrencyCode) || liquidCurrencyCode !== expectedCurrency) {
+        return { ok: false, error: `Corporation ${corpId} has a liquid currency that schema 42 cannot infer from its country. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
     // Schema 42 readers preserve unknown save keys, but their corporation
     // turn has no CEO ballot, appointment, compensation, or dividend phase.
     // Only neutral default values are reversible; an active lifecycle must
@@ -533,6 +572,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // Preserve the earlier market/governance refusal before checking R&D.
   for (const [corpId, value] of Object.entries(corporations)) {
     if (!isRecord(value)) continue;
+    if (Array.isArray(value["unlockedTechNodeIds"]) || value["techDecadeLane"] !== undefined || value["techDecadeChosenTurn"] !== undefined ||
+      value["marketingStrength"] !== undefined || value["logisticsStrength"] !== undefined) {
+      return { ok: false, error: `Corporation ${corpId} has technology-tree state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
     const rdAmounts = ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain"].map((field) => value[field]);
     const hasNonzeroRdState = rdAmounts.some((amount) =>
       amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
@@ -546,7 +589,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // Keeping unfamiliar JSON keys cannot continue the recorded production.
   const sectorAssets = world["corporateSectors"];
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
-    isRecord(asset) && ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)),
+    isRecord(asset) && (
+      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied", "plantsPnl", "otherOpexPerUnitAnchor", "otherOpexAnchorMarginBasis", "plantsUpkeepMarginBasisAnchor", "effectiveProfitMargin", "mothballed", "pnlLossTurns"].some(field => hasOwn(asset, field)) ||
+      (hasOwn(asset, "strategyId") && asset["strategyId"] !== undefined && asset["strategyId"] !== "standard")
+    ),
   );
   if (hasOwn(world, "plantMarketDemand") || hasOwn(world, "corporateTradeSnapshot") || hasPlantCapacity) {
     return { ok: false, error: `Plant production and market state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
@@ -583,6 +629,11 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (hasOwn(world, "stateOwnershipLedger")) {
     return { ok: false, error: "State ownership history cannot be continued by schema 42. Keep this Native save." };
   }
+  const statehood = world["statehood"];
+  if (statehood !== undefined && (!isRecord(statehood) ||
+      Object.keys(statehood).some((key) => key !== "startingPreset"))) {
+    return { ok: false, error: "Statehood admission progress cannot be continued by schema 42. Keep this Native save." };
+  }
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
@@ -596,6 +647,11 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // reader. An empty backfill is reconstructable; a live ballot is refused
   // above because the old reader cannot advance its deadline or tally.
   delete candidateWorld["pmAppointmentVotes"];
+  // Loading a historical save restores the starting-preset guard without
+  // consuming RNG. Drop only that neutral default, then require the complete
+  // reload comparison below to reconstruct it. Recorded evaluation or
+  // admission progress is refused above.
+  delete candidateWorld["statehood"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
   delete candidateWorld["nppInfluenceAttempts"];
@@ -653,6 +709,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     delete corp["orderFlowWindowBuyValue"];
     delete corp["orderFlowWindowSellValue"];
     delete corp["priceHistory"];
+    delete corp["liquidCurrencyCode"];
     delete corp["rdBudgetPerTurn"];
     delete corp["rdScore"];
     delete corp["lastRdSpendPerTurn"];
@@ -903,6 +960,177 @@ function assertCurrentWorldState(world: WorldState): void {
   ) {
     throw new Error("Not a valid save file: invalid world state");
   }
+  const lastRelocatedTurn = player["lastRelocatedTurn"];
+  if (lastRelocatedTurn !== undefined &&
+      (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
+    throw new Error("Not a valid save file: invalid player relocation turn");
+  }
+
+  const ukDevolution = value["ukDevolution"];
+  if (ukDevolution !== undefined) {
+    const expectedRegions = ["LON", "NIR", "SCO", "WAL"];
+    if (
+      !isRecord(ukDevolution) ||
+      ukDevolution["_id"] !== "UK" ||
+      !isRecord(ukDevolution["regions"]) ||
+      Object.keys(ukDevolution["regions"]).sort().join(",") !== expectedRegions.join(",") ||
+      Object.keys(ukDevolution).some((key) => !["_id", "regions", "lastPolicyBillId", "northernIrelandPeace"].includes(key)) ||
+      (ukDevolution["lastPolicyBillId"] !== undefined &&
+        (typeof ukDevolution["lastPolicyBillId"] !== "string" || ukDevolution["lastPolicyBillId"].length === 0))
+    ) {
+      throw new Error("Not a valid save file: invalid UK devolution institution state");
+    }
+    const niPeace = ukDevolution["northernIrelandPeace"];
+    if (niPeace !== undefined && (
+      !isRecord(niPeace) ||
+      Object.keys(niPeace).some((key) => !["posture", "changedTurn", "assemblyFirstCycle", "assemblyFirstElectionEndTurn"].includes(key)) ||
+      !["unsettled", "power_sharing", "suspended"].includes(String(niPeace["posture"])) ||
+      !Number.isInteger(niPeace["changedTurn"]) || (niPeace["changedTurn"] as number) < 0 ||
+      (niPeace["assemblyFirstCycle"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstCycle"]) || (niPeace["assemblyFirstCycle"] as number) < 1)) ||
+      (niPeace["assemblyFirstElectionEndTurn"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstElectionEndTurn"]) || (niPeace["assemblyFirstElectionEndTurn"] as number) < 0))
+    )) {
+      throw new Error("Not a valid save file: invalid Northern Ireland peace posture");
+    }
+    if (niPeace !== undefined) {
+      for (const field of ["assemblyFirstCycle", "assemblyFirstElectionEndTurn"]) {
+        const fieldValue = niPeace[field];
+        if (fieldValue !== undefined && (!Number.isInteger(fieldValue) || (fieldValue as number) < 0)) {
+          throw new Error("Not a valid save file: invalid Northern Ireland peace institution anchor");
+        }
+      }
+    }
+    for (const regionId of expectedRegions) {
+      const institution = ukDevolution["regions"][regionId];
+      if (
+        !isRecord(institution) ||
+        Object.keys(institution).some((key) => !["active", "firstCycle", "firstElectionEndTurn"].includes(key)) ||
+        typeof institution["active"] !== "boolean" ||
+        !Number.isInteger(institution["firstCycle"]) ||
+        (institution["firstCycle"] as number) < 1 ||
+        (institution["firstElectionEndTurn"] !== undefined &&
+          (!Number.isInteger(institution["firstElectionEndTurn"]) || (institution["firstElectionEndTurn"] as number) < 0))
+      ) {
+        throw new Error(`Not a valid save file: invalid UK devolution institution state for ${regionId}`);
+      }
+    }
+  }
+
+  const niConflict = value["northernIrelandConflict"];
+  if (niConflict !== undefined) {
+    const phases = ["armed_stalemate", "backchannels", "ceasefire", "multiparty_talks", "agreement", "power_sharing", "fragile_settlement"];
+    const trackKeys = ["violence", "settlementMomentum", "legitimacy", "unionistConsent", "nationalistConsent", "decommissioning", "institutionalStability", "domesticConsent", "referendumRatification", "ratificationAuthorization", "ratificationFailureCount"];
+    if (!isRecord(niConflict) || niConflict["_id"] !== "northern_ireland" || niConflict["hasOpened"] !== true || !phases.includes(String(niConflict["phase"])) || niConflict["phaseLevel"] !== phases.indexOf(String(niConflict["phase"])) + 1 || !["active", "negotiating", "ceasefire", "settled", "closed"].includes(String(niConflict["status"])) || !isRecord(niConflict["tracks"]) || Object.keys(niConflict["tracks"]).sort().join(",") !== trackKeys.sort().join(",")) {
+      throw new Error("Not a valid save file: invalid Northern Ireland living-conflict state");
+    }
+    for (const key of trackKeys) {
+      const n = niConflict["tracks"][key];
+      const max = key === "referendumRatification" ? 1 : key === "ratificationAuthorization" || key === "ratificationFailureCount" ? 2 : 100;
+      if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > max) throw new Error(`Not a valid save file: invalid Northern Ireland track ${key}`);
+    }
+    for (const key of ["phaseTurns", "totalTurns", "lastProcessedTurn", "lastInteractionTurn"]) {
+      const min = key === "lastInteractionTurn" ? -24 : -1;
+      if (!Number.isInteger(niConflict[key]) || (niConflict[key] as number) < min) throw new Error("Not a valid save file: invalid Northern Ireland living-conflict clock");
+    }
+    if (niConflict["decision"] !== undefined && (!isRecord(niConflict["decision"]) || !["peace_initiative", "agreement_implementation"].includes(String(niConflict["decision"]["interaction"])) || typeof niConflict["decision"]["nodeId"] !== "string" || !Number.isInteger(niConflict["decision"]["nodeIndex"]) || !Number.isInteger(niConflict["decision"]["openedTurn"]) || !Number.isInteger(niConflict["decision"]["deadlineTurn"]))) {
+      throw new Error("Not a valid save file: invalid Northern Ireland conflict decision");
+    }
+  }
+  const niPoll = value["northernIrelandPeacePoll"];
+  if (niPoll !== undefined && (!isRecord(niPoll) || typeof niPoll["id"] !== "string" || niPoll["kind"] !== "peace_agreement" || !["campaigning", "completed"].includes(String(niPoll["status"])) || typeof niPoll["agreementKey"] !== "string" || !Number.isInteger(niPoll["openedTurn"]) || !Number.isInteger(niPoll["closesTurn"]) || typeof niPoll["yesShare"] !== "number" || !Number.isFinite(niPoll["yesShare"]) || niPoll["yesShare"] < 0 || niPoll["yesShare"] > 100 || !isRecord(niPoll["campaignSpendUnits"]) || !isRecord(niPoll["campaignSpendUnits"]) || typeof niPoll["campaignSpendUnits"]["yes"] !== "number" || typeof niPoll["campaignSpendUnits"]["no"] !== "number" || !Array.isArray(niPoll["cohortBaseline"]))) {
+    throw new Error("Not a valid save file: invalid Northern Ireland peace poll");
+  }
+
+  const ukCommonsVacancies = value["ukCommonsVacancies"];
+  if (ukCommonsVacancies !== undefined) {
+    if (!Array.isArray(ukCommonsVacancies)) throw new Error("Not a valid save file: invalid UK Commons vacancy ledger");
+    const seenVacancyIds = new Set<string>();
+    for (const vacancy of ukCommonsVacancies) {
+      if (!isRecord(vacancy) || Object.keys(vacancy).some((key) => !["id", "countryId", "regionId", "formerHolderId", "seats", "reason", "vacatedTurn", "status", "electionId", "filledById", "filledTurn"].includes(key)) ||
+        typeof vacancy["id"] !== "string" || typeof vacancy["regionId"] !== "string" || vacancy["countryId"] !== "UK" || typeof vacancy["formerHolderId"] !== "string" || !["death", "retirement", "defection", "resignation", "recall", "removal"].includes(String(vacancy["reason"])) || !Number.isInteger(vacancy["vacatedTurn"]) || !["open", "scheduled", "filled", "subsumed"].includes(String(vacancy["status"])) ||
+        (vacancy["seats"] !== undefined && (!Number.isSafeInteger(vacancy["seats"]) || (vacancy["seats"] as number) < 1)) ||
+        seenVacancyIds.has(vacancy["id"]) ||
+        (vacancy["status"] === "scheduled" && typeof vacancy["electionId"] !== "string") ||
+        (vacancy["status"] === "filled" && ((vacancy["filledById"] !== undefined && typeof vacancy["filledById"] !== "string") || !Number.isInteger(vacancy["filledTurn"]))) ||
+        (vacancy["status"] !== "filled" && (vacancy["filledById"] !== undefined || vacancy["filledTurn"] !== undefined))) {
+        throw new Error("Not a valid save file: invalid UK Commons vacancy entry");
+      }
+      seenVacancyIds.add(vacancy["id"]);
+    }
+  }
+
+  const recallPetitions = value["ukCommonsRecallPetitions"];
+  if (recallPetitions !== undefined) {
+    const petitionKeys = ["id", "countryId", "regionId", "officialId", "targetName", "targetPartyId", "status", "trigger", "lowStreak", "lastEvaluatedTurn", "signatures", "declarations", "supportSamples", "openedTurn", "checkStartTurn", "checkEndTurn", "resolvedTurn", "outcome", "vacancyId", "expireReason"];
+    const ids = new Set<string>();
+    const liveOfficials = new Set<string>();
+    const recallVacancies = new Map((Array.isArray(ukCommonsVacancies) ? ukCommonsVacancies : []).filter(isRecord).map((row) => [String(row["id"]), row]));
+    const currentTurn = isRecord(value["meta"]) && Number.isSafeInteger(value["meta"]["turn"]) ? value["meta"]["turn"] as number : -1;
+    if (!Array.isArray(recallPetitions)) throw new Error("Not a valid save file: invalid UK Commons recall ledger");
+    for (const petition of recallPetitions) {
+      if (!isRecord(petition) || Object.keys(petition).some((key) => !petitionKeys.includes(key)) ||
+        typeof petition["id"] !== "string" || !petition["id"] || ids.has(petition["id"]) || petition["countryId"] !== "UK" ||
+        typeof petition["regionId"] !== "string" || !petition["regionId"] || typeof petition["officialId"] !== "string" || !petition["officialId"] ||
+        typeof petition["targetName"] !== "string" || !["watch", "open", "check", "retained", "vacated", "expired"].includes(String(petition["status"])) ||
+        !["infamy", "lowApproval"].includes(String(petition["trigger"])) || !Number.isSafeInteger(petition["lowStreak"]) || (petition["lowStreak"] as number) < 0 ||
+        !Number.isSafeInteger(petition["lastEvaluatedTurn"]) || (petition["lastEvaluatedTurn"] as number) < -1 ||
+        (petition["targetPartyId"] !== undefined && typeof petition["targetPartyId"] !== "string") ||
+        !Array.isArray(petition["signatures"]) || !Array.isArray(petition["declarations"]) || !Array.isArray(petition["supportSamples"])) {
+        throw new Error("Not a valid save file: invalid UK Commons recall petition");
+      }
+      ids.add(petition["id"]);
+      const live = ["watch", "open", "check"].includes(String(petition["status"]));
+      if (live && liveOfficials.has(petition["officialId"])) throw new Error("Not a valid save file: duplicate live UK Commons recall office");
+      if (live) liveOfficials.add(petition["officialId"]);
+      const uniqueActors = new Set<string>();
+      for (const signature of petition["signatures"]) {
+        if (!isRecord(signature) || Object.keys(signature).some((key) => !["actorId", "turn"].includes(key)) || typeof signature["actorId"] !== "string" || !signature["actorId"] || !Number.isSafeInteger(signature["turn"]) || (signature["turn"] as number) < 0 || uniqueActors.has(signature["actorId"])) throw new Error("Not a valid save file: invalid UK Commons recall signature");
+        uniqueActors.add(signature["actorId"]);
+        if ((petition["openedTurn"] !== undefined && (signature["turn"] as number) < (petition["openedTurn"] as number)) || (currentTurn >= 0 && (signature["turn"] as number) > currentTurn)) throw new Error("Not a valid save file: UK Commons recall signature outside petition clock");
+      }
+      uniqueActors.clear();
+      for (const declaration of petition["declarations"]) {
+        if (!isRecord(declaration) || Object.keys(declaration).some((key) => !["actorId", "side", "turn"].includes(key)) || typeof declaration["actorId"] !== "string" || !declaration["actorId"] || !["retain", "remove"].includes(String(declaration["side"])) || !Number.isSafeInteger(declaration["turn"]) || (declaration["turn"] as number) < 0 || uniqueActors.has(declaration["actorId"])) throw new Error("Not a valid save file: invalid UK Commons recall declaration");
+        uniqueActors.add(declaration["actorId"]);
+        if ((petition["checkStartTurn"] !== undefined && (declaration["turn"] as number) < (petition["checkStartTurn"] as number)) || (petition["checkEndTurn"] !== undefined && (declaration["turn"] as number) > (petition["checkEndTurn"] as number)) || (currentTurn >= 0 && (declaration["turn"] as number) > currentTurn)) throw new Error("Not a valid save file: UK Commons recall declaration outside check clock");
+      }
+      let priorSampleTurn = -1;
+      for (const sample of petition["supportSamples"]) {
+        if (!isRecord(sample) || Object.keys(sample).some((key) => !["turn", "favorability"].includes(key)) || !Number.isSafeInteger(sample["turn"]) || (sample["turn"] as number) < 0 || (sample["turn"] as number) <= priorSampleTurn || typeof sample["favorability"] !== "number" || !Number.isFinite(sample["favorability"]) || sample["favorability"] < 0 || sample["favorability"] > 100) throw new Error("Not a valid save file: invalid UK Commons recall support sample");
+        priorSampleTurn = sample["turn"] as number;
+        if ((petition["checkStartTurn"] !== undefined && priorSampleTurn < (petition["checkStartTurn"] as number)) || (currentTurn >= 0 && priorSampleTurn > currentTurn)) throw new Error("Not a valid save file: UK Commons recall sample outside check clock");
+      }
+      const turnFields = ["openedTurn", "checkStartTurn", "checkEndTurn", "resolvedTurn"] as const;
+      for (const key of turnFields) if (petition[key] !== undefined && (!Number.isSafeInteger(petition[key]) || (petition[key] as number) < 0)) throw new Error("Not a valid save file: invalid UK Commons recall clock");
+      if ((petition["status"] === "watch" && ((petition["lowStreak"] as number) > 3 || petition["openedTurn"] !== undefined || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["resolvedTurn"] !== undefined || petition["signatures"].length !== 0 || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0)) ||
+        (petition["status"] === "open" && (!Number.isSafeInteger(petition["openedTurn"]) || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["resolvedTurn"] !== undefined)) ||
+        (petition["status"] === "open" && ((petition["openedTurn"] as number) > currentTurn || petition["outcome"] !== undefined || petition["vacancyId"] !== undefined || petition["expireReason"] !== undefined || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0)) ||
+        (petition["status"] === "check" && (!Number.isSafeInteger(petition["openedTurn"]) || !Number.isSafeInteger(petition["checkStartTurn"]) || !Number.isSafeInteger(petition["checkEndTurn"]) || (petition["checkEndTurn"] as number) !== (petition["checkStartTurn"] as number) + 6 || (petition["checkStartTurn"] as number) > currentTurn || petition["resolvedTurn"] !== undefined || petition["outcome"] !== undefined || petition["vacancyId"] !== undefined || petition["expireReason"] !== undefined || petition["signatures"].length < 5)) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && (petition["openedTurn"] === undefined || (petition["openedTurn"] as number) > currentTurn || petition["declarations"].length > 0 && petition["checkStartTurn"] === undefined)) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && !Number.isSafeInteger(petition["resolvedTurn"])) ||
+        (petition["status"] === "vacated" && (petition["outcome"] !== "vacated" || typeof petition["vacancyId"] !== "string" || !recallVacancies.has(petition["vacancyId"] as string) || recallVacancies.get(petition["vacancyId"] as string)?.["formerHolderId"] !== petition["officialId"] || recallVacancies.get(petition["vacancyId"] as string)?.["reason"] !== "recall")) ||
+        (petition["status"] === "retained" && (petition["outcome"] !== "retained" || petition["checkStartTurn"] === undefined || petition["supportSamples"].length === 0)) ||
+        (petition["status"] === "expired" && (typeof petition["expireReason"] !== "string" || petition["expireReason"] !== "fewer than 5 signatures within 12 turns" || petition["outcome"] !== undefined || petition["signatures"].length >= 5 || petition["openedTurn"] === undefined || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0 || (petition["resolvedTurn"] as number) < (petition["openedTurn"] as number) + 12)) ||
+        (petition["status"] !== "vacated" && petition["vacancyId"] !== undefined) ||
+        (petition["status"] !== "expired" && petition["expireReason"] !== undefined) ||
+        (petition["status"] !== "retained" && petition["status"] !== "vacated" && petition["outcome"] !== undefined) ||
+        (petition["status"] === "vacated" && (petition["checkStartTurn"] === undefined || petition["supportSamples"].length === 0)) ||
+        ((petition["status"] === "retained" || petition["status"] === "vacated") && (petition["checkEndTurn"] === undefined || (petition["resolvedTurn"] as number) < (petition["checkEndTurn"] as number))) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && !Number.isSafeInteger(petition["resolvedTurn"])) ||
+        (currentTurn >= 0 && Number.isSafeInteger(petition["lastEvaluatedTurn"]) && (petition["lastEvaluatedTurn"] as number) > currentTurn)) throw new Error("Not a valid save file: inconsistent UK Commons recall petition phase");
+    }
+  }
+
+  const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>
+    holder["seatsHeld"] === undefined ||
+    (Number.isSafeInteger(holder["seatsHeld"]) && (holder["seatsHeld"] as number) >= 1);
+  const playerSeat = player["legislativeSeat"];
+  if (isRecord(playerSeat) && !hasValidSeatWeight(playerSeat)) {
+    throw new Error("Not a valid save file: invalid player seat weight");
+  }
+  const politicians = value["politicians"];
+  if (Array.isArray(politicians) && politicians.some(p => isRecord(p) && !hasValidSeatWeight(p))) {
+    throw new Error("Not a valid save file: invalid politician seat weight");
+  }
 
   const pricingState = value["centralBankPricingPhaseIn"];
   if (
@@ -945,6 +1173,28 @@ function assertCurrentWorldState(world: WorldState): void {
     }
     if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
+    }
+    const provisions = rawBill["provisions"];
+    if (!Array.isArray(provisions)) throw new Error("Not a valid save file: invalid bill provisions");
+    for (const provision of provisions) {
+      if (!isRecord(provision) || provision["type"] !== "union_law") continue;
+      const bias = provision["bias"];
+      const banAction = provision["banAction"];
+      if (typeof bias !== "number" || !Number.isFinite(bias) || bias < -50 || bias > 50 ||
+          (banAction !== undefined && banAction !== "ban" && banAction !== "repeal_ban")) {
+        throw new Error("Not a valid save file: invalid union-law provision");
+      }
+    }
+  }
+  const budgets = value["budgets"];
+  if (isRecord(budgets)) for (const [countryId, rawBudget] of Object.entries(budgets)) {
+    if (!isRecord(rawBudget)) continue;
+    if (rawBudget["unionsBanned"] !== undefined && typeof rawBudget["unionsBanned"] !== "boolean") {
+      throw new Error(`Not a valid save file: invalid budget ${countryId} unionsBanned`);
+    }
+    const bias = rawBudget["unionLawBias"];
+    if (bias !== undefined && (typeof bias !== "number" || !Number.isFinite(bias) || bias < -50 || bias > 50)) {
+      throw new Error(`Not a valid save file: invalid budget ${countryId} unionLawBias`);
     }
   }
   const tradeTariffs = value["tradeTariffs"];
@@ -1357,6 +1607,222 @@ function validateSoeSave(world: WorldState): void {
       throw new Error(`Not a valid save file: ${corporation.id} SOE directorId must be a character ID or null`);
     }
   }
+}
+
+function validatePresidentialPrimaryLedger(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const race = rawRace;
+    const hasLedger = [
+      "primaryStateVotes", "primaryDelegates", "primaryDelegatesByState",
+      "primaryAllocationByState", "primaryWaveHistory", "primaryStaggerWavesRun",
+      "primaryRulesetVersion", "primaryConventionResults",
+      "primaryCampaignState", "primaryCampaignTicks", "primarySurgeUsed", "primarySurgeBoost",
+    ].some((key) => race[key] !== undefined) ||
+      (Array.isArray(race["candidates"]) && race["candidates"].some((candidate) =>
+        isRecord(candidate) && ["primaryCampaignState", "primaryCampaignTicks", "primarySurgeUsed", "primarySurgeBoost"]
+          .some((key) => candidate[key] !== undefined),
+      ));
+    if (!hasLedger) continue;
+    if (race["countryId"] !== "US" || race["electionType"] !== "president") {
+      throw new Error("Not a valid save file: presidential primary ledger belongs only to a US presidential race");
+    }
+    const version = race["primaryRulesetVersion"];
+    if (version !== undefined && (!Number.isSafeInteger(version) || (version as number) < 1)) {
+      throw new Error("Not a valid save file: invalid presidential primary ruleset version");
+    }
+    if (Array.isArray(race["candidates"])) {
+      for (const rawCandidate of race["candidates"]) {
+        if (!isRecord(rawCandidate)) continue;
+        const stateId = rawCandidate["primaryCampaignState"];
+        const ticks = rawCandidate["primaryCampaignTicks"];
+        const surgeUsed = rawCandidate["primarySurgeUsed"];
+        const surgeBoost = rawCandidate["primarySurgeBoost"];
+        if (
+          (stateId !== undefined && (race["countryId"] !== "US" || race["electionType"] !== "president" ||
+            typeof stateId !== "string" || world.regions[stateId]?.countryId !== "US")) ||
+          (ticks !== undefined && (!Number.isSafeInteger(ticks) || (ticks as number) < 0 || (ticks as number) > 5 ||
+            ((ticks as number) > 0 && typeof stateId !== "string"))) ||
+          (surgeUsed !== undefined && typeof surgeUsed !== "boolean") ||
+          (surgeBoost !== undefined && (typeof surgeBoost !== "number" || !Number.isFinite(surgeBoost) || surgeBoost < 0 || surgeBoost > 100))
+        ) {
+          throw new Error("Not a valid save file: invalid presidential primary candidate campaign state");
+        }
+      }
+    }
+    const stretchedOffsets = [40, 32, 24, 16, 8, 0];
+    const history = race["primaryWaveHistory"];
+    if (history !== undefined) {
+      if (!Array.isArray(history) || history.length > PRIMARY_WAVES.length) {
+        throw new Error("Not a valid save file: invalid presidential primary wave history");
+      }
+      for (let index = 0; index < history.length; index += 1) {
+        const entry = history[index];
+        const sourceWave = PRIMARY_WAVES[index];
+        const turnsRemaining = ((version as number | undefined) ?? 1) >= 3
+          ? stretchedOffsets[index]
+          : sourceWave?.turnsRemaining;
+        if (
+          !isRecord(entry) || !sourceWave || entry["wave"] !== index ||
+          entry["turnsRemaining"] !== turnsRemaining ||
+          !Number.isSafeInteger(entry["turn"]) || (entry["turn"] as number) < 0 ||
+          (entry["turn"] as number) > world.meta.turn ||
+          (index > 0 && (entry["turn"] as number) < ((history[index - 1] as Record<string, unknown>)["turn"] as number)) ||
+          !Array.isArray(entry["statesVoted"]) ||
+          JSON.stringify(entry["statesVoted"]) !== JSON.stringify(sourceWave.states)
+        ) {
+          throw new Error("Not a valid save file: invalid presidential primary wave history entry");
+        }
+      }
+      const wavesRun = race["primaryStaggerWavesRun"];
+      if (wavesRun !== undefined && (!Number.isSafeInteger(wavesRun) || wavesRun !== history.length)) {
+        throw new Error("Not a valid save file: presidential primary wave count disagrees with its history");
+      }
+    }
+    const validateNumberTree = (value: unknown, label: string, depth: number): void => {
+      if (depth === 0 || !isRecord(value)) throw new Error(`Not a valid save file: invalid presidential primary ${label}`);
+      for (const [key, child] of Object.entries(value)) {
+        if (!key.trim()) throw new Error(`Not a valid save file: invalid presidential primary ${label} key`);
+        if (typeof child === "number") {
+          if (!Number.isSafeInteger(child) || child < 0) throw new Error(`Not a valid save file: invalid presidential primary ${label} value`);
+        } else {
+          validateNumberTree(child, label, depth - 1);
+        }
+      }
+    };
+    for (const key of ["primaryStateVotes", "primaryDelegates", "primaryDelegatesByState"] as const) {
+      if (race[key] !== undefined) validateNumberTree(race[key], key, key === "primaryDelegates" ? 2 : 3);
+    }
+    const knownCandidates = new Set(
+      Array.isArray(race["candidates"])
+        ? race["candidates"].flatMap((candidate) =>
+            isRecord(candidate) && typeof candidate["id"] === "string" ? [candidate["id"]] : [],
+          )
+        : [],
+    );
+    for (const key of ["primaryStateVotes", "primaryDelegates", "primaryDelegatesByState"] as const) {
+      const tree = race[key];
+      if (!isRecord(tree)) continue;
+      for (const [partyId, branch] of Object.entries(tree)) {
+        if (!world.parties[partyId] || !isRecord(branch)) {
+          throw new Error(`Not a valid save file: presidential primary ${key} references an unknown party`);
+        }
+        for (const [stateOrCandidateId, values] of Object.entries(branch)) {
+          if (key === "primaryDelegates" && !knownCandidates.has(stateOrCandidateId)) {
+            throw new Error("Not a valid save file: presidential primary delegates reference an unknown candidate");
+          }
+          if (key !== "primaryDelegates" && !world.regions[stateOrCandidateId]) {
+            throw new Error(`Not a valid save file: presidential primary ${key} references an unknown state`);
+          }
+          if (key === "primaryDelegates") continue;
+          if (!isRecord(values)) continue;
+          for (const candidateId of Object.keys(values)) {
+            if (!knownCandidates.has(candidateId)) {
+              throw new Error(`Not a valid save file: presidential primary ${key} references an unknown candidate`);
+            }
+          }
+        }
+      }
+    }
+    const allocation = race["primaryAllocationByState"];
+    if (allocation !== undefined) {
+      if (!isRecord(allocation)) throw new Error("Not a valid save file: invalid presidential primary allocations");
+      for (const byState of Object.values(allocation)) {
+        if (!isRecord(byState) || Object.values(byState).some((method) => method !== "PR" && method !== "WTA")) {
+          throw new Error("Not a valid save file: invalid presidential primary allocation method");
+        }
+      }
+      for (const [partyId, byState] of Object.entries(allocation)) {
+        if (!world.parties[partyId]) throw new Error("Not a valid save file: presidential primary allocation references an unknown party");
+        if (!isRecord(byState)) continue;
+        for (const stateId of Object.keys(byState)) {
+          if (!world.regions[stateId]) throw new Error("Not a valid save file: presidential primary allocation references an unknown state");
+        }
+      }
+    }
+    const wavesRun = race["primaryStaggerWavesRun"];
+    if (wavesRun !== undefined && (!Number.isSafeInteger(wavesRun) || (wavesRun as number) < 0 || (wavesRun as number) > PRIMARY_WAVES.length)) {
+      throw new Error("Not a valid save file: invalid presidential primary wave count");
+    }
+    const conventions = race["primaryConventionResults"];
+    if (conventions !== undefined) {
+      if (!isRecord(conventions)) throw new Error("Not a valid save file: invalid presidential primary convention results");
+      for (const [partyId, result] of Object.entries(conventions)) {
+        if (!partyId.trim() || !isRecord(result) ||
+            (result["mode"] !== "delegate_majority" && result["mode"] !== "convention") ||
+            typeof result["winnerCandidateId"] !== "string" || !result["winnerCandidateId"].trim() ||
+            typeof result["firstBallotLeaderId"] !== "string" || !result["firstBallotLeaderId"].trim() ||
+            !Number.isSafeInteger(result["majorityThreshold"]) || (result["majorityThreshold"] as number) <= 0 ||
+            typeof result["resolvedAt"] !== "string" || !Number.isFinite(Date.parse(result["resolvedAt"]))) {
+          throw new Error("Not a valid save file: invalid presidential primary convention result");
+        }
+      }
+    }
+  }
+}
+
+function validatePresidentialGeneralMechanics(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const version = rawRace["presidentialRulesetVersion"];
+    const endorsements = rawRace["governorEndorsements"];
+    if (version !== undefined && (rawRace["countryId"] !== "US" || rawRace["electionType"] !== "president" ||
+      !Number.isSafeInteger(version) || (version as number) < 1)) {
+      throw new Error("Not a valid save file: invalid presidential general ruleset stamp");
+    }
+    if (endorsements === undefined) continue;
+    if (rawRace["countryId"] !== "US" || rawRace["electionType"] !== "president" || !Array.isArray(endorsements)) {
+      throw new Error("Not a valid save file: governor endorsement ledger belongs only to a US presidential race");
+    }
+    const ids = new Set<string>();
+    const activeGovernorStates = new Set<string>();
+    for (const row of endorsements) {
+      if (!isRecord(row) || typeof row["id"] !== "string" || row["id"].length === 0 || ids.has(row["id"]) ||
+        typeof row["stateId"] !== "string" || world.regions[row["stateId"]]?.countryId !== "US" ||
+        typeof row["candidateId"] !== "string" || typeof row["endorsedById"] !== "string" ||
+        !Number.isSafeInteger(row["createdAtTurn"]) || (row["createdAtTurn"] as number) < 0 ||
+        (row["isActive"] !== true && row["isActive"] !== false) ||
+        (row["withdrawnAtTurn"] !== undefined && (!Number.isSafeInteger(row["withdrawnAtTurn"]) ||
+          (row["withdrawnAtTurn"] as number) < (row["createdAtTurn"] as number))) ||
+        (row["withdrawnReason"] !== undefined && !["manual", "election_ended", "candidate_inactive", "governor_left_office"].includes(String(row["withdrawnReason"])))) {
+        throw new Error("Not a valid save file: invalid presidential governor endorsement");
+      }
+      if (row["isActive"] === true && activeGovernorStates.has(row["stateId"] as string)) {
+        throw new Error("Not a valid save file: multiple active governor endorsements for one state and race");
+      }
+      ids.add(row["id"] as string);
+      if (row["isActive"] === true) activeGovernorStates.add(row["stateId"] as string);
+    }
+  }
+}
+
+function validatePrimaryStateOrganizations(world: WorldState): void {
+  const validateOwner = (
+    ownerId: string,
+    ownerCountryId: string,
+    raw: unknown,
+  ): void => {
+    if (raw === undefined) return;
+    if (ownerCountryId !== "US" || !isRecord(raw)) {
+      throw new Error(`Not a valid save file: ${ownerId} has invalid primary state organizations`);
+    }
+    for (const [stateId, value] of Object.entries(raw)) {
+      if (
+        !world.regions[stateId] ||
+        world.regions[stateId]!.countryId !== "US" ||
+        !isRecord(value) ||
+        !Number.isSafeInteger(value["level"]) || (value["level"] as number) < 1 ||
+        !Number.isFinite(value["totalInvested"]) || (value["totalInvested"] as number) < 0 ||
+        !Number.isSafeInteger(value["updatedAtTurn"]) || (value["updatedAtTurn"] as number) < 0 || (value["updatedAtTurn"] as number) > world.meta.turn ||
+        !Number.isSafeInteger(value["lastBuildTurn"]) || (value["lastBuildTurn"] as number) < 0 ||
+        (value["lastBuildTurn"] as number) > (value["updatedAtTurn"] as number) ||
+        !Number.isFinite(value["lastBuildFunds"]) || (value["lastBuildFunds"] as number) < 0
+      ) {
+        throw new Error(`Not a valid save file: ${ownerId} has invalid primary state organization for ${stateId}`);
+      }
+    }
+  };
+  validateOwner("player", world.player.countryId, world.player.primaryStateOrganizations);
 }
 
 export function deserializeSave(raw: string): WorldState {
@@ -3405,10 +3871,52 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
   // No creator or grace history is invented for earlier Native issuers.
   if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
-  // Political labour snapshots change the next-turn regional board. Keep
-  // absent history absent; the version bump makes older readers refuse new
-  // saves rather than silently retaining a snapshot they cannot consume.
+  // Source labour political snapshots and primary waves/delegates/campaign
+  // records preserve historical absence until their actual producers run.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
+  if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
+  // Source strategy transitions are absent until an actual retool is ordered.
+  if (save.schemaVersion < 56) save.world.meta.schemaVersion = 56;
+  // Paid tiers and their political/ownership continuation require the new
+  // reader. No historical acquisitions or confidence records are invented.
+  if (save.schemaVersion < 57) save.world.meta.schemaVersion = 57;
+  // v57 -> v58: general presidential ruleset stamps are absent=>v1 (source
+  // compatibility), and the election-scoped governor endorsement ledger is
+  // optional/empty on legacy races. Do not stamp existing elections v3.
+  if (save.schemaVersion < 58) save.world.meta.schemaVersion = 58;
+  // v59: do not infer historic law state. The optional budget fields stay
+  // absent until a source union-law bill enacts; preserve that historical
+  // absence while making the current reader reject older union-unaware readers.
+  if (save.schemaVersion < 59) save.world.meta.schemaVersion = 59;
+  // Earlier readers only understood Irish PM votes. No appointment history
+  // can be reconstructed; existing Irish records continue unchanged.
+  if (save.schemaVersion < 61) save.world.meta.schemaVersion = 61;
+  // v62: the schema-61 reader predates union law and underground continuation.
+  // Keep historical law/drive/crisis fields absent; the version barrier is
+  // what prevents that reader from silently loading state it cannot consume.
+  if (save.schemaVersion < 62) save.world.meta.schemaVersion = 62;
+  // v63: primary/split-off ownership routing needs the new consumer.
+  // Preserve historical absence of primary flags and sector assignments.
+  if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
+  // v64: preserve absent legacy seat weights as one. Historical winner
+  // weights cannot be reconstructed from previously redistributed rosters.
+  if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
+  // v65: legislative notices, corporate/NPP finance, annual statehood and
+  // UK devolved/conflict/recall state share this unpublished version boundary.
+  // Preserve historical absence except for the statehood preset guard.
+  if (save.schemaVersion < 65) {
+    save.world.meta.schemaVersion = 65;
+    const regions = save.world.regions;
+    const currentEra = typeof save.world.meta.era === "string" ? save.world.meta.era : "1953";
+    const inferredPreset = regions?.AK?.countryId === "US" && regions.AK.houseSeats === 0
+      ? "1953-default"
+      : `${currentEra}-default`;
+    const statehood = save.world.statehood && typeof save.world.statehood === "object"
+      ? save.world.statehood as Record<string, unknown>
+      : {};
+    if (typeof statehood.startingPreset !== "string") statehood.startingPreset = inferredPreset;
+    save.world.statehood = statehood as NonNullable<typeof save.world.statehood>;
+  }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3456,13 +3964,44 @@ export function deserializeSave(raw: string): WorldState {
   validateGovernmentDirectives(save.world);
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
+  for (const crisis of save.world.crises) {
+    if (
+      crisis.lastUndergroundExtensionTurn !== undefined &&
+      (!Number.isSafeInteger(crisis.lastUndergroundExtensionTurn) ||
+        crisis.lastUndergroundExtensionTurn < 0 || crisis.lastUndergroundExtensionTurn > save.world.meta.turn)
+    ) {
+      throw new Error(`Crisis ${crisis.id} has an invalid underground extension turn`);
+    }
+  }
+  validatePresidentialPrimaryLedger(save.world);
+  validatePresidentialGeneralMechanics(save.world);
+  validatePrimaryStateOrganizations(save.world);
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);
   validateBankingState(save.world);
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
+  validatePendingNationalizations(save.world);
+  if (save.world.corporateCashLedger !== undefined) validateCorporateCashLedger(save.world.corporateCashLedger);
   validateNationalizationEligibilityState(save.world);
+  validateNationalCorporations(save.world);
   validateCanvassState(save.world);
+  if (save.world.frontierEntryExperimentEnabled !== undefined && typeof save.world.frontierEntryExperimentEnabled !== "boolean") {
+    throw new Error("Frontier-entry experiment flag must be boolean");
+  }
+  for (const corporation of Object.values(save.world.corporations)) validateNppStrategyState(corporation.nppStrategy);
+  for (const [corporationId, corporation] of Object.entries(save.world.corporations)) {
+    if (corporation.isPrivate !== undefined && typeof corporation.isPrivate !== "boolean") throw new Error(`Corporation ${corporationId} has invalid private-company state`);
+    if (corporation.liquidCurrencyCode !== undefined && (typeof corporation.liquidCurrencyCode !== "string" || !/^[A-Z]{3}$/.test(corporation.liquidCurrencyCode))) {
+      throw new Error(`Corporation ${corporationId} has invalid liquid currency`);
+    }
+    for (const point of corporation.priceHistory ?? []) {
+      if (point.currencyCode !== undefined && !/^[A-Z]{3}$/.test(point.currencyCode)) {
+        throw new Error(`Corporation ${corporationId} has invalid price-history currency`);
+      }
+    }
+    validateCorporateRelocationVote(corporation.relocationVote, corporationId);
+  }
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row
@@ -3535,6 +4074,27 @@ export function deserializeSave(raw: string): WorldState {
   }
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);
+  }
+  for (const [unionId, candidate] of Object.entries(save.world.unions)) {
+    if (!isRecord(candidate)) throw new Error(`Invalid underground union record: ${unionId}`);
+    const row = candidate as unknown as Record<string, unknown>;
+    for (const field of ["undergroundStrength", "heat", "recentUndergroundDriveCount"] as const) {
+      const amount = row[field];
+      if (amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || (field === "heat" && amount > 100))) {
+        throw new Error(`Invalid underground union ${field}: ${unionId}`);
+      }
+    }
+    for (const field of ["exposedUntilTurn", "lastUndergroundDriveTurn", "undergroundProcessedTurn", "lastUndergroundRaidTurn"] as const) {
+      const turn = row[field];
+      if (turn !== undefined && turn !== null && (typeof turn !== "number" || !Number.isSafeInteger(turn) || turn < 0)) {
+        throw new Error(`Invalid underground union turn ${field}: ${unionId}`);
+      }
+    }
+  }
+  const lastUndergroundDriveTurn = save.world.player.lastUndergroundDriveTurn;
+  if (lastUndergroundDriveTurn !== undefined && lastUndergroundDriveTurn !== null &&
+    (!Number.isSafeInteger(lastUndergroundDriveTurn) || lastUndergroundDriveTurn < 0)) {
+    throw new Error("Invalid player underground drive turn");
   }
   // #321: union contribution ledger. Saves written before the payout slice
   // carry no rows; missing degrades to empty and every loaded row is kept

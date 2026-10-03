@@ -27,8 +27,9 @@ import { projectPolitics, projectPoliticalMetrics, projectPartyMembership } from
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, nationalizationTargets, nationalizationUnavailableReason,
+  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
+  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
+  isCorpStateOwned, privateEnterprisePermittedInCountry,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -37,6 +38,7 @@ import {
   openBargainingCampaignAction,
   organizeSectorAction,
   organizeUnionAction,
+  organizeUnionUndergroundAction,
   type BargainingTerms,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, BankOption, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -47,6 +49,15 @@ import {
   type NotificationDraft, type NotificationItem, type TurnSnapshot,
   type ActionChange, type ActionOutcome, type ActionTarget,
 } from "./notifications";
+import type { SerializedSave } from "./serializedSave";
+
+/** CI fixture builds only: correlate worker stages with external memory samples. */
+function traceSmokeStage(stage: string, turn: number, codeUnits?: number) {
+  if (import.meta.env?.VITE_AHD_SMOKE_FIXTURES !== "1") return;
+  console.info("[AHD session stage]", JSON.stringify({
+    stage, turn, at: new Date().toISOString(), ...(codeUnits === undefined ? {} : { codeUnits }),
+  }));
+}
 
 /**
  * Player Actions hub membership. Categories mirror AHDGame src/app/actions
@@ -70,6 +81,10 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "pollLarge", category: "intelligence" },
   { id: "debatePrep", category: "intelligence" },
   { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting elected head of government and an eligible domestic issuer." },
+  { id: "openCorporateRelocationVote", requires: "corporationRegion", category: "executive", prerequisite: "Requires an active CEO and a public corporation with eligible shareholders." },
+  { id: "voteCorporateRelocation", requires: "corporationVote", category: "executive", prerequisite: "Requires shares in a corporation with an open relocation vote." },
+  { id: "relocateCorporateHeadquarters", requires: "corporationRegion", category: "executive", prerequisite: "Requires an active CEO; public corporations need a passed shareholder vote for the selected destination." },
+  { id: "relocatePlayerWithCorporation", requires: "corporationRegion", category: "executive", prerequisite: "Requires residence at the corporation headquarters and an active CEO; relocation starts a 72-turn personal cooldown." },
 ];
 const HOS_ACTIONS: typeof ACTIONS = [
   { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
@@ -211,6 +226,19 @@ export class GameSession {
     if (isWorldsimMode(this.requireWorld().player.mode)) {
       return { ok: false as const, error: "This spectator world has no player character. Advance the turn to run the simulation." };
     }
+    if (actionId === "setAutoRunForReelection") {
+      if (typeof params.enabled !== "boolean") return { ok: false as const, error: "Choose whether to automatically re-enter your most recent state race." };
+      const source = this.requireWorld();
+      const actionBefore = snapshotActionFields(source);
+      const candidate = structuredClone(source);
+      candidate.player.autoRunForReelection = params.enabled;
+      this.commit(candidate, this.notifications);
+      return {
+        ok: true as const,
+        message: params.enabled ? "Automatic state-race re-entry enabled." : "Automatic state-race re-entry disabled.",
+        outcome: buildActionOutcome(actionId, params, actionBefore, candidate),
+      };
+    }
     // #273: nomination commands call the engine functions directly on a
     // cloned world. actions/catalog.ts and actions/execute.ts are untouched
     // (serialized after #261); the engine stays authoritative and failures
@@ -308,12 +336,19 @@ export class GameSession {
   advance(): GameView {
     // The engine mutates in place. Commit only a completed turn so phase failures
     // cannot leave the active session partially advanced. Profile this copy cost.
+    traceSmokeStage("advance:before-snapshot", this.requireWorld().meta.turn);
     const before = snapshotNotifications(this.requireWorld());
+    traceSmokeStage("advance:before-clone", this.requireWorld().meta.turn);
     const candidate = structuredClone(this.requireWorld());
+    traceSmokeStage("advance:after-clone", candidate.meta.turn);
     advanceTurn(candidate);
+    traceSmokeStage("advance:after-engine", candidate.meta.turn);
     const world = candidate;
-    return this.commit(candidate, addNotifications(
+    traceSmokeStage("advance:before-commit", candidate.meta.turn);
+    const view = this.commit(candidate, addNotifications(
       this.notifications, diffTurnSnapshots(before, snapshotNotifications(world), world.player.name)));
+    traceSmokeStage("advance:after-commit", candidate.meta.turn);
+    return view;
   }
 
   markNotificationRead(id: string): GameView {
@@ -341,7 +376,9 @@ export class GameSession {
 
   serialize(savedAt: string, includeSaveNotice = false): string {
     const world = this.requireWorld();
+    traceSmokeStage("serialize:before-engine", world.meta.turn);
     const envelope = serializeSave(world, savedAt);
+    traceSmokeStage("serialize:after-engine", world.meta.turn, envelope.length);
     const items = includeSaveNotice
       ? addNotifications(this.notifications, [saveNotification(world.meta.turn, world.meta.date)])
       : this.notifications;
@@ -349,13 +386,35 @@ export class GameSession {
     // to identical bytes so reload round-trips stay byte-deterministic.
     // serializeSave returns a compact object. Append app metadata without
     // parsing and copying the full world a second time on every autosave.
-    return envelope.slice(0, -1) + ",\"notifications\":" + JSON.stringify(parseNotifications(items)) + "}";
+    const contents = envelope.slice(0, -1) + ",\"notifications\":" + JSON.stringify(parseNotifications(items)) + "}";
+    traceSmokeStage("serialize:after-notifications", world.meta.turn, contents.length);
+    return contents;
+  }
+
+  /** Serialize the same bytes while returning small metadata from that world. */
+  serializeWithMetadata(savedAt: string, includeSaveNotice = false): SerializedSave {
+    const world = this.requireWorld();
+    return {
+      contents: this.serialize(savedAt, includeSaveNotice),
+      metadata: {
+        savedAt,
+        schemaVersion: world.meta.schemaVersion,
+        turn: world.meta.turn,
+        countryId: world.player.countryId,
+        playerName: world.player.name,
+      },
+    };
   }
 
   load(contents: string): GameView {
+    traceSmokeStage("load:before-engine", -1, contents.length);
     const world = deserializeSave(contents);
+    traceSmokeStage("load:after-engine", world.meta.turn);
     const stored = parseNotifications((JSON.parse(contents) as { notifications?: unknown }).notifications);
-    return this.commit(world, stored);
+    traceSmokeStage("load:after-notifications", world.meta.turn);
+    const view = this.commit(world, stored);
+    traceSmokeStage("load:after-commit", world.meta.turn);
+    return view;
   }
 
   profile() { return projectProfile(this.requireWorld()); }
@@ -550,6 +609,13 @@ export class GameSession {
     return result;
   }
 
+  organizeUnionUnderground(unionId: string, mode: "quiet" | "mass") {
+    const candidate = structuredClone(this.requireWorld());
+    const result = organizeUnionUndergroundAction(candidate, unionId, mode);
+    this.commit(candidate);
+    return result;
+  }
+
   castUnionLeadershipVote(unionId: string) {
     const candidate = structuredClone(this.requireWorld());
     const result = castUnionLeadershipVote(candidate, unionId);
@@ -574,6 +640,13 @@ export class GameSession {
   setUnionDues(unionId: string, duesPerWorkerAnnual: number) {
     const candidate = structuredClone(this.requireWorld());
     const result = setUnionDuesAction(candidate, unionId, duesPerWorkerAnnual);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  setUnionPoliticalContributions(unionId: string, politicalContributionPct: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = setUnionPoliticalContributionsAction(candidate, unionId, politicalContributionPct);
     if (result.ok) this.commit(candidate);
     return result;
   }
@@ -736,7 +809,7 @@ function snapshotNotifications(world: WorldState): TurnSnapshot {
         id: election.id,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
         status: election.status,
-        playerCandidate: election.candidates.some((candidate) => candidate.id === "player"),
+        playerCandidate: election.candidates.some((candidate) => candidate.id === "player" && isElectionCandidateActive(candidate)),
         playerWon: election.winners?.includes("player") ?? false,
         winnerNames: (election.winners ?? []).map((id) =>
           election.candidates.find((candidate) => candidate.id === id)?.name
@@ -953,7 +1026,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
       mode: player.mode, hosPartyId: player.hosPartyId, homeRegionId: player.homeRegionId ?? null,
       permanentHeadOfState: player.permanentHeadOfState === true,
-      currentOffice: player.currentOffice?.type ?? null },
+      currentOffice: player.currentOffice?.type ?? null,
+      autoRunForReelection: player.autoRunForReelection === true },
     legislature: projectLegislature(world),
     finance: projectFinance(world),
     resources: projectResources(world),
@@ -987,7 +1061,13 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       // advertises an action executeAction unconditionally refuses (the
       // statless quick-create path); the engine error stays authoritative.
       const characterReason = characterActionDisabledReason(world, id);
-      const choices = id === "nationalizeCorporation" ? nationalizationTargets(world) : undefined;
+      const choices = id === "nationalizeCorporation" ? nationalizationTargets(world)
+        : id === "voteCorporateRelocation" ? corporateRelocationChoices(world, id)
+        : id === "openCorporateRelocationVote" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation"
+          ? corporateRelocationChoices(world, id) : undefined;
+      const destinations = requires === "corporationRegion" && choices?.length
+        ? choices.flatMap((choice) => corporateRelocationDestinations(world, choice.id, id))
+        : undefined;
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
         : characterReason ? characterReason
         : id === "nationalizeCorporation" ? nationalizationUnavailableReason(world)
@@ -995,6 +1075,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : player.actions < cost ? "Not enough action points."
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
         : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
+        : (id === "openCorporateRelocationVote" || id === "voteCorporateRelocation" || id === "relocateCorporateHeadquarters" || id === "relocatePlayerWithCorporation") && !choices?.length ? "No eligible corporation is available for this action."
+        : requires === "corporationRegion" && !destinations?.length ? "No eligible headquarters destination is available."
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "debatePrep" && !world.featureFlags.rpgStats ? "The stat system is not currently enabled."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
@@ -1004,7 +1086,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
         ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: campaignAnchorToLocal(fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)), player.countryId) } : {}),
-        ...(requires ? { requires } : {}), ...(choices ? { choices } : {}), ...(prerequisite ? { prerequisite } : {}),
+        ...(requires ? { requires } : {}), ...(choices ? { choices } : {}), ...(destinations ? { destinations } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };
     }),
     regions: Object.values(world.regions).filter((region) => region.countryId === country.id).map(({ id, name }) => ({ id, name })),
@@ -1089,13 +1171,13 @@ function projectPolling(world: WorldState): PollingView {
 /** Display hints mirror the pinned engine; executeAction remains authoritative. */
 function projectElections(world: WorldState): ElectionView[] {
   const player = world.player;
-  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player"));
+  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c)));
   return world.elections.filter((e) => e.countryId === player.countryId)
     .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id)
       || Number(a.status === "resolved") - Number(b.status === "resolved")
       || (a.status === "resolved" ? b.endTurn - a.endTurn : a.primaryEndTurn - b.primaryEndTurn))
     .map((election) => {
-      const playerCandidate = election.candidates.some((c) => c.id === "player");
+      const playerCandidate = election.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c));
       const id = playerCandidate ? "withdrawCandidacy" : "declareCandidacy";
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
@@ -1118,6 +1200,7 @@ function projectElections(world: WorldState): ElectionView[] {
       const hasVotes = tallyEntries.some(([, votes]) => votes > 0);
       const countedVotes = hasVotes ? tallyEntries.reduce((sum, [, votes]) => sum + votes, 0) : null;
       const ranked = [...election.candidates]
+        .filter((candidate) => election.status === "resolved" || isElectionCandidateActive(candidate))
         .map((candidate) => ({ name: candidate.name, votes: election.tally[candidate.id] ?? 0 }))
         .sort((a, b) => b.votes - a.votes);
       const leader = countedVotes != null ? ranked[0] : undefined;
@@ -1134,7 +1217,7 @@ function projectElections(world: WorldState): ElectionView[] {
         status: election.status, date: dateAt(election.endTurn), filingDate: dateAt(election.primaryEndTurn),
         electionType: election.electionType,
         phase: racePhase(world, election),
-        playerCandidate, candidateNames: election.candidates.map((c) => c.name),
+        playerCandidate, candidateNames: (election.status === "resolved" ? election.candidates : election.candidates.filter(isElectionCandidateActive)).map((c) => c.name),
         winnerNames: (election.winners ?? []).map((id) => election.candidates.find((c) => c.id === id)?.name ?? world.politicians.find((p) => p.id === id)?.name ?? id),
         countedVotes,
         leaderName: leader?.name ?? null,
@@ -1206,6 +1289,40 @@ function projectFinance(world: WorldState): FinanceView {
  * recipients); executeAction stays authoritative for balances, quota, and
  * the forex-off cross-border block.
  */
+function corporateRelocationChoices(world: WorldState, actionId: string): { id: string; label: string }[] {
+  return Object.values(world.corporations)
+    .filter((corp) => corp.ceoId === "player" && corp.ceoType === "player" && corp.ceoVacant !== true)
+    .filter((corp) => actionId === "voteCorporateRelocation"
+      ? corp.relocationVote?.status === "open" && corp.shareholders.some((holder) => holder.holder === "player" && holder.shares > 0)
+      : actionId === "openCorporateRelocationVote"
+        ? corp.isPrivate !== true && corp.relocationVote?.status !== "open" && corp.shareholders.some((holder) => holder.shares > 0)
+        : actionId === "relocateCorporateHeadquarters"
+          ? corp.isPrivate === true || corp.relocationVote?.status === "passed"
+          : corp.headquartersRegionId === world.player.homeRegionId &&
+            (world.player.lastRelocatedTurn === undefined || world.meta.turn >= world.player.lastRelocatedTurn + 72))
+    .map((corp) => ({ id: corp.id, label: corp.tickerSymbol ?? corp.id }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function corporateRelocationDestinations(
+  world: WorldState,
+  corporationId: string,
+  actionId: string,
+): { id: string; corporationId: string; label: string }[] {
+  const corp = world.corporations[corporationId];
+  if (!corp) return [];
+  const vote = corp.relocationVote;
+  return Object.values(world.regions)
+    .filter((region) => !region.corporationHeadquartersOnly &&
+      (region.id !== corp.headquartersRegionId || (actionId === "relocateCorporateHeadquarters" && vote?.status === "passed" && vote.destinationRegionId === region.id)))
+    .filter((region) => region.countryId === corp.countryId || world.countries[region.countryId]?.playable === true)
+    .filter((region) => region.countryId === corp.countryId || isCorpStateOwned(corp) || privateEnterprisePermittedInCountry(world, region.countryId))
+    .filter((region) => actionId !== "relocateCorporateHeadquarters" || corp.isPrivate === true ||
+      (vote?.status === "passed" && vote.destinationRegionId === region.id && vote.destinationCountryId === region.countryId))
+    .map((region) => ({ id: region.id, corporationId, label: `${region.name} (${region.countryId})` }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function projectWire(world: WorldState): FinanceView["wire"] {
   const player = world.player;
   const senderHome = homeCurrency(world, player.countryId);
@@ -1261,16 +1378,20 @@ function projectLegislature(world: WorldState): LegislatureView {
   const government = world.governments[player.countryId];
   const pmVotes = world.pmAppointmentVotes.filter((vote) => vote.countryId === player.countryId);
   const appointmentEligibility = getPmAppointmentEligibility(world);
+  const executiveTitle = pmAppointmentExecutiveTitle(player.countryId);
+  const formationChamberName = player.countryId === "IE" ? "Dáil" : world.legislatures[player.countryId]?.chambers.find(chamber => chamber.key === government?.chamberKey)?.name ?? "Parliament";
   const activePartyVote = pmVotes.some((vote) => vote.status === "active" && vote.partyId === player.partyId);
   const nominationReason = activePartyVote ? "Your party already has an active PM appointment vote" : appointmentEligibility.reason;
   return {
     office: seat ? `${chamberName(seat.countryId, seat.chamberKey)} · ${world.countries[seat.countryId]?.name ?? seat.countryId}`
       : player.mode === "hos" ? "Head of state" : null,
     countryId: player.countryId,
-    ...(player.countryId === "IE" && government ? {
+    unionLawBanned: world.budgets[player.countryId]?.unionsBanned === true,
+    ...(executiveTitle && government ? {
       governmentFormation: {
         status: government.status,
-        executiveTitle: "Taoiseach",
+        executiveTitle,
+        chamberName: formationChamberName,
         officeholderName: government.pmPoliticianId === "player"
           ? player.name
           : world.politicians.find((politician) => politician.id === government.pmPoliticianId)?.name ?? null,
@@ -1278,8 +1399,8 @@ function projectLegislature(world: WorldState): LegislatureView {
         ...(nominationReason ? { nomineeDisabledReason: nominationReason } : {}),
         nomination: {
           id: "proposePmAppointment",
-          name: "Nominate Taoiseach",
-          description: "Party-chair nomination followed by a Dáil appointment vote.",
+          name: `Nominate ${executiveTitle}`,
+          description: `Party-chair nomination followed by a ${formationChamberName} appointment vote.`,
           cost: 0,
           available: government.status === "pending" && !nominationReason,
           ...(nominationReason ? { disabledReason: nominationReason } : {}),
@@ -1287,7 +1408,7 @@ function projectLegislature(world: WorldState): LegislatureView {
         votes: pmVotes.map((vote) => {
           const seat = player.legislativeSeat;
           const voteReason = !seat || seat.countryId !== vote.countryId || seat.chamberKey !== vote.chamberKey
-            ? "You must be an elected Dáil member to vote on a Taoiseach appointment"
+            ? `You must be an elected ${formationChamberName} member to vote on a ${executiveTitle} appointment`
             : vote.status !== "active"
               ? "This vote has already closed"
               : world.meta.turn >= vote.closesTurn
@@ -1304,8 +1425,8 @@ function projectLegislature(world: WorldState): LegislatureView {
             playerVote: vote.votes.player ?? null,
             voting: {
               id: "votePmAppointment",
-              name: "Vote on Taoiseach Appointment",
-              description: "Dáil members vote aye or nay.",
+              name: `Vote on ${executiveTitle} Appointment`,
+              description: `${formationChamberName} members vote aye or nay.`,
               cost: 0,
               available: !voteReason,
               ...(voteReason ? { disabledReason: voteReason } : {}),

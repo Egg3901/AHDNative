@@ -193,10 +193,115 @@ supported election spawning into `electionTimersPhase`, which calls
 | AHDGame country phases | Native disposition | Dependency and issue |
 | --- | --- | --- |
 | `ukElections`, `ukRegionalCouncilElections`, `jpElections`, `jpRegionalCouncilElections`, `jpCouncillorElections`, `jpGovernorElections`, `ieElections`, `ieUachtaranElections`, `ieLocalCouncilElections`, `deElections`, `deLandtagElections`, `cnElections`, `cnPeoplesCongressElections`, `cnGovernorElections`, `brElections`, `brSenateElections`, `ruSupremeSovietElections`, `ruNationalitiesElections`, `ruRepublicSovietElections`, `ddVolkskammerElections`, `ddLandAssemblyElections` | combined-into | `electionTimersPhase` plans the corresponding Native series from content-pack regions and chamber metadata. This check covers spawning only, not reference voting-system parity. |
-| `ukGovernorElections`, `deMinisterPresidentElections`, `ruGovernorElections`, `ddGovernorElections` | missing or non-equivalent | Native's generic governor series does not cover UK/RU/DD and does not prove DE's indirect minister-president family. [#96](https://github.com/Egg3901/AHDNative/issues/96). |
+| `ukGovernorElections`, `deMinisterPresidentElections` | missing or non-equivalent | Native has no UK devolution institution timeline for the source's active-only SCO/WAL/NIR/LON executive races; DE's indirect minister-president family also remains unproved. [#96](https://github.com/Egg3901/AHDNative/issues/96). |
 | `ieCathaoirleachElections` | missing | No corresponding Native office series; [#96](https://github.com/Egg3901/AHDNative/issues/96). |
 | `plSejmElections`, `csChamberOfThePeopleElections`, `huNationalAssemblyElections`, `roGrandNationalAssemblyElections`, `bgNationalAssemblyElections`, `yuFederalAssemblyElections`, `ukrSupremeSovietElections`, `blrSupremeSovietElections`, `balSupremeSovietElections` | inapplicable to current playable packs | Those countries are not current Native playable content. Content expansion is [#118](https://github.com/Egg3901/AHDNative/issues/118); if enabled, election behavior must first be scoped in [#96](https://github.com/Egg3901/AHDNative/issues/96). |
 | `ngElections`, `ngSenateElections`, `ngGovernorElections`, `ngRegionalCouncilElections`, `ngPresidentialElection`, `scoElections`, `scoGovernorElections`, `scoRegionalCouncilElections`, `walElections`, `walGovernorElections`, `walRegionalCouncilElections`, `frElections`, `frSenateElections`, `itElections`, `itSenateElections`, `esElections`, `esSenateElections`, `seElections`, `trElections`, `trSenateElections`, `grElections`, `atElections`, `fiElections` | inapplicable to current playable packs | No current Native content or scheduler series. [#118](https://github.com/Egg3901/AHDNative/issues/118) and [#96](https://github.com/Egg3901/AHDNative/issues/96). |
+
+## Current country-election candidate checkpoint for #96, 2026-10-03
+
+Authority is AHDGame `283fa48a53e0efa856510e44acb9714ec43875c2` and
+AHDClient `799a992054609d231930bbf062251b93590ccf68`. Native candidate
+`3c30bfdfd853ce2229c14678d128d09a4a05fa38` contains the bounded changes
+below. They are not in accepted main or internal iOS 0.1.10 (1.23).
+Schema 65 remains unpublished and unqualified as a combined family.
+This section supersedes the historical country classifications above.
+
+Game's country phases spawn elections; its shared timer, tally and resolution
+phases then consume them. Native combines country spawning into
+`electionTimersPhase`, followed by `voteAccumulationPhase` and
+`electionResolutionPhase`. A matching phase seam alone does not prove the
+source input, gates, result or persisted office.
+
+| Country | Source phases and applicability | Native candidate and evidence boundary |
+| --- | --- | --- |
+| UK | `ukElections`, `ukRegionalCouncilElections`, `ukGovernorElections`; regional Commons, staggered council cohorts and policy-driven devolved offices | Twelve Commons series retain era seat maps; five council cohorts retain their anchors. Devolution and the separate NIR conflict producer suspend/restore institutions through real decisions and ordinary expiry. The recorded 1953 NIR campaign matches all 24 immutable-source distributor inputs and the 12-seat allocator, resigns a three-seat office, wins its weighted special and persists the replacement. This does not qualify every era or office. |
+| RU | `ruSupremeSovietElections`, `ruNationalitiesElections`, `ruRepublicSovietElections`, `ruGovernorElections`; source playable-or-NPP-v1 and era anchors | National/republic assemblies and First Secretary races use the combined timer. The recorded 1953 RU/DD replay contains 960 tally inputs across 20 races; the immutable Game `0a68fee4` distributor matches every captured turn and final tally, and office results survive reload. Other eras and whole country mechanics remain unqualified. |
+| DD | `ddVolkskammerElections`, `ddLandAssemblyElections`, `ddGovernorElections`; source playable-or-NPP-v1 and era anchors | Volkskammer, Land assemblies and First Secretary races use the combined timer, with the same bounded 1953 source replay and saved-office evidence as RU. |
+| PL | `plSejmElections`; background satellite assembly, no player creation | Source beta-gated background series, region population/GDP, electoral capacity and exact Layer 1 groups are present. Five focused cases include a nonzero resolved Mazovia tally, 65 weighted regional seats, 460-seat Poland composition and reload. The resolving case explicitly advances the clock to lifecycle boundaries; natural calendar continuation and regional-party treasury remain open. |
+| CS | `csChamberOfThePeopleElections`; background satellite assembly, no player creation | Background series and exact source Layer 1 groups are present, with 200-seat capacity in both Cold War eras. The country is not selectable; no cycle is produced outside the applicable era roster. |
+| HU | `huNationalAssemblyElections`; background satellite assembly, no player creation | Background series and exact source Layer 1 groups are present under the Cold War beta gate. The country is not selectable; full natural-calendar resolution remains open. |
+| RO | `roGrandNationalAssemblyElections`; background satellite assembly, no player creation | Background series and exact source Layer 1 groups are present under the Cold War beta gate. The country is not selectable; full natural-calendar resolution remains open. |
+| BG | `bgNationalAssemblyElections`; background satellite assembly, no player creation | Background series and exact source Layer 1 groups are present under the Cold War beta gate. The country is not selectable; full natural-calendar resolution remains open. |
+| YU | `yuFederalAssemblyElections`; background satellite assembly, no player creation | Background series and exact source Layer 1 groups are present under the Cold War beta gate. The country is not selectable; full natural-calendar resolution remains open. |
+| UKR | `ukrSupremeSovietElections`; latent Union Republic, no player creation | Background series and source Layer 1 groups are present. The latent country runs only at NPP autonomy v1 or higher, using the RU republic anchor; it is not selectable. |
+| BLR | `blrSupremeSovietElections`; latent Union Republic, no player creation | Background series and source Layer 1 groups are present under the same latent NPP-v1 gate and RU republic anchor as UKR; it is not selectable. |
+| BAL | `balSupremeSovietElections`; latent Union Republic, no player creation | Background series and source Layer 1 groups are present under the same latent NPP-v1 gate and RU republic anchor as UKR; it is not selectable. |
+
+None of those nine eastern countries is selectable at reference character
+creation. This does not exempt its source-live background simulation.
+PL/CS/HU/RO/BG/YU are economy-preview in 1953 and NPP in 1979, both seeded
+as beta with player creation disabled. Their assembly phases use the DD
+anchor in 1953/1979. UKR/BLR/BAL are latent seed entries and use the RU
+republic anchor, with their separate NPP-v1 access prerequisite. Canonical
+anchors are null outside the Cold War presets even where a later roster
+still includes the country, so no cycle is created there. The candidate adds background data and consumers without widening player
+creation. Electoral capacity remains separate from historical occupied seats:
+1953 vacancies are preserved, and only explicit historical initialization seeds
+the authored officeholders. See [the Layer 1 provenance](eastern-bloc-layer1-provenance.md).
+
+These conditions were read at the immutable source pin in
+[`eraRoster.ts`](https://github.com/Egg3901/AHDGame/blob/093daeae41b152c61bb22ad352054ff8cd5cef2a/src/lib/world/eraRoster.ts),
+[`countryAccess.ts`](https://github.com/Egg3901/AHDGame/blob/093daeae41b152c61bb22ad352054ff8cd5cef2a/src/lib/countryAccess.ts),
+[`easternBloc.ts`](https://github.com/Egg3901/AHDGame/blob/093daeae41b152c61bb22ad352054ff8cd5cef2a/src/lib/turn/perpetualElections/countries/easternBloc.ts)
+and [`canonicalCycle.ts`](https://github.com/Egg3901/AHDGame/blob/093daeae41b152c61bb22ad352054ff8cd5cef2a/src/lib/elections/canonicalCycle.ts).
+Client supplies no independent creation gate that makes those countries playable.
+
+
+Current Game adds opt-in ranked PR-STV to IE Dail and local-council tallies at
+`countingMethod === "pr_stv"`. It persists ranked ballots and transfer/count
+history and refuses incomplete field/preference evidence before vacating offices.
+The Native candidate does not implement this path. The absent-method aggregate
+allocator remains source-supported and must retain its existing behavior.
+
+The full earned US governor-to-presidential endorsement journey is retained in
+`src/game/governorPublicEndorsement.journey.test.ts`. Run
+`npm run test:extended:elections` to create all three public milestones and all
+six matched sixteen-turn continuations from their actual saves. The separate
+required CI job runs one worker and retains every original assertion, source
+clock, full history and RNG. Ordinary public-action and engine regressions run
+in the main verification job. Individual checkpoint probes do not replace the
+whole extended gate. The independent retained turn-178 Game distributor replay
+is a separate bounded source proof; it does not complete the missing public
+presidential-primary, later-pack district or VP journeys in #97/#98.
+
+The same extended gate also runs `easternBlocNaturalJourney.sim.test.ts`:
+fresh 1953 creation, uninterrupted ordinary turns to the primary checkpoint,
+exact raw reload at turn 48, then ordinary continuation to the turn-96 Mazovia
+resolution and saved offices. Its focused run passes in about 103 seconds,
+including nonzero general votes, 65 weighted Mazovia seats and 460 Polish seats.
+This qualifies one natural background-country journey; independent retained
+source-input replay, all other representative country saves and regional-party
+treasury remain open in #96.
+
+### Commons vacancy watcher and entry qualification
+
+The source [watcher and shared gate](https://github.com/Egg3901/AHDGame/blob/093daeae41b152c61bb22ad352054ff8cd5cef2a/src/lib/turn/commonsByElections.ts)
+freeze a live special's claimed seats and electorate. Later vacancies wait;
+a general closing within the same 48-turn window covers the vacancy; every
+finished special, including cancellation, applies cooldown from its recorded
+`endTurn`. Native's extra boundary turn, live-race claim enlargement and
+resolved-only cooldown were reproduced as three failing ordinary-turn tests
+and corrected. `commonsVacancyScheduling.test.ts` now passes all three,
+including exact live-versus-reloaded continuation. Fixture races and prior
+offices are declared preconditions, not naturally earned careers.
+
+`commonsRecallSession.test.ts` qualifies the real six-turn support-check
+consumer through public session turns/actions, then projects the resulting
+three-seat recall vacancy and actual by-election link across reload. Its
+five initial signatures and held office are explicit fixtures. The separate
+ordinary trigger and single-player signature/expiry flows remain recorded;
+o additional authenticated signer or NPC recall signature is invented.
+
+`PoliticsPanel.test.tsx` passes 39 cases, including vacancy-to-race selection
+with filter reset and candidacy dispatch, truthful absence of an unclaimed
+race link, and all four projected scheduling reasons. The source vacancy
+read model and panel remain the reference; read-only UI fields add no save
+state. Existing player defection and retirement consumers preserve actual
+held-office weights. Source-connected non-player death/retirement producers,
+generic holderless-office backstop, applicable eastern country witnesses,
+combined schema qualification and complete current-source country acceptance
+remain open in #96. No physical-device or full-engine parity is implied.
 
 ## Native-only registered phases
 

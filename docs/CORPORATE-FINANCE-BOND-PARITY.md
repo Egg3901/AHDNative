@@ -97,6 +97,37 @@ command-economy plan/reform gravity remain unported. The R&D innovation stream
 adds sector capacity only; no national TFP effect is claimed. Extraction R&D
 still lacks the full source action, facility and regional prerequisite flow.
 
+The active #107 worktree adds a pending finance-family asset P&L record and
+the pinned Game sector tech tree, including NPP one-node-per-turn selection after
+settlement, RD/cash debits, lane and unlock persistence, and consumption of
+production-rate, input-rate, price, margin, growth and strategy-unlock effects.
+The committed cost slice ports the pinned `laborCost.ts`, `idleUpkeep.ts`,
+and `physicalPnl.ts` component formulas: era/sector labor shares with wage,
+agreement, union and tech multipliers; owner-idle upkeep with involuntary
+throttle correction and 240-turn ramp; and policy-credit/negative-residual
+bounds. Public-turn save/reload assertions and source-vector helper tests pass.
+The residual remains a calibrated per-unit anchor, as in Game's physical P&L,
+but its formula and all named cost legs are not yet complete or independently
+matched end-to-end. Native still lacks Game's labour-market staffing and wage
+mode/minimum-wage inputs, market-dominance compliance inputs, disaster financial
+legs, full policy modifier stack, landed-price premiums and production-policy
+input multiplier wiring. The current Game source's issuer-currency daily gross
+revenue/capacity floor for NPP tech pricing and its cash reserve are now wired
+into the Native tech chooser with direct source-shaped tests. Successful NPP
+tech cash debits append a deterministic `corp_tech_unlock` finance-history row
+with Game's corporation/node/turn ledger key, in the same Native turn mutation;
+save validation checks the row and public save/reload/next-turn continuation
+preserves it. This is the in-memory committed-write equivalent, not Game's
+Mongo post-write witness protocol. Game `origin/main` is `7ab3cc75`; its newer
+founding/reinvestment cash-writeback witnesses and the corresponding Native
+NPP founding/reinvestment producers are still missing. The plan-gravity trend
+reader now follows the current RU 1953/1971/1979/1991 source-era values and DD
+1953/1971 range; the source turn consumer and focused era-transition vectors
+pass. Full #107 remains open for cross-era public-turn/save journeys, those
+ledger witnesses, caretaker/CEO lifecycle, snapshot, insolvency, and integrated
+acceptance. The Native cost model still uses a calibrated residual and does not
+yet have a source-equivalent NPP capacity cash-writeback producer.
+
 ## Finance and macro integration
 
 Source savings/bank deposit accrual now runs after corporation/union writes and

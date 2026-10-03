@@ -13,6 +13,8 @@ import {
   parseMailSent,
   parseMutationAck,
   parsePlayersOnline,
+  parseRunningMateCharacters,
+  parseRunningMateMutation,
   parseSessionProbe,
   parseTurnStatus,
   parseUnionDetail,
@@ -27,6 +29,7 @@ import {
   validateNotificationPreference,
   validateSnoozeMinutes,
   validateUnionId,
+  validateRunningMateSelection,
   type MpCabinetDetailView,
   type MpCapabilitiesView,
   type MpCharacterView,
@@ -37,6 +40,7 @@ import {
   type MpMailInbox,
   type MpMailSent,
   type MpPresenceView,
+  type MpRunningMateOption,
   type MpTurnView,
   type MpUnionDetailView,
 } from "./validators";
@@ -74,6 +78,9 @@ export interface MpSnapshot {
   capabilities: MpCapabilitiesView | null;
   /** Active-election detail; loaded on demand, never on enter or refresh. */
   electionDetail: MpElectionDetailView | null;
+  /** Eligible human running mates returned by the source route, on demand. */
+  runningMateOptions: MpRunningMateOption[] | null;
+  runningMateElectionId: string | null;
   /** Standing corporation detail; loaded on demand, never on enter or refresh. */
   corporationDetail: MpCorporationDetailView | null;
   /** Standing union detail; loaded on demand, never on enter or refresh. */
@@ -111,6 +118,8 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   turn: null,
   capabilities: null,
   electionDetail: null,
+  runningMateOptions: null,
+  runningMateElectionId: null,
   corporationDetail: null,
   unionDetail: null,
   cabinetDetail: null,
@@ -135,9 +144,9 @@ export const MP_MAIL_LIMIT = 50;
 
 function emptyAuthed(): Pick<
   MpSnapshot,
-  "character" | "savings" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "unionDetail" | "cabinetDetail" | "governorDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
+  "character" | "savings" | "turn" | "capabilities" | "electionDetail" | "runningMateOptions" | "runningMateElectionId" | "corporationDetail" | "unionDetail" | "cabinetDetail" | "governorDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
 > {
-  return { character: null, savings: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, unionDetail: null, cabinetDetail: null, governorDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
+  return { character: null, savings: null, turn: null, capabilities: null, electionDetail: null, runningMateOptions: null, runningMateElectionId: null, corporationDetail: null, unionDetail: null, cabinetDetail: null, governorDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
 }
 
 export class MpModeSession {
@@ -462,7 +471,13 @@ export class MpModeSession {
     if (!validated.ok) {
       return this.set({ error: validated.reason });
     }
-    this.set({ error: null, notice: null, retryAfter: null });
+    this.set({
+      error: null,
+      notice: null,
+      retryAfter: null,
+      runningMateOptions: null,
+      runningMateElectionId: null,
+    });
     const result = await mpFetch(this.host, "election-detail", undefined, undefined, validated.id);
     if (result.kind === "remote" && result.http === 404) {
       // The referenced race no longer resolves server-side: say so with the
@@ -475,6 +490,43 @@ export class MpModeSession {
       return this.set({ phase: "server-error", electionDetail: null, error: "The election record answered in an unexpected shape." });
     }
     return this.set({ phase: "ready", electionDetail, error: null, retryAfter: null });
+  }
+
+  /** Load the live source's human-only running-mate choices for this race. */
+  async loadRunningMateOptions(electionId: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateElectionId(electionId);
+    if (!validated.ok) return this.set({ error: validated.reason });
+    this.set({
+      error: null,
+      notice: null,
+      retryAfter: null,
+      runningMateOptions: null,
+      runningMateElectionId: null,
+    });
+    const result = await mpFetch(this.host, "running-mate-characters", undefined, undefined, validated.id);
+    if (result.kind !== "ok") return this.applyRemoteFailure(result, "action");
+    const options = parseRunningMateCharacters(result.bodyText);
+    if (!options) {
+      return this.set({ phase: "server-error", error: "The running-mate choices answered in an unexpected shape." });
+    }
+    return this.set({ phase: "ready", runningMateOptions: options, runningMateElectionId: validated.id, error: null, retryAfter: null });
+  }
+
+  /** Save through AHDGame's candidate-authorized route; the source owns the write. */
+  async setRunningMate(electionId: unknown, runningMateId: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateRunningMateSelection({ electionId, runningMateId });
+    if (!validated.ok) return this.set({ error: validated.reason });
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpMutate(this.host, "running-mate-set", validated.body);
+    if (result.kind !== "ok") return this.applyRemoteFailure(result, "action");
+    const notice = parseRunningMateMutation(result.bodyText);
+    if (!notice) {
+      return this.set({ phase: "server-error", error: "The running-mate update answered in an unexpected shape. Refresh before retrying." });
+    }
+    const refreshed = await this.loadElectionDetail(validated.body.electionId);
+    return this.set({ notice, phase: refreshed.phase, error: refreshed.error, retryAfter: refreshed.retryAfter });
   }
 
   /**

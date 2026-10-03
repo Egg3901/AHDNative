@@ -4,6 +4,10 @@ import type { GovernmentState } from "./types.js";
 import { isRecordedSingleplayerHeadOfGovernment, seatSingleplayerHeadOfGovernment } from "./singleplayerHeadOfGovernment.js";
 import type { Chamber, WorldState } from "../types.js";
 import { computeFormation, selectPm } from "./formation.js";
+import { cancelUkCommonsSpecialsForSnap, scheduleUkCommonsByElections, vacateRetiredUkCommonsOfficials } from "../elections/ukCommonsVacancies.js";
+import { advanceUkCommonsRecallPetitions } from "../elections/ukCommonsRecall.js";
+import { recomputeComposition } from "../elections/orchestration.js";
+import { liveChamberSeatsByParty } from "./seatWeights.js";
 import {
   GOVERNMENT_CHAMBER_BY_COUNTRY,
   INITIAL_CONFIDENCE,
@@ -95,7 +99,7 @@ function resetToPending(gov: GovernmentState, chamber: Chamber, turn: number): v
   gov.pmVacancyDeadlineTurn = turn + PM_VACANCY_DEADLINE_TURNS;
 }
 
-function createGovernment(countryId: string, chamberKey: string, chamber: Chamber, turn: number): GovernmentState {
+function createGovernment(countryId: string, chamberKey: string, chamber: Chamber, _turn: number): GovernmentState {
   const gov: GovernmentState = {
     countryId,
     chamberKey,
@@ -112,7 +116,9 @@ function createGovernment(countryId: string, chamberKey: string, chamber: Chambe
     formedTurn: null,
     snapElectionsUsed: 0,
     lastSnapElectionTurn: null,
-    pmVacancyDeadlineTurn: turn + PM_VACANCY_DEADLINE_TURNS,
+    // Game's first pending formation has no vacancy clock. Only an actual
+    // lost office or a snap/reset rearms the separate +96-turn watcher.
+    pmVacancyDeadlineTurn: null,
     confidence: 0,
   };
   return gov;
@@ -122,6 +128,11 @@ function processCountry(world: WorldState, countryId: string, chamberKey: string
   const leg = world.legislatures[countryId];
   const chamber = leg?.chambers.find((c) => c.key === chamberKey);
   if (!chamber) return;
+  const seatsByParty = liveChamberSeatsByParty(world, countryId, chamberKey);
+  chamber.composition = {
+    seatsByParty,
+    vacancies: Math.max(0, chamber.seats - Object.values(seatsByParty).reduce((sum, seats) => sum + seats, 0)),
+  };
   if (isRecordedSingleplayerHeadOfGovernment(world, countryId)) {
     seatSingleplayerHeadOfGovernment(world);
     return;
@@ -133,6 +144,9 @@ function processCountry(world: WorldState, countryId: string, chamberKey: string
     gov = createGovernment(countryId, chamberKey, chamber, turn);
     world.governments[countryId] = gov;
   }
+  gov.seatsByParty = { ...seatsByParty };
+  gov.totalSeats = chamber.seats;
+  gov.majorityThreshold = majorityThreshold(chamber.seats);
   const priorPmId = gov.pmPoliticianId;
 
   const electionResolvedThisTurn = world.elections.some(
@@ -247,9 +261,14 @@ export function triggerSnapElection(world: WorldState, countryId: string, chambe
   const priorCycle = world.elections
     .filter((e) => e.countryId === countryId && e.chamberKey === chamberKey)
     .reduce((max, e) => Math.max(max, e.cycle), 0);
-  world.elections = world.elections.filter(
-    (e) => !(e.countryId === countryId && e.chamberKey === chamberKey && e.status !== "resolved"),
-  );
+  for (const election of world.elections) {
+    if (election.countryId === countryId && election.electionType === chamberKey && (election.status === "active" || election.status === "upcoming")) {
+      election.status = "cancelled";
+    }
+  }
+  // AHDGame's byElectionTypesFor(lowerChamberKey) includes the distinct UK
+  // special_commons family. The source watcher later reopens its vacancies.
+  cancelUkCommonsSpecialsForSnap(world, countryId, chamberKey);
 
   const snapType = SNAP_ELECTION_TYPE_BY_CHAMBER[chamberKey] ?? `snap_${chamberKey}`;
   const cycle = priorCycle + 1;
@@ -291,5 +310,19 @@ export const governmentVacancyWatcherPhase: TurnPhase = {
       if (world.meta.turn < gov.pmVacancyDeadlineTurn) continue;
       triggerSnapElection(world, countryId, chamberKey, gov);
     }
+  },
+};
+
+/** The source Commons vacancy watcher runs after government snap decisions and election resolution. */
+export const ukCommonsVacancyWatcherPhase: TurnPhase = {
+  name: "ukCommonsVacancyWatcher",
+  run(world) {
+    const retired = vacateRetiredUkCommonsOfficials(world);
+    const commonsWeight = () => Object.values(liveChamberSeatsByParty(world, "UK", "commons")).reduce((sum, seats) => sum + seats, 0);
+    const occupiedBeforeRecall = commonsWeight();
+    advanceUkCommonsRecallPetitions(world);
+    const occupiedAfterRecall = commonsWeight();
+    if (retired > 0 || occupiedBeforeRecall !== occupiedAfterRecall) recomputeComposition(world, "UK", "commons");
+    scheduleUkCommonsByElections(world);
   },
 };

@@ -11,12 +11,12 @@
  * Native adaptations (cited, not invented):
  * - ObjectId/Date become deterministic string ids and turn numbers; the
  *   pure constructors take already-resolved values (no DB reads).
- * - Native has no per-state cost-of-living metric and no union-law bias
- *   axis, so grievance reads realWageIndex(wage, undefined) (COL defaults
- *   to 100 in the reference helper itself) and lawSupport defaults to 50
- *   (the reference's own absent/non-finite rule). Unemployment arrives as
- *   a 0-1 fraction on the Native economy and is scaled to the percent the
- *   reference tightness helper takes.
+ * - Native has no per-state cost-of-living metric, so grievance reads
+ *   realWageIndex(wage, undefined) (COL defaults to 100 in the reference
+ *   helper itself). Bargaining reads the persisted country-budget
+ *   unionLawBias and lawSupport defaults to 50 when that source-compatible
+ *   bias is absent. Unemployment arrives as a 0-1 fraction on the Native
+ *   economy and is scaled to the percent the reference tightness helper takes.
  * - Government mediation intervention (#127 crisis path) is NOT ported:
  *   documented residual, no silent coverage. Member ratification ballots
  *   live on the campaign record (no separate ballot collection).
@@ -386,10 +386,11 @@ export function counterBargainingOffer(args: {
     offers: [...args.campaign.offers, offer],
     // A member ballot authorizes exactly one revision: replacing the package
     // voids the open ballot in the same transition.
-    ratification:
-      args.campaign.ratification?.status === "open"
-        ? { ...args.campaign.ratification, status: "void", closedAtTurn: args.currentTurn }
+    ...(args.campaign.ratification !== undefined ? {
+      ratification: args.campaign.ratification?.status === "open"
+        ? { ...args.campaign.ratification, status: "void" as const, closedAtTurn: args.currentTurn }
         : args.campaign.ratification,
+    } : {}),
     lastActionTurn: args.currentTurn,
     updatedAtTurn: args.currentTurn,
   };

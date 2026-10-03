@@ -129,6 +129,11 @@ export const NPP_STAGGER_EXTRA_MULTIPLIER = 0.6;
  */
 export const PRIMARY_CAMPAIGN_TICK_CAP = 5;
 
+/** Source home-state surge price/effect for a presidential primary. */
+export const PRIMARY_HOME_SURGE_COST_FUNDS = 25_000;
+export const PRIMARY_HOME_SURGE_COST_ACTIONS = 3;
+export const PRIMARY_HOME_SURGE_PCT = 15;
+
 /**
  * Per-tick projection bonus added to a candidate's primary score for their
  * `primaryCampaignState`. With TICK_CAP=5, a fully-camped candidate gets +7.5

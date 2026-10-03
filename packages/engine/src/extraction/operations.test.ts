@@ -33,7 +33,7 @@ describe("regional extraction operation entry", () => {
     // The sole national extraction issuer holds 100% of corporate-sector share.
     // Game's no-rival density floor is 0.35, so the 3x monopoly toll becomes 1.7x.
     const sourceStarterQuote = Math.round(
-      EXTRACTION_STARTER_UNITS * capacityPricePerUnitAnchor("extraction", corporateSectorBasePrices(world)) * 5 * 1.7 * rateMultiplier * acumenMultiplier * hostMultiplier * EXTRACTION_FOUNDING_BUILD_DISCOUNT,
+      EXTRACTION_STARTER_UNITS * capacityPricePerUnitAnchor("extraction", corporateSectorBasePrices(world), undefined, Number(world.meta.date.slice(0, 4))) * 1.7 * rateMultiplier * acumenMultiplier * hostMultiplier * EXTRACTION_FOUNDING_BUILD_DISCOUNT,
     );
     expect(starterCost).toBe(sourceStarterQuote);
     expect(operation.capitalStock).toBe(0);
@@ -48,14 +48,20 @@ describe("regional extraction operation entry", () => {
     expect(operation.constructionInProgressAnchor).toBe(starterCost);
     const totalCost = anchorToLocal(SECTOR_EXPANSION_BASE_COST_ANCHOR + starterCost, rateForLocalBalance(world, "US"));
     expect(world.corporations["US-extraction"]!.liquidCapital).toBe(before - totalCost);
+    expect(world.corporateCashLedger?.[0]).toMatchObject({
+      type: "corp_sector_founding", corporationId: "US-extraction",
+      amount: world.corporations["US-extraction"]!.liquidCapital - before,
+      meta: { sectorId: operation.id, sectorType: "extraction", units: EXTRACTION_STARTER_UNITS, costAnchor: starterCost, entryFeeAnchor: SECTOR_EXPANSION_BASE_COST_ANCHOR },
+    });
     expect(Object.values(corporateSectorAssets(world))).toContainEqual(expect.objectContaining({
       corporationId: "US-extraction", countryId: "US", stateId: "TX", sectorType: "extraction", workers: 500,
     }));
-    const reloaded = deserializeSave(serializeSave(world));
+    const reloaded = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
     expect(Object.values(corporateSectorAssets(reloaded))).toContainEqual(expect.objectContaining({
       corporationId: "US-extraction", countryId: "US", stateId: "TX", sectorType: "extraction", workers: 500,
       capitalStock: 0, capacityBookAnchor: 0, buildQueue: operation.buildQueue,
     }));
+    expect(reloaded.corporateCashLedger).toEqual(world.corporateCashLedger);
   });
 
   it("uses the source capacity price column and source era-scaled entry fee anchors", () => {

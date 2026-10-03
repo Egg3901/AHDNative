@@ -1,5 +1,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { decodeSavePayload, encodeSavePayload, type SavePayload } from './savePayload';
+import type { EncodedSerializedSave, SerializedSave } from './serializedSave';
+import type { GameClient } from './client';
 
 export interface SaveMetadata {
   slotId: string; savedAt: string; schemaVersion: number;
@@ -28,12 +30,29 @@ async function transaction<T>(mode: IDBTransactionMode, operation: (store: IDBOb
   });
 }
 export const saveRepository = {
-  async save(slotId: string, contents: string): Promise<void> {
-    if (isTauri()) return invoke('save_game', { slotId, contents });
-    const save = JSON.parse(contents);
-    const metadata: SaveMetadata = { slotId, savedAt: save.savedAt, schemaVersion: save.schemaVersion,
-      turn: save.world.meta.turn, countryId: save.world.player.countryId, playerName: save.world.player.name };
-    const payload = await encodeSavePayload(contents);
+  prepare(client: Pick<GameClient, 'serializeWithMetadata' | 'serializeForStorage'>, savedAt: string, includeSaveNotice = false): Promise<SerializedSave | EncodedSerializedSave> {
+    return isTauri()
+      ? client.serializeWithMetadata(savedAt, includeSaveNotice)
+      : client.serializeForStorage(savedAt, includeSaveNotice);
+  },
+  async save(slotId: string, input: string | SerializedSave | EncodedSerializedSave): Promise<void> {
+    const serialized = typeof input === 'string' ? undefined : input;
+    const contents = typeof input === 'string' ? input : input.contents;
+    if (isTauri()) return invoke('save_game', { slotId, contents: await decodeSavePayload(contents) });
+    // The envelope is produced by the in-process worker serializer. Keep the
+    // raw-string API's parse/validation behavior for fixture and import saves.
+    const metadata: SaveMetadata = serialized
+      ? { slotId, ...serialized.metadata }
+      : (() => {
+        if (typeof contents !== 'string') throw new Error('Compressed saves require worker metadata.');
+        const save = JSON.parse(contents);
+        return { slotId, savedAt: save.savedAt, schemaVersion: save.schemaVersion,
+          turn: save.world.meta.turn, countryId: save.world.player.countryId, playerName: save.world.player.name };
+      })();
+    const payload = typeof contents === 'string' ? await encodeSavePayload(contents) : contents;
+    if (payload.encoding !== 'gzip' || !(payload.bytes instanceof Uint8Array)) {
+      throw new Error('This saved game has an unsupported browser storage format.');
+    }
     await transaction('readwrite', store => store.put({ slotId, contents: payload, metadata } satisfies StoredSave));
   },
   async load(slotId: string): Promise<string> {

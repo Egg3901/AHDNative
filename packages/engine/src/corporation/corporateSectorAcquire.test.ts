@@ -3,6 +3,7 @@ import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { buyCorporateSectorForSale } from "./corporateSectorAcquire.js";
+import { executeAction } from "../actions/execute.js";
 
 const WORLD = { era: "1953", countryId: "US", seed: "issue-299-buy", playerName: "Alex" } as const;
 
@@ -101,6 +102,44 @@ describe("#295 corporate-sector acquisition", () => {
     expect(asset.corporationId).toBe(seller.id);
   });
 
+  it("allows the public CEO purchase flow at the source dual-track boundary and preserves it through save", () => {
+    const world = createWorld(WORLD);
+    const asset = Object.values(corporateSectorAssets(world)).find((row) => row.corporationId === "RU-media")!;
+    const buyer = world.corporations["US-financial"]!;
+    const seller = world.corporations[asset.corporationId]!;
+    buyer.ceoId = "player";
+    buyer.ceoType = "player";
+    buyer.ceoVacant = false;
+    asset.forSale = { priceAnchor: 100_000 };
+    buyer.liquidCapital = Math.round(asset.forSale.priceAnchor * world.exchangeRates[buyer.countryId]!.rate) * 2;
+    world.commandEconomy[asset.countryId]!.marketizationLevel = 30;
+    const buyerBefore = buyer.liquidCapital;
+    const sellerBefore = seller.liquidCapital;
+
+    world.commandEconomy[asset.countryId]!.marketizationLevel = 29.99;
+    expect(executeAction(world, "player", "buyCorporateSector", {
+      corporationId: buyer.id,
+      sectorId: asset.id,
+    })).toMatchObject({ ok: false, error: expect.stringMatching(/command economy/i) });
+    expect(buyer.liquidCapital).toBe(buyerBefore);
+    expect(seller.liquidCapital).toBe(sellerBefore);
+    world.commandEconomy[asset.countryId]!.marketizationLevel = 30;
+
+    const result = executeAction(world, "player", "buyCorporateSector", {
+      corporationId: buyer.id,
+      sectorId: asset.id,
+    });
+
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+    expect(buyer.liquidCapital).toBe(buyerBefore - 100_000);
+    expect(seller.liquidCapital).toBe(sellerBefore + Math.round(100_000 * world.exchangeRates.RU!.rate));
+    expect(asset).toMatchObject({ corporationId: buyer.id, countryId: "RU", forSale: null, owner: "corporation" });
+    const restored = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    expect(restored.corporations[buyer.id]?.liquidCapital).toBe(buyer.liquidCapital);
+    expect(restored.corporations[seller.id]?.liquidCapital).toBe(seller.liquidCapital);
+    expect(restored.corporateSectors?.[asset.id]).toEqual(asset);
+  });
+
   it("merges an acquired same-country, same-region, same-type sector into the buyer portfolio", () => {
     const { world, asset, buyer } = listedWorld();
     const assets = world.corporateSectors!;
@@ -151,7 +190,7 @@ describe("#295 corporate-sector acquisition", () => {
   it("persists corporate ownership and both local cash balances through save/reload", () => {
     const { world, asset, buyer, seller } = listedWorld();
     expect(buyCorporateSectorForSale(world, asset.id, buyer.id).ok).toBe(true);
-    const loaded = deserializeSave(serializeSave(world, { savedAt: "2026-10-01T00:00:00.000Z" }));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
     expect(loaded.corporateSectors![asset.id]).toMatchObject({ corporationId: buyer.id, owner: "corporation", forSale: null });
     expect(loaded.corporations[buyer.id]!.liquidCapital).toBe(buyer.liquidCapital);
     expect(loaded.corporations[seller.id]!.liquidCapital).toBe(seller.liquidCapital);

@@ -76,6 +76,38 @@ describe("#293 corporate-sector asset core", () => {
     expect(restored.corporateSectors?.[id]?.capacityBookAnchor).toBeCloseTo(expected.capacityBookAnchor!, 6);
   });
 
+  it("backfills an acquired regional sector using its own recipe and receipts", () => {
+    const world = createWorld({ era: "2019", countryId: "US", seed: "cross-sector-plant-backfill", playerName: "Alex" });
+    const assets = corporateSectorAssets(world);
+    const issuer = world.corporations["US-energy"]!;
+    const id = "corporate-sector:US:chemical_industries:acquired";
+    const asset = { ...assets["corporate-sector:US:energy:US-energy"]!,
+      id, stateId: "AL", sectorType: "chemical_industries" as const,
+      revenue: 7_000, strategyId: "pharmaceuticals",
+      representingUnionId: null, unionization: 0,
+      capitalStock: undefined, capacityBookAnchor: undefined,
+    };
+    assets[id] = asset;
+    const issuerRevenue = issuer.revenue;
+    // Game 0538 market/capital.seedCapitalStock takes the sector's revenue
+    // and resolved supply, not its owner's primary industry or total receipts.
+    // Source SECTOR_STRATEGIES chemical_industries.pharmaceuticals is .45
+    // pharmaceuticals + .1 chemicals. The weekly adapter uses seven days.
+    const unitYield = 0.45 / world.commodityPrices.pharmaceuticals!.basePrice
+      + 0.1 / world.commodityPrices.chemicals!.basePrice;
+    const expectedStock = 7_000 / 7 * unitYield * 1.1;
+    const expectedBook = expectedStock * (3 / unitYield) * 5;
+    expect(() => corporateSectorAssets(world)).not.toThrow();
+    expect(asset.capitalStock).toBeCloseTo(expectedStock, 9);
+    expect(asset.capacityBookAnchor).toBeCloseTo(expectedBook, 9);
+    expect(issuer.revenue).toBe(issuerRevenue);
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
+    expect(restored.corporateSectors?.[id]).toMatchObject({
+      sectorType: "chemical_industries", strategyId: "pharmaceuticals",
+      revenue: 7_000, capitalStock: asset.capitalStock, capacityBookAnchor: asset.capacityBookAnchor,
+    });
+  });
+
   it("posts paid Gosbank capacity credit to both source stock and paid book", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "plant-capacity-credit", playerName: "Alex" });
     const id = "corporate-sector:US:manufacturing:US-manufacturing";
@@ -103,6 +135,28 @@ describe("#293 corporate-sector asset core", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "plant-capacity-floor", playerName: "Alex" });
     const id = "corporate-sector:US:manufacturing:US-manufacturing";
     expect(corporateSectorPlantReplacementFloor(world, id)).toBeCloseTo(494_116.0714285714, 7);
+  });
+
+  it("prices extraction credit and replacement against the recorded source strategy", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "rare-earth-capacity-basis", playerName: "Alex" });
+    const id = "corporate-sector:US:extraction:US-extraction";
+    const asset = corporateSectorAssets(world)[id]!;
+    asset.strategyId = "rare_earth_mining";
+    asset.capitalStock = 10_000;
+    asset.capacityBookAnchor = 12_541_666.666666665;
+
+    // Direct AHDGame cb66acdf capacityPricePerUnit invocation at 1953,
+    // scale=69.76744186046511, strategy=rare_earth_mining returns
+    // 1254.1666666666665. The source replacement formula is stock × 0.0005
+    // × that strategy price; a 12,541.666666666665 credit therefore buys 10.
+    expect(applyCorporateSectorPlantCredit(world, id, 12_541.666666666665)).toEqual({
+      unitsAdded: 10,
+      creditPaidAnchor: 12_541.666666666665,
+    });
+    expect(corporateSectorPlantReplacementFloor(world, id)).toBeCloseTo(6_277.104166666666, 8);
+    const restored = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    expect(restored.corporateSectors?.[id]?.strategyId).toBe("rare_earth_mining");
+    expect(corporateSectorPlantReplacementFloor(restored, id)).toBeCloseTo(6_277.104166666666, 8);
   });
 
   it("accepts null or a positive finite asking price and rejects every other stored listing (#294)", () => {

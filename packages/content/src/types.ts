@@ -2,7 +2,7 @@
  * Seed pack format: versioned data, one per era.
  *
  * Forward compatibility: packs declare optional extension tables
- * (states, parties, sectors) as optional arrays. Existing packs
+ * (states, economy-only regions, parties, sectors) as optional arrays. Existing packs
  * omit them; future packs may include them; validation and engine
  * ignore missing extensions. Unknown top-level keys are ignored so
  * adding new tables does not break older consumers.
@@ -15,12 +15,63 @@ export interface SeedPack {
   countries: CountrySeed[];
   /** Optional extension tables: states, parties, sectors, budgets. */
   states?: StateSeed[];
+  /**
+   * Source-authored regions for economy-preview countries which do not have
+   * political registration/office seeds in this era. Kept out of `states` so
+   * they cannot silently become election units.
+   */
+  economyRegions?: EconomyRegionSeed[];
   /** Authored corporation HQ locations that do not participate in political state systems (e.g. DC in 1953). */
   corporationHeadquartersRegions?: CorporationHeadquartersRegionSeed[];
   parties?: PartySeed[];
   legislatures?: LegislatureSeed[];
   sectors?: SectorSeed[];
   budgets?: BudgetSeed[];
+  /**
+   * Source-authored political content for non-player systems. These rows may
+   * share an era pack with a separate non-playable economy CountrySeed, but do
+   * not make a country selectable or create a macro-economy country by themselves.
+   */
+  backgroundElections?: BackgroundElectionSeed[];
+}
+
+export interface BackgroundElectionSeed {
+  countryId: string;
+  name: string;
+  /** Source tier: registered beta countries run in Cold War packs; latent union republics need NPP v1. */
+  availability: "beta" | "npp-v1";
+  party: PartySeed;
+  demographicCategory: {
+    id: string;
+    name: string;
+    defaultWeight: number;
+    groups: Array<{
+      id: string;
+      name: string;
+      defaultEconomicLean: number;
+      defaultSocialLean: number;
+      defaultTurnout: number;
+    }>;
+  };
+  electionType: string;
+  chamberKey: string;
+  chamberName: string;
+  cycleAnchor: "ddVolkskammer" | "ruRepublicSoviet";
+  cyclePeriodHours: number;
+  regions: Array<{
+    id: string;
+    name: string;
+    seats: number;
+    partyOrganization: number;
+    population: number;
+    gdp: number;
+    demographics: {
+      categoryWeights: Record<string, number>;
+      groups: Record<string, { population: number; economicLean: number; socialLean: number; turnout: number }>;
+    };
+  }>;
+  /** Source historical office records are represented by weighted holders. */
+  initialSeatAllocations?: Array<{ regionId: string; seats: number }>;
 }
 
 /** Minimal authored residence geography for CEO HQ rules, outside state elections. */
@@ -28,6 +79,22 @@ export interface CorporationHeadquartersRegionSeed {
   id: string;
   countryId: string;
   name: string;
+}
+
+/** Regional economic/census data that carries no electoral registration. */
+export interface EconomyRegionSeed {
+  id: string;
+  countryId: string;
+  name: string;
+  population: number;
+  /** Source GDP in millions USD. */
+  gdp: number;
+  /** Formal lower-house/district allocation when authored by source. */
+  houseSeats: number;
+  /** Regional upper/subnational seat estimate when authored by source. */
+  senateSeats: number;
+  /** Source-authored era metric overlays for this economy-only region. */
+  metrics: Record<string, number>;
 }
 
 export interface EraSeed {

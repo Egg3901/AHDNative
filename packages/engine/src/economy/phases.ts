@@ -6,8 +6,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import { advanceCapitalStock, NEUTRAL_PRIME_RATE, seedCapitalStock } from "./capitalStock.js";
 import { growUnownedSectorRevenue } from "./unownedSectorGrowth.js";
-import { clampConcentration } from "./stateOwnershipConcentration.js";
-import { plannedShare } from "../commandEconomy/constants.js";
+import { computeCountryStateOwnershipConcentration } from "./stateOwnershipConcentration.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS } from "../centralBank/constants.js";
 import { annualizedGrowthRate } from "../demographics/laborForce.js";
 import { TURNS_PER_YEAR } from "./macroConstants.js";
@@ -67,18 +66,15 @@ export const unownedSectorGrowthPhase: TurnPhase = {
 };
 
 /**
- * Recompute each country's State Ownership Concentration Index from the LIVE
- * marketization dial (see stateOwnershipConcentration.ts file doc for the
- * plannedShare substitution). Runs after commandEconomyPhase so it reads this
- * turn's freshly-drifted marketizationLevel, not last turn's.
+ * Recompute each country's source concentration from current asset receipts
+ * and actual state-owner identities. The planning dial is not asset ownership.
  */
 export const stateOwnershipConcentrationPhase: TurnPhase = {
   name: "stateOwnershipConcentration",
   run(world) {
     for (const [countryId, budget] of Object.entries(world.budgets)) {
-      const ce = world.commandEconomy[countryId];
-      const soci = ce ? clampConcentration(plannedShare(ce.marketizationLevel) * 100) : 0;
-      budget.stateOwnershipConcentration = soci;
+      budget.stateOwnershipConcentration = computeCountryStateOwnershipConcentration(world, countryId);
+      budget.stateOwnershipConcentrationUpdatedAtTurn = world.meta.turn;
     }
   },
 };

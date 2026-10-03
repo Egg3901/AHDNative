@@ -3,7 +3,9 @@ import { anchorToLocal, rateForLocalBalance } from "../forex/conversion.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnionId, validateCorporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import type { CorporateSectorAsset } from "../corporation/corporateSectorAssets.js";
-import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "../corporation/plantCapacity.js";
+import { capacityEraPriceIndex, capacityPricePerUnitAnchor, corporateSectorBasePrices } from "../corporation/plantCapacity.js";
+import { makeNppFoundingCashRecord, validateCorporateCashLedger } from "../corporation/corporateCashLedger.js";
+import { DEFAULT_PROFIT_MARGIN } from "../corporation/constants.js";
 
 /** Mainline AHDGame corporations.ts SECTOR_EXPANSION_BASE_COST. */
 export const SECTOR_EXPANSION_BASE_COST_ANCHOR = 100_000;
@@ -53,13 +55,12 @@ export function expandRegionalExtraction(
   if (existing) return { ok: false, error: `An extraction operation already exists in ${regionId}` };
 
   const expansionCostAnchor = Math.round(SECTOR_EXPANSION_BASE_COST_ANCHOR * getEraNominalScale(world.meta.era));
-  const capacityPrice = capacityPricePerUnitAnchor("extraction", corporateSectorBasePrices(world));
   const year = Number(world.meta.date.slice(0, 4));
   // Current commodity base prices already carry Native's source era nominal
   // conversion. Game's capacity list adds its independently authored price
   // column (capacityEconomy.capacityEraPriceIndex) on top of that unit basis.
   const starterBuildAnchor = Math.round(
-    EXTRACTION_STARTER_UNITS * capacityPrice * sourceCapacityEraPriceIndex(year) * sourceFoundingCostModifiers(world, corporationId, regionId, existingAssets) * EXTRACTION_FOUNDING_BUILD_DISCOUNT,
+    EXTRACTION_STARTER_UNITS * capacityPricePerUnitAnchor("extraction", corporateSectorBasePrices(world), undefined, year) * sourceFoundingCostModifiers(world, corporationId, regionId, existingAssets) * EXTRACTION_FOUNDING_BUILD_DISCOUNT,
   );
   const starterOnlineTurn = world.meta.turn + EXTRACTION_STARTER_BUILD_TURNS;
   const totalCostAnchor = expansionCostAnchor + starterBuildAnchor;
@@ -77,6 +78,7 @@ export function expandRegionalExtraction(
     countryId: region.countryId,
     stateId: regionId,
     sectorType: "extraction",
+    profitMargin: DEFAULT_PROFIT_MARGIN,
     workers: calculateSectorWorkers(1_000_000), // Source newborn facility workforce before realized first-turn receipts.
     revenue: 0,
     capitalStock: 0,
@@ -106,19 +108,27 @@ export function expandRegionalExtraction(
   const assets = { ...existingAssets, [assetId]: asset };
   validateCorporateSectorAssets(world, assets);
 
-  corporation.liquidCapital -= totalCost;
+  const cashBefore = corporation.liquidCapital;
+  const cashAfter = cashBefore - totalCost;
+  const cashRecord = makeNppFoundingCashRecord({
+    corp: corporation, world, sector: asset, units: EXTRACTION_STARTER_UNITS,
+    costLocal: totalCost, cashDeltaLocal: cashAfter - cashBefore,
+    costAnchor: starterBuildAnchor, entryFeeAnchor: expansionCostAnchor,
+    onlineTurn: starterOnlineTurn,
+  });
+  if (!cashRecord) return { ok: false, error: "Could not build a valid extraction founding cash witness" };
+  const ledger = [...(world.corporateCashLedger ?? []), cashRecord];
+  validateCorporateCashLedger(ledger);
+
+  corporation.liquidCapital = cashAfter;
   world.corporateSectors = assets;
+  world.corporateCashLedger = ledger;
   return { ok: true, assetId, expansionCostAnchor, starterBuildAnchor, starterOnlineTurn };
 }
 
 /** Source Game capacityEconomy.ts capacityEraPriceIndex, including its modern row. */
 export function sourceCapacityEraPriceIndex(year: number): number {
-  if (!Number.isFinite(year)) return 5;
-  if (year < 1971) return 1;
-  if (year < 1979) return 1.4;
-  if (year < 1991) return 2.6;
-  if (year < 1999) return 3.6;
-  return 5;
+  return capacityEraPriceIndex(year);
 }
 
 /** Game capacityEconomy.computeBuildCost modifiers available in Native state. */

@@ -186,7 +186,7 @@ describe("player candidacy fees and eligibility (#99)", () => {
 
     const withdrew = executeAction(world, "player", "withdrawCandidacy", { electionId: rec.id });
     expect(withdrew.ok).toBe(true);
-    expect(rec.candidates.some((c) => c.id === "player")).toBe(false);
+    expect(rec.candidates.find((c) => c.id === "player")).toMatchObject({ status: "withdrawn" });
 
     const again = executeAction(world, "player", "withdrawCandidacy", { electionId: rec.id });
     expect(again.ok).toBe(false);
@@ -204,6 +204,17 @@ describe("player candidacy fees and eligibility (#99)", () => {
 
     const withdrew = executeAction(loaded, "player", "withdrawCandidacy", { electionId: rec.id });
     expect(withdrew.ok).toBe(true);
-    expect(loadedRec.candidates.some((c) => c.id === "player")).toBe(false);
+    expect(loadedRec.candidates.find((c) => c.id === "player")).toMatchObject({ status: "withdrawn" });
+  });
+
+  it("reactivates the source candidate record when the player re-enters the same race", () => {
+    const { world, rec } = worldWithHomeRace();
+    expect(executeAction(world, "player", "declareCandidacy", { electionId: rec.id }).ok).toBe(true);
+    expect(executeAction(world, "player", "withdrawCandidacy", { electionId: rec.id }).ok).toBe(true);
+    world.meta.turn = rec.primaryEndTurn - 1;
+
+    expect(executeAction(world, "player", "declareCandidacy", { electionId: rec.id }).ok).toBe(true);
+    expect(rec.candidates.filter((candidate) => candidate.id === "player")).toHaveLength(1);
+    expect(rec.candidates.find((candidate) => candidate.id === "player")).toMatchObject({ status: "active" });
   });
 });

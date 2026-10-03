@@ -21,10 +21,6 @@
  * uses) so tests are reproducible. No Date.now, no Math.random.
  *
  * Reported gaps (reference input not modelled in Native — see report):
- *  - `computeCabinetNominationTally` (seat-weighted re-tally from live elected
- *    officials) — Native's cabinet port left this a placeholder (`tallyVotes`
- *    returns 0), so resolution uses the stored votesFor/votesAgainst counters,
- *    exactly as this package's `processCabinetNominationLifecycle` does.
  *  - `createNotifications` / nomineeUserId: Native has no per-character user
  *    notification channel; confirmation/rejection is recorded on the nomination
  *    and surfaced in world.news.
@@ -35,6 +31,8 @@
 import type { WorldState } from "../types.js";
 import { FOMC_TERM_TURNS, FOMC_VOTE_WINDOW_TURNS } from "./constants.js";
 import { cabinetDidPass, nppCabinetVote, type SenateVote } from "../cabinet/nominationLifecycle.js";
+import { heldSeatCount } from "../government/seatWeights.js";
+import { tallyCurrentSeatVotes } from "../nominations/currentSeatTally.js";
 import type { FomcNomination } from "./types.js";
 
 export interface FomcNominationLifecycleResult {
@@ -67,9 +65,10 @@ function castNppFomcVotes(
       nextDraw(),
     );
     nom.votes[key] = vote;
-    if (vote === "for") nom.votesFor += 1;
-    else if (vote === "against") nom.votesAgainst += 1;
-    else nom.votesAbstain += 1;
+    const weight = heldSeatCount(holder);
+    if (vote === "for") nom.votesFor += weight;
+    else if (vote === "against") nom.votesAgainst += weight;
+    else nom.votesAbstain += weight;
   }
 }
 
@@ -150,7 +149,11 @@ export function processFomcNominationLifecycle(world: WorldState): FomcNominatio
 
     // B. Resolve expired nominations at or past votingEndsOnTurn.
     result.nominationsProcessed++;
-    const passed = cabinetDidPass(nom.votesFor, nom.votesAgainst);
+    const currentTally = tallyCurrentSeatVotes(world, nom.countryId, nom.votes, "senate", "npp_");
+    nom.votesFor = currentTally.votesFor;
+    nom.votesAgainst = currentTally.votesAgainst;
+    nom.votesAbstain = currentTally.votesAbstain;
+    const passed = cabinetDidPass(currentTally.votesFor, currentTally.votesAgainst);
     const seatLabel = nom.makeChair ? "Fed Chair" : `FOMC seat ${nom.seatId}`;
 
     if (passed) {

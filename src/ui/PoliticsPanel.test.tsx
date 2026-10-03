@@ -1041,3 +1041,83 @@ describe("PoliticsPanel elections dual-pane list/detail (#438)", () => {
     expect(screen.getByLabelText("Race")).toHaveValue("senate:US:TX:c1");
   });
 });
+
+describe("PoliticsPanel Commons recall reachability", () => {
+  it("opens the actual vacancy race despite filters and preserves its candidacy action", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const base = makePolitics();
+    const special = {
+      ...base.elections[0], id: "special_commons:UK:NIR:c10", title: "Commons · NIR",
+      isByElection: true, primaryEndTurn: 34,
+      candidacy: { id: "declareCandidacy", name: "Run for office", description: "", cost: 1, available: true },
+    };
+    const politics: PoliticsView = {
+      ...base, countryId: "UK", countryName: "United Kingdom", elections: [...base.elections, special],
+      commonsVacancies: [{ id: "vacancy-1", regionId: "NIR", regionName: "Northern Ireland", seats: 3,
+        reason: "recall", status: "scheduled", vacatedTurn: 10, formerHolderName: "Former MP", electionId: special.id }],
+    };
+    render(<PoliticsPanel politics={politics} section="elections" clock={CLOCK} busy={false} onAction={onAction} />);
+    const vacancies = screen.getByRole("region", { name: "Commons vacancies" });
+    expect(vacancies).toHaveTextContent("Northern Ireland · 3 seats");
+    expect(vacancies).toHaveTextContent("Recall");
+    await user.selectOptions(screen.getByLabelText("Race status"), "resolved");
+    await user.click(within(vacancies).getByRole("button", { name: "Go to the by-election" }));
+    expect(screen.getByLabelText("Race status")).toHaveValue("all");
+    const race = screen.getByRole("article", { name: special.title });
+    expect(within(race).getByText("By-election")).toBeInTheDocument();
+    await user.click(within(race).getByRole("button", { name: "Run for office" }));
+    expect(onAction).toHaveBeenCalledWith("declareCandidacy", { electionId: special.id });
+  });
+
+  it("keeps an unclaimed vacancy visible without inventing a race link", async () => {
+    const PoliticsPanel = await renderPanel();
+    const politics: PoliticsView = {
+      ...makePolitics(), countryId: "UK", countryName: "United Kingdom",
+      commonsVacancies: [{ id: "vacancy-pending", regionId: "NIR", regionName: "Northern Ireland", seats: 1,
+        reason: "resignation", status: "open", vacatedTurn: 8, formerHolderName: "Former MP", electionId: null }],
+    };
+    render(<PoliticsPanel politics={politics} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+    const vacancies = screen.getByRole("region", { name: "Commons vacancies" });
+    expect(vacancies).toHaveTextContent("Northern Ireland · 1 seat");
+    expect(vacancies).toHaveTextContent("No by-election scheduled yet.");
+    expect(within(vacancies).queryByRole("button", { name: "Go to the by-election" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { scheduling: { kind: "special_live" }, expected: "Another by-election is running in this region." },
+    { scheduling: { kind: "general_fills", endTurn: 45 }, expected: "The coming general election covers this vacancy. Voting closes turn 45." },
+    { scheduling: { kind: "cooldown", retryTurn: 68 }, expected: "Waiting after an earlier by-election. Earliest retry turn 68." },
+    { scheduling: { kind: "spawn" }, expected: "A by-election can be scheduled on the next turn." },
+  ] satisfies Array<{ scheduling: NonNullable<PoliticsView["commonsVacancies"]>[number]["scheduling"]; expected: string }>)
+  ("explains the actual vacancy scheduling gate: $scheduling.kind", async ({ scheduling, expected }) => {
+    const PoliticsPanel = await renderPanel();
+    const politics: PoliticsView = {
+      ...makePolitics(), countryId: "UK", countryName: "United Kingdom",
+      commonsVacancies: [{ id: "vacancy-gated", regionId: "NIR", regionName: "Northern Ireland", seats: 1,
+        reason: "resignation", status: "open", vacatedTurn: 8, formerHolderName: null, electionId: null, scheduling }],
+    };
+    render(<PoliticsPanel politics={politics} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+    const vacancies = screen.getByRole("region", { name: "Commons vacancies" });
+    expect(vacancies).toHaveTextContent(expected);
+    expect(within(vacancies).queryByRole("button", { name: "Go to the by-election" })).not.toBeInTheDocument();
+  });
+
+  it("shows signature and support actions from the projected UK petition", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const politics: PoliticsView = {
+      ...makePolitics(), countryId: "UK", countryName: "United Kingdom", commonsRecalls: [{
+        id: "commons-recall:UK-1:1", regionId: "NIR", targetName: "Fixture MP", status: "open", trigger: "infamy",
+        signatureCount: 2, signaturesRequired: 5, turnsToSignatureExpiry: 8, checkEndTurn: null,
+        removeDeclarations: 0, retainDeclarations: 0, playerSignatureRecorded: false, playerDeclaration: null, vacancyId: null,
+      }],
+    };
+    render(<PoliticsPanel politics={politics} section="elections" clock={CLOCK} busy={false} onAction={onAction} />);
+    expect(screen.getByRole("region", { name: "Commons recall petitions" })).toHaveTextContent("2/5");
+    await user.click(screen.getByRole("button", { name: "Sign petition" }));
+    expect(onAction).toHaveBeenCalledWith("signCommonsRecallPetition", { petitionId: "commons-recall:UK-1:1" });
+  });
+});

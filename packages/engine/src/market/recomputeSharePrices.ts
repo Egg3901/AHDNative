@@ -50,6 +50,7 @@ import {
   MIN_SHARE_PRICE,
 } from "./constants.js";
 import { computeOrderFlowMultiplier } from "./orderFlow.js";
+import { resolveCountryCurrency } from "../bonds/denomination.js";
 import { getInvestorConfidenceSentiment } from "./sentiment.js";
 
 export const recomputeSharePricesPhase: TurnPhase = {
@@ -108,7 +109,7 @@ export const recomputeSharePricesPhase: TurnPhase = {
       corp.orderFlowWindowBuyValue = 0;
       corp.orderFlowWindowSellValue = 0;
       const history = corp.priceHistory ?? [];
-      corp.priceHistory = [...history, { turn: world.meta.turn, price: livePrice }].slice(-MARKET_PRICE_HISTORY_TURNS);
+      corp.priceHistory = [...history, { turn: world.meta.turn, price: livePrice, currencyCode: corp.liquidCurrencyCode ?? resolveCountryCurrency(world, corp.countryId) }].slice(-MARKET_PRICE_HISTORY_TURNS);
     }
   },
 };

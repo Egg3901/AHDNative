@@ -1,10 +1,46 @@
 # Save compatibility: authentic v42 interchange
 
-Characterization of public save interchange between the historical v42 engine and this repository's Native engine. The recorded run below used an older Native schema; it is not a current cross-engine parity result. Current Native is schema 54; [political board continuation](POLITICAL-BOARD-CONSUMERS.md) records the earlier schema 51 boundary and historical absence. The bounded v42 projection and its current hashes are recorded in [the interchange depth record](V42-INTERCHANGE-DEPTH.md). Progressed political saves require the owner-approved versioned current-SP successor (#116/#122), not the immutable v42 turn engine.
+Characterization of public save interchange between the historical v42 engine and this repository's Native engine. The recorded run below used an older Native schema; it is not a current cross-engine parity result. This working tree writes schema 65; [political board continuation](POLITICAL-BOARD-CONSUMERS.md) explains its earlier version boundary and historical absence. The bounded v42 projection and its current hashes are recorded in [the interchange depth record](V42-INTERCHANGE-DEPTH.md). Progressed political saves require the owner-approved versioned current-SP successor (#116/#122), not the immutable v42 turn engine.
 
-Preview 0.1.10 expands the existing PM appointment record to supported parliamentary countries without adding persisted fields. The current writer and reader retain schema 54. Actual CN and DE nominations produced through `executeAction` serialize and reload, with country/chamber and party validation. The immutable accepted-main reader at `733df72da3335be0b16c9397996c082ea16aa69b` rejects those exact new votes with `invalid PM appointment vote`; it does not silently continue them. This is an explicit older-reader content limit, not bidirectional save compatibility. The distinct NPC government directive snapshot remains Irish-only, matching its producer. The six focused appointment tests use eligibility and calendar fixtures; earned career continuation is a separate release check.
+Preview 0.1.10 expands the existing PM appointment record to supported parliamentary countries without adding persisted fields. The delivered preview writer and reader retain schema 54; this unreleased combined branch writes schema 65. Actual CN and DE nominations produced through `executeAction` serialize and reload, with country/chamber and party validation. The immutable accepted-main reader at `733df72da3335be0b16c9397996c082ea16aa69b` rejects those exact new votes with `invalid PM appointment vote`; it does not silently continue them. This is an explicit older-reader content limit, not bidirectional save compatibility. The distinct NPC government directive snapshot remains Irish-only, matching its producer. The six focused appointment tests use eligibility and calendar fixtures; earned career continuation is a separate release check.
 
-Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). The schema 48 references below describe historical validation, not the current writer. A current-schema save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
+Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). Native engine in this tree is SCHEMA_VERSION **65** (`packages/engine/src/world.ts`). The original interchange evidence below was recorded at schema 48. A current-schema save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
+
+Schema 64 persists source `seatsHeld` on actual multi-seat winners. PM, legislative and cabinet ballots and government party totals consume the current office's full weight. Absent legacy weights retain the source default of one; migration does not invent historic allocations. Non-positive or fractional weights fail save validation, and schema 42 export explicitly refuses weighted offices. `src/game/electionSeatWeights.test.ts` verifies public winner, action, query and save boundaries, including identical complete-world/RNG continuation after reload. Its recorded ballot and authority fixtures verify these boundaries, not a full career or browser journey. The current earned Irish career and combined full CI gate remain separate requirements.
+
+Schema 65 adds bill corporation targets, legislative acquisition provenance and persisted player nationalization notices. Public bill sponsorship posts the source 48-turn notice; ordinary corporate turns complete due legislative notices, retain governing-party context, and cancel vanished or already state-owned targets. Legacy absence stays absent. Schema 42 projection explicitly refuses notice state. Four focused public action/save/ordinary-turn tests pass, including complete-world/RNG equality after reloading a recorded near-deadline continuation. That fixture does not establish a full 48-turn career, full nationalization parity, or current cross-engine interchange. Automatic strategic/monopoly cure resolution, sector-wide bills and complete UI authoring remain separate gates.
+
+The unpublished schema 65 integration also contains source NPP strategy memory, physical capacity replacement, corporate cash records, headquarters votes and corporate currency relocation. Individual producer tests are recorded separately. The bounded combined public-session save check below qualifies its exact producer and refusal boundary; the full integration gate and original mechanics criteria remain open. This is partial work on #107 and #75.
+
+Schema 65 also contains source annual statehood admission, UK devolution and Northern Ireland conflict records, Commons vacancies and recall petition clocks, signatures, declarations and support samples. The local migration preserves their historical absence except for the statehood preset guard. Existing recorded public fixtures qualify their named boundaries; complete country journeys and combined validation remain open. The producer checkpoint below records exact older-reader refusal.
+
+## Combined schema 65 producer checkpoint, 2026-10-03
+
+Writer `4d78e31016d053c82ed00823045257819a5d7b8f` creates a fresh 1953 US/WY
+character through `GameSession` with the legal 28-point character allocation,
+joins the Republican party, campaigns and advances one untouched-calendar turn.
+Its raw `serialize` output is 14,782,172 bytes, schema 65 in both envelope and
+world metadata, SHA-256 `0cf553002c85e36c15fb25d2ab1d2b571162a7e3c9237ae99015733d678a6c95`.
+The new Eastern Layer 1 groups are present. Loading and serializing preserves
+the exact raw save. Direct and reloaded sessions then advance to turn two with
+identical complete saves, including RNG, SHA-256
+`c6d0e9e271e85551c723e6e0ac796e502b796f40e1dc59be65a040d5932269f9`.
+Malformed JSON is refused.
+
+All three immutable readers below receive those same unmodified producer bytes:
+
+| Reader | Source commit | Result |
+| --- | --- | --- |
+| Schema 64 feature branch, not accepted main or a shipped build | `c0b022019363b4c0f52e46ae6af6f250a56a6b3c` | Refuses `schema 65 > 64` |
+| Current accepted main, schema 54 | `572fbb3b8a4daaed6c2419a5ef8a3c74707146be` | Refuses `schema 65 > 54` |
+| Delivered TestFlight source, schema 54 | `52f4860db4d8f500d20f6cbbb1b6c43bc30dff0c` | Refuses `schema 65 > 54` |
+
+Each reader uses its own immutable engine, content and rules dependency graph.
+The producer has no rewritten envelope, clock, RNG or history. This establishes
+two ordinary public-session turns and the version barrier for those exact
+readers. It does not establish full careers, all new field families, bidirectional
+current AHDClient interchange, or the pending full integration gate. The
+delivered preview continues to use schema 54.
 
 ## Run
 

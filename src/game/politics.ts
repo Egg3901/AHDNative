@@ -12,6 +12,7 @@ import {
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
   CAMPAIGN_TARGETED_AD_CAP,
   requiresPrimaryResolution,
+  ukCommonsByElectionGate, type CommonsByElectionGate,
   UK_DEVOLUTION_REGIONS,
   referendumRegionStatus,
   REQUEST_THRESHOLD,
@@ -25,7 +26,7 @@ import {
   campaignSideForPartyInRegion,
   CAMPAIGN_PS_COST_PER_UNIT,
   maxAffordableCampaignStrengthClicks,
-  allocateElectoralVotes, electoralVotesByState, electoralMajorityFor,
+  allocateElectoralVotes, electoralVotesByState, electoralMajorityFor, isElectionCandidateActive,
   type Campaign, type OpsBranchKey, type ReferendumRecord, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
@@ -326,6 +327,18 @@ export interface PoliticsPresidentialView {
   /** Majority of the actual college (`electoralMajorityFor`), never a hardcoded 270. */
   majorityThreshold: number;
   electors: PoliticsPresidentialElectorView[];
+  /** Source governor-office endorsement actions available to this player, if any. */
+  governorActions?: Array<{
+    electionId: string;
+    stateId: string;
+    candidateId: string;
+    candidateName: string;
+    available: boolean;
+    disabledReason?: string;
+  } & (
+    | { actionId: "governorEndorsePresidentialCandidate" }
+    | { actionId: "withdrawGovernorEndorsement"; endorsementId: string }
+  )>;
   /** Per-state accumulation, sorted by state id; empty when no per-state tallies. */
   states: PoliticsPresidentialStateView[];
   resolved: boolean;
@@ -337,6 +350,13 @@ export interface PoliticsPresidentialView {
 
 export interface PoliticsElectionDetail {
   id: string; title: string; status: string; date: string; filingDate: string;
+  /** Mid-term races retain their special identity after seating regular office holders. */
+  isByElection?: boolean;
+  endTurn?: number | null;
+  /** Source public race identity (`country-type-region[-class]`), derived from the recorded election. */
+  seatId?: string | null;
+  /** Turn when candidate filing closes; paired with the source public race key. */
+  primaryEndTurn?: number | null;
   phase: RacePhase;
   playerCandidate: boolean;
   candidates: PoliticsCandidateView[];
@@ -451,6 +471,21 @@ export interface PoliticsReferendumRequestView {
   action: ActionView;
 }
 
+export interface PoliticsCommonsRecallView {
+  id: string; regionId: string; targetName: string; status: string; trigger: string;
+  signatureCount: number; signaturesRequired: number; turnsToSignatureExpiry: number | null;
+  checkEndTurn: number | null; removeDeclarations: number; retainDeclarations: number;
+  playerSignatureRecorded: boolean; playerDeclaration: "retain" | "remove" | null;
+  vacancyId: string | null;
+}
+
+export interface PoliticsCommonsVacancyView {
+  id: string; regionId: string; regionName: string; seats: number;
+  reason: string; status: "open" | "scheduled"; vacatedTurn: number;
+  formerHolderName: string | null; electionId: string | null;
+  scheduling?: CommonsByElectionGate;
+}
+
 export interface PoliticalMetricsView {
   countryId: string; countryName: string;
   politicalMetrics?: PoliticalRegistryView;
@@ -470,6 +505,8 @@ export interface PoliticsView {
   referendums: PoliticsReferendumView[];
   referendumRequest: PoliticsReferendumRequestView;
   politicians: PoliticsPoliticianView[];
+  commonsRecalls?: PoliticsCommonsRecallView[];
+  commonsVacancies?: PoliticsCommonsVacancyView[];
   politicalMetrics?: PoliticalRegistryView;
 }
 
@@ -585,6 +622,14 @@ function isGeneralPhase(world: WorldState, election: WorldState["elections"][num
   return primaryClosed && generalOpen;
 }
 
+function sourceSeatIdForElection(election: WorldState["elections"][number]): string | null {
+  if (election.electionType === "president") return `${election.countryId}-president`;
+  if (!election.state) return null;
+  const parts = [election.countryId, election.electionType, election.state];
+  if (election.senateClass !== undefined) parts.push(String(election.senateClass));
+  return parts.join("-");
+}
+
 function upgradeAction(
   branch: OpsBranchKey | null,
   fundsLocal: number | null,
@@ -662,10 +707,11 @@ function oppositionResearchAction(
   campaign: Campaign,
   campaignReason?: string,
 ): PoliticsCampaignOppositionView {
-  const playerCandidate = election.candidates.find((candidate) => candidate.id === "player");
+  const playerCandidate = election.candidates.find((candidate) => candidate.id === "player" && isElectionCandidateActive(candidate));
   const primaryOpen = world.meta.turn < election.primaryEndTurn;
   const targets = playerCandidate
     ? election.candidates
+      .filter(isElectionCandidateActive)
       .filter((candidate) => candidate.id !== "player")
       .filter((candidate) => !primaryOpen || candidate.partyId === playerCandidate.partyId)
       .map((candidate) => ({
@@ -827,7 +873,7 @@ function projectPlayerCampaign(
   const campaign = world.campaigns[campaignKey(election.id, "player")];
   if (!campaign) return null;
   const archived = campaign.status === "archived";
-  if (!election.candidates.some((c) => c.id === "player") && !archived) return null;
+  if (!election.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c)) && !archived) return null;
   const generalPhase = !archived && isGeneralPhase(world, election);
   const noRace = election.status === "resolved" ? "This election has ended." : undefined;
   const campaignReason = archived ? "Campaign is archived and read-only." : noRace;
@@ -913,6 +959,7 @@ function projectPlayerCampaign(
   const strengthBatch = strengthQuote(CAMPAIGN_STRENGTH_BATCH_STEPS[0] ?? 5);
   const strengthMax = strengthQuote(maxStrengthClicks);
   const strengthTargets: PoliticsStrengthTargetView[] = election.candidates
+    .filter(isElectionCandidateActive)
     .map((candidate) => {
       const targetCampaign = world.campaigns[campaignKey(election.id, candidate.id)];
       if (!targetCampaign || targetCampaign.status !== "active") return null;
@@ -1149,6 +1196,30 @@ function projectPresidential(
   const nameOf = (id: string) =>
     candidates.find((candidate) => candidate.id === id)?.name
     ?? politicianName(world, id) ?? id;
+  const governorActions: NonNullable<PoliticsPresidentialView["governorActions"]> = [];
+  if (election.status === "active") {
+    for (const office of Object.values(world.governors)) {
+      if (office.countryId !== world.player.countryId || office.governorId !== "player" || !office.governorParty) continue;
+      const prior = election.governorEndorsements?.find((row) => row.isActive && row.stateId === office.stateId);
+      if (prior?.endorsedById === "player") {
+        governorActions.push({
+          actionId: "withdrawGovernorEndorsement", electionId: election.id, stateId: office.stateId,
+          candidateId: prior.candidateId, candidateName: nameOf(prior.candidateId), endorsementId: prior.id,
+          available: true,
+        });
+        continue;
+      }
+      for (const candidate of election.candidates) {
+        if ((candidate.status ?? "active") !== "active" || candidate.partyId !== office.governorParty) continue;
+        const available = !prior && office.gubernatorialActions >= 1;
+        governorActions.push({
+          actionId: "governorEndorsePresidentialCandidate", electionId: election.id, stateId: office.stateId,
+          candidateId: candidate.id, candidateName: nameOf(candidate.id), available,
+          ...(!available ? { disabledReason: prior ? "This governor already endorsed a candidate in this race." : "Insufficient governor office action points." } : {}),
+        });
+      }
+    }
+  }
   const electors: PoliticsPresidentialElectorView[] = election.candidates
     .map((candidate) => ({
       candidateId: candidate.id,
@@ -1194,6 +1265,7 @@ function projectPresidential(
     totalElectoralVotes: ec?.totalEv ?? 0,
     majorityThreshold: ec ? electoralMajorityFor(ec.totalEv) : 0,
     electors,
+    governorActions,
     states,
     resolved: election.status === "resolved",
     winnerId,
@@ -1445,18 +1517,18 @@ export function projectPolitics(world: WorldState): PoliticsView {
   const player = world.player;
   const partyName = (partyId: string) => world.parties[partyId]?.name ?? partyId;
 
-  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player"));
+  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c)));
   const elections = world.elections.filter((e) => e.countryId === player.countryId)
     .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id)
       || Number(a.status === "resolved") - Number(b.status === "resolved")
       || (a.status === "resolved" ? b.endTurn - a.endTurn : a.primaryEndTurn - b.primaryEndTurn))
     .map((election) => {
-      const playerCandidate = election.candidates.some((c) => c.id === "player");
+      const playerCandidate = election.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c));
       const winnerIdSet = new Set(election.winners ?? []);
       const tallyEntries = Object.entries(election.tally ?? {});
       const hasVotes = tallyEntries.some(([, v]) => v > 0);
       const totalVotes = hasVotes ? tallyEntries.reduce((sum, [, v]) => sum + v, 0) : null;
-      const candidates = election.candidates.map((c) => {
+      const candidates = (election.status === "resolved" ? election.candidates : election.candidates.filter(isElectionCandidateActive)).map((c) => {
         const votes = hasVotes ? (election.tally[c.id] ?? 0) : null;
         return {
           id: c.id, name: c.name, partyId: c.partyId, partyName: partyName(c.partyId),
@@ -1472,6 +1544,10 @@ export function projectPolitics(world: WorldState): PoliticsView {
       const primary = projectPrimary(world, election);
       return {
         id: election.id,
+        isByElection: election.electionType === "special_commons" || election.electionType === "special_governor",
+        endTurn: election.endTurn,
+        seatId: sourceSeatIdForElection(election),
+        primaryEndTurn: election.primaryEndTurn ?? null,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
         status: election.status, date: dateAtTurn(world, election.endTurn), filingDate: dateAtTurn(world, election.primaryEndTurn),
         phase, playerCandidate, candidates, winnerNames, winnerIds, totalVotes,
@@ -1488,7 +1564,7 @@ export function projectPolitics(world: WorldState): PoliticsView {
   for (const election of world.elections) {
     if (election.status === "resolved" || election.countryId !== player.countryId) continue;
     for (const candidate of election.candidates) {
-      if (candidate.id === "player") continue;
+      if (!isElectionCandidateActive(candidate) || candidate.id === "player") continue;
       const list = activeRaceIdsByPolitician.get(candidate.id) ?? [];
       list.push(election.id);
       activeRaceIdsByPolitician.set(candidate.id, list);
@@ -1586,5 +1662,26 @@ export function projectPolitics(world: WorldState): PoliticsView {
       || b.requestedTurn - a.requestedTurn)
     .map((record) => projectReferendum(world, record));
 
-  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, politicalMetrics: politicalMetricsForCountry(world, country.id) };
+  const commonsRecalls = player.countryId === "UK" ? (world.ukCommonsRecallPetitions ?? []).map((petition) => ({
+    id: petition.id, regionId: petition.regionId, targetName: petition.targetName, status: petition.status, trigger: petition.trigger,
+    signatureCount: petition.signatures.length, signaturesRequired: 5,
+    turnsToSignatureExpiry: petition.status === "open" && petition.openedTurn !== undefined ? Math.max(0, petition.openedTurn + 12 - world.meta.turn) : null,
+    checkEndTurn: petition.checkEndTurn ?? null,
+    removeDeclarations: petition.declarations.filter((row) => row.side === "remove").length,
+    retainDeclarations: petition.declarations.filter((row) => row.side === "retain").length,
+    playerSignatureRecorded: petition.signatures.some((row) => row.actorId === "player"),
+    playerDeclaration: petition.declarations.find((row) => row.actorId === "player")?.side ?? null,
+    vacancyId: petition.vacancyId ?? null,
+  })) : [];
+  const commonsVacancies: PoliticsCommonsVacancyView[] = player.countryId === "UK"
+    ? (world.ukCommonsVacancies ?? []).filter((vacancy) => vacancy.status === "open" || vacancy.status === "scheduled")
+      .map((vacancy) => ({
+        id: vacancy.id, regionId: vacancy.regionId, regionName: world.regions[vacancy.regionId]?.name ?? vacancy.regionId,
+        seats: vacancy.seats ?? 1, reason: vacancy.reason, status: vacancy.status === "scheduled" ? "scheduled" : "open",
+        vacatedTurn: vacancy.vacatedTurn, formerHolderName: politicianName(world, vacancy.formerHolderId),
+        electionId: vacancy.electionId ?? null,
+        scheduling: ukCommonsByElectionGate(world, vacancy.regionId),
+      }))
+    : [];
+  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, commonsRecalls, commonsVacancies, politicalMetrics: politicalMetricsForCountry(world, country.id) };
 }

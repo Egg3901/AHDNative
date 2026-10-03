@@ -385,6 +385,19 @@ describe("WorldPanel", () => {
     expect(screen.getByText("5,000,000")).toBeInTheDocument();
   });
 
+  it.each([
+    ["SCO", "First Minister"],
+    ["LON", "Mayor of London"],
+  ])("shows the source executive title on the %s home-region screen", (homeRegionId, title) => {
+    const world = createWorld({ era: "1953", countryId: "UK", homeRegionId, playerName: "Alex", seed: "world-panel-uk-titles" });
+    const overview = projectWorldOverview(world);
+    expect(overview.homeRegion?.office?.kind).toBe("governor");
+    render(<WorldPanel overview={overview} section="state" />);
+
+    expect(screen.getByText(title)).toBeInTheDocument();
+    expect(screen.queryByText("Governor")).not.toBeInTheDocument();
+  });
+
   it("renders the role-gated home-region rows and links their destinations", () => {
     const base = makeOverview();
     const overview = makeOverview({

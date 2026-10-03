@@ -13,9 +13,10 @@
  */
 
 import type { WorldState } from "../types.js";
+import { applyLegislativeWholeTaking } from "../corporation/nationalization.js";
 import type { WorldRng } from "../rng.js";
 import type { Bill } from "./types.js";
-import { didPass, didPassWithFilibusterCheck, tallyVotes } from "./billVoteLogic.js";
+import { didPass, didPassWithFilibusterCheck, resolveCurrentBillVote } from "./billVoteLogic.js";
 import { assignBillToCommittee } from "./committees.js";
 import { getLaw, resolveCatalogPolicyOption, type CatalogEntry } from "./catalog.js";
 import { UNEMPLOYMENT_MIN, UNEMPLOYMENT_MAX } from "../economy/macroConstants.js";
@@ -29,6 +30,7 @@ import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
 import { energyActionLimits } from "../actions/officeBonus.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { enactTradeTariff } from "../trade/tariffs.js";
+import { applyUnionLawProvision } from "../unions/unionLaws.js";
 
 const VOTING_TURNS = 2;
 const EXEC_WINDOW_TURNS = 2;
@@ -52,12 +54,14 @@ function getChambersForBill(world: WorldState, bill: Bill): string[] {
   return elected;
 }
 
-function buildVoteSnapshot(bill: Bill, chamberKey: string): { for: number; against: number; abstain: number; votes: Record<string, string> } {
-  const isOther = chamberKey !== bill.originChamber && bill.otherChamberVotes !== undefined;
-  const votes = isOther ? (bill.otherChamberVotes ?? {}) : bill.votes;
-  // snapshot mirrors tally
-  const tally = tallyVotes(votes as Record<string, "for" | "against" | "abstain">);
-  return { for: tally.for, against: tally.against, abstain: tally.abstain, votes: { ...votes } };
+function buildVoteSnapshot(world: WorldState, bill: Bill, field: "votes" | "otherChamberVotes" | "vetoOverrideVotes", regionId?: string) {
+  const stored = field === "otherChamberVotes"
+    ? { for: bill.otherChamberVotesFor ?? 0, against: bill.otherChamberVotesAgainst ?? 0, abstain: bill.otherChamberVotesAbstain ?? 0 }
+    : field === "vetoOverrideVotes"
+      ? { for: bill.vetoOverrideVotesFor ?? 0, against: bill.vetoOverrideVotesAgainst ?? 0, abstain: 0 }
+      : { for: bill.votesFor, against: bill.votesAgainst, abstain: bill.votesAbstain };
+  const result = resolveCurrentBillVote(world, bill.countryId, bill.currentChamber, bill[field], stored, regionId);
+  return { ...result.totals, votes: result.votes };
 }
 
 export function processBillLifecycle(world: WorldState, _rng: WorldRng): { billsProcessed: number; billsPassed: number; billsFailed: number; billsVetoed: number } {
@@ -85,11 +89,11 @@ export function processBillLifecycle(world: WorldState, _rng: WorldRng): { bills
   // Close origin chamber votes
   const originExpiring = world.bills.filter((b) => b.status === "active" && (b.votingEndsOnTurn ?? Infinity) <= turn);
   for (const bill of originExpiring) {
-    const tally = tallyVotes(bill.votes);
+    const tally = buildVoteSnapshot(world, bill, "votes");
     bill.votesFor = tally.for;
     bill.votesAgainst = tally.against;
     bill.votesAbstain = tally.abstain;
-    bill.voteSnapshot = { for: tally.for, against: tally.against, abstain: tally.abstain, votes: { ...bill.votes } };
+    bill.voteSnapshot = tally;
 
     const passed = didPassWithFilibusterCheck(bill, tally.for, tally.against, tally.abstain);
     if (!passed) {
@@ -128,11 +132,11 @@ export function processBillLifecycle(world: WorldState, _rng: WorldRng): { bills
   // Close second chamber votes
   const otherExpiring = world.bills.filter((b) => b.status === "active_other" && (b.otherChamberVotingEndsOnTurn ?? Infinity) <= turn);
   for (const bill of otherExpiring) {
-    const tally = tallyVotes(bill.otherChamberVotes ?? {});
+    const tally = buildVoteSnapshot(world, bill, "otherChamberVotes");
     bill.otherChamberVotesFor = tally.for;
     bill.otherChamberVotesAgainst = tally.against;
     bill.otherChamberVotesAbstain = tally.abstain;
-    bill.otherChamberVoteSnapshot = { for: tally.for, against: tally.against, abstain: tally.abstain, votes: { ...(bill.otherChamberVotes ?? {}) } };
+    bill.otherChamberVoteSnapshot = tally;
 
     const passed = didPassWithFilibusterCheck(bill, tally.for, tally.against, tally.abstain);
     if (!passed) {
@@ -165,7 +169,9 @@ export function processBillLifecycle(world: WorldState, _rng: WorldRng): { bills
   // bills in "veto_override" with deadline close
   const overrideExpiring = world.bills.filter((b) => b.status === "veto_override" && (b.overrideVotingEndsOnTurn ?? Infinity) <= turn);
   for (const bill of overrideExpiring) {
-    const tally = tallyVotes(bill.vetoOverrideVotes as Record<string, "for" | "against" | "abstain"> ?? {});
+    const tally = buildVoteSnapshot(world, bill, "vetoOverrideVotes");
+    bill.vetoOverrideVotesFor = tally.for;
+    bill.vetoOverrideVotesAgainst = tally.against;
     // 2/3 of seats? For solo quorum, use 2/3 of votes cast per mainline override threshold simplification.
     // Mainline uses seats; solo uses votes cast for simplicity but tests check threshold.
     const leg = world.legislatures[bill.countryId];
@@ -329,6 +335,18 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // Source: AHDGame src/lib/subsidies/subsidyEffects.ts; state-scope subsidy
   // budgets remain unavailable in this solo model.
   for (const provision of bill.provisions) {
+    if (provision.type === "nationalize" && provision.targetCorporationId) {
+      applyLegislativeWholeTaking(world, bill.countryId, provision.targetCorporationId);
+      continue;
+    }
+    if (provision.type === "union_law") {
+      applyUnionLawProvision(world, bill.countryId, {
+        type: "union_law",
+        ...(provision.bias !== undefined ? { bias: provision.bias } : {}),
+        ...(provision.banAction !== undefined ? { banAction: provision.banAction } : {}),
+      });
+      continue;
+    }
     if (provision.type === "tariff") {
       if (provision.tariffScopeType !== "economy_wide" || !Number.isFinite(provision.tariffRate) || provision.tariffRate! < 0 || provision.tariffRate! > 100) continue;
       enactTradeTariff(world, {
@@ -579,7 +597,8 @@ export function processStateBillTimers(world: WorldState): { billsProcessed: num
   const stateBills: Bill[] = (world as unknown as { stateBills?: Bill[] }).stateBills ?? [];
   for (const bill of stateBills) {
     if (bill.status === "active" && (bill.votingEndsOnTurn ?? Infinity) <= turn) {
-      const tally = tallyVotes(bill.votes);
+      const tally = buildVoteSnapshot(world, bill, "votes", bill.regionId);
+      bill.voteSnapshot = tally;
       bill.votesFor = tally.for;
       bill.votesAgainst = tally.against;
       bill.votesAbstain = tally.abstain;

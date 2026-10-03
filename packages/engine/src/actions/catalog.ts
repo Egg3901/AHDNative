@@ -54,6 +54,8 @@ export type ActionId =
   | "investInfluence"
   | "joinParty"
   | "leaveParty"
+  | "proposePartyMerger"
+  | "votePartyMerger"
   | "foundParty"
   | "createCaucus"
   | "joinCaucus"
@@ -63,6 +65,8 @@ export type ActionId =
   | "influenceNpp"
   | "recruitCaucusNpp"
   | "endorse"
+  | "governorEndorsePresidentialCandidate"
+  | "withdrawGovernorEndorsement"
   | "sponsorBill"
   | "voteOnBill"
   | "proposePmAppointment"
@@ -71,6 +75,10 @@ export type ActionId =
   | "invokeFilibuster"
   | "declareCandidacy"
   | "withdrawCandidacy"
+  | "resignCommonsSeat"
+  | "defectCommonsSeat"
+  | "signCommonsRecallPetition"
+  | "declareCommonsRecall"
   | "contestPartyLeadership"
   | "votePartyLeadership"
   | "issuePartyWhip"
@@ -86,11 +94,16 @@ export type ActionId =
   | "acceptCeoAppointment"
   | "resignCeo"
   | "setCorporationCompensation"
+  | "setCorporateSectorStrategy"
   | "nationalizeCorporation"
+  | "splitNationalCorporation"
+  | "mergeNationalCorporation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
   | "crisisMonitor"
+  | "chooseNorthernIrelandConflictOption"
+  | "campaignNorthernIrelandPeacePoll"
   // M1 (Lane 12 Head of State mode) economic-direction levers: HoS-only,
   // call existing budget pure functions (budget/spending.ts, budget/revenue.ts),
   // never new phase logic. See actions/execute.ts for the mode gate.
@@ -101,6 +114,13 @@ export type ActionId =
   // W11 extraction/prospecting
   | "launchProspect"
   | "expandRegionalExtraction"
+  | "foundCorporation"
+  | "expandCorporationSector"
+  | "buyCorporateSector"
+  | "openCorporateRelocationVote"
+  | "voteCorporateRelocation"
+  | "relocatePlayerWithCorporation"
+  | "relocateCorporateHeadquarters"
   | "issueExtractionContract"
   | "acceptExtractionContract"
   | "declineExtractionContract"
@@ -116,6 +136,9 @@ export type ActionId =
   | "campaignRallyTour"
   | "campaignRetarget"
   | "campaignManager"
+  | "buildStatePresence"
+  | "setPrimaryCampaignState"
+  | "usePrimaryHomeStateSurge"
   | "campaignCanvass"
   | "campaignTargetedAd"
   | "campaignContribute"
@@ -370,6 +393,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["party/membership"],
     status: "available",
   },
+  proposePartyMerger: {
+    id: "proposePartyMerger",
+    name: "Propose Party Merger",
+    description: "Submit a merger proposal to your party committee and the target party committee. Requires party chair, vice-chair, or national committee authority; each committee votes separately.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["party/committee", "party/merger"],
+    status: "available",
+  },
+  votePartyMerger: {
+    id: "votePartyMerger",
+    name: "Vote on Party Merger",
+    description: "Cast or change your national committee vote on a pending merger proposal for either party whose committee you serve.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["party/committee", "party/merger"],
+    status: "available",
+  },
   foundParty: {
     id: "foundParty",
     name: "Found Party",
@@ -460,6 +503,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["endorsement/support"],
     status: "available",
   },
+  governorEndorsePresidentialCandidate: {
+    id: "governorEndorsePresidentialCandidate",
+    name: "Governor Endorsement",
+    description: "As the sitting governor, endorse a same-party candidate in an active presidential race. Costs one gubernatorial office action point.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
+    status: "available",
+  },
+  withdrawGovernorEndorsement: {
+    id: "withdrawGovernorEndorsement",
+    name: "Withdraw Governor Endorsement",
+    description: "Withdraw your active presidential endorsement as its sitting governor.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["governors", "elections"],
+    status: "available",
+  },
   sponsorBill: {
     id: "sponsorBill" as ActionId,
     name: "Sponsor Bill",
@@ -482,8 +545,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   proposePmAppointment: {
     id: "proposePmAppointment",
-    name: "Nominate Taoiseach",
-    description: "A Dáil member who chairs a party with enough seats may nominate themselves for a source 24-turn appointment vote.",
+    name: "Nominate Head of Government",
+    description: "An elected member who chairs a party with enough seats may nominate themselves for a 24-turn appointment vote.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,
@@ -492,8 +555,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   },
   votePmAppointment: {
     id: "votePmAppointment",
-    name: "Vote on Taoiseach Appointment",
-    description: "Cast an aye or nay in an active Dáil Taoiseach appointment vote.",
+    name: "Vote on Government Appointment",
+    description: "Cast an aye or nay in an active parliamentary appointment vote.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,
@@ -548,6 +611,40 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: 0,
     systems: ["elections"],
     status: "available",
+  },
+  resignCommonsSeat: {
+    id: "resignCommonsSeat",
+    name: "Resign from the Commons",
+    description: "Vacate your recorded UK Commons regional office and trigger the source by-election watcher.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections", "ukCommonsVacancies"],
+    status: "available",
+  },
+  defectCommonsSeat: {
+    id: "defectCommonsSeat",
+    name: "Defect from the Commons",
+    description: "Cross the floor to another UK party and vacate your recorded Commons office for a by-election.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections", "ukCommonsVacancies", "parties"],
+    status: "available",
+  },
+  signCommonsRecallPetition: {
+    id: "signCommonsRecallPetition",
+    name: "Sign Commons Recall Petition",
+    description: "Add your character's signature to an open UK Commons recall petition.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["elections", "ukCommonsRecall"], status: "available",
+  },
+  declareCommonsRecall: {
+    id: "declareCommonsRecall",
+    name: "Declare Recall Position",
+    description: "Record or change your position during a UK Commons recall support check.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["elections", "ukCommonsRecall"], status: "available",
   },
   contestPartyLeadership: {
     id: "contestPartyLeadership",
@@ -710,6 +807,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["corporation/governance", "corporation/dividends"],
     status: "available",
   },
+  setCorporateSectorStrategy: {
+    id: "setCorporateSectorStrategy",
+    name: "Retool Corporate Sector",
+    description: "As the seated CEO, change a source-supported sector's operating strategy. Era and tech availability, retooling fees, capacity conversion, transition and cooldown apply.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "corporation/plants", "commodity-markets"],
+    status: "available",
+  },
   nationalizeCorporation: {
     id: "nationalizeCorporation",
     name: "Nationalize Corporation",
@@ -719,6 +826,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: 0,
     systems: ["nationalization/state-ownership"],
     status: "available",
+  },
+  splitNationalCorporation: {
+    id: "splitNationalCorporation", name: "Split National Corporation",
+    description: "As the authorized treasury official, move a complete industry into a new state corporation or claim its future routing.",
+    baseCost: 0, cooldown: 0, fundCost: 0, systems: ["nationalization/state-ownership"], status: "available",
+  },
+  mergeNationalCorporation: {
+    id: "mergeNationalCorporation", name: "Merge National Corporation",
+    description: "As the authorized treasury official, merge a split-off's assets into another domestic National Corporation.",
+    baseCost: 0, cooldown: 0, fundCost: 0, systems: ["nationalization/state-ownership"], status: "available",
   },
   // ── W31 crisis action hooks ─────────────────────────────────────
   // Crisis responses where mainline gives players crisis interaction decision
@@ -767,6 +884,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["crisis"],
+    status: "available",
+  },
+  chooseNorthernIrelandConflictOption: {
+    id: "chooseNorthernIrelandConflictOption",
+    name: "Resolve Northern Ireland Peace Decision",
+    description: "Choose an authored, role- and country-gated position in the Northern Ireland living conflict.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["living-conflicts/northern-ireland"],
+    status: "available",
+  },
+  campaignNorthernIrelandPeacePoll: {
+    id: "campaignNorthernIrelandPeacePoll",
+    name: "Campaign on the Peace Agreement",
+    description: "Spend campaign units for or against the separate Northern Ireland peace-agreement ballot.",
+    baseCost: 1,
+    cooldown: 1,
+    fundCost: 0,
+    systems: ["living-conflicts/northern-ireland", "referendum"],
     status: "available",
   },
   // ── M1 economic-direction levers (Lane 12 Head of State mode) ─────
@@ -859,6 +996,50 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["corporations", "extraction"],
     status: "available",
   },
+  foundCorporation: {
+    id: "foundCorporation",
+    name: "Found Corporation",
+    description: "Found a private corporation from personal cash, with source-scaled startup capital, founder shares, CEO control, and home-region headquarters.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations"],
+    status: "available",
+  },
+  expandCorporationSector: {
+    id: "expandCorporationSector",
+    name: "Expand Corporation into a Region",
+    description: "Pay the source entry fee and a priced first-facility order to enter a recorded regional market as the active corporation CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "regional-markets"],
+    status: "available",
+  },
+  buyCorporateSector: {
+    id: "buyCorporateSector",
+    name: "Buy Listed Corporate Sector",
+    description: "As an active corporate CEO, buy a listed operating sector from its current issuer. The host market's source command-economy gate and both issuer cash ledgers apply.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "regional-markets"],
+    status: "available",
+  },
+  openCorporateRelocationVote: {
+    id: "openCorporateRelocationVote",
+    name: "Propose Corporate Relocation",
+    description: "Open a 24-turn shareholder vote to relocate a public corporation's headquarters to a recorded region.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["corporations", "corporation/governance"], status: "available",
+  },
+  voteCorporateRelocation: {
+    id: "voteCorporateRelocation",
+    name: "Vote on Corporate Relocation",
+    description: "Cast or update your source-weighted shareholder ballot on a pending headquarters relocation.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["corporations", "corporation/governance"], status: "available",
+  },
   issueExtractionContract: {
     id: "issueExtractionContract",
     name: "Issue Extraction Contract",
@@ -867,6 +1048,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["extraction/contracts"],
+    status: "available",
+  },
+  relocatePlayerWithCorporation: {
+    id: "relocatePlayerWithCorporation",
+    name: "Relocate with Corporation",
+    description: "Move to a source-authored region with your corporation as CEO, paying source market-cap relocation costs and starting the 72-turn personal cooldown.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "forex"],
+    status: "available",
+  },
+  relocateCorporateHeadquarters: {
+    id: "relocateCorporateHeadquarters",
+    name: "Relocate Corporate Headquarters",
+    description: "Move headquarters as CEO for 7% of domestic market capitalization; public companies require a passed relocation vote.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "corporation/governance", "forex"],
     status: "available",
   },
   acceptExtractionContract: {
@@ -979,6 +1180,36 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign/management"],
+    status: "available",
+  },
+  buildStatePresence: {
+    id: "buildStatePresence",
+    name: "Build campaign presence",
+    description: "Spend campaign actions and funds to build a source-priced presence level in a US state.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-presence"],
+    status: "available",
+  },
+  setPrimaryCampaignState: {
+    id: "setPrimaryCampaignState",
+    name: "Campaign in a primary state",
+    description: "Move your primary campaign to a US state; the action cost follows that state's source electoral-vote tier.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
+    status: "available",
+  },
+  usePrimaryHomeStateSurge: {
+    id: "usePrimaryHomeStateSurge",
+    name: "Use home-state primary surge",
+    description: "Spend 3 actions and $25,000 for the source 15% vote boost in your home state for this primary.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["elections/presidential-primary-campaign"],
     status: "available",
   },
   campaignCanvass: {

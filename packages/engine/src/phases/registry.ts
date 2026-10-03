@@ -15,6 +15,7 @@ import {
   expireChartersPhase,
   emptyPartyCleanupPhase,
   partyMemberCountReconcilePhase,
+  partyMergerProposalExpiryPhase,
   playerEndorsementPartySweepPhase,
 } from "../party/phases.js";
 
@@ -57,6 +58,7 @@ import { nppActionProcessingPhase } from "../npp/nppActionProcessing.js";
 import { nppStanceDriftPhase } from "../npp/stanceDrift.js";
 import { nppBehaviorPhase } from "../npp/nppBehavior.js";
 import { primaryResolutionPhase, voteAccumulationPhase, electionTimersPhase, electionResolutionPhase, foundingCompletionPhase } from "../elections/phases.js";
+import { statehoodAdmissionPhase } from "../elections/statehoodPhase.js";
 import { demographicEffectsPhase } from "../demographics/demographicEffects.js";
 import { demographicFlowsPhase } from "../demographics/demographicFlows.js";
 import { censusPhase } from "../demographics/census.js";
@@ -89,7 +91,7 @@ import {
   coalitionDisbandPhase,
   leadershipElectionsPhase,
 } from "../intraparty/phases.js";
-import { governmentFormationPhase, governmentVacancyWatcherPhase } from "../government/phases.js";
+import { governmentFormationPhase, governmentVacancyWatcherPhase, ukCommonsVacancyWatcherPhase } from "../government/phases.js";
 import { nppGovernmentDirectivesPhase } from "../government/directives.js";
 import { pmAppointmentPhase } from "../government/pmAppointment.js";
 import { impeachmentLifecyclePhase } from "../impeachment/phases.js";
@@ -122,6 +124,7 @@ import { ledgerPreForexSnapshotPhase, forexTurnPhase } from "../forex/phases.js"
 import { eraCrossingPhase } from "./eraCrossing.js";
 import { independenceDesireDriftPhase } from "../devolution/phases.js";
 import { referendumLifecyclePhase } from "../referendum/phases.js";
+import { northernIrelandLivingConflictPhase } from "../livingConflict/phases.js";
 import { metricDecayPhase } from "../metrics/metricDecay.js";
 import { investorConfidenceDecayPhase } from "../metrics/investorConfidenceDecay.js";
 import { nationalMetricsPhase } from "../metrics/nationalMetrics.js";
@@ -217,6 +220,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   expireChartersPhase,
   emptyPartyCleanupPhase,
   partyMemberCountReconcilePhase,
+  partyMergerProposalExpiryPhase,
   nppRelationshipMaintenancePhase,
   nppBillSponsorshipPhase,
   nppStanceDriftPhase,
@@ -250,6 +254,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // the RNG-consuming phases (voteAccumulation, electionTimers) keep their
   // relative order. Later state-dependent RNG use can still change with
   // election outcomes; this is not a whole-world RNG equivalence claim.
+  governorEndorsementsPhase,
   campaignTurnPhase,
   // #68: leader pullback runs immediately after campaignTurn (which never
   // writes campaignStrength) and before voteAccumulation, matching mainline's
@@ -261,6 +266,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   campaignNpcInvestmentPhase,
   primaryResolutionPhase,
   voteAccumulationPhase,
+  // Statehood writes admittedYear and the initial House seat before the
+  // perpetual-election scheduler runs, matching AHDGame's statehood phase.
+  statehoodAdmissionPhase,
   campaignSpendResetPhase,
   electionTimersPhase,
   electionResolutionPhase,
@@ -314,6 +322,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   nppGovernmentDirectivesPhase,
   pmAppointmentPhase,
   governmentVacancyWatcherPhase,
+  ukCommonsVacancyWatcherPhase,
   // W24 presidential succession/impeachment cluster at END before
   // newsMaintenance - same rng-stream-stability rule as every other tail
   // cluster above (mainline runs impeachmentLifecycle/presidentialSuccession
@@ -408,7 +417,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   governorAddressExpiryPhase,
   governorByElectionWatcherPhase,
   governorLegislationQueuePhase,
-  governorEndorsementsPhase,
   // #323: the W15 union cluster (unionsTurn, nppUnionBehavior) and the #315
   // pension phase used to live here at the tail; they now run immediately
   // after corporationTurnPhase near the head of this array, in mainline's
@@ -494,7 +502,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   //     world.governments[countryId].governingPartyId, settled by
   //     governmentFormationPhase above) →
   //   stateOwnershipConcentration (reads the marketizationLevel
-  //     commandEconomyPhase JUST drifted, not last turn's — must run after it).
+  //     current corporate assets and their actual state-owner identities).
   advanceCapitalStockPhase,
   unownedSectorGrowthPhase,
   commandEconomyPhase,
@@ -541,6 +549,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   sourceTfpGrowthPhase,
   independenceDesireDriftPhase,
   referendumLifecyclePhase,
+  northernIrelandLivingConflictPhase,
   // W6 metric engine cluster at END before newsMaintenance — ordering deviation:
   // Mainline runs these mid-pipeline in stateEffectsAndNationalAggregationPhase:
   // metricDecay (no-op, inside policyEffects), investorConfidenceDecay, metricEngine,

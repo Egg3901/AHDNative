@@ -78,7 +78,8 @@ describe("bankSolvencyTurnPhase — deposit flight", () => {
     // exactly mirroring mainline's evaluateOneBank ordering (flight, then the
     // failure test, in one pass). This test asserts what actually happens:
     // the pool recovers exactly the capped flight amount, and the rest of
-    // the (now-uninsured, no fund seeded) NPC book is written off on failure.
+    // the remaining NPC book is restored through the current-source Treasury
+    // backstop after the uninsured fund is exhausted.
     const world = createWorld(OPTS);
     const corp = world.corporations["US-financial"]!;
     const charter = corp.bankCharter!;
@@ -88,10 +89,12 @@ describe("bankSolvencyTurnPhase — deposit flight", () => {
     charter.postedCapital = 5_000;
     const bank = world.centralBanks["US"]!;
     const poolBefore = bank.externalBroadMoney;
+    const treasuryBefore = world.budgets.US!.treasuryBalance;
     world.meta.turn = 1;
     run(world);
     // Flight capped at the 5,000 cash on hand (not the uncapped 30,000).
-    expect(bank.externalBroadMoney).toBeCloseTo(poolBefore + 5_000, 2);
+    expect(bank.externalBroadMoney).toBeCloseTo(poolBefore + 100_000, 2);
+    expect(world.budgets.US!.treasuryBalance).toBeCloseTo(treasuryBefore - 95_000, 2);
     // Cash fully drained by the capped flight, which then fails the bank
     // (RUN_FAILURE_COVER_FRACTION test: 0 cash < 50% of required liquidity).
     expect(charter.status).toBe("failed");
@@ -409,6 +412,42 @@ describe("bankSolvencyTurnPhase — deposit aggregates follow the cash (#329)", 
     expect(charter.status).toBe("failed");
     expect(charter.npcDeposits).toBe(0);
     expect(charter.totalDeposits).toBe(0);
+  });
+
+  it("returns authoritative player backing once through the failed-bank household waterfall", () => {
+    const world = createWorld(OPTS);
+    const bank = world.corporations["US-financial"]!;
+    const charter = bank.bankCharter!;
+    const centralBank = world.centralBanks.US!;
+    const budget = world.budgets.US!;
+    const poolBefore = centralBank.externalBroadMoney;
+    const treasuryBefore = budget.treasuryBalance;
+    world.savingsAccountsPolicy = { mode: "authoritative", readCurrencies: ["USD"] };
+    world.player.savings = 10_000;
+    world.player.savingsHolder = bank.id;
+    charter.warningBand = "red";
+    charter.npcDeposits = 0;
+    charter.totalDeposits = 10_000;
+    charter.cashReserves = 500;
+    charter.postedCapital = 0;
+    world.depositInsurance.US = {
+      countryId: "US",
+      balance: 0,
+      insuredCap: 0,
+      premiumsCollectedLifetime: 0,
+      payoutsLifetime: 0,
+    };
+    world.meta.turn = 1;
+
+    run(world);
+
+    expect(charter.status).toBe("failed");
+    expect(world.player.savings).toBe(10_000);
+    expect(world.player.savingsHolder).toBe("centralBank");
+    expect(centralBank.externalBroadMoney).toBeCloseTo(poolBefore + 10_000, 6);
+    expect(budget.treasuryBalance).toBeCloseTo(treasuryBefore - 9_500, 6);
+    expect(world.depositInsurance.US!.payoutsLifetime).toBe(9_500);
+    expect(charter.cashReserves).toBe(0);
   });
 });
 

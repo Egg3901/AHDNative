@@ -69,7 +69,7 @@ export interface EraChoice {
 }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
 export type ActionCategory = "influence" | "fundraising" | "intelligence" | "executive";
-export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate" | "targetPoliticianId" | "holder" | "corporation"; choices?: { id: string; label: string }[];
+export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate" | "targetPoliticianId" | "holder" | "corporation" | "corporationRegion" | "corporationVote"; choices?: { id: string; label: string }[]; destinations?: { id: string; corporationId: string; label: string }[];
   /** Hub grouping, mirroring AHDGame actions categories (influence/money/research). */
   category?: ActionCategory;
   /** Quoted fund cost from the engine projection; executeAction remains authoritative. */
@@ -172,9 +172,12 @@ export interface LegislatureView {
   office: string | null;
   /** Playable country the legislature belongs to; keys persisted nav context. */
   countryId?: string;
+  /** Source-backed national ban state from the player's country budget. */
+  unionLawBanned?: boolean;
   governmentFormation?: {
     status: "pending" | "formed";
     executiveTitle: string;
+    chamberName?: string;
     officeholderName: string | null;
     nomineeAvailable: boolean;
     nomineeDisabledReason?: string;
@@ -301,7 +304,7 @@ export interface GameView {
    * the Profile card lists every owned corporation.
    */
   myCorporation?: MyCorporationLink;
-  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
+  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; autoRunForReelection?: boolean; };
   legislature: LegislatureView;
   finance: FinanceView;
   resources: ResourceDetailsView;

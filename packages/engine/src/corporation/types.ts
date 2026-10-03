@@ -33,6 +33,7 @@
  * CORPORATION_TYPES (verbatim order).
  */
 import type { BankCharter } from "../banking/types.js";
+import type { NppStrategyState } from "./nppCorpStrategy.js";
 
 export const CORPORATION_TYPES = [
   "financial",
@@ -70,6 +71,8 @@ export interface SoeState {
 export interface CorporationPricePoint {
   turn: number;
   price: number;
+  /** Historical price denomination across issuer currency changes. */
+  currencyCode?: string;
 }
 
 /**
@@ -100,8 +103,12 @@ export interface Corporation {
   name?: string;
   brandColor?: string;
   countryId: string;
+  /** Source Corporation.liquidCurrencyCode; absent legacy issuers use their country's denomination. */
+  liquidCurrencyCode?: string;
   /** Authored seed HQ region; absent when the source capital region is not in the loaded era. */
   headquartersRegionId?: string;
+  /** Source Corporation.secondaryType; absent on legacy issuers and single-type foundings. */
+  secondarySectorType?: CorporationType;
   /** Which v50 source identity values were filled only to migrate a legacy save. */
   legacyProjectionDefaults?: {
     name?: true;
@@ -126,6 +133,17 @@ export interface Corporation {
   rdBudgetPerTurn?: number;
   /** Source R&D productivity score, decayed and advanced from paid spend. */
   rdScore?: number;
+  /** Source corporate tech-tree unlocks, preserved across Native saves. */
+  unlockedTechNodeIds?: string[];
+  /** First committed research lane for each source tech decade. */
+  techDecadeLane?: Record<string, "generic" | "sector">;
+  /** Turn on which each decade lane was committed. */
+  techDecadeChosenTurn?: Record<string, number>;
+  /** Source one-time technology grants accumulated by unlocked nodes. */
+  marketingStrength?: number;
+  logisticsStrength?: number;
+  /** Source NPP strategy memory and evaluation baseline. */
+  nppStrategy?: NppStrategyState;
   /** R&D cash actually charged last turn, in local currency per Native turn. */
   lastRdSpendPerTurn?: number;
   /** Plant stock added by the latest R&D breakthrough, in source output units/day. */
@@ -165,9 +183,11 @@ export interface Corporation {
    * command-economy enterprises.
    */
   countryOwnerId?: string;
-  /** Set on the Native sector-specific National Corporation (source split-off mapping). */
+  /** Set on the state-owned National Corporation. */
   isNationalCorporation?: true;
-  /** Source assignedSectorTypes mapping; Native uses one sector per issuer. */
+  /** Source primary holding company; absent legacy flags are never fabricated. */
+  isPrimaryNationalCorporation?: boolean;
+  /** Source split-off type assignment; an empty primary list means the remainder. */
   assignedSectorTypes?: CorporationType[];
   /**
    * Ownership lifecycle state. Absence means "private" for back-compat —
@@ -181,6 +201,21 @@ export interface Corporation {
   legacySoeProjection?: { countryOwnerId?: string; ownershipState?: "private" | "stateOwned" };
   /** Source creator ownership, independent of CEO; absent legacy Native means NPC-founded. */
   nationalizationOwnerKind?: "npc" | "player";
+  /** Source private-company flag. Absent legacy corporations are public companies. */
+  isPrivate?: boolean;
+  /** One persisted source-style shareholder relocation vote. */
+  relocationVote?: {
+    id: string;
+    status: "open" | "passed" | "failed" | "cancelled";
+    proposedTurn: number;
+    deadlineTurn: number;
+    destinationRegionId: string;
+    destinationCountryId: string;
+    sourceCountryId: string;
+    passThreshold: number;
+    eligibleSharesAtOpen: number;
+    votes: Array<{ voterId: "player" | "npc"; choice: "yes" | "no" }>;
+  };
   /** Source insolvency/default grace clock; no reconstruction from older Native insolvency. */
   financialDistressSinceTurn?: number | null;
   /** Source continuous CEO vacancy clock, set on resignation and cleared on acceptance. */

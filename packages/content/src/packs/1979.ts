@@ -5,6 +5,7 @@ import { ukRegions1979 } from "./ukRegions1979.js";
 import { ruRegions1979 } from "./ruRegions1979.js";
 import { ddRegions1979 } from "./ddRegions1979.js";
 import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
+import { EASTERN_BLOC_ELECTIONS_1979 } from "./easternBlocElections.js";
 
 /**
  * Ported from mainline AHDGame ("1979-default" preset) — real authored
@@ -67,6 +68,7 @@ import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.j
  */
 export const pack1979: SeedPack = {
   packVersion: 1,
+  backgroundElections: EASTERN_BLOC_ELECTIONS_1979,
   era: { id: "1979", label: "1979 Start Date - Cold War", startDate: "1979-01-01" },
   countries: [
     {

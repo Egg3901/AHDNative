@@ -102,6 +102,7 @@ export type BillProvisionType =
   | "tariff"
   | "subsidy"
   | "end_subsidy"
+  | "union_law"
   | "nationalize"
   | "privatize"
   // W28: currency union accession. Source: src/lib/billEnactment.ts
@@ -117,6 +118,8 @@ export interface BillProvision {
   economic?: number;
   social?: number;
   proposedRate?: number;
+  /** Source state-ownership bill target; retained through enactment and reload. */
+  targetCorporationId?: string;
   /** Economy-wide customs tariff rate, in percent. */
   tariffScopeType?: "economy_wide";
   tariffRate?: number;
@@ -127,6 +130,10 @@ export interface BillProvision {
   domesticOnly?: boolean;
   /** Target union id for type "currency_union". Source: finance/currencyUnion.ts. */
   currencyUnionId?: string;
+  /** AHDGame labour/unionLaws.ts national union-law axis. */
+  bias?: number;
+  /** National prohibition lifecycle; bans preserve the separately enacted bias. */
+  banAction?: "ban" | "repeal_ban";
   // For economy/partySupport provisions, carry delta payload via catalog
 }
 

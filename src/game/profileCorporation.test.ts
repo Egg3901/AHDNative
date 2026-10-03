@@ -20,7 +20,7 @@ function sessionLeadingMedia(): { session: GameSession; assetId: string } {
   session.create(CEO_OPTIONS);
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
   const vote = session.act("voteCeo", { corpId: "US-media", candidateId: "player" });
-  expect(vote.ok, vote.error).toBe(true);
+  expect(vote).toMatchObject({ ok: true });
   expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
   const assetId = mediaAssetId(session);
   return { session, assetId };
@@ -47,7 +47,7 @@ describe("#51 profile corporation projection", () => {
     session.create(CEO_OPTIONS);
     expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     const vote = session.act("voteCeo", { corpId: "US-media", candidateId: "player" });
-    expect(vote.ok, vote.error).toBe(true);
+    expect(vote).toMatchObject({ ok: true });
     expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
     expect(session.act("setCorporationCompensation", {
       corpId: "US-media",

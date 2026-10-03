@@ -88,13 +88,19 @@ export function scopedLocalsForPair(
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-/** Macro inputs for the mandate: tightness from the country unemployment rate (0-1 fraction scaled to percent), neutral law support (no Native bias axis). */
+/**
+ * Macro inputs for the mandate. Labor tightness uses the country unemployment
+ * rate (Native stores a 0-1 fraction); bargaining law support reads the
+ * enacted country-budget bias, with the source helper's neutral absent default.
+ */
 export function bargainingMacroInputs(world: WorldState, countryId: string): { laborTightness: number; lawSupport: number } {
   const unemployment = world.countries[countryId]?.economy.unemploymentRate;
   const percent = typeof unemployment === "number" && Number.isFinite(unemployment) ? unemployment * 100 : 5;
   return {
     laborTightness: laborTightnessFromUnemployment(percent),
-    lawSupport: lawSupportFromBias(undefined),
+    // Game bargainingMacroInputs reads FederalBudget.unionLawBias directly;
+    // unlike measured labor tightness, bargaining support has no macro-mode gate.
+    lawSupport: lawSupportFromBias(world.budgets[countryId]?.unionLawBias),
   };
 }
 

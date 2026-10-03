@@ -5,7 +5,7 @@ export type { AdvanceTurnOptions } from "./engine.js";
 export { clearCommodity, TRADE_IPF_ITERATIONS } from "./trade/clearing.js";
 export type { CommodityClearingInput, CommodityClearingResult, CountryCommodityClearing } from "./trade/clearing.js";
 export { corporateTradeSnapshotPhase, recordCorporateTradeSnapshot } from "./trade/corporateTrade.js";
-export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
+export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCountryEconomyRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
 export { electorateLeanForGroups, listCreationHomeRegions } from "./demographics/homeRegionContext.js";
 export type { HomeRegionContext, HomeRegionElectorateLean } from "./demographics/homeRegionContext.js";
 export type { NewWorldOptions, EraInfo, PlayableCountryInfo, WorldOverrides, CountryEconomyOverride } from "./world.js";
@@ -74,6 +74,7 @@ export { getCatalog, getLaw } from "./legislation/catalog.js";
 export { proposalNpiCost, BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST } from "./legislation/proposalCosts.js";
 export { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "./legislation/freeze.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
+export { resolveCurrentBillVote } from "./legislation/billVoteLogic.js";
 export * from "./membership.js";
 export * from "./caucus.js";
 // #61: party/caucus action charge + consequence projection. executeAction
@@ -140,9 +141,21 @@ export type * from "./types.js";
 export * as electionEngine from "./electionEngine/index.js";
 export { declareCandidacy, withdrawCandidacy } from "./elections/candidacy.js";
 export { electionSeriesForWorld, recomputeComposition, seatHolders } from "./elections/orchestration.js";
+export * from "./elections/ukCommonsRecall.js";
+export { commonsByElectionGate, ukCommonsByElectionGate } from "./elections/ukCommonsVacancies.js";
+export type { CommonsByElectionGate } from "./elections/ukCommonsVacancies.js";
 export { resolvePrimaries, requiresPrimaryResolution } from "./elections/primaryResolution.js";
 export { applyPresidentialResolution } from "./elections/presidentialResolution.js";
 export { isFoundingActive, detectFoundingComplete, runFoundingSweep, stampFoundingMarker, MAX_FOUNDING_RACES } from "./elections/founding.js";
+export { isElectionCandidateActive } from "./elections/types.js";
+export { survivingElectionPartyId } from "./elections/survivingParty.js";
+export {
+  castPartyMergerVote,
+  expirePartyMergerProposals,
+  proposePartyMerger,
+  PARTY_MERGE_COOLDOWN_TURNS,
+  PARTY_MERGE_VOTE_WINDOW_TURNS,
+} from "./party/mergerProposals.js";
 export type { ElectionRecord, ElectionCandidate, ElectionStatus, PrimaryResults, PrimaryResultEntry } from "./elections/types.js";
 // W24b real Electoral College (#69): the read-only display adapter shares the
 // SAME per-state winner-take-all allocation, live EV apportionment, and
@@ -160,6 +173,8 @@ export * from "./commandEconomy/authority.js";
 export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
+export { isCorpStateOwned } from "./bonds/corporateBonds.js";
+export { privateEnterprisePermittedInCountry } from "./corporation/privateEnterpriseGate.js";
 export * from "./corporation/nationalization.js";
 export * from "./bonds/corporateBondQuote.js";
 export * from "./bonds/corporateBondServicing.js";
@@ -186,9 +201,23 @@ export type {
 } from "./unions/actions.js";
 export type { BargainingCampaign, CollectiveAgreement } from "./unions/campaigns.js";
 export type { BargainingTerms } from "./unions/bargaining.js";
-export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction } from "./unions/organizingActions.js";
+export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction, organizeUnionUndergroundAction } from "./unions/organizingActions.js";
 export { setUnionDuesAction } from "./unions/duesActions.js";
 export type { SetUnionDuesResult } from "./unions/duesActions.js";
+export { setUnionPoliticalContributionsAction } from "./unions/contributionActions.js";
+export * from "./unions/underground.js";
+export { processUndergroundTurn } from "./unions/undergroundTurn.js";
+export type { SetUnionPoliticalContributionsResult } from "./unions/contributionActions.js";
+export { applyUnionLawProvision, clampUnionLawBias, lawAdjustedUnionizationThreshold, STRIKE_LAW_THRESHOLD_WEIGHT } from "./unions/unionLaws.js";
+export {
+  extendUnionBanStrikeFromUnderground,
+  hasActiveUnionBanStrike,
+  triggerUnionBanStrike,
+  UNION_BAN_STRIKE_DURATION_TURNS,
+  UNDERGROUND_CRISIS_EXTENSION_LIMIT,
+  UNION_BAN_STRIKE_KIND,
+} from "./unions/unionBanStrike.js";
+export type { UnionLawProvision } from "./unions/unionLaws.js";
 export { averageAnnualWage, duesIncomePerTurn, maxDuesForWage, unionMembers } from "./unions/dues.js";
 export { representedSectorsForUnion } from "./unions/sectorAggregation.js";
 export { acceptUnionLeadership, castUnionLeadershipVote } from "./unions/leadership.js";

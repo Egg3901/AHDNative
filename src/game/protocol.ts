@@ -39,14 +39,18 @@ export type GameCommand =
   | { type: "action"; actionId: string; params?: GameActionParams }
   | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number; buyerCorporationId?: string }
   | { type: "unionCommand"; op: "organize"; unionId: string }
+  | { type: "unionCommand"; op: "organizeUnderground"; unionId: string; mode: "quiet" | "mass" }
   | { type: "unionCommand"; op: "vote"; unionId: string }
   | { type: "unionCommand"; op: "accept"; unionId: string }
   | { type: "unionCommand"; op: "organizeSector"; unionId: string; assetId: string }
   | { type: "unionCommand"; op: "dues"; unionId: string; duesPerWorkerAnnual: number }
+  | { type: "unionCommand"; op: "contributions"; unionId: string; politicalContributionPct: number }
   | { type: "unionCommand"; op: "call"; unionId: string; employerId: string; terms: import("@ahdclient/engine").BargainingTerms }
   | { type: "unionCommand"; op: "move"; campaignId: string; action: "accept" | "counter" | "withdraw" | "escalate"; terms?: import("@ahdclient/engine").BargainingTerms }
   | { type: "unionCommand"; op: "ratify"; campaignId: string; vote: "ratify" | "reject" }
   | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
+  | { type: "serializeWithMetadata"; savedAt: string; includeSaveNotice?: boolean }
+  | { type: "serializeForStorage"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "load"; contents: string }
   | { type: "notificationsRead"; id: string }
   | { type: "notificationsDelete"; id: string }

@@ -502,7 +502,7 @@ describe("projectPolitics", () => {
     resolvePrimaries(world);
 
     expect(campaign.status).toBe("archived");
-    expect(election.candidates.some((candidate) => candidate.id === "player")).toBe(false);
+    expect(election.candidates.find((candidate) => candidate.id === "player")).toMatchObject({ status: "withdrawn" });
     const projected = projectPolitics(world).elections.find((item) => item.id === election.id)!;
     expect(projected.playerCampaign).toMatchObject({ status: "archived", support: null });
     expect(projected.playerCampaign!.rally.action).toMatchObject({

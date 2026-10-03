@@ -209,8 +209,8 @@ export function App() {
     if (!client.current || !slot.current) throw new Error('Start or load a game first.');
     // Prepare the prospective notice without mutating the session. Only
     // acknowledge it after storage succeeds; failed writes never claim success.
-    const contents = await client.current.serialize(new Date().toISOString(), includeSaveNotice);
-    await saveRepository.save(slot.current, contents);
+    const serialized = await saveRepository.prepare(client.current, new Date().toISOString(), includeSaveNotice);
+    await saveRepository.save(slot.current, serialized);
     if (includeSaveNotice) setWorld(await client.current.recordSaved());
     setMessage('Game saved.');
   }

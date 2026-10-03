@@ -32,10 +32,10 @@ describe("country state ownership register (#75)", () => {
     expect(session.act("nationalizeCorporation", { corporationId: issuer.id, tier: "seizure" }).ok).toBe(true);
     const takenSave = JSON.parse(session.serialize(SAVED_AT));
     expect(takenSave.world.budgets.US.treasuryBalance).toBe(treasuryBefore + 12346);
-    expect(takenSave.world.corporations["NAT-US-media"].liquidCapital).toBe(0);
+    expect(takenSave.world.corporations["NAT-US"].liquidCapital).toBe(0);
     const result = session.stateOwnership();
     expect(result.rows).toHaveLength(1);
-    expect(result.rows[0]).toMatchObject({ firm: name, countryId: "US", nationalCorporationId: "NAT-US-media", kind: "nationalize_whole", method: "executive", tier: "seizure", turn: 0, compensationLocal: null, debtAnchor: 12500, debtLocal: 12500, shareholdersSettled: issuer.shareholders.length });
+    expect(result.rows[0]).toMatchObject({ firm: name, countryId: "US", nationalCorporationId: "NAT-US", kind: "nationalize_whole", method: "executive", tier: "seizure", turn: 0, compensationLocal: null, debtAnchor: 12500, debtLocal: 12500, shareholdersSettled: issuer.shareholders.length });
     expect(result.totals.firmsAbsorbed).toBe(1);
     expect(result.totals.debtLocal).toBe(12500);
     expect(session.stateOwnership("UK").rows).toEqual([]);
@@ -46,7 +46,7 @@ describe("country state ownership register (#75)", () => {
     const resumed = new GameSession();
     resumed.load(session.serialize(SAVED_AT));
     expect(resumed.stateOwnership().rows).toEqual([recorded]);
-    expect(resumed.stateOwnership().holdings.some((holding) => holding.corporationId === "NAT-US-media")).toBe(true);
+    expect(resumed.stateOwnership().holdings.some((holding) => holding.corporationId === "NAT-US")).toBe(true);
     const beforeQuery = resumed.serialize(SAVED_AT);
     resumed.stateOwnership();
     expect(resumed.serialize(SAVED_AT)).toBe(beforeQuery);
@@ -63,7 +63,7 @@ describe("country state ownership register (#75)", () => {
     session.load(JSON.stringify(before));
     expect(session.act("nationalizeCorporation", { corporationId: donor.id, tier: "seizure" }).ok).toBe(true);
     const after = JSON.parse(session.serialize(SAVED_AT));
-    after.world.corporations["NAT-US-media"].liquidCapital = 600;
+    after.world.corporations["NAT-US"].liquidCapital = 600;
     after.world.corporations["repeat-media"] = { ...donor, id: "repeat-media", name: "Repeated Media", liquidCapital: 500 };
     after.world.corporateSectors["repeat-media-asset"] = { ...asset, id: "repeat-media-asset", corporationId: "repeat-media" };
     const treasuryBefore = after.world.budgets.US.treasuryBalance;
@@ -71,7 +71,7 @@ describe("country state ownership register (#75)", () => {
     expect(session.act("nationalizeCorporation", { corporationId: "repeat-media", tier: "seizure" }).ok).toBe(true);
     const taken = JSON.parse(session.serialize(SAVED_AT));
     expect(taken.world.budgets.US.treasuryBalance).toBe(treasuryBefore + 500);
-    expect(taken.world.corporations["NAT-US-media"].liquidCapital).toBe(600);
+    expect(taken.world.corporations["NAT-US"].liquidCapital).toBe(600);
     expect(taken.world.corporations["repeat-media"]).toBeUndefined();
     expect(session.stateOwnership().totals.firmsAbsorbed).toBe(2);
     expect(session.stateOwnership().rows[0].firm).toBe("Repeated Media");

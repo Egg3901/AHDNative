@@ -11,6 +11,7 @@
     "tauri": "tauri",
     "verify": "npm run verify:rules && npm run build && npm test && npm run test:ui && npm run test:career-fixtures",
     "test": "vitest run --config vitest.config.ts",
+    "test:extended:elections": "vitest run --config vitest.elections-extended.config.ts",
     "test:engine": "npm run test:ci --workspace @ahdclient/engine",
     "test:content": "npm run test --workspace @ahdclient/content",
     "typecheck:engine": "npm run typecheck --workspace @ahdclient/engine",

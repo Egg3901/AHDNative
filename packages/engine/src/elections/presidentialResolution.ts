@@ -1,5 +1,5 @@
 import type { WorldState } from "../types.js";
-import type { ElectionRecord } from "./types.js";
+import { isElectionCandidateActive, type ElectionRecord } from "./types.js";
 import {
   loadContingentElectionDataPlain,
   type CandidateInput as ContingentCandidateInput,
@@ -10,6 +10,7 @@ import {
 import { resolveContingentElection, type ContingentElectionResult } from "../electionEngine/resolution/contingentElection.js";
 import { archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { allocateElectoralVotes, electoralMajorityFor } from "./presidentialElectoralCollege.js";
+import { survivingElectionPartyId } from "./survivingParty.js";
 
 /**
  * Presidential general-election resolution — W24 port, W24b real Electoral
@@ -70,7 +71,7 @@ function targetOffice(world: WorldState, id: string): { partyId: string } | unde
   return pol ? { partyId: pol.partyId } : undefined;
 }
 
-function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
+export function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
   const countryId = rec.countryId;
 
   const characters: ContingentCharacterInput[] = world.politicians.map((p) => ({
@@ -83,6 +84,7 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
     _id: "player",
     // "independent" fallback (never bare `undefined` — exactOptionalPropertyTypes).
     party: world.player.partyId ?? "independent",
+    ...(world.player.policies ? { policies: world.player.policies } : {}),
     currentOffice: null,
   });
 
@@ -100,11 +102,28 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
       party: p.partyId,
       characterId: p.id,
       isNPP: false,
+      ...(p.seatsHeld !== undefined ? { seatsHeld: p.seatsHeld } : {}),
     }));
-  // NOTE: a player-held House seat is intentionally excluded from the
-  // contingent House delegation ballot — `player.legislativeSeat` records
-  // chamberKey/countryId but not the held state (pre-existing gap, out of
-  // scope here), so there is no delegation to place the player's vote in.
+  // A career player enters the House delegation only when the actual winning
+  // race stored a region. Do not invent a state for legacy or at-large seats.
+  const playerHouseSeat = world.player.legislativeSeat;
+  const playerHouseState = playerHouseSeat?.regionId;
+  if (
+    playerHouseSeat?.countryId === countryId &&
+    playerHouseSeat.chamberKey === "house" &&
+    playerHouseState &&
+    playerHouseState !== "DC" &&
+    world.regions[playerHouseState]?.countryId === countryId
+  ) {
+    houseOfficials.push({
+      _id: "player",
+      state: playerHouseState,
+      party: world.player.partyId ?? "independent",
+      characterId: "player",
+      isNPP: false,
+      ...(playerHouseSeat.seatsHeld !== undefined ? { seatsHeld: playerHouseSeat.seatsHeld } : {}),
+    });
+  }
 
   const senateOfficials: ElectedOfficialInput[] = world.politicians
     .filter((p) => p.countryId === countryId && p.chamberKey === "senate")
@@ -114,6 +133,7 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
       party: p.partyId,
       characterId: p.id,
       isNPP: false,
+      ...(p.seatsHeld !== undefined ? { seatsHeld: p.seatsHeld } : {}),
     }));
   if (
     world.player.legislativeSeat != null &&
@@ -125,12 +145,15 @@ function buildContingentInputs(world: WorldState, rec: ElectionRecord) {
       party: world.player.partyId ?? "independent",
       characterId: "player",
       isNPP: false,
+      ...(world.player.legislativeSeat.seatsHeld !== undefined
+        ? { seatsHeld: world.player.legislativeSeat.seatsHeld }
+        : {}),
     });
   }
 
-  const candidates: ContingentCandidateInput[] = rec.candidates.map((c) => ({
+  const candidates: ContingentCandidateInput[] = rec.candidates.filter(isElectionCandidateActive).map((c) => ({
     _id: c.id,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: false,
     characterId: c.id,
     ...(c.runningMateId !== undefined ? { runningMateId: c.runningMateId } : {}),
@@ -178,7 +201,7 @@ function vacate(world: WorldState, rec: ElectionRecord): void {
 
 export function applyPresidentialResolution(world: WorldState, rec: ElectionRecord): void {
   const totalVotes = Object.values(rec.tally).reduce((a, b) => a + b, 0);
-  if (totalVotes === 0 || rec.candidates.length === 0) {
+  if (totalVotes === 0 || !rec.candidates.some(isElectionCandidateActive)) {
     vacate(world, rec);
     return;
   }
@@ -199,7 +222,7 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
   const topEntry = ranked[0];
   if (topEntry && topEntry[1] >= majorityThreshold) {
     winnerId = topEntry[0];
-    const winnerCand = rec.candidates.find((c) => c.id === winnerId);
+    const winnerCand = rec.candidates.find((c) => isElectionCandidateActive(c) && c.id === winnerId);
     vpWinnerId = winnerCand?.runningMateId ?? null;
   } else {
     const { countryId, candidates, characters, partyMap, houseOfficials, senateOfficials } = buildContingentInputs(
@@ -232,9 +255,20 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
     resolutionMode = contingentResult.resolutionMode;
   }
 
-  const winnerCand = rec.candidates.find((c) => c.id === winnerId);
-  const winnerParty = winnerCand?.partyId ?? targetOffice(world, winnerId)?.partyId ?? "independent";
-  const vpParty = vpPartyFor(world, vpWinnerId);
+  if (ec) {
+    rec.electoralCollegeResult = {
+      stateWinners: { ...ec.stateWinners },
+      evByCandidate: { ...ec.evByCandidate },
+      totalEv: ec.totalEv,
+      resolutionMode,
+    };
+  }
+
+  const winnerCand = rec.candidates.find((c) => isElectionCandidateActive(c) && c.id === winnerId);
+  const rawWinnerParty = winnerCand?.partyId ?? targetOffice(world, winnerId)?.partyId ?? "independent";
+  const winnerParty = survivingElectionPartyId(world, rawWinnerParty) ?? rawWinnerParty;
+  const rawVpParty = vpPartyFor(world, vpWinnerId);
+  const vpParty = survivingElectionPartyId(world, rawVpParty) ?? rawVpParty;
 
   const exec = world.executives[rec.countryId] ?? {
     countryId: rec.countryId,

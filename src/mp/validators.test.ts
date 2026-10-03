@@ -18,6 +18,8 @@ import {
   parseLogoutAck,
   parseMutationAck,
   parsePlayersOnline,
+  parseRunningMateCharacters,
+  parseRunningMateMutation,
   parseSessionProbe,
   parseTurnStatus,
   parseUnionDetail,
@@ -29,6 +31,7 @@ import {
   validateExecuteArgs,
   validateNotificationId,
   validateNotificationPreference,
+  validateRunningMateSelection,
   validateSnoozeMinutes,
   validateUnionId,
 } from "./validators";
@@ -424,6 +427,35 @@ describe("election-detail reference and payload (#359 election slice)", () => {
     expect(validateElectionId(SEAT_ID)).toEqual({ ok: true, id: SEAT_ID });
   });
 
+  it("validates the source running-mate choice and acknowledgement contract", () => {
+    const characterId = "507f1f77bcf86cd799439013";
+    expect(validateRunningMateSelection({ electionId: SEAT_ID, runningMateId: characterId })).toEqual({
+      ok: true,
+      body: { electionId: SEAT_ID, runningMateId: characterId },
+    });
+    expect(validateRunningMateSelection({ electionId: HEX_ID, runningMateId: null })).toEqual({
+      ok: true,
+      body: { electionId: HEX_ID, runningMateId: null },
+    });
+    for (const bad of [
+      { electionId: "../admin", runningMateId: characterId },
+      { electionId: SEAT_ID, runningMateId: "player" },
+      { electionId: SEAT_ID, runningMateId: 7 },
+    ]) {
+      expect(validateRunningMateSelection(bad).ok, JSON.stringify(bad)).toBe(false);
+    }
+    expect(parseRunningMateCharacters(JSON.stringify({ characters: [{
+      id: characterId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
+      partyColor: "#123456", countryId: "US",
+    }] }))).toEqual([{
+      id: characterId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
+      partyColor: "#123456", countryId: "US",
+    }]);
+    expect(parseRunningMateCharacters(JSON.stringify({ characters: [{ id: "player", name: "Self" }] }))).toBeNull();
+    expect(parseRunningMateMutation(JSON.stringify({ success: true, message: "Bea is now your running mate." }))).toBe("Bea is now your running mate.");
+    expect(parseRunningMateMutation(JSON.stringify({ success: false, message: "No" }))).toBeNull();
+  });
+
   const summary = (overrides: Record<string, unknown> = {}) =>
     JSON.stringify({
       election: {
@@ -463,7 +495,34 @@ describe("election-detail reference and payload (#359 election slice)", () => {
       leaderParty: "Labor",
       incumbentName: "Bo",
       incumbentParty: "Tory",
+      currentRunningMateCharacterId: null,
+      currentRunningMateName: null,
     });
+  });
+
+  it("reads back only the authenticated player's source-selected running mate", () => {
+    const mateId = "507f1f77bcf86cd799439013";
+    expect(parseElectionDetail(summary({
+      electionType: "president",
+      candidates: [
+        { isYou: false, runningMateCharacterId: "507f1f77bcf86cd799439014", runningMateName: "Other candidate's mate" },
+        { isYou: true, runningMateCharacterId: mateId, runningMateName: "Bea" },
+      ],
+    }))).toMatchObject({
+      currentRunningMateCharacterId: mateId,
+      currentRunningMateName: "Bea",
+    });
+    expect(parseElectionDetail(summary({
+      electionType: "president",
+      candidates: [{ isYou: true, runningMateCharacterId: null, runningMateName: null }],
+    }))).toMatchObject({
+      currentRunningMateCharacterId: null,
+      currentRunningMateName: null,
+    });
+    expect(parseElectionDetail(summary({
+      electionType: "president",
+      candidates: [{ isYou: true, runningMateCharacterId: "player", runningMateName: "Bad identity" }],
+    }))).toBeNull();
   });
 
   it("degrades absent decorations to null without losing the race", () => {

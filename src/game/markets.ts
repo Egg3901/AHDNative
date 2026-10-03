@@ -24,6 +24,8 @@ const EARNINGS_HISTORY_BOUND = 52;
 
 import { CROSS_CURRENCY_UNAVAILABLE, evaluateShareTrade, type TradeListing } from "./shareTrade";
 import { projectTradeRoutes, type TradeRouteSummary } from "./tradeRoutes";
+import { projectNationalCompanyManagement, type NationalCompanyManagementView } from "./nationalCompanyManagement";
+import { projectNationalization, type NationalizationView } from "./nationalization";
 export { CROSS_CURRENCY_UNAVAILABLE, shareNotional, parseShareCount, evaluateShareTrade } from "./shareTrade";
 export type { TradeRouteSummary } from "./tradeRoutes";
 
@@ -52,6 +54,7 @@ export interface MarketActionHint {
 export interface MarketPricePoint {
   turn: number;
   price: number;
+  currencyCode?: string;
 }
 
 export interface MarketCountry {
@@ -333,6 +336,9 @@ export const SECTOR_LIST_OWNER_ONLY =
 export const SECTOR_LIST_STATE_OWNED = "State enterprises cannot list production for private sale.";
 
 export interface MarketsView {
+  /** Recorded government authority and current eligible wizard targets. */
+  nationalization?: NationalizationView;
+  nationalCompanyManagement?: NationalCompanyManagementView;
   playerCountryId: string;
   playerHomeRegionId?: string | null;
   playerCash: number;
@@ -484,7 +490,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       playerShares,
       cashCurrencyMatches: currency === playerCurrency,
     };
-    const priceHistory: MarketPricePoint[] = (corp.priceHistory ?? []).map(({ turn, price }) => ({ turn, price }));
+    const priceHistory: MarketPricePoint[] = (corp.priceHistory ?? []).map(({ turn, price, currencyCode }) => ({ turn, price, ...(currencyCode ? { currencyCode } : {}) }));
     const corporateAssets = assetByCorporation.get(corp.id) ?? [];
     const primaryAsset = corporateAssets.find((asset) => asset.countryId === corp.countryId && asset.sectorType === corp.sectorType);
     const portfolioAssets = corporateAssets
@@ -683,6 +689,8 @@ export function projectMarkets(world: WorldState): MarketsView {
     .sort((a, b) => a.sectorLabel.localeCompare(b.sectorLabel) || a.sectorType.localeCompare(b.sectorType));
 
   return {
+    nationalization: projectNationalization(world),
+    nationalCompanyManagement: projectNationalCompanyManagement(world),
     playerCountryId: player.countryId,
     playerHomeRegionId: player.homeRegionId,
     playerCash: player.cash,

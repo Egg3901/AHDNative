@@ -86,6 +86,7 @@ import {
   totalLaborForceForCountry,
 } from "./sectorAggregation.js";
 import { processNppUnionBehavior } from "./nppBehavior.js";
+import { processUndergroundTurn } from "./undergroundTurn.js";
 
 export const unionsTurnPhase: TurnPhase = {
   name: "unionsTurn",
@@ -101,6 +102,7 @@ export const unionsTurnPhase: TurnPhase = {
     // revenue/margin/output writes: economic enforcement lives exactly
     // once in corporationTurn.
     processLabourRelationsTurn(world, turn);
+    processUndergroundTurn(world, turn);
 
     // #320: strength decay and null-pointer adoption run after the labour
     // pass and before dues, same turn position as the reference (decay

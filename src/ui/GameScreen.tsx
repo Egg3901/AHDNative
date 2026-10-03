@@ -718,6 +718,18 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               <div className="ahd-card ahd-card-pad ahd-hero">
                 <h2 className="ahd-h2">Elections</h2>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.elections.length} elections</p>
+                {world.player.mode === "career" ? (
+                  <label style={{ display: "flex", gap: "0.45rem", alignItems: "center", fontSize: "0.8rem", marginTop: "0.4rem" }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Automatically re-enter my most recent state race"
+                      checked={world.player.autoRunForReelection === true}
+                      disabled={busy}
+                      onChange={(event) => onAction("setAutoRunForReelection", { enabled: event.currentTarget.checked })}
+                    />
+                    Automatically re-enter my most recent state race
+                  </label>
+                ) : null}
                 {/* #510 legacy-route honest state: the reference keeps
                     Primaries/Results tabs and Political Operations on US-only
                     legacy congress routes (AHDGame experimentalNavMenus.ts

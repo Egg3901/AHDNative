@@ -81,8 +81,12 @@ describe("projectRegions", () => {
   it("paginates and filters the player-country directory", () => {
     const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "region-dir" });
     const all = projectRegions(world);
-    // The 48 political states and the recorded corporation HQ in DC are browsable.
-    expect(all.directoryTotal).toBe(49);
+    // Source geography includes 48 states, the two unadmitted territories,
+    // and the recorded corporation HQ in DC. Territories have no House seats.
+    expect(all.directoryTotal).toBe(51);
+    expect(world.regions.AK).toMatchObject({ countryId: "US", houseSeats: 0 });
+    expect(world.regions.HI).toMatchObject({ countryId: "US", houseSeats: 0 });
+    expect(world.elections.some((race) => race.state === "AK" || race.state === "HI")).toBe(false);
     expect(all.directoryPageSize).toBe(REGION_DIRECTORY_PAGE_SIZE);
     expect(all.directory).toHaveLength(REGION_DIRECTORY_PAGE_SIZE);
     expect(all.directoryPageCount).toBe(3);
@@ -95,7 +99,7 @@ describe("projectRegions", () => {
     expect(page2.selected?.id).toBe("AL");
 
     const page3 = projectRegions(world, { directoryPage: 2 });
-    expect(page3.directory).toHaveLength(9);
+    expect(page3.directory).toHaveLength(11);
 
     const headquarters = projectRegions(world, { directoryQuery: "District of Columbia" });
     expect(headquarters.directory.map((row) => row.id)).toEqual(["DC"]);

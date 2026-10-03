@@ -14,6 +14,7 @@ import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
 import type { BankCharter } from "./types.js";
 import { charterMay } from "./capabilities.js";
+import { worldBankDeposits } from "./worldDeposits.js";
 import { serviceFacilityInterest } from "./facilityInterest.js";
 
 /** Penalty over prime, in percentage points. Source: rules/discountWindow.ts DISCOUNT_WINDOW_SPREAD_PP. */
@@ -53,8 +54,9 @@ function nonNegative(value: number | undefined): number {
 export function quoteDiscountWindow(
   charter: Pick<BankCharter, "npcDeposits" | "discountWindowDebt">,
   primeRate: number,
+  cashBackedDeposits = charter.npcDeposits,
 ): DiscountWindowQuote {
-  const deposits = nonNegative(charter.npcDeposits);
+  const deposits = nonNegative(cashBackedDeposits);
   const outstanding = nonNegative(charter.discountWindowDebt);
   const capAnchor = deposits * DISCOUNT_WINDOW_CAP_FRACTION;
   return {
@@ -72,12 +74,13 @@ export function canDraw(
   charter: Pick<BankCharter, "status" | "charterType" | "npcDeposits" | "discountWindowDebt"> | null | undefined,
   amount: number,
   primeRate: number,
+  cashBackedDeposits = charter?.npcDeposits,
 ): { ok: true; quote: DiscountWindowQuote } | { ok: false; reason: DiscountWindowDenial } {
   if (!charter || charter.status !== "active") return { ok: false, reason: "charter_inactive" };
   if (!charterMay(charter, "discountWindow")) return { ok: false, reason: "not_deposit_taking" };
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false, reason: "invalid_amount" };
 
-  const quote = quoteDiscountWindow(charter, primeRate);
+  const quote = quoteDiscountWindow(charter, primeRate, cashBackedDeposits);
   if (quote.capAnchor <= 0) return { ok: false, reason: "no_deposits" };
   if (amount > quote.headroomAnchor) return { ok: false, reason: "cap_exhausted" };
   return { ok: true, quote };
@@ -138,11 +141,12 @@ export function drawDiscountWindow(
   const bank = world.centralBanks[corp.countryId];
   if (!bank) throw new Error("The borrowing bank's central bank is missing, so the draw cannot be priced.");
 
-  const allowed = canDraw(charter, amount, bank.primeRate);
+  const cashBackedDeposits = worldBankDeposits(world, corp).cashBackedDeposits;
+  const allowed = canDraw(charter, amount, bank.primeRate, cashBackedDeposits);
   if (!allowed.ok) throw new Error(DENIAL_MESSAGES[allowed.reason]);
 
   if (!Number.isFinite(amount) || amount <= 0) throw new Error(DENIAL_MESSAGES.invalid_amount);
-  const quote = quoteDiscountWindow(charter, bank.primeRate);
+  const quote = quoteDiscountWindow(charter, bank.primeRate, cashBackedDeposits);
   if (quote.capAnchor <= 0) throw new Error(DENIAL_MESSAGES.no_deposits);
   // Reference order (decide.ts draw_discount_window): canDraw gates the
   // UNROUNDED amount, then the guarded write re-gates debt + ROUNDED draw <=

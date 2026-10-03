@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { createWorld, serializeSave, type Bill } from "@ahdclient/engine";
+import { createWorld, deserializeSave, serializeSave, type Bill } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import {
   billStatusLabel,
@@ -71,6 +71,7 @@ describe("legislature through the session contract", () => {
     const session = new GameSession();
     const raw = gunzipSync(readFileSync(new URL("../../fixtures/career-t95-1953-US.save.json.gz", import.meta.url))).toString("utf8");
     session.load(raw);
+    const recordedRace = deserializeSave(raw).elections.find((race) => race.id === "house:US:AL:c1")!;
     expect(session.view().legislature.office).toBeNull();
     // Frozen Senate tally from the pinned oracle fixture, not its House tally.
     expect(session.view().legislature.bills.find((b) => b.id === "bill-79-6-us.economy.stability.primary"))
@@ -79,7 +80,9 @@ describe("legislature through the session contract", () => {
     expect(afterElection.turn).toBe(96);
     expect(afterElection.legislature.office).toBe("House of Representatives · United States");
     const race = afterElection.elections.find((e) => e.id === "house:US:AL:c1");
-    expect(race?.candidateNames).toEqual(["Priya Russell", "Muse"]);
+    // Source resolution retains eliminated primary candidates as history.
+    // The resolved projection keeps their names alongside the two nominees.
+    expect(race?.candidateNames).toEqual(recordedRace.candidates.map((candidate) => candidate.name));
     expect(race?.winnerNames).toEqual([
       "Muse", "Priya Russell",
     ]);

@@ -3,6 +3,51 @@ import { rulingPartyIdForCountry } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
 const options = { era: "1953", countryId: "US", seed: "native-session-v1", playerName: "Alex" };
+const savingsSaveAt = "2026-10-03T06:00:00.000Z";
+
+type SavingsSessionSave = {
+  world: {
+    savingsAccountsPolicy?: { mode: "off" | "shadow" | "authoritative"; readCurrencies: string[] };
+    featureFlags: Record<string, boolean>;
+    player: { cash: number; savings: number; savingsHolder: string };
+    centralBanks: Record<string, { externalBroadMoney: number }>;
+    corporations: Record<string, { bankCharter?: {
+      cashReserves: number;
+      depositCeiling: number;
+      npcDeposits: number;
+      totalDeposits: number;
+    } }>;
+  };
+};
+
+function savingsSave(session: GameSession): SavingsSessionSave {
+  return JSON.parse(session.serialize(savingsSaveAt)) as SavingsSessionSave;
+}
+
+function homeSavingsCashTotal(world: SavingsSessionSave["world"]): number {
+  return world.player.cash + world.centralBanks.US!.externalBroadMoney +
+    (world.corporations["US-financial"]!.bankCharter?.cashReserves ?? 0);
+}
+
+function sessionWithSavingsAuthority(): GameSession {
+  const created = new GameSession();
+  created.create(options);
+  const save = savingsSave(created);
+  save.world.savingsAccountsPolicy = { mode: "authoritative", readCurrencies: ["USD"] };
+  const funded = new GameSession();
+  funded.load(JSON.stringify(save));
+  return funded;
+}
+
+function sessionWithConstrainedCentralBankPool(): GameSession {
+  const funded = sessionWithSavingsAuthority();
+  expect(funded.act("depositSavings", { amount: 4_000 }).ok).toBe(true);
+  const save = savingsSave(funded);
+  save.world.centralBanks.US!.externalBroadMoney = 0;
+  const constrained = new GameSession();
+  constrained.load(JSON.stringify(save));
+  return constrained;
+}
 
 describe("singleplayer session", () => {
   it("creates a real playable country and exposes the player's starting world", () => {
@@ -47,6 +92,125 @@ describe("singleplayer session", () => {
     loaded.advance();
     session.advance();
     expect(loaded.serialize("2026-09-10T00:00:00.000Z")).toBe(session.serialize("2026-09-10T00:00:00.000Z"));
+  });
+  it("refuses central-bank savings payouts and holder moves atomically when the household pool is short", () => {
+    for (const action of [
+      ["withdrawSavings", { amount: 1_000 }],
+      ["moveSavings", { holder: "US-financial" }],
+    ] as const) {
+      const session = sessionWithConstrainedCentralBankPool();
+      const before = session.serialize(savingsSaveAt);
+      const result = session.act(action[0], action[1]);
+      expect(result.ok).toBe(false);
+      expect(session.serialize(savingsSaveAt)).toBe(before);
+    }
+  });
+  it("settles savings backing through public actions and continues identically after reload", () => {
+    const session = sessionWithSavingsAuthority();
+    session.advance(); // source computes the bank's live deposit ceiling during its turn
+
+    const beforeDeposit = savingsSave(session).world;
+    expect(session.act("depositSavings", { amount: 4_000 }).ok).toBe(true);
+    const afterDeposit = savingsSave(session).world;
+    expect(afterDeposit.player.cash).toBe(beforeDeposit.player.cash - 4_000);
+    expect(afterDeposit.player.savings).toBe(beforeDeposit.player.savings + 4_000);
+    expect(afterDeposit.centralBanks.US!.externalBroadMoney).toBe(beforeDeposit.centralBanks.US!.externalBroadMoney + 4_000);
+    expect(homeSavingsCashTotal(afterDeposit)).toBeCloseTo(homeSavingsCashTotal(beforeDeposit), 6);
+
+    const beforeWithdrawal = afterDeposit;
+    expect(session.act("withdrawSavings", { amount: 1_000 }).ok).toBe(true);
+    const afterWithdrawal = savingsSave(session).world;
+    expect(afterWithdrawal.player.cash).toBe(beforeWithdrawal.player.cash + 1_000);
+    expect(afterWithdrawal.player.savings).toBe(beforeWithdrawal.player.savings - 1_000);
+    expect(afterWithdrawal.centralBanks.US!.externalBroadMoney).toBe(beforeWithdrawal.centralBanks.US!.externalBroadMoney - 1_000);
+    expect(homeSavingsCashTotal(afterWithdrawal)).toBeCloseTo(homeSavingsCashTotal(beforeWithdrawal), 6);
+
+    const beforeMoveToBank = afterWithdrawal;
+    const bankCashBefore = beforeMoveToBank.corporations["US-financial"]!.bankCharter!.cashReserves;
+    const cbBeforeMove = beforeMoveToBank.centralBanks.US!.externalBroadMoney;
+    expect(session.act("moveSavings", { holder: "US-financial" }).ok).toBe(true);
+    const atPrivateBank = savingsSave(session).world;
+    expect(atPrivateBank.player.savings).toBe(beforeMoveToBank.player.savings);
+    expect(atPrivateBank.player.cash).toBe(beforeMoveToBank.player.cash);
+    expect(atPrivateBank.player.savingsHolder).toBe("US-financial");
+    expect(atPrivateBank.centralBanks.US!.externalBroadMoney).toBe(cbBeforeMove - beforeMoveToBank.player.savings);
+    expect(atPrivateBank.corporations["US-financial"]!.bankCharter!.cashReserves).toBe(bankCashBefore + beforeMoveToBank.player.savings);
+    expect(homeSavingsCashTotal(atPrivateBank)).toBeCloseTo(homeSavingsCashTotal(beforeMoveToBank), 6);
+
+    expect(session.act("moveSavings", { holder: "centralBank" }).ok).toBe(true);
+    const backAtCentralBank = savingsSave(session).world;
+    expect(backAtCentralBank.player.savings).toBe(atPrivateBank.player.savings);
+    expect(backAtCentralBank.player.cash).toBe(atPrivateBank.player.cash);
+    expect(backAtCentralBank.player.savingsHolder).toBe("centralBank");
+    expect(backAtCentralBank.centralBanks.US!.externalBroadMoney).toBe(cbBeforeMove);
+    expect(backAtCentralBank.corporations["US-financial"]!.bankCharter!.cashReserves).toBe(bankCashBefore);
+    expect(homeSavingsCashTotal(backAtCentralBank)).toBeCloseTo(homeSavingsCashTotal(atPrivateBank), 6);
+
+    const resumed = new GameSession();
+    resumed.load(session.serialize(savingsSaveAt));
+    session.advance();
+    resumed.advance();
+    expect(resumed.serialize(savingsSaveAt)).toBe(session.serialize(savingsSaveAt));
+  });
+  it("keeps absent-policy legacy saves pointer-only instead of inventing backing cash", () => {
+    const created = new GameSession();
+    created.create(options);
+    const legacy = new GameSession();
+    legacy.load(created.serialize(savingsSaveAt));
+    const beforeTurn = savingsSave(legacy).world;
+    expect(beforeTurn.savingsAccountsPolicy).toBeUndefined();
+
+    expect(legacy.act("depositSavings", { amount: 2_000 }).ok).toBe(true);
+    let after = savingsSave(legacy).world;
+    expect(after.player.cash).toBe(beforeTurn.player.cash - 2_000);
+    expect(after.player.savings).toBe(beforeTurn.player.savings + 2_000);
+    expect(after.centralBanks.US!.externalBroadMoney).toBe(beforeTurn.centralBanks.US!.externalBroadMoney);
+
+    legacy.advance(); // publishes the bank capacity used by the existing pointer-only move
+    const beforeMove = savingsSave(legacy).world;
+    const vault = beforeMove.corporations["US-financial"]!.bankCharter!.cashReserves;
+    const pool = beforeMove.centralBanks.US!.externalBroadMoney;
+    expect(legacy.act("moveSavings", { holder: "US-financial" }).ok).toBe(true);
+    after = savingsSave(legacy).world;
+    expect(after.player.savingsHolder).toBe("US-financial");
+    expect(after.centralBanks.US!.externalBroadMoney).toBe(pool);
+    expect(after.corporations["US-financial"]!.bankCharter!.cashReserves).toBe(vault);
+  });
+  it("keeps forex-disabled writes on the legacy path and gates authoritative holder changes on private banking", () => {
+    const session = sessionWithSavingsAuthority();
+    const save = savingsSave(session);
+    save.world.featureFlags = { ...save.world.featureFlags, foreignExchange: false };
+    const forexOff = new GameSession();
+    forexOff.load(JSON.stringify(save));
+    const before = savingsSave(forexOff).world;
+    expect(forexOff.act("depositSavings", { amount: 1_000 }).ok).toBe(true);
+    const afterDeposit = savingsSave(forexOff).world;
+    expect(afterDeposit.player.savings).toBe(before.player.savings + 1_000);
+    expect(afterDeposit.centralBanks.US!.externalBroadMoney).toBe(before.centralBanks.US!.externalBroadMoney);
+
+    const backed = sessionWithSavingsAuthority();
+    backed.advance(); // source banking turn establishes current target-bank capacity
+    expect(backed.act("depositSavings", { amount: 1_000 }).ok).toBe(true);
+    const backedSave = savingsSave(backed);
+    backedSave.world.featureFlags = { ...backedSave.world.featureFlags, foreignExchange: false };
+    const forexDisabledTransfer = new GameSession();
+    forexDisabledTransfer.load(JSON.stringify(backedSave));
+    const beforeTransfer = savingsSave(forexDisabledTransfer).world;
+    const poolBeforeTransfer = beforeTransfer.centralBanks.US!.externalBroadMoney;
+    const bankCashBeforeTransfer = beforeTransfer.corporations["US-financial"]!.bankCharter!.cashReserves;
+    expect(forexDisabledTransfer.act("moveSavings", { holder: "US-financial" }).ok).toBe(true);
+    const afterTransfer = savingsSave(forexDisabledTransfer).world;
+    expect(afterTransfer.player.savingsHolder).toBe("US-financial");
+    expect(afterTransfer.centralBanks.US!.externalBroadMoney).toBe(poolBeforeTransfer - 1_000);
+    expect(afterTransfer.corporations["US-financial"]!.bankCharter!.cashReserves).toBe(bankCashBeforeTransfer + 1_000);
+
+    const noPrivateBankingSave = savingsSave(session);
+    noPrivateBankingSave.world.featureFlags = { ...noPrivateBankingSave.world.featureFlags, banking: false };
+    const noPrivateBanking = new GameSession();
+    noPrivateBanking.load(JSON.stringify(noPrivateBankingSave));
+    const beforeMove = noPrivateBanking.serialize(savingsSaveAt);
+    expect(noPrivateBanking.act("moveSavings", { holder: "centralBank" }).ok).toBe(false);
+    expect(noPrivateBanking.serialize(savingsSaveAt)).toBe(beforeMove);
   });
   it("keeps the status-bar identity inputs across save and reload (#223)", () => {
     const session = new GameSession();
@@ -173,6 +337,31 @@ describe("actions hub projection", () => {
     expect(new Set(actions.map((a) => a.category))).toEqual(new Set(["influence", "fundraising", "intelligence", "executive"]));
     expect(actions.find((a) => a.id === "fundraise")).toMatchObject({ available: true });
     expect(session.act("fundraise").ok).toBe(true);
+  });
+  it("projects only source-eligible corporation relocation actions and real destinations", () => {
+    const session = new GameSession(); session.create(options);
+    const saved = JSON.parse(session.serialize("2026-09-10T00:00:00.000Z")) as {
+      world: { corporations: Record<string, Record<string, unknown>>; player: Record<string, unknown> };
+    };
+    const corporation = saved.world.corporations["US-manufacturing"]!;
+    corporation["ceoId"] = "player";
+    corporation["ceoType"] = "player";
+    corporation["ceoVacant"] = false;
+    corporation["isPrivate"] = true;
+    corporation["headquartersRegionId"] = "DC";
+    saved.world.player["homeRegionId"] = "DC";
+    session.load(JSON.stringify(saved));
+
+    const actions = session.view().actions;
+    expect(actions.find((action) => action.id === "openCorporateRelocationVote")).toMatchObject({ available: false });
+    expect(actions.find((action) => action.id === "relocatePlayerWithCorporation")).toMatchObject({
+      available: true,
+      requires: "corporationRegion",
+      choices: [{ id: "US-manufacturing", label: "US.MANU" }],
+    });
+    expect(actions.find((action) => action.id === "relocatePlayerWithCorporation")?.destinations).toContainEqual({
+      id: "LON", corporationId: "US-manufacturing", label: expect.stringContaining("UK"),
+    });
   });
   it("offers real intelligence polls whose results project into the view and survive reload", () => {
     const session = new GameSession(); session.create(options);

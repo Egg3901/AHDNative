@@ -10,9 +10,9 @@
  *
  * Region identity is the code; which country a shared-shard shape belongs to
  * is read live from the save (world.regions[].countryId), the British-Isles
- * model from the reference. Only recorded regions render: era-dependent
- * territory (1953 AK/HI absence, 1979 DD/BB split, CN handover shape) falls
- * out of the live roster, never invented.
+ * model from the reference. Only recorded regions render, including 1953
+ * AK/HI territories. Country changes (1979 DD/BB split, CN handover) follow
+ * the live roster; missing regions never produce invented shapes.
  *
  * Projection is dependency-free: a Mercator bbox fit ported from the
  * reference computeFitProjection, plus an AlbersUsa composite port for the

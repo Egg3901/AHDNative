@@ -6,7 +6,10 @@ import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "../government/constants.js";
 import { isRecordedSingleplayerHeadOfGovernment } from "../government/singleplayerHeadOfGovernment.js";
 import { executiveTakingEligibility } from "./nationalizationEligibility.js";
-import { assumedDebtAnchor } from "./stateOwnershipLedger.js";
+import { nationalizationCompensation, settleNationalizationCompensation, indicativeNationalizationCompensation, type CompensationTier } from "./nationalizationCompensation.js";
+import { applyExecutiveTakingConsequences } from "./nationalizationConsequences.js";
+import { ensurePrimaryNationalCorporation, primaryNationalCorporation, resolveNationalCorporationForSector } from "./nationalCorporation.js";
+import type { PendingNationalization, NationalizationTrigger } from "./pendingNationalizations.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
 export const NATIONALIZATION_REVENUE_KEEP = 0.85;
@@ -57,11 +60,20 @@ export function nationalizationTargets(world: WorldState): Array<{ id: string; l
   return Object.values(world.corporations)
     .filter((corporation) => corporation.countryId === world.player.countryId)
     .filter((corporation) => !isCorpStateOwned(corporation) && executiveTakingEligibility(world, corporation).takeable)
-    .filter((corporation) => !world.corporations[`NAT-${corporation.countryId}-${corporation.sectorType}`] ||
-      isCorpStateOwned(world.corporations[`NAT-${corporation.countryId}-${corporation.sectorType}`]!))
     .filter((corporation) => Object.values(assets).some((asset) => asset.corporationId === corporation.id))
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((corporation) => ({ id: corporation.id, label: corporation.name ?? corporation.tickerSymbol ?? corporation.id }));
+}
+
+/** Source wizard target details and its indicative discounted quote. */
+export function nationalizationTargetDetails(world: WorldState) {
+  const assets = Object.values(corporateSectorAssets(world));
+  return nationalizationTargets(world).map(target => {
+    const donor = world.corporations[target.id]!;
+    return { id: target.id, ownerKind: donor.nationalizationOwnerKind ?? "npc",
+      sectorCount: assets.filter(asset => asset.corporationId === donor.id).length,
+      discountedIndicativeLocal: indicativeNationalizationCompensation(donor) };
+  });
 }
 
 export function nationalizationUnavailableReason(world: WorldState): string | undefined {
@@ -74,18 +86,18 @@ export function nationalizationUnavailableReason(world: WorldState): string | un
 }
 
 /**
- * Executive seizure port for Native's one-sector-per-corporation model.
- * Game resolves a primary/split-off National Corporation by sector type,
+ * Executive seizure with the source primary/split-off National Corporation routing.
  * merges a conflicting (stateId, sectorType) asset, applies the 15% revenue
  * transition haircut, assumes the dissolved shell's bonds, and dissolves that
- * shell. Native represents those split-offs as one issuer per sector type;
- * sector headcount itself transfers in full, matching absorbSectorIntoNatCorp.
+ * shell. Sector headcount transfers in full, matching absorbSectorIntoNatCorp.
  */
 export function nationalizeDistressedCorporation(
   world: WorldState,
   corporationId: string,
   actorId: string,
+  tier: CompensationTier = "seizure",
 ): NationalizationResult {
+  if (tier === "fair") return { ok: false, error: "Fair-value nationalization requires a passed state-ownership bill." };
   if (actorId !== "player" || !isRecordedSittingHeadOfGovernment(world, world.player.countryId)) {
     return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
   }
@@ -96,14 +108,48 @@ export function nationalizeDistressedCorporation(
     return { ok: false, error: "That corporation is not headquartered in your country." };
   }
   if (isCorpStateOwned(donor)) return { ok: false, error: "That corporation is already state-owned." };
-  const treasury = world.budgets[donor.countryId];
-  if (!treasury) return { ok: false, error: "No national treasury is recorded for this country." };
   const eligibility = executiveTakingEligibility(world, donor);
   if (!eligibility.takeable) return { ok: false, error: eligibility.reason };
+  return takeWholeCorporation(world, donor, tier, "executive", eligibility.triggers);
+}
 
-  const nationalCorporationId = `NAT-${donor.countryId}-${donor.sectorType}`;
-  const existingNational = world.corporations[nationalCorporationId];
-  if (existingNational && !isCorpStateOwned(existingNational)) {
+/** A passed state-ownership bill supplies authority independently of distress. */
+export function applyLegislativeWholeTaking(world: WorldState, countryId: string, corporationId: string) {
+  const donor = world.corporations[corporationId];
+  if (!donor) return { ok: false, error: "The legislative target no longer exists." };
+  if (donor.countryId !== countryId || isCorpStateOwned(donor)) return { ok: false, error: "The legislative target is outside the bill's jurisdiction or already state-owned." };
+  if (donor.privatizedAtTurn != null && world.meta.turn - donor.privatizedAtTurn < 168) return { ok: false, error: "The corporation is protected by the renationalization cooldown." };
+  if (donor.nationalizationOwnerKind === "player") {
+    const pending = world.pendingNationalizations ??= [];
+    const id = `taking-notice-${countryId}-${world.meta.turn}-${pending.length}-${donor.id}`;
+    const government = world.governments[countryId];
+    const governingPartyId = government?.status === "formed" ? government.governingPartyId : world.executives[countryId]?.presidentParty ?? null;
+    pending.push({ id, countryId, targetCorporationId: donor.id, tier: "fair", method: "legislative", triggers: ["supermajority"], governingPartyId,
+      postedAtTurn: world.meta.turn, noticeDeadlineTurn: world.meta.turn + 48, status: "pending" });
+    return { ok: true, pendingNationalizationId: id, message: "Posted a 48-turn legislative nationalization notice." };
+  }
+  return takeWholeCorporation(world, donor, "fair", "legislative", ["npc"]);
+}
+
+/** Complete the authority and framing recorded by a passed legislative bill. */
+export function completePendingWholeTaking(world: WorldState, pending: PendingNationalization): NationalizationResult {
+  const donor = world.corporations[pending.targetCorporationId];
+  if (!donor || isCorpStateOwned(donor)) return { ok: false, error: "The pending target no longer exists or is already state-owned." };
+  if (donor.countryId !== pending.countryId) return { ok: false, error: "The pending target is outside its recorded jurisdiction." };
+  return takeWholeCorporation(world, donor, pending.tier, pending.method, pending.triggers, pending.governingPartyId);
+}
+
+function takeWholeCorporation(
+  world: WorldState,
+  donor: import("./types.js").Corporation,
+  tier: CompensationTier,
+  method: "executive" | "legislative" | "supermajority",
+  triggers: NationalizationTrigger[],
+  governingPartyId?: string | null,
+): NationalizationResult {
+  if (!world.budgets[donor.countryId]) return { ok: false, error: "No national treasury is recorded for this country." };
+
+  if (!primaryNationalCorporation(world, donor.countryId) && world.corporations[`NAT-${donor.countryId}`]) {
     return { ok: false, error: "The National Corporation identity is occupied by a private issuer." };
   }
   const assets = corporateSectorAssets(world);
@@ -116,65 +162,33 @@ export function nationalizeDistressedCorporation(
   }
 
   const keep = NATIONALIZATION_REVENUE_KEEP;
-  const debtAnchor = assumedDebtAnchor(world, donor.id);
+  const compensation = nationalizationCompensation(world, donor, absorbedAssetIds.map(id => assets[id]!), tier);
+  const debtAnchor = compensation.debtAnchor;
   const sectorTypes = [...new Set(absorbedAssetIds.map(id => assets[id]!.sectorType))];
-  const countryName = world.countries[donor.countryId]?.name ?? donor.countryId;
-  const national = existingNational ?? {
-    ...donor,
-    id: nationalCorporationId,
-    name: `${countryName} National Corporation · ${donor.sectorType}`,
-    tickerSymbol: `NAT${donor.countryId}${donor.sectorType.replace(/[^a-z0-9]/gi, "").slice(0, 4).toUpperCase()}`,
-    isNationalCorporation: true as const,
-    countryOwnerId: donor.countryId,
-    ownershipState: "stateOwned" as const,
-    ceoType: "npp" as const,
-    ceoId: `state-${donor.countryId}`,
-    ceoVacant: false,
-    ceoVotes: [],
-    // Source dissolved-shell seizure cash goes to the national treasury;
-    // a newly created National Corporation starts with its own zero balance.
-    liquidCapital: 0,
-    ceoSalaryPerTurn: 0,
-    dividendRate: 0,
-    lastCeoSalaryPaid: 0,
-    lastDividendPoolPaid: 0,
-    lastPlayerDividendPaid: 0,
-    lastUnpostedDividendPaid: 0,
-    shareholders: [],
-    totalShares: 0,
-    publicFloat: 0,
-    sharePrice: 1,
-    fundamentalSharePrice: 1,
-    earningsHistory: [],
-    priceHistory: [],
-    revenue: 0,
-    foundingRevenue: 0,
-    currentGrowthCost: 0,
-  };
-  national.isNationalCorporation = true;
-  national.countryOwnerId = donor.countryId;
-  national.ownershipState = "stateOwned";
-  national.assignedSectorTypes = [...new Set([...(national.assignedSectorTypes ?? []), donor.sectorType])];
-  // Both stores use this domestic country's local currency. Source credits
-  // the treasury once, rounded to whole units, and leaves existing SOE cash.
-  if (Number.isFinite(donor.liquidCapital) && donor.liquidCapital > 0) {
-    treasury.treasuryBalance += Math.round(donor.liquidCapital);
-  }
+  // Whole-corporation bonds and the return/ledger identity belong to the
+  // primary; individual sector assets may route to an assigned split-off.
+  const primary = ensurePrimaryNationalCorporation(world, donor.countryId);
+  const nationalCorporationId = primary.id;
+  const assetRevenue = absorbedAssetIds.reduce((sum, id) => sum + (assets[id]!.revenue ?? donor.revenue), 0);
+  settleNationalizationCompensation(world, donor, tier, compensation.payoutAnchor);
 
   for (const assetId of absorbedAssetIds) {
     const asset = assets[assetId]!;
+    const national = resolveNationalCorporationForSector(world, donor.countryId, asset.sectorType);
+    const receiverId = national.id;
+    const share = assetRevenue > 0 ? (asset.revenue ?? donor.revenue) / assetRevenue : 1 / absorbedAssetIds.length;
     const absorbedRevenue = Math.round((asset.revenue ?? donor.revenue) * keep);
     // Source plants absorption haircuts the built capacity and its paid basis.
     // Already-paid construction and its queue transfer whole.
     if (asset.capitalStock !== undefined) asset.capitalStock = Math.round(asset.capitalStock * keep * 100) / 100;
     if (asset.capacityBookAnchor !== undefined) asset.capacityBookAnchor *= keep;
     const collision = Object.values(assets).find((candidate) =>
-      candidate.id !== asset.id && candidate.corporationId === nationalCorporationId &&
+      candidate.id !== asset.id && candidate.corporationId === receiverId &&
       candidate.stateId === asset.stateId && candidate.sectorType === asset.sectorType,
     );
     if (collision) {
       collision.workers += asset.workers;
-      collision.revenue = (collision.revenue ?? existingNational?.revenue ?? 0) + absorbedRevenue;
+      collision.revenue = (collision.revenue ?? national.revenue) + absorbedRevenue;
       mergeCorporateSectorPhysicalLedger(collision, asset);
       collision.forSale = null;
       if (!collision.representingUnionId && asset.representingUnionId) {
@@ -182,43 +196,45 @@ export function nationalizeDistressedCorporation(
       }
       delete assets[assetId];
     } else {
-      asset.corporationId = nationalCorporationId;
+      asset.corporationId = receiverId;
       asset.owner = "corporation";
       asset.revenue = absorbedRevenue;
       asset.forSale = null;
     }
+    national.revenue += absorbedRevenue;
+    national.foundingRevenue += Math.round(donor.foundingRevenue * share * keep);
+    national.currentGrowthCost += Math.round(donor.currentGrowthCost * share * keep);
   }
   for (const bond of Object.values(world.bonds)) {
-    if (bond.issuerType === "corporation" && bond.corporationId === donor.id) {
+    if (bond.issuerType === "corporation" && bond.corporationId === donor.id && !bond.matured) {
       bond.corporationId = nationalCorporationId;
     }
   }
 
   delete world.corporations[donor.id];
-  national.revenue += Math.round(donor.revenue * keep);
-  national.foundingRevenue += Math.round(donor.foundingRevenue * keep);
-  national.currentGrowthCost += Math.round(donor.currentGrowthCost * keep);
-  world.corporations[nationalCorporationId] = national;
+  const consequences = applyExecutiveTakingConsequences(world, donor.countryId, triggers, tier, compensation.valuationAnchor, compensation.payoutAnchor, governingPartyId);
   const ledger = world.stateOwnershipLedger ??= [];
   ledger.push({
     id: `taking-${donor.countryId}-${world.meta.turn}-${ledger.length}-${donor.id}`,
     countryId: donor.countryId,
     nationalCorporationId,
     kind: "nationalize_whole",
-    method: "executive",
-    triggers: eligibility.triggers,
-    tier: "seizure",
+    method,
+    triggers,
+    ...(governingPartyId !== undefined ? { governingPartyId } : {}),
+    tier,
     formerCorpName: donor.name ?? donor.tickerSymbol ?? donor.id,
     sectorTypes,
-    compensationAnchor: 0,
+    compensationAnchor: compensation.payoutAnchor,
     debtAnchor,
     shareholdersSettled: donor.shareholders.length,
+    ...consequences,
     turn: world.meta.turn,
   });
   return {
     ok: true,
     nationalCorporationId,
     absorbedAssetIds,
-    message: `${donor.name ?? donor.tickerSymbol} was absorbed into ${national.name}`,
+    message: `${donor.name ?? donor.tickerSymbol} was absorbed into ${primary.name}`,
   };
 }
