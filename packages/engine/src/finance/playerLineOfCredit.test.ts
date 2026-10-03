@@ -303,8 +303,10 @@ describe("playerLineOfCreditPhase", () => {
     advanceTurn(resumed);
     advanceTurn(uninterruptedTwin);
     expect(resumed.player).toEqual(uninterruptedTwin.player);
+    const initialGbp = start.player.currencyBalances!.personal.GBP;
+    if (initialGbp === undefined) throw new Error("The source replay requires its initial GBP wallet");
     expect(resumed.player.currencyBalances!.personal.GBP).toBeLessThan(
-      start.player.currencyBalances!.personal.GBP,
+      initialGbp,
     );
     // Source conversion rounds each currency leg. At a changed FX rate a
     // cent shortfall can freeze draws even with a funded foreign wallet;

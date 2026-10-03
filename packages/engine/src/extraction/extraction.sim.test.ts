@@ -203,9 +203,9 @@ describe("extraction contract issuance + NPC acceptance", () => {
 
     const without = mkWorld();
     addRegionalExtractionOperation(without);
-    withOffer.corporations["US-extraction"]!.ceoId = null;
+    delete withOffer.corporations["US-extraction"]!.ceoId;
     withOffer.corporations["US-extraction"]!.ceoType = "npp";
-    without.corporations["US-extraction"]!.ceoId = null;
+    delete without.corporations["US-extraction"]!.ceoId;
     without.corporations["US-extraction"]!.ceoType = "npp";
 
     advanceTurn(withOffer);
