@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { GameSession } from "./session.js";
 
 describe("source JP background systems in a public session", () => {
-  it("keeps JP elections active through ordinary turns and save/reload without opening character selection", () => {
+  it.each(["1953", "1979", "1991", "1999", "2007", "2019", "2023"] as const)(
+    "keeps JP elections active through ordinary turns and save/reload in %s without opening character selection",
+    (era) => {
     const session = new GameSession(() => new Date("2019-01-01T00:00:00.000Z"));
-    session.create({ seed: "jp-public-background-session", playerName: "Tester", countryId: "US", era: "2019" });
+    session.create({ seed: `jp-public-background-session-${era}`, playerName: "Tester", countryId: "US", era });
     session.advance();
 
-    const firstSave = session.serialize("2019-01-08T00:00:00.000Z");
+    const firstSave = session.serialize(`${era}-01-08T00:00:00.000Z`);
     const savedWorld = JSON.parse(firstSave) as {
       world: {
         meta: { turn: number };
@@ -27,12 +29,13 @@ describe("source JP background systems in a public session", () => {
     expect(savedJpElections.some((election) => election.electionType === "sangiin")).toBe(true);
     expect(savedJpElections.some((election) => election.electionType === "regionalCouncil")).toBe(true);
 
-    const restored = new GameSession(() => new Date("2019-01-01T00:00:00.000Z"));
+    const restored = new GameSession(() => new Date(`${era}-01-01T00:00:00.000Z`));
     restored.load(firstSave);
     session.advance();
     restored.advance();
-    const directWorld = (JSON.parse(session.serialize("2019-01-15T00:00:00.000Z")) as { world: unknown }).world;
-    const restoredWorld = (JSON.parse(restored.serialize("2019-01-15T00:00:00.000Z")) as { world: unknown }).world;
+    const directWorld = (JSON.parse(session.serialize(`${era}-01-15T00:00:00.000Z`)) as { world: unknown }).world;
+    const restoredWorld = (JSON.parse(restored.serialize(`${era}-01-15T00:00:00.000Z`)) as { world: unknown }).world;
     expect(restoredWorld).toEqual(directWorld);
-  });
+    },
+  );
 });

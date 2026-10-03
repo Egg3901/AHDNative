@@ -16,6 +16,17 @@ describe("source JP background election producer", () => {
       expect(series.filter((row) => row.electionType === "shugiin")).toHaveLength(8);
       expect(series.filter((row) => row.electionType === "sangiin")).toHaveLength(16);
       expect(series.filter((row) => row.electionType === "regionalCouncil")).toHaveLength(8);
+      const totalSeatsFor = (electionType: string) => series
+        .filter((row) => row.electionType === electionType)
+        .reduce((total, row) => total + row.totalSeats, 0);
+      // Current Game jpSeats source maps: 466/512/465 Shugiin and 248/252
+      // Sangiin seats by preset; institutionsFacts sets 2,679 regional seats.
+      expect(totalSeatsFor("shugiin")).toBe(era === "1953" ? 466 : era === "1991" ? 512 : 465);
+      expect(totalSeatsFor("sangiin")).toBe(era === "1991" ? 252 : 248);
+      expect(totalSeatsFor("regionalCouncil")).toBe(2679);
+      expect([1, 2].map((chamberClass) => series
+        .filter((row) => row.electionType === "sangiin" && row.chamberClass === chamberClass)
+        .reduce((total, row) => total + row.totalSeats, 0))).toEqual(era === "1991" ? [126, 126] : [125, 123]);
       expect(world.partyRegions["HOK:JP_LDP"] ?? world.partyRegions["HOK:JP_RYO"]).toBeDefined();
       if (era === "1953" || era === "1979") {
         expect(world.politicians.filter((politician) => politician.countryId === "JP")).toHaveLength(0);
