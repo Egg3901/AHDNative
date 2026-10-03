@@ -281,6 +281,8 @@ export interface WorldState {
    * single-sector — see corporation/types.ts file doc). Schema v19.
    */
   corporations: Record<string, Corporation>;
+  /** Source-backed index-fund book. Absent in genuine saves before schema 71. */
+  indexFundBook?: import("./indexFunds/types.js").IndexFundBook;
   /** Distinct CorporateSector assets with stateId null until regional ownership is sourced. Optional on pre-#293 schema-44 saves. */
   corporateSectors?: Record<string, import("./corporation/corporateSectorAssets.js").CorporateSectorAsset>;
   /**

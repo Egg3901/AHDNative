@@ -38,6 +38,8 @@ export type ActionId =
   | "buyBond"
   | "sellBond"
   | "exchangeCurrency"
+  | "subscribeIndexFund"
+  | "redeemIndexFund"
   | "issueCorporateBond"
   | "buybackCorporateBond"
   | "fundraise"
@@ -223,6 +225,20 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: 0,
     systems: ["forex", "personal-cash"],
     status: "available",
+  },
+  subscribeIndexFund: {
+    id: "subscribeIndexFund",
+    name: "Subscribe to Index Fund",
+    description: "Subscribe whole units at the fund's current quoted NAV, transferring cash into fund custody.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["indexFunds", "personal-cash"], status: "available",
+  },
+  redeemIndexFund: {
+    id: "redeemIndexFund",
+    name: "Redeem Index Fund Units",
+    description: "Redeem whole units against available fund cash; any unfunded amount becomes a saved redemption claim.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["indexFunds", "personal-cash"], status: "available",
   },
   issueCorporateBond: {
     id: "issueCorporateBond",

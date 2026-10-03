@@ -50,6 +50,7 @@ import { seedTfpLeaves } from "./metrics/tfpSeed.js";
 import { seedMinisterialTargets } from "./metrics/ministerialTargetSeed.js";
 import { seedPoliticalBoards } from "./metrics/politicalBoardSeed.js";
 import { computeNationalMetrics } from "./metrics/nationalMetrics.js";
+import { seedIndexFundBook } from "./indexFunds/book.js";
 
 // v29: W30 governors (governors/governorAddresses/governorOrders). This wave
 // was pre-allocated v29 back when main was v27; the W12 banking wave landed
@@ -198,7 +199,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // 24-turn market-flow/breadth pressure. Older saves retain absent history.
 // v67: explicit Irish Dail/local-council PR-STV ballot rankings and frozen
 // transfer-count result. The schema-66 reader must refuse this grammar.
-export const SCHEMA_VERSION = 67;
+// v71: source-seeded index fund definitions, custody positions, units, and redemption claims.
+// Older worlds retain absence; no fund seed is fabricated during migration.
+export const SCHEMA_VERSION = 71;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1235,6 +1238,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     nppSponsorLastTurn: {},
     centralBanks,
     corporations,
+    indexFundBook: seedIndexFundBook(),
     corpRevenueSnapshots,
     subsidies: [],
     campaigns: {},

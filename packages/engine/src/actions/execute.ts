@@ -91,6 +91,7 @@ import { declareUkCommonsRecall, signUkCommonsRecallPetition } from "../election
 import { recomputeComposition } from "../elections/orchestration.js";
 import { castPartyMergerVote, proposePartyMerger } from "../party/mergerProposals.js";
 import { executeForexTrade } from "../forex/trade.js";
+import { redeemIndexFund, subscribeIndexFund } from "../indexFunds/book.js";
 
 export type ExecuteActionParams = {
   /** Player preference for automatic re-entry in the most recent state race. */
@@ -101,6 +102,8 @@ export type ExecuteActionParams = {
   /** Source canvassing batch size, 1 through 50. */
   count?: number;
   amount?: number; // for convertCash
+  fundSlug?: string;
+  units?: number;
   fromCurrency?: string;
   toCurrency?: string;
   corporationName?: string;
@@ -175,7 +178,6 @@ export type ExecuteActionParams = {
   shares?: number;
   // W13 bonds
   bondId?: string;
-  units?: number;
   /** Face value requested in the USD accounting anchor (source API contract). */
   faceValue?: number;
   maturityTurns?: number;
@@ -455,6 +457,17 @@ function executeActionInner(
     const result = executeForexTrade(world, params.fromCurrency, params.toCurrency, params.amount);
     return result.ok
       ? { ok: true, message: `Exchanged ${result.quote.fromAmount} ${result.quote.fromCurrency} for ${result.quote.toAmount} ${result.quote.toCurrency} at a ${(result.quote.feeRate * 100).toFixed(2)}% fee.` }
+      : { ok: false, error: result.error };
+  }
+
+  if (actionId === "subscribeIndexFund" || actionId === "redeemIndexFund") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player may trade index fund units" };
+    if (!params.fundSlug || params.units === undefined) return { ok: false, error: `${actionId} requires fundSlug and units` };
+    const result = actionId === "subscribeIndexFund"
+      ? subscribeIndexFund(world, params.fundSlug, params.units)
+      : redeemIndexFund(world, params.fundSlug, params.units);
+    return result.ok
+      ? { ok: true, message: `${actionId === "subscribeIndexFund" ? "Subscribed" : "Redeemed"} ${result.units} units for ${result.cash} cash (${result.status})` }
       : { ok: false, error: result.error };
   }
 
@@ -2742,6 +2755,11 @@ function executeActionInner(
 
 function validateRequiredActionParams(actionId: string, params: ExecuteActionParams): string | null {
   switch (actionId) {
+    case "subscribeIndexFund":
+    case "redeemIndexFund":
+      return params.fundSlug && params.units !== undefined && Number.isSafeInteger(params.units) && params.units > 0
+        ? null
+        : `${actionId} requires a fundSlug and positive whole units`;
     case "exchangeCurrency":
       return params.fromCurrency && params.toCurrency && params.amount !== undefined
         ? null : "exchangeCurrency requires fromCurrency, toCurrency, and amount";

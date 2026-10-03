@@ -1,5 +1,6 @@
 import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
+import { INDEX_FUND_INITIAL_NAV, INDEX_FUND_SEED_CASH_ANCHOR, INDEX_FUND_SEED_RESERVE_UNITS } from "./indexFunds/book.js";
 import { COUNTRY_CONFIGS } from "./electionEngine/countryElectionConstants.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
 import { pmAppointmentExecutiveTitle } from "./government/pmAppointment.js";
@@ -195,6 +196,18 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const forexTradeHistory = world["forexTradeHistory"];
   if (Array.isArray(forexTradeHistory) && forexTradeHistory.length > 0) {
     return { ok: false, error: `Manual currency trade history cannot be continued by the schema 42 turn reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
+  }
+  const indexFundBook = world["indexFundBook"];
+  if (isRecord(indexFundBook) && (Array.isArray(indexFundBook["transactions"]) && indexFundBook["transactions"].length > 0 ||
+      Array.isArray(indexFundBook["redemptions"]) && indexFundBook["redemptions"].length > 0 ||
+      isRecord(indexFundBook["funds"]) && Object.values(indexFundBook["funds"]).some((value) => {
+        if (!isRecord(value)) return true;
+        return value["cashAnchor"] !== INDEX_FUND_SEED_CASH_ANCHOR || value["unitSupply"] !== INDEX_FUND_SEED_RESERVE_UNITS ||
+          value["quotedNav"] !== INDEX_FUND_INITIAL_NAV ||
+          Array.isArray(value["targetConstituents"]) && value["targetConstituents"].length > 0 ||
+          isRecord(value["holdings"]) && Object.keys(value["holdings"]).length > 0;
+      }))) {
+    return { ok: false, error: `Index fund subscriptions, custody, or redemption state cannot be continued by the schema 42 reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
   }
   // These snapshots are derived solely from the recorded manual lookback.
   // Neutral zero snapshots are equivalent to the absent pre-feature state;
@@ -962,6 +975,83 @@ const REQUIRED_WORLD_RECORDS = [
   "countryPolitics",
 ] as const;
 
+function validateIndexFundBook(raw: unknown, turn: number): void {
+  const fail = (): never => { throw new Error("Not a valid save file: invalid index fund custody state"); };
+  if (!isRecord(raw) || Object.keys(raw).some((key) => !["funds", "positions", "redemptions", "transactions"].includes(key)) ||
+      !isRecord(raw["funds"]) || !Array.isArray(raw["positions"]) || !Array.isArray(raw["redemptions"]) || !Array.isArray(raw["transactions"])) fail();
+  const record = raw as Record<string, unknown>;
+  const funds = record["funds"] as Record<string, unknown>;
+  if (Object.keys(funds).length !== 1 || !isRecord(funds["us_top_25"])) fail();
+  const fund = funds["us_top_25"] as Record<string, unknown>;
+  if (fund["slug"] !== "us_top_25" || fund["name"] !== "US Large-Cap 25 Index" || fund["ticker"] !== "US25" ||
+      fund["kind"] !== "broad" || fund["scope"] !== "country" || fund["countryId"] !== "US" || fund["currencyCode"] !== "USD" ||
+      fund["topN"] !== 25 || fund["status"] !== "active" || !Number.isFinite(fund["quotedNav"]) || (fund["quotedNav"] as number) <= 0 ||
+      !Number.isSafeInteger(fund["unitSupply"]) || (fund["unitSupply"] as number) < 0 ||
+      !Number.isSafeInteger(fund["reserveUnits"]) || (fund["reserveUnits"] as number) < 0 ||
+      !Number.isFinite(fund["cashAnchor"]) || (fund["cashAnchor"] as number) < 0 ||
+      !Array.isArray(fund["targetConstituents"]) || !fund["targetConstituents"].every((id) => typeof id === "string") ||
+      !isRecord(fund["holdings"])) fail();
+
+  const positions = record["positions"] as unknown[];
+  const holderKeys = new Set<string>();
+  let positionUnits = 0;
+  for (const rawItem of positions) {
+    const item = rawItem as Record<string, unknown>;
+    if (!isRecord(item) || Object.keys(item).some((key) => !["fundSlug", "holderKind", "holderId", "units", "averageNavAnchor"].includes(key)) ||
+        item["fundSlug"] !== "us_top_25" || !["fund_reserve", "player"].includes(String(item["holderKind"])) ||
+        typeof item["holderId"] !== "string" || item["holderId"].length === 0 || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
+        !Number.isFinite(item["averageNavAnchor"]) || (item["averageNavAnchor"] as number) <= 0) fail();
+    const key = `${String(item["fundSlug"])}:${String(item["holderKind"])}:${String(item["holderId"])}`;
+    if (holderKeys.has(key)) fail();
+    holderKeys.add(key);
+    if (item["holderKind"] === "fund_reserve" && (item["holderId"] !== "reserve:us_top_25" || item["units"] !== fund["reserveUnits"])) fail();
+    if (item["holderKind"] === "player" && item["holderId"] !== "player") fail();
+    positionUnits += item["units"] as number;
+  }
+  if (positionUnits !== fund["unitSupply"]) fail();
+
+  const redemptions = record["redemptions"] as unknown[];
+  let queuedUnits = 0;
+  let queuedCash = 0;
+  const ids = new Set<string>();
+  for (const rawItem of redemptions) {
+    const item = rawItem as Record<string, unknown>;
+    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "fundSlug", "holderId", "requestedUnits", "paidUnits", "queuedUnits", "queuedAmountAnchor", "createdTurn", "status"].includes(key)) ||
+        typeof item["id"] !== "string" || item["id"].length === 0 || ids.has(item["id"]) || item["fundSlug"] !== "us_top_25" || item["holderId"] !== "player" ||
+        !Number.isSafeInteger(item["requestedUnits"]) || (item["requestedUnits"] as number) < 1 || !Number.isSafeInteger(item["paidUnits"]) || (item["paidUnits"] as number) < 0 ||
+        !Number.isSafeInteger(item["queuedUnits"]) || (item["queuedUnits"] as number) < 1 ||
+        (item["paidUnits"] as number) + (item["queuedUnits"] as number) !== item["requestedUnits"] || item["queuedAmountAnchor"] !== (item["queuedUnits"] as number) * (fund["quotedNav"] as number) ||
+        !Number.isSafeInteger(item["createdTurn"]) || (item["createdTurn"] as number) < 0 || (item["createdTurn"] as number) > turn ||
+        !["partial", "queued"].includes(String(item["status"])) || (item["status"] === "queued" && item["paidUnits"] !== 0) || (item["status"] === "partial" && (item["paidUnits"] as number) < 1)) fail();
+    ids.add(item["id"] as string);
+    queuedUnits += item["queuedUnits"] as number;
+    queuedCash += item["queuedAmountAnchor"] as number;
+  }
+  if ((fund["cashAnchor"] as number) + 1e-8 < queuedCash || positionUnits + queuedUnits < 1) fail();
+
+  const transactions = record["transactions"] as unknown[];
+  const txIds = new Set<string>();
+  for (const rawItem of transactions) {
+    const item = rawItem as Record<string, unknown>;
+    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "turn", "fundSlug", "kind", "units", "cashAnchor"].includes(key)) ||
+        typeof item["id"] !== "string" || item["id"].length === 0 || txIds.has(item["id"]) || !Number.isSafeInteger(item["turn"]) ||
+        (item["turn"] as number) < 0 || (item["turn"] as number) > turn || item["fundSlug"] !== "us_top_25" ||
+        !["subscription", "redemption"].includes(String(item["kind"])) || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
+        !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0) fail();
+    txIds.add(item["id"] as string);
+  }
+  const txRows = transactions as Array<Record<string, unknown>>;
+  const sumField = (kind: string, field: "units" | "cashAnchor") => txRows
+    .filter((row) => row["kind"] === kind)
+    .reduce((sum, row) => sum + (row[field] as number), 0);
+  const subscribedUnits = sumField("subscription", "units");
+  const redeemedUnits = sumField("redemption", "units");
+  const subscribedCash = sumField("subscription", "cashAnchor");
+  const redeemedCash = sumField("redemption", "cashAnchor");
+  if (fund["unitSupply"] !== INDEX_FUND_SEED_RESERVE_UNITS + subscribedUnits - redeemedUnits ||
+      Math.abs((fund["cashAnchor"] as number) - (INDEX_FUND_SEED_CASH_ANCHOR + subscribedCash - redeemedCash)) > 1e-8) fail();
+}
+
 function assertCurrentWorldState(world: WorldState): void {
   const value = world as unknown as Record<string, unknown>;
   const meta = value["meta"] as Record<string, unknown>;
@@ -991,6 +1081,8 @@ function assertCurrentWorldState(world: WorldState): void {
       (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
     throw new Error("Not a valid save file: invalid player relocation turn");
   }
+  const indexFundBook = value["indexFundBook"];
+  if (indexFundBook !== undefined) validateIndexFundBook(indexFundBook, meta["turn"] as number);
 
   const ukDevolution = value["ukDevolution"];
   if (ukDevolution !== undefined) {
@@ -4004,6 +4096,9 @@ export function deserializeSave(raw: string): WorldState {
   // default Irish races. The schema barrier makes opt-in ballot/result
   // continuations unreadable to the prior tally grammar.
   if (save.schemaVersion < 67) save.world.meta.schemaVersion = 67;
+  // v71 introduces the index fund book. Historical saves deliberately retain
+  // absence: no seed reserves or positions are reconstructed from the schema.
+  if (save.schemaVersion < 71) save.world.meta.schemaVersion = 71;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
