@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { createWorld, deserializeSave, projectSaveToV42, serializeSave } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
@@ -10,8 +13,9 @@ function recordedJapaneseOfficeSave(): string {
   // This recorded consumer fixture isolates an eligible office continuation.
   // It is not an authentic historical Native writer or an earned appointment.
   // New JP character creation stays unavailable.
+  world.countries.JP!.playable = true;
   world.player.countryId = "JP";
-  world.player.homeRegionId = "HOK";
+  world.player.homeRegionId = null;
   world.cabinetMembers.push({
     countryId: "JP",
     positionId: "JP_internal_affairs_minister",
@@ -41,11 +45,12 @@ describe("Japan regional grant allocation on recorded office saves", () => {
       ok: false,
       error: expect.stringContaining("source 48-turn election clock"),
     });
-    // A recorded document without the modern clock isolates the additional
-    // allocation refusal. The complete modern save remains intact for reload.
-    const legacyClockDocument = JSON.parse(savedContents);
-    delete legacyClockDocument.world.meta.startingYear;
-    expect(projectSaveToV42(JSON.stringify(legacyClockDocument))).toMatchObject({
+    // Add the recorded choice to a migrated authentic v42 world to isolate
+    // its additional refusal without deleting other modern incompatibilities.
+    const recorded = deserializeSave(savedContents);
+    const legacy = deserializeSave(gunzipSync(readFileSync(join(process.cwd(), "fixtures/v42-1953-US.save.json.gz"))).toString("utf8"));
+    legacy.jpRegionalBudgetAllocation = recorded.jpRegionalBudgetAllocation!;
+    expect(projectSaveToV42(serializeSave(legacy, SAVED_AT))).toMatchObject({
       ok: false,
       error: expect.stringContaining("Japan regional allocation state cannot be projected"),
     });

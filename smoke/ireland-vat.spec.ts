@@ -220,9 +220,11 @@ test("Irish party chair nominates a Taoiseach through the Dáil and resumes the 
   const appointment = page.getByRole("article", { name: "Taoiseach appointment vote for Irish VAT Player", exact: true });
   await expect(taoiseach).toBeVisible();
   await expect(appointment).toContainText("passed");
-  // Current Game allocation on this earned ballot is FF79/FG46/LAB15/WP11/PD9.
-  // Appointment auto-ayes carry the actual FF office weights, including the player.
-  await expect(appointment).toContainText("79 ayes");
+  // This earned ballot has 71 FF NPP seat weight plus the player's 10.
+  // Game f8fe57adbf734fc66a14864179336e125466a4f5's
+  // autoAyeNPPsForParliamentaryAppointment and computeParliamentaryGovernmentTally
+  // were executed on these captured current offices and return 81 ayes.
+  await expect(appointment).toContainText("81 ayes");
   await saveGame(page);
   await page.reload();
   await page.getByRole("button", { name: "Continue Irish VAT Player", exact: true }).click();
