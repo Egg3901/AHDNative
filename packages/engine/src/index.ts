@@ -142,6 +142,8 @@ export * as electionEngine from "./electionEngine/index.js";
 export { declareCandidacy, withdrawCandidacy } from "./elections/candidacy.js";
 export { electionSeriesForWorld, recomputeComposition, seatHolders } from "./elections/orchestration.js";
 export * from "./elections/ukCommonsRecall.js";
+export { commonsByElectionGate, ukCommonsByElectionGate } from "./elections/ukCommonsVacancies.js";
+export type { CommonsByElectionGate } from "./elections/ukCommonsVacancies.js";
 export { resolvePrimaries, requiresPrimaryResolution } from "./elections/primaryResolution.js";
 export { applyPresidentialResolution } from "./elections/presidentialResolution.js";
 export { isFoundingActive, detectFoundingComplete, runFoundingSweep, stampFoundingMarker, MAX_FOUNDING_RACES } from "./elections/founding.js";

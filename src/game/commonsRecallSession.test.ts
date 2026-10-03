@@ -85,11 +85,17 @@ describe("UK Commons recall public session boundary", () => {
     expect(finalState.supportSamples.map((sample: { turn: number }) => sample.turn)).toEqual(
       Array.from({ length: 7 }, (_, index) => checkEndTurn - 6 + index),
     );
-    expect(resumed.view().player.legislativeSeat).toBeNull();
+    expect(finalWorld.player.legislativeSeat).toBeNull();
     expect(finalWorld.ukCommonsVacancies.find((vacancy: { id: string }) => vacancy.id === finalState.vacancyId)).toMatchObject({ reason: "recall", regionId: "NIR", seats: 3 });
     const specialRecord = finalWorld.elections.find((race: { electionType: string; state?: string }) => race.electionType === "special_commons" && race.state === "NIR");
     expect(specialRecord).toMatchObject({ totalSeats: 3 });
     const specialRace = resumed.politics().elections.find((race) => race.id === specialRecord!.id);
-    expect(specialRace).toMatchObject({ seatId: "UK-special_commons-NIR", primaryEndTurn: expect.any(Number) });
+    expect(specialRace).toMatchObject({ seatId: "UK-special_commons-NIR", isByElection: true, primaryEndTurn: expect.any(Number), endTurn: specialRecord.endTurn });
+    expect(resumed.politics().commonsVacancies).toEqual([expect.objectContaining({
+      id: finalState.vacancyId, regionId: "NIR", seats: 3, status: "scheduled", reason: "recall", electionId: specialRecord.id,
+    })]);
+    const finalReload = new GameSession();
+    finalReload.load(resumed.serialize(STAMP));
+    expect(finalReload.politics().commonsVacancies).toEqual(resumed.politics().commonsVacancies);
   }, 180_000);
 });

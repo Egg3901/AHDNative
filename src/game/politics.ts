@@ -12,6 +12,7 @@ import {
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
   CAMPAIGN_TARGETED_AD_CAP,
   requiresPrimaryResolution,
+  ukCommonsByElectionGate, type CommonsByElectionGate,
   UK_DEVOLUTION_REGIONS,
   referendumRegionStatus,
   REQUEST_THRESHOLD,
@@ -349,6 +350,9 @@ export interface PoliticsPresidentialView {
 
 export interface PoliticsElectionDetail {
   id: string; title: string; status: string; date: string; filingDate: string;
+  /** Mid-term races retain their special identity after seating regular office holders. */
+  isByElection?: boolean;
+  endTurn?: number | null;
   /** Source public race identity (`country-type-region[-class]`), derived from the recorded election. */
   seatId?: string | null;
   /** Turn when candidate filing closes; paired with the source public race key. */
@@ -475,6 +479,13 @@ export interface PoliticsCommonsRecallView {
   vacancyId: string | null;
 }
 
+export interface PoliticsCommonsVacancyView {
+  id: string; regionId: string; regionName: string; seats: number;
+  reason: string; status: "open" | "scheduled"; vacatedTurn: number;
+  formerHolderName: string | null; electionId: string | null;
+  scheduling?: CommonsByElectionGate;
+}
+
 export interface PoliticalMetricsView {
   countryId: string; countryName: string;
   politicalMetrics?: PoliticalRegistryView;
@@ -495,6 +506,7 @@ export interface PoliticsView {
   referendumRequest: PoliticsReferendumRequestView;
   politicians: PoliticsPoliticianView[];
   commonsRecalls?: PoliticsCommonsRecallView[];
+  commonsVacancies?: PoliticsCommonsVacancyView[];
   politicalMetrics?: PoliticalRegistryView;
 }
 
@@ -1530,6 +1542,8 @@ export function projectPolitics(world: WorldState): PoliticsView {
       const primary = projectPrimary(world, election);
       return {
         id: election.id,
+        isByElection: election.electionType === "special_commons" || election.electionType === "special_governor",
+        endTurn: election.endTurn,
         seatId: sourceSeatIdForElection(election),
         primaryEndTurn: election.primaryEndTurn ?? null,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
@@ -1657,5 +1671,15 @@ export function projectPolitics(world: WorldState): PoliticsView {
     playerDeclaration: petition.declarations.find((row) => row.actorId === "player")?.side ?? null,
     vacancyId: petition.vacancyId ?? null,
   })) : [];
-  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, commonsRecalls, politicalMetrics: politicalMetricsForCountry(world, country.id) };
+  const commonsVacancies: PoliticsCommonsVacancyView[] = player.countryId === "UK"
+    ? (world.ukCommonsVacancies ?? []).filter((vacancy) => vacancy.status === "open" || vacancy.status === "scheduled")
+      .map((vacancy) => ({
+        id: vacancy.id, regionId: vacancy.regionId, regionName: world.regions[vacancy.regionId]?.name ?? vacancy.regionId,
+        seats: vacancy.seats ?? 1, reason: vacancy.reason, status: vacancy.status === "scheduled" ? "scheduled" : "open",
+        vacatedTurn: vacancy.vacatedTurn, formerHolderName: politicianName(world, vacancy.formerHolderId),
+        electionId: vacancy.electionId ?? null,
+        scheduling: ukCommonsByElectionGate(world, vacancy.regionId),
+      }))
+    : [];
+  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, commonsRecalls, commonsVacancies, politicalMetrics: politicalMetricsForCountry(world, country.id) };
 }
