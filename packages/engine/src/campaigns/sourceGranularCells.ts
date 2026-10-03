@@ -122,6 +122,11 @@ export const COUNTRY_PRIORS: Record<string, Record<string, number>> = {
 /** Backward-compatible alias for the US association table. */
 export const ASSOCIATION_PRIORS = COUNTRY_PRIORS["US"];
 
+function required<T>(value: T | undefined, context: string): T {
+  if (value === undefined) throw new Error(`Invalid granular electorate input: missing ${context}`);
+  return value;
+}
+
 /** Normalize a pair of dimension keys so prior lookup is order-independent. */
 function priorKey(aDim: string, aKey: string, bDim: string, bKey: string): string {
   const left = `${aDim}:${aKey}`;
@@ -137,7 +142,10 @@ function cellPriorGeneric(
   let p = 1;
   for (let i = 0; i < combo.length; i++) {
     for (let j = i + 1; j < combo.length; j++) {
-      p *= pairPriors[i][j][combo[i]][combo[j]];
+      const byDimPair = required(pairPriors[i]?.[j], `pair-prior matrix ${i}/${j}`);
+      const left = required(combo[i], `left bucket ${i}`);
+      const right = required(combo[j], `right bucket ${j}`);
+      p *= required(byDimPair[left]?.[right], `pair prior ${left}/${right}`);
     }
   }
   return p;
@@ -172,8 +180,9 @@ function rakeCellsGeneric(
 ): void {
   for (let pass = 0; pass < passes; pass++) {
     for (const dim of dimNames) {
-      for (const key of Object.keys(targets[dim])) {
-        const target = targets[dim][key];
+      const dimensionTargets = required(targets[dim], `marginals for ${dim}`);
+      for (const key of Object.keys(dimensionTargets)) {
+        const target = required(dimensionTargets[key], `marginal ${dim}:${key}`);
         const current = cells.reduce((s, c) => (c.buckets[dim] === key ? s + c.share : s), 0);
         if (current > 0) {
           const factor = target / current;
@@ -190,9 +199,10 @@ function rakeCellsGeneric(
 function buildCombinations(dimNames: string[], buckets: Record<string, string[]>): string[][] {
   if (dimNames.length === 0) return [[]];
   const [first, ...rest] = dimNames;
+  if (first === undefined) return [[]];
   const restCombos = buildCombinations(rest, buckets);
   const combos: string[][] = [];
-  for (const key of buckets[first]) {
+  for (const key of buckets[first] ?? []) {
     for (const combo of restCombos) {
       combos.push([key, ...combo]);
     }
@@ -261,6 +271,7 @@ function reprievePrunedCells(
       continue;
     }
     const [cell] = remaining.splice(idx, 1);
+    if (cell === undefined) continue;
     kept.push(cell);
     for (const [d, b] of Object.entries(cell.buckets)) {
       const k = bucketKey(d, b);
@@ -329,15 +340,17 @@ export function deriveGranularCellsGeneric(input: {
   const pairPriors: Record<string, Record<string, number>>[][] = dimNames.map(() => []);
   for (let i = 0; i < dimNames.length; i++) {
     for (let j = i + 1; j < dimNames.length; j++) {
+      const leftDim = required(dimNames[i], `left dimension ${i}`);
+      const rightDim = required(dimNames[j], `right dimension ${j}`);
       const lookup: Record<string, Record<string, number>> = {};
-      for (const keyA of buckets[dimNames[i]]) {
+      for (const keyA of buckets[leftDim] ?? []) {
         const byKey: Record<string, number> = {};
-        for (const keyB of buckets[dimNames[j]]) {
-          byKey[keyB] = priors[priorKey(dimNames[i], keyA, dimNames[j], keyB)] ?? 1;
+        for (const keyB of buckets[rightDim] ?? []) {
+          byKey[keyB] = priors[priorKey(leftDim, keyA, rightDim, keyB)] ?? 1;
         }
         lookup[keyA] = byKey;
       }
-      pairPriors[i][j] = lookup;
+      required(pairPriors[i], `pair-prior row ${i}`)[j] = lookup;
     }
   }
   const cells: GenericGranularCell[] = [];
@@ -345,10 +358,10 @@ export function deriveGranularCellsGeneric(input: {
     const cellBuckets: Record<string, string> = {};
     let raw = 1;
     for (let i = 0; i < dimNames.length; i++) {
-      const dimName = dimNames[i];
-      const key = combo[i];
+      const dimName = required(dimNames[i], `dimension ${i}`);
+      const key = required(combo[i], `bucket ${i}`);
       cellBuckets[dimName] = key;
-      raw *= targets[dimName][key];
+      raw *= required(targets[dimName]?.[key], `target ${dimName}:${key}`);
     }
     raw *= cellPriorGeneric(combo, pairPriors);
     cells.push({
@@ -389,7 +402,8 @@ export function deriveGranularCellsGeneric(input: {
   for (const c of kept) {
     const bucketPositions: { economicLean: number; socialLean: number }[] = [];
     for (const dim of dimsWithPositions) {
-      const pos = dim.positions![c.buckets[dim.name]];
+      const bucket = required(c.buckets[dim.name], `cell ${c.id} bucket ${dim.name}`);
+      const pos = dim.positions?.[bucket];
       if (!pos) continue;
       let economicLean = pos.economicLean;
       let socialLean = pos.socialLean;
@@ -421,8 +435,9 @@ export function deriveGranularCellsGeneric(input: {
   const baseline =
     dimsWithTurnout.length > 0
       ? dimsWithTurnout.reduce((sum, dim) => {
-          const rates = dim.turnoutRates!;
-          const weighted = Object.entries(targets[dim.name]).reduce(
+          const rates = required(dim.turnoutRates, `turnout rates for ${dim.name}`);
+          const marginals = required(targets[dim.name], `marginals for ${dim.name}`);
+          const weighted = Object.entries(marginals).reduce(
             (s, [key, share]) => s + share * (rates[key] ?? 55),
             0
           );
@@ -432,7 +447,10 @@ export function deriveGranularCellsGeneric(input: {
 
   // Compute raw cell turnout via geometric mean.
   for (const c of kept) {
-    const rates = dimsWithTurnout.map((dim) => dim.turnoutRates![c.buckets[dim.name]] ?? 55);
+    const rates = dimsWithTurnout.map((dim) => {
+      const bucket = required(c.buckets[dim.name], `cell ${c.id} bucket ${dim.name}`);
+      return dim.turnoutRates?.[bucket] ?? 55;
+    });
     c.turnout = geoMeanTurnout(rates);
   }
 
@@ -472,16 +490,18 @@ export function deriveGranularCells(
 
   const generic = deriveGranularCellsGeneric({
     dims,
-    priors: opts.priors ?? COUNTRY_PRIORS["US"],
+    ...((opts.priors ?? COUNTRY_PRIORS["US"]) === undefined
+      ? {}
+      : { priors: opts.priors ?? COUNTRY_PRIORS["US"] }),
     opts,
   });
 
   return generic.map((cell) => ({
     id: cell.id,
-    race: cell.buckets.race,
-    age: cell.buckets.age,
-    education: cell.buckets.education,
-    wealth: cell.buckets.wealth,
+    race: required(cell.buckets.race, "race bucket"),
+    age: required(cell.buckets.age, "age bucket"),
+    education: required(cell.buckets.education, "education bucket"),
+    wealth: required(cell.buckets.wealth, "wealth bucket"),
     share: cell.share,
     economicLean: cell.economicLean,
     socialLean: cell.socialLean,
