@@ -6,6 +6,7 @@ import { settleQueuedIndexFundRedemptions } from "./book.js";
 import type { IndexFundRecord } from "./types.js";
 import { deployIndexFundBondReserve, refreshIndexFundNav } from "./bondReserve.js";
 import { applyIndexFundEquityCustody } from "./equityCustody.js";
+import { prepareNativeSovereignMarket } from "../bonds/sovereignAppetite.js";
 
 const MAX_EQUITY_ALLOCATION = 0.75;
 const MAX_SINGLE_NAME_WEIGHT = 0.2;
@@ -237,6 +238,7 @@ export const indexFundTurnPhase: TurnPhase = {
   name: "indexFunds",
   run(world) {
     const funds = Object.values(world.indexFundBook?.funds ?? {}).filter((fund) => fund.status === "active");
+    prepareNativeSovereignMarket(world, funds);
     const equityFunds = funds.filter((row) => row.kind !== "bond");
     for (const fund of funds) {
       deployIndexFundBondReserve(world, fund);

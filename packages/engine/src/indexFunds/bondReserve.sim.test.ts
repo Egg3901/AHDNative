@@ -8,6 +8,22 @@ import { payCouponsAndUpdatePrices, settleMaturedBonds } from "../bonds/bondTurn
 import { deserializeSave, serializeSave } from "../save.js";
 
 describe("index fund sovereign bond reserve", () => {
+  it("does not guess an issuer rating for a fund mandate when the turn snapshot is absent", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "fund-bond-rating-required", playerName: "Alex" });
+    const issuer = world.corporations["US-manufacturing"]!;
+    expect(issuer.creditRatingSnapshot).toBeUndefined();
+    const bondId = "source-us-corporate-no-rating";
+    world.bonds[bondId] = {
+      id: bondId, issuerType: "corporation", corporationId: issuer.id, countryId: "US", issuerName: issuer.name ?? issuer.id,
+      faceValue: BOND_UNIT_FACE_VALUE, couponRate: 5, maturityTurns: 48, issuedAtTurn: 0, maturityTurn: 48,
+      marketPrice: 1, totalIssued: 100_000, publicFloat: 100, holders: [], matured: false, defaulted: false,
+      defaultedAtTurn: null, currencyCode: "USD", createdAt: world.meta.date, updatedAt: world.meta.date,
+    };
+    indexFundTurnPhase.run(world, rngFromSeed("fund-bond-rating-required"));
+    expect(world.bonds[bondId]!.holders).toEqual([]);
+    expect(world.indexFundBook!.funds.global_corporate_ig!.bondHoldings?.[bondId]).toBeUndefined();
+  });
+
   it("buys real home sovereign units from public float at the pool ask and records custody", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "fund-bond-reserve", playerName: "Alex" });
     const fund = world.indexFundBook!.funds.us_sovereign_bonds!;
@@ -27,6 +43,8 @@ describe("index fund sovereign bond reserve", () => {
     expect(fund.bondHoldings?.[bondId]).toEqual(expect.objectContaining({ units: 25 }));
     expect(fund.cashAnchor).toBeLessThan(INITIAL_CASH);
     expect(world.bondMarketPools?.USD?.cashLocal).toBeGreaterThan(0);
+    expect(world.bondMarketPools?.USD?.appetiteByCountry?.US).toBeDefined();
+    expect(world.bondMarketPools?.USD?.appetiteByCountry?.US).not.toBe(1);
     expect(world.indexFundBook!.transactions).toContainEqual(expect.objectContaining({
       fundSlug: fund.slug, kind: "bondPurchase", bondId, units: 25,
     }));

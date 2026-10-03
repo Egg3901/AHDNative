@@ -15,14 +15,15 @@ export function fundBondHolderId(slug: string): string {
   return `index-fund:${slug}`;
 }
 
-function ratingIndex(value: string | undefined): number {
-  const index = CREDIT_RATINGS.indexOf((value ?? "BBB") as (typeof CREDIT_RATINGS)[number]);
-  return index < 0 ? CREDIT_RATINGS.indexOf("BBB") : index;
+function ratingIndex(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const index = CREDIT_RATINGS.indexOf(value as (typeof CREDIT_RATINGS)[number]);
+  return index < 0 ? undefined : index;
 }
 
-function bondRating(world: WorldState, bond: Bond): string {
-  if (bond.issuerType === "sovereign") return world.budgets[bond.countryId]?.creditRating ?? "BBB";
-  return (bond.corporationId ? world.corporations[bond.corporationId]?.creditRatingSnapshot : undefined) ?? "BBB";
+function bondRating(world: WorldState, bond: Bond): string | undefined {
+  if (bond.issuerType === "sovereign") return world.budgets[bond.countryId]?.creditRating;
+  return bond.corporationId ? world.corporations[bond.corporationId]?.creditRatingSnapshot : undefined;
 }
 
 function fundHomeCountry(world: WorldState, fund: IndexFundRecord): string {
@@ -36,10 +37,12 @@ function eligibleBonds(world: WorldState, fund: IndexFundRecord): Bond[] {
   const homeCountry = fundHomeCountry(world, fund);
   const minimum = mandate.minRating ? ratingIndex(mandate.minRating) : 0;
   const maximum = mandate.maxRating ? ratingIndex(mandate.maxRating) : CREDIT_RATINGS.length - 1;
+  if (minimum === undefined || maximum === undefined) return [];
   const candidates = Object.values(world.bonds).filter((bond) => {
     if (bond.matured || bond.defaulted || bond.publicFloat <= 0 || bond.issuerType !== mandate.issuerType) return false;
     if (mandate.homeOnly && bond.countryId !== homeCountry) return false;
     const rating = ratingIndex(bondRating(world, bond));
+    if (rating === undefined) return false;
     if (rating < minimum || rating > maximum) return false;
     const currency = bond.currencyCode;
     const exchange = Object.values(world.exchangeRates).find((row) => row.currencyCode === currency);

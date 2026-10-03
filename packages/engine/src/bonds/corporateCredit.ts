@@ -1,8 +1,77 @@
 export type CorporateCreditRating = "AAA" | "AA" | "A" | "BBB" | "BB" | "B" | "CCC";
 
+export interface CorporateCreditComponents {
+  debtToEquity: number;
+  interestCoverage: number;
+  profitability: number;
+  liquidity: number;
+}
+
+export interface CorporateCreditScore {
+  rating: CorporateCreditRating;
+  compositeScore: number;
+  components: CorporateCreditComponents;
+}
+
 const THRESHOLDS: readonly [number, CorporateCreditRating][] = [
   [85, "AAA"], [70, "AA"], [55, "A"], [40, "BBB"], [25, "BB"], [15, "B"], [0, "CCC"],
 ];
+
+const SCORE_THRESHOLDS: readonly [number, CorporateCreditRating][] = [
+  [85, "AAA"], [70, "AA"], [55, "A"], [40, "BBB"], [25, "BB"], [15, "B"], [0, "CCC"],
+];
+const CREDIT_RATINGS: readonly CorporateCreditRating[] = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC"];
+export const CORPORATE_DEFAULT_CREDIT_PENALTY_TURNS = 96;
+
+/** Exact Game `calculateCreditScore`; this is a turn producer (not the conservative bond-quote variant). */
+export function calculateSourceCorporateCreditScore(input: {
+  liquidCapitalAnchor: number;
+  totalDebtAnchor: number;
+  annualIncomeAnchor: number;
+  annualInterestAnchor: number;
+  totalEquityAnchor: number;
+  previousCompositeScore?: number;
+  bondDefaultCreditPenaltyActive?: boolean;
+  insiderConcentrationPenalty?: boolean;
+  indexInclusionUpgrade?: boolean;
+}): CorporateCreditScore {
+  const values = [input.liquidCapitalAnchor, input.totalDebtAnchor, input.annualIncomeAnchor,
+    input.annualInterestAnchor, input.totalEquityAnchor];
+  if (!values.every(Number.isFinite) || input.totalDebtAnchor < 0 || input.annualInterestAnchor < 0) {
+    throw new Error("Corporate credit inputs must be finite and debt/interest non-negative");
+  }
+  const debtRatio = input.totalEquityAnchor > 0 ? input.totalDebtAnchor / input.totalEquityAnchor : input.totalDebtAnchor > 0 ? 10 : 0;
+  const debtToEquity = Math.max(0, Math.min(100, 100 - (debtRatio / 3) * 100));
+  const coverage = input.annualInterestAnchor > 0 ? input.annualIncomeAnchor / input.annualInterestAnchor : input.annualIncomeAnchor > 0 ? 10 : 5;
+  const interestCoverage = Math.max(0, Math.min(100, coverage * 20));
+  const roe = input.totalEquityAnchor > 0 ? input.annualIncomeAnchor / input.totalEquityAnchor : 0;
+  const profitability = roe >= 0 ? Math.min(100, 40 + roe * 350)
+    : Math.max(5, 40 - 50 * Math.sqrt(Math.min(Math.abs(roe), 1)));
+  const liquidityRatio = input.annualInterestAnchor > 0 ? input.liquidCapitalAnchor / input.annualInterestAnchor : input.liquidCapitalAnchor > 0 ? 5 : 0;
+  const liquidity = Math.max(0, Math.min(100, 20 + liquidityRatio * 40));
+  const raw = Math.round(debtToEquity * 0.3 + interestCoverage * 0.25 + profitability * 0.25 + liquidity * 0.2);
+  const prior = input.previousCompositeScore;
+  let compositeScore = typeof prior === "number" && Number.isFinite(prior) && prior > 0
+    ? Math.round(0.75 * raw + 0.25 * prior) : raw;
+  let rating = SCORE_THRESHOLDS.find(([threshold]) => compositeScore >= threshold)![1];
+  if (input.bondDefaultCreditPenaltyActive) {
+    rating = "CCC";
+    compositeScore = Math.min(compositeScore, 12);
+  } else {
+    const notches = (input.insiderConcentrationPenalty ? 1 : 0) - (input.indexInclusionUpgrade ? 1 : 0);
+    if (notches !== 0) rating = CREDIT_RATINGS[Math.max(0, Math.min(CREDIT_RATINGS.length - 1, CREDIT_RATINGS.indexOf(rating) + notches))]!;
+  }
+  return {
+    rating,
+    compositeScore,
+    components: {
+      debtToEquity: Math.round(debtToEquity),
+      interestCoverage: Math.round(interestCoverage),
+      profitability: Math.round(profitability),
+      liquidity: Math.round(liquidity),
+    },
+  };
+}
 
 /**
  * AHDGame `src/lib/constants/bonds.ts` calculateCreditScore, copied formula

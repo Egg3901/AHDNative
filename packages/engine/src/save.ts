@@ -529,6 +529,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     if (value["isPrivate"] === true || value["relocationVote"] !== undefined) {
       return { ok: false, error: `Corporation ${corpId} has private-company or relocation-vote state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
     }
+    if (["creditCompositeSnapshot", "creditSnapshotTurn", "creditRatingComponents", "bondDefaultCreditPenaltyUntilTurn"].some((field) => hasOwn(value, field))) {
+      return { ok: false, error: `Corporation ${corpId} has source credit continuation state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
     const liquidCurrencyCode = value["liquidCurrencyCode"];
     if (liquidCurrencyCode !== undefined) {
       const countryId = String(value["countryId"] ?? "");
@@ -4583,6 +4586,23 @@ export function deserializeSave(raw: string): WorldState {
   for (const corporation of Object.values(save.world.corporations)) {
     if (corporation.creditRatingSnapshot !== undefined && !["AAA", "AA", "A", "BBB", "BB", "B", "CCC"].includes(corporation.creditRatingSnapshot)) {
       throw new Error(`Not a valid save file: invalid issuer credit rating snapshot for ${corporation.id}`);
+    }
+    if (corporation.creditCompositeSnapshot !== undefined && (!Number.isSafeInteger(corporation.creditCompositeSnapshot) || corporation.creditCompositeSnapshot < 0 || corporation.creditCompositeSnapshot > 100)) {
+      throw new Error(`Not a valid save file: invalid issuer credit composite snapshot for ${corporation.id}`);
+    }
+    if (corporation.creditSnapshotTurn !== undefined && (!Number.isSafeInteger(corporation.creditSnapshotTurn) || corporation.creditSnapshotTurn < 0 || corporation.creditSnapshotTurn > save.world.meta.turn)) {
+      throw new Error(`Not a valid save file: invalid issuer credit snapshot turn for ${corporation.id}`);
+    }
+    if (corporation.bondDefaultCreditPenaltyUntilTurn !== undefined && (!Number.isSafeInteger(corporation.bondDefaultCreditPenaltyUntilTurn) || corporation.bondDefaultCreditPenaltyUntilTurn < 0)) {
+      throw new Error(`Not a valid save file: invalid issuer default-credit penalty for ${corporation.id}`);
+    }
+    if (corporation.creditRatingComponents !== undefined) {
+      const components = corporation.creditRatingComponents;
+      const expected = ["debtToEquity", "interestCoverage", "profitability", "liquidity"];
+      if (!isRecord(components) || Object.keys(components).some((key) => !expected.includes(key)) ||
+        expected.some((key) => !Number.isSafeInteger(components[key]) || (components[key] as number) < 0 || (components[key] as number) > 100)) {
+        throw new Error(`Not a valid save file: invalid issuer credit-rating components for ${corporation.id}`);
+      }
     }
   }
   return save.world;

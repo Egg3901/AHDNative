@@ -2,7 +2,7 @@ import type { WorldState } from "../types.js";
 import type { Bond } from "./types.js";
 import { BOND_UNIT_FACE_VALUE, calculateBondMarketPrice, perTurnCouponPayment } from "./constants.js";
 import { isCorpStateOwned } from "./corporateBonds.js";
-import { calculateNativeCorporateCreditRating, corporateRatingSpread } from "./corporateCredit.js";
+import { calculateNativeCorporateCreditRating, corporateRatingSpread, CORPORATE_DEFAULT_CREDIT_PENALTY_TURNS } from "./corporateCredit.js";
 import { nativeBondPoolForCurrency, nativeCurrencyRate, quoteNativeCorporateBondPool } from "./bondMarketPool.js";
 import { resolveBondCurrency, resolveCountryCurrency } from "./denomination.js";
 import { fundBondHolderId, settleIndexFundBondReceipt } from "../indexFunds/bondReserve.js";
@@ -93,6 +93,8 @@ function markDefaulted(world: WorldState, bond: Bond): void {
   bond.defaultedAtTurn = world.meta.turn;
   bond.marketPrice = 0.1;
   bond.updatedAt = world.meta.date;
+  const issuer = bond.corporationId ? world.corporations[bond.corporationId] : undefined;
+  if (issuer) issuer.bondDefaultCreditPenaltyUntilTurn = world.meta.turn + CORPORATE_DEFAULT_CREDIT_PENALTY_TURNS;
 }
 
 /** Source bondTurn's corporate current-rate calculation, using its conservative zero-income balance-sheet path. */

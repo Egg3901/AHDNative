@@ -199,8 +199,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // 24-turn market-flow/breadth pressure. Older saves retain absent history.
 // v67: explicit Irish Dail/local-council PR-STV ballot rankings and frozen
 // transfer-count result. The schema-66 reader must refuse this grammar.
-// v71: source-seeded index fund definitions, custody positions, units, and redemption claims.
-// Older worlds retain absence; no fund seed is fabricated during migration.
+// v71: source-seeded index fund definitions, custody positions, units, redemption claims,
+// and source-written issuer credit/default continuation consumed by bond-fund mandates.
+// Older worlds retain absence; no fund seed or credit history is fabricated during migration.
 export const SCHEMA_VERSION = 71;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */

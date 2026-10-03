@@ -125,6 +125,13 @@ export interface Corporation {
   pendingCeoId?: string;
   /** Last source-style issuer grade used by global corporate-bond mandates; absent reads BBB. */
   creditRatingSnapshot?: import("../bonds/corporateCredit.js").CorporateCreditRating;
+  /** Previous source credit composite used by the 75/25 turn smoothing rule. */
+  creditCompositeSnapshot?: number;
+  /** Turn and component breakdown written with the source rating snapshot. */
+  creditSnapshotTurn?: number;
+  creditRatingComponents?: import("../bonds/corporateCredit.js").CorporateCreditComponents;
+  /** Source 96-turn credit floor after a missed corporate bond payment. */
+  bondDefaultCreditPenaltyUntilTurn?: number;
   /** Latest ballot by holder, weighted by the holder's actual shares. */
   ceoVotes?: Array<{ voterId: string; candidateId: string; shares: number }>;
   /** CEO compensation in local currency per Native turn (one week). */
