@@ -1391,8 +1391,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // Issue #40/#106: Game seed writes regional TFP leaves before turn 1, so t0
   // nationalMetrics (prev-turn to the first macro read) is the seed basket.
   seedTfpLeaves(world);
-  seedRegionalCostOfLiving(world);
   seedMinisterialTargets(world);
+  seedRegionalCostOfLiving(world);
   seedPoliticalBoards(world);
   computeNationalMetrics(world);
   return world;

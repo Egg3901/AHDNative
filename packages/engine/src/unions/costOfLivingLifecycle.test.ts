@@ -6,6 +6,7 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import { bargainingMacroInputs, mandateFromLocals } from "./actions.js";
 import { strikeCallCost } from "./bargaining.js";
+import costOfLivingOracle from "../metrics/regionalCostOfLivingOracle.json";
 
 function recordOracleInput(
   label: string,
@@ -41,13 +42,24 @@ function recordOracleInput(
 }
 
 describe("source regional cost-of-living lifecycle", () => {
-  it("seeds from urbanization, advances with source inertia, and carries the metric through save/reload", async () => {
+  it.each(costOfLivingOracle.cases)("matches actual source US $era seed writes on the declared TFP random tape", ({ era, seed, values }) => {
+    const world = createWorld({ era, seed, countryId: "US", playerName: "Test" });
+    const actual = Object.fromEntries(Object.keys(values).map((regionId) => [regionId, world.regionalMetrics[regionId]?.["economic.costOfLiving"]]));
+    expect(actual).toEqual(Object.fromEntries(Object.entries(values).map(([regionId, value]) => [regionId, { value }])));
+  });
+
+  it("seeds the authored source value without a baseline, advances with source inertia, and carries the metric through save/reload", async () => {
     const world = createWorld({ seed: "col-source-lifecycle", playerName: "Test", countryId: "UK", era: "1953" });
     const stateId = "SCO";
     const urbanization = world.regionalMetrics[stateId]?.["population.urbanizationRate"]?.value ?? 55;
     const sourceTarget = 100 + (urbanization - 55) * 0.3;
     const seeded = world.regionalMetrics[stateId]?.["economic.costOfLiving"];
-    expect(seeded).toEqual({ value: sourceTarget, simBaseline: sourceTarget });
+    // Actual Game seedUKStateMetrics births Scotland at 98. evalNode keeps
+    // that value on its cold start while recording the structural baseline.
+    expect(seeded).toEqual({ value: 98 });
+    const coldStart = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    advanceTurn(coldStart);
+    expect(coldStart.regionalMetrics.SCO?.["economic.costOfLiving"]).toEqual({ value: 98, simBaseline: sourceTarget });
 
     // Declared phase fixture: retain a +4 metric residual while the simulated
     // baseline moves 5% toward the urbanization-derived target. This is not a

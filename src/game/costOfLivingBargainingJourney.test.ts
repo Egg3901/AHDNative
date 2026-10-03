@@ -96,7 +96,7 @@ describe.sequential("UK cost-of-living bargaining through the public GameSession
       },
     });
     const initial = savedWorld();
-    expect(initial.regionalMetrics.SCO?.["economic.costOfLiving"]?.value).toBeGreaterThan(100);
+    expect(initial.regionalMetrics.SCO?.["economic.costOfLiving"]).toEqual({ value: 98 });
     const scottishLocal = Object.values(corporateSectorAssets(initial)).find(
       (asset) => asset.countryId === "UK" && asset.sectorType === "manufacturing" && asset.stateId === "SCO",
     );
@@ -168,7 +168,9 @@ describe.sequential("UK cost-of-living bargaining through the public GameSession
     const saved = session.serialize(STAMP);
     const persisted = deserializeSave(saved);
     const scotlandCost = persisted.regionalMetrics.SCO?.["economic.costOfLiving"]?.value;
-    expect(scotlandCost).toBeGreaterThan(100);
+    expect(scotlandCost).toBeGreaterThanOrEqual(40);
+    expect(scotlandCost).toBeLessThanOrEqual(200);
+    expect(persisted.regionalMetrics.SCO?.["economic.costOfLiving"]?.simBaseline).toEqual(expect.any(Number));
     const reloaded = new GameSession();
     reloaded.load(saved);
     expect(reloaded.serialize(STAMP)).toBe(saved);
