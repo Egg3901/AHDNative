@@ -29,6 +29,7 @@ import {
   proposalNpiCost,
   BILL_PROPOSE_ACTION_COST,
   resolveCurrentBillVote,
+  partyWhipEligibilityError,
   type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -253,6 +254,7 @@ export function sponsorParamsForLegislation(
 export function buildLegislationDetails(
   world: WorldState,
   selection: LegislationSelection = {},
+  observedAt?: string,
 ): LegislationDetailsQuery {
   const player = world.player;
   const countryId = player.countryId;
