@@ -1202,6 +1202,11 @@ function homeCurrency(world: WorldState, countryId: string): string {
 /** Display hints mirror the pinned engine; executeAction remains authoritative. */
 function projectFinance(world: WorldState): FinanceView {
   const player = world.player;
+  const forexCurrencies = [...new Set(Object.values(world.exchangeRates).map((rate) => rate.currencyCode))].sort();
+  const forexBalances: Record<string, number> = { [homeCurrency(world, player.countryId)]: player.cash };
+  for (const [currency, balance] of Object.entries(player.currencyBalances?.personal ?? {})) {
+    forexBalances[currency] = (forexBalances[currency] ?? 0) + balance;
+  }
   const savingsAction = (
     id: "depositSavings" | "withdrawSavings" | "moveSavings",
     requires: "amount" | "holder",
@@ -1238,6 +1243,11 @@ function projectFinance(world: WorldState): FinanceView {
     withdraw: savingsAction("withdrawSavings", "amount", player.savings <= 0, "No savings to withdraw."),
     banks,
     moveSavings: savingsAction("moveSavings", "holder", false, ""),
+    forex: {
+      enabled: world.featureFlags.foreignExchange !== false,
+      currencies: forexCurrencies,
+      balances: forexBalances,
+    },
     wealthHistory: world.history.playerWealth.map(({ turn, cash, savings, funds, bondsValue, sharesValue, netWorth }) => ({
       turn, cash, savings, funds, bondsValue, sharesValue, netWorth,
     })),
