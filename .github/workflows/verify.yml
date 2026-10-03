@@ -33,6 +33,28 @@ jobs:
       - run: npm ci
       - name: Qualify seven-era Japan background elections, budgets, saves and t400 resolution
         run: npx vitest run --config vitest.jp-background.config.ts
+  jp_source_readiness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the immutable source readiness contract
+        uses: actions/checkout@v4
+        with:
+          repository: Egg3901/AHDGame
+          ref: bfe655d5023085ebda0f7fdb59e1c2ea6a57fb3b
+          path: .reference-game
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: .reference-game/package-lock.json
+      - name: Install pinned source dependencies
+        run: npm ci
+        working-directory: .reference-game
+      - name: Exercise source JP player readiness for 1991 and 2019
+        run: npx vitest run src/lib/admin/seed/seedCountryGameStates.test.ts -t 'opens JP to players' --maxWorkers 1
+        working-directory: .reference-game
   era_player_flows:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
