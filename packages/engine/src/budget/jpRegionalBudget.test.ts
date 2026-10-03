@@ -4,7 +4,7 @@ import { calculateJPRegionalBudget, processJPRegionalBudget } from "./jpRegional
 import { regionalBudgetProcessingPhase } from "./phases.js";
 import { setJPRegionalBudgetAllocation } from "./jpAllocation.js";
 import { getPackByEra } from "@ahdclient/content";
-import { projectSaveToV42, serializeSave } from "../save.js";
+import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { JP_REGIONAL_POLICY_CATALOG } from "./jpRegionalPolicyCatalog.js";
 import { calculateStateSubsidyCostForRegion } from "./subsidyBudget.js";
 
@@ -59,7 +59,11 @@ describe("Japan regional budget source formula", () => {
       expect(jpBudgets.every((row) => row.taxRates?.residentTax === (era === "1953" || era === "1979" ? 8 : 10))).toBe(true);
       expect(jpBudgets.every((row) => row.jpRegionalPolicies?.length === 14)).toBe(true);
       const packRegions = [...(pack.states ?? []), ...(pack.economyRegions ?? [])];
-      expect(jpBudgets.every((row) => row.jpEnactedPolicyCosts === 100_000 * packRegions.find((state) => state.id === row.regionId)?.population)).toBe(true);
+      for (const row of jpBudgets) {
+        const region = packRegions.find((state) => state.id === row.regionId);
+        expect(region, `${era}/${row.regionId} source population`).toBeDefined();
+        expect(row.jpEnactedPolicyCosts).toBe(100_000 * region!.population);
+      }
     }
   });
 
