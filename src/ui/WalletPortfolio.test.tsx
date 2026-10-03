@@ -196,9 +196,10 @@ describe("wallet zero and empty states", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /currency conversion, loans, and monetary-policy controls are not available/i,
+        /loans and monetary-policy controls are not available/i,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/currency exchange is under World/i)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /convert|loan|borrow/i }),
     ).not.toBeInTheDocument();
