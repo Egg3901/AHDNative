@@ -70,3 +70,63 @@ describe("recorded presidential save with no recoverable unit votes", () => {
     expect(savedWorld(resumed).executives.US).toEqual(savedWorld(session).executives.US);
   });
 });
+
+describe("recorded presidential unit tie", () => {
+  it("resolves the source hashed winner through an ordinary turn and reload despite reversed unit key order", () => {
+    const world = createWorld({
+      seed: "source-national-ec-fallback",
+      playerName: "Tie Player",
+      countryId: "US",
+      era: "1953",
+    });
+    world.player.partyId = "US_DEM";
+    world.meta.turn = 192;
+    world.meta.date = "1957-01-01";
+    const opponent = world.politicians.find((politician) =>
+      politician.countryId === "US" && politician.partyId === "US_REP",
+    )!;
+    expect(opponent.id).toBe("US-214");
+    const race: ElectionRecord = {
+      id: "president:US:-:unit-tie-consumer",
+      electionType: "president",
+      countryId: "US",
+      cycle: 1,
+      status: "active",
+      startTurn: 1,
+      primaryEndTurn: 100,
+      endTurn: 191,
+      totalSeats: 1,
+      chamberKey: "president",
+      candidates: [
+        { id: "player", name: world.player.name, partyId: "US_DEM", isNPP: false, incumbent: false },
+        { id: opponent.id, name: opponent.name, partyId: "US_REP", isNPP: true, incumbent: false },
+      ],
+      tally: { player: 100, [opponent.id]: 100 },
+      // Recorded consumer input, not an earned race or historical writer.
+      // Actual Game electionCalculations.ts at c0f39acd allocates WY's 3
+      // electors to player for this pair, with either insertion order.
+      stateTallyStates: { WY: { totalVotes: { [opponent.id]: 100, player: 100 } } },
+    };
+    world.elections.push(race);
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    expect(Object.keys((savedWorld(session).elections.find((record) => record.id === race.id)!
+      .stateTallyStates!.WY as { totalVotes: Record<string, number> }).totalVotes)).toEqual(["US-214", "player"]);
+
+    session.advance();
+
+    const resolved = savedWorld(session).elections.find((record) => record.id === race.id)!;
+    expect(resolved.electoralCollegeResult).toMatchObject({
+      stateWinners: { WY: "player" },
+      evByCandidate: { player: 3 },
+      totalEv: 3,
+      resolutionMode: "majority",
+    });
+    expect(resolved.winners).toEqual(["player"]);
+    expect(savedWorld(session).executives.US?.presidentId).toBe("player");
+    const resumed = new GameSession();
+    resumed.load(session.serialize(SAVED_AT));
+    expect(savedWorld(resumed).elections.find((record) => record.id === race.id)).toEqual(resolved);
+    expect(savedWorld(resumed).executives.US).toEqual(savedWorld(session).executives.US);
+  });
+});
