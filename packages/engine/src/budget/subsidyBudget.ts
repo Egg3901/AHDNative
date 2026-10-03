@@ -6,11 +6,13 @@
  * (SUBSIDY_MARGIN_BONUS, no rate dial exists in the reference), enactment
  * upserts on the composite key (country, scope, scopeType, sector, strategy)
  * so re-enacting replaces rather than duplicates, and repeal marks
- * active=false while preserving the record. National scope only: solo has
- * no state-budget subsidy writer (see calculateSubsidyCostForCountry).
+ * active=false while preserving the record. National budgets use the country
+ * writer below. The JP regional budget has a separate writer for state subsidy
+ * costs when assets retain a concrete region ID.
  */
 import { TURNS_PER_YEAR } from "../economy/macroConstants.js";
-import { CORPORATION_TYPES, type CorporationType } from "../corporation/types.js";
+import { CORPORATION_TYPES, type Corporation, type CorporationType } from "../corporation/types.js";
+import type { CorporateSectorAsset } from "../corporation/corporateSectorAssets.js";
 
 export const SECTOR_SUBSIDIES_SPENDING_KEY = "sectorSubsidies";
 export const SUBSIDY_MARGIN_BONUS = 7.5;
@@ -179,6 +181,50 @@ export function calculateSubsidyCostForCountry(corps: SubsidyCostCorp[], subsidi
       if (corpQualifiesForSubsidy(subsidy, "", corp.sectorType, "", undefined, corp.countryId, corp.countryId)) revenue += corp.revenue;
     }
     total += revenue * TURNS_PER_YEAR * SUBSIDY_COST_MULTIPLIER;
+  }
+  return Math.round(total);
+}
+
+/**
+ * Source JP regional budgets charge active state-scoped subsidies against the
+ * actual qualifying sectors in that region. Native assets retain a region ID
+ * when the source sector has one; unallocated aggregate corporations cannot be
+ * assigned to a prefecture and are deliberately excluded.
+ */
+export function calculateStateSubsidyCostForRegion(
+  sectors: Array<Pick<CorporateSectorAsset, "corporationId" | "countryId" | "stateId" | "sectorType" | "strategyId" | "revenue" | "realizedRevenue" | "plantsPnl">>,
+  corporations: Array<Pick<Corporation, "id" | "countryId" | "headquartersRegionId">>,
+  subsidies: Subsidy[],
+  countryId: string,
+  regionId: string,
+): number {
+  const corporationById = new Map(corporations.map((corp) => [corp.id, corp]));
+  let total = 0;
+  for (const subsidy of subsidies) {
+    if (
+      !subsidy.active || subsidy.scope !== "state" || subsidy.countryId !== countryId ||
+      subsidy.stateId !== regionId
+    ) continue;
+    let qualifyingRevenue = 0;
+    for (const sector of sectors) {
+      if (sector.countryId !== countryId || sector.stateId !== regionId) continue;
+      const corporation = corporationById.get(sector.corporationId);
+      if (!corporation) continue;
+      if (!corpQualifiesForSubsidy(
+        subsidy,
+        corporation.headquartersRegionId ?? "",
+        sector.sectorType,
+        sector.stateId ?? "",
+        sector.strategyId,
+        sector.countryId,
+        corporation.countryId,
+      )) continue;
+      const revenue = sector.plantsPnl
+        ? (sector.realizedRevenue ?? sector.plantsPnl.revenue)
+        : (sector.revenue ?? 0);
+      if (Number.isFinite(revenue) && revenue > 0) qualifyingRevenue += revenue;
+    }
+    total += qualifyingRevenue * TURNS_PER_YEAR * SUBSIDY_COST_MULTIPLIER;
   }
   return Math.round(total);
 }

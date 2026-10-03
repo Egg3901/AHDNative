@@ -68,6 +68,7 @@ import {
   validateCollectiveAgreements,
 } from "./unions/campaigns.js";
 import { validateTargetedAds } from "./campaigns/targetedAds.js";
+import { JP_REGIONAL_POLICY_CATALOG, JP_REGIONAL_POLICY_IDS } from "./budget/jpRegionalPolicyCatalog.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -366,6 +367,8 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   for (const [regionId, row] of Object.entries(regionalBudgetsForProjection)) {
     if (isRecord(row) && row["countryId"] === "JP" &&
       (hasOwn(row, "jpNationalGrantPerCapita") ||
+        hasOwn(row, "jpPopulation") || hasOwn(row, "jpPropertyValuePerCapita") || hasOwn(row, "jpPropertyValueBaseline") ||
+        hasOwn(row, "jpRegionalPolicies") || hasOwn(row, "jpEnactedPolicyCosts") || hasOwn(row, "jpSubsidyCosts") ||
         (isRecord(row["revenue"]) && (hasOwn(row["revenue"], "jpResidentTax") || hasOwn(row["revenue"], "jpFixedAssetTax"))))) {
       return { ok: false, error: `Japan regional budget state for ${regionId} cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
     }
@@ -1061,18 +1064,59 @@ function assertCurrentWorldState(world: WorldState): void {
   for (const [regionId, row] of Object.entries(jpBudgetRows)) {
     if (!isRecord(row)) throw new Error(`Not a valid save file: invalid regional budget ${regionId}`);
     const grantPerCapita = row["jpNationalGrantPerCapita"];
+    const jpPopulation = row["jpPopulation"];
+    const jpPropertyValuePerCapita = row["jpPropertyValuePerCapita"];
+    const jpPropertyValueBaseline = row["jpPropertyValueBaseline"];
+    const jpRegionalPolicies = row["jpRegionalPolicies"];
+    const jpEnactedPolicyCosts = row["jpEnactedPolicyCosts"];
+    const jpSubsidyCosts = row["jpSubsidyCosts"];
     const revenue = row["revenue"];
     const jpResidentTax = isRecord(revenue) ? revenue["jpResidentTax"] : undefined;
     const jpFixedAssetTax = isRecord(revenue) ? revenue["jpFixedAssetTax"] : undefined;
-    if (grantPerCapita !== undefined || jpResidentTax !== undefined || jpFixedAssetTax !== undefined) {
+    if (grantPerCapita !== undefined || jpPopulation !== undefined || jpPropertyValuePerCapita !== undefined ||
+      jpPropertyValueBaseline !== undefined || jpResidentTax !== undefined || jpFixedAssetTax !== undefined ||
+      jpRegionalPolicies !== undefined || jpEnactedPolicyCosts !== undefined || jpSubsidyCosts !== undefined) {
       if (row["countryId"] !== "JP" ||
         (grantPerCapita !== undefined && (typeof grantPerCapita !== "number" || !Number.isFinite(grantPerCapita) || grantPerCapita < 0)) ||
+        (jpPopulation !== undefined && (typeof jpPopulation !== "number" || !Number.isFinite(jpPopulation) || jpPopulation < 0)) ||
+        (jpPropertyValuePerCapita !== undefined && (typeof jpPropertyValuePerCapita !== "number" || !Number.isFinite(jpPropertyValuePerCapita) || jpPropertyValuePerCapita < 0)) ||
+        (jpPropertyValueBaseline !== undefined && (typeof jpPropertyValueBaseline !== "number" || !Number.isFinite(jpPropertyValueBaseline) || jpPropertyValueBaseline < 0)) ||
         (jpResidentTax !== undefined && (typeof jpResidentTax !== "number" || !Number.isFinite(jpResidentTax) || jpResidentTax < 0)) ||
-        (jpFixedAssetTax !== undefined && (typeof jpFixedAssetTax !== "number" || !Number.isFinite(jpFixedAssetTax) || jpFixedAssetTax < 0))) {
+        (jpFixedAssetTax !== undefined && (typeof jpFixedAssetTax !== "number" || !Number.isFinite(jpFixedAssetTax) || jpFixedAssetTax < 0)) ||
+        (jpEnactedPolicyCosts !== undefined && (typeof jpEnactedPolicyCosts !== "number" || !Number.isFinite(jpEnactedPolicyCosts) || jpEnactedPolicyCosts < 0)) ||
+        (jpSubsidyCosts !== undefined && (typeof jpSubsidyCosts !== "number" || !Number.isFinite(jpSubsidyCosts) || jpSubsidyCosts < 0))) {
         throw new Error(`Not a valid save file: invalid Japan regional budget ${regionId}`);
       }
       if (!isRecord(revenue) || typeof revenue["grant"] !== "number" || !Number.isFinite(revenue["grant"]) || revenue["grant"] < 0) {
         throw new Error(`Not a valid save file: invalid Japan regional grant ${regionId}`);
+      }
+      if (jpRegionalPolicies !== undefined) {
+        if (!Array.isArray(jpRegionalPolicies) || jpRegionalPolicies.length !== JP_REGIONAL_POLICY_CATALOG.length) {
+          throw new Error(`Not a valid save file: invalid Japan regional policies ${regionId}`);
+        }
+        const seen = new Set<string>();
+        for (const [policyIndex, policy] of jpRegionalPolicies.entries()) {
+          if (!isRecord(policy)) throw new Error(`Not a valid save file: invalid Japan regional policy ${regionId}`);
+          const id = policy["legislationTypeId"];
+          const optionIndex = policy["policyOptionIndex"];
+          const optionId = policy["policyOptionId"];
+          const economic = policy["economic"];
+          const social = policy["social"];
+          const direction = policy["effectDirection"];
+          const catalog = JP_REGIONAL_POLICY_CATALOG[policyIndex];
+          if (typeof id !== "string" || id !== JP_REGIONAL_POLICY_IDS[policyIndex] || seen.has(id) ||
+            !Number.isSafeInteger(optionIndex) || (optionIndex as number) < 0 || (optionIndex as number) >= (catalog?.options.length ?? 0) ||
+            optionId !== `${id}_opt_${String(optionIndex)}` ||
+            typeof economic !== "number" || !Number.isFinite(economic) || economic < -5 || economic > 5 ||
+            typeof social !== "number" || !Number.isFinite(social) || social < -5 || social > 5 ||
+            (direction !== -1 && direction !== 0 && direction !== 1)) {
+            throw new Error(`Not a valid save file: invalid Japan regional policy ${regionId}`);
+          }
+          seen.add(id);
+        }
+        if (JP_REGIONAL_POLICY_IDS.some((id) => !seen.has(id))) {
+          throw new Error(`Not a valid save file: incomplete Japan regional policies ${regionId}`);
+        }
       }
     }
   }
