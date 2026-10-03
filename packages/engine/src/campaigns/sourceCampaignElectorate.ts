@@ -97,9 +97,10 @@ export function sourceCampaignUnits1953(
     ])),
   }));
   if (dims.some((dim) => Object.keys(dim.marginals).length === 0)) return null;
+  const priors = COUNTRY_PRIORS.US;
   const derived = deriveGranularCellsGeneric({
     dims,
-    priors: COUNTRY_PRIORS.US,
+    ...(priors ? { priors } : {}),
     opts: {
       pruneFloor: PRUNE_FLOOR,
       preserveBucketRepresentation: PRESERVE_BUCKET_REPRESENTATION,
