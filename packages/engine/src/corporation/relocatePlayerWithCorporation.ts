@@ -5,6 +5,7 @@ import { anchorToLocal, localToAnchor } from "../forex/conversion.js";
 import { applyCorporationCurrencyConversion, quoteCorporationCurrencyConversion, SOURCE_CORPORATE_RELOCATION_FX_SPREAD } from "./corporationCurrencyConversion.js";
 import { resolveSectorSpreadRoute } from "./playerSectorExpansion.js";
 import { leaveParty } from "../membership.js";
+import { archiveCampaign } from "../campaigns/lifecycle.js";
 
 export const SOURCE_CHARACTER_RELOCATION_COOLDOWN_TURNS = 72;
 export const SOURCE_CORPORATION_RELOCATION_COST_FRACTION = 0.07;
@@ -91,7 +92,19 @@ export function relocatePlayerWithCorporation(
   for (const election of world.elections) {
     if (election.status === "resolved") continue;
     const candidate = election.candidates.find((entry) => entry.id === "player");
-    if (candidate && candidate.status !== "withdrawn") candidate.status = "withdrawn";
+    if (candidate && candidate.status !== "withdrawn") {
+      candidate.status = "withdrawn";
+      delete election.tally[candidate.id];
+      // Match the public candidacy withdrawal path: a departed candidate is
+      // retained as a withdrawn historical row, but no longer contributes
+      // stale votes or an active campaign to the race.
+      if (election.stateTallyStates) {
+        for (const state of Object.values(election.stateTallyStates) as Array<{ totalVotes?: Record<string, number> }>) {
+          if (state?.totalVotes) delete state.totalVotes[candidate.id];
+        }
+      }
+      archiveCampaign(world, election.id, candidate.id);
+    }
   }
   if (crossCountry) {
     for (const campaign of Object.values(world.campaigns)) {
