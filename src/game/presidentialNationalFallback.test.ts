@@ -130,3 +130,72 @@ describe("recorded presidential unit tie", () => {
     expect(savedWorld(resumed).executives.US).toEqual(savedWorld(session).executives.US);
   });
 });
+
+describe("recorded presidential unit snapshots", () => {
+  it("recovers the last active-candidate votes through a saved ordinary turn without rewriting the recorded history", () => {
+    const world = createWorld({
+      seed: "source-national-ec-fallback",
+      playerName: "Recovered Player",
+      countryId: "US",
+      era: "1953",
+    });
+    world.player.partyId = "US_DEM";
+    world.meta.turn = 192;
+    world.meta.date = "1957-01-01";
+    const opponent = world.politicians.find((politician) =>
+      politician.countryId === "US" && politician.partyId === "US_REP",
+    )!;
+    expect(opponent.id).toBe("US-214");
+    const history = { WY: {
+      totalVotes: {},
+      turnSnapshots: [
+        { turn: 190, recordedAt: "1956-12-01T00:00:00.000Z", cumulativeVotes: { player: 1, "US-214": 100 } },
+        { turn: 191, recordedAt: "1956-12-08T00:00:00.000Z", cumulativeVotes: { player: 100, "US-214": 1, withdrawn: 1000 } },
+      ],
+    } };
+    const race: ElectionRecord = {
+      id: "president:US:-:snapshot-recovery-consumer",
+      electionType: "president",
+      countryId: "US",
+      cycle: 1,
+      status: "active",
+      startTurn: 1,
+      primaryEndTurn: 100,
+      endTurn: 191,
+      totalSeats: 1,
+      chamberKey: "president",
+      candidates: [
+        { id: "player", name: world.player.name, partyId: "US_DEM", isNPP: false, incumbent: false },
+        { id: opponent.id, name: opponent.name, partyId: "US_REP", isNPP: true, incumbent: false },
+        { id: "withdrawn", name: "Withdrawn candidate", partyId: "US_DEM", isNPP: true, incumbent: false, status: "withdrawn" },
+      ],
+      tally: { player: 100, [opponent.id]: 1, withdrawn: 1000 },
+      stateTallyStates: history,
+    };
+    // Recorded consumer input, not a historical writer or earned candidacy.
+    // Executed Game presidentResolution recovery/filter helpers at c0f39acd
+    // use only the last snapshot and exclude withdrawn1000; actual source
+    // allocation awards player Wyoming's3 electors.
+    world.elections.push(race);
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    expect(savedWorld(session).elections.find((record) => record.id === race.id)?.stateTallyStates).toEqual(history);
+
+    session.advance();
+
+    const resolved = savedWorld(session).elections.find((record) => record.id === race.id)!;
+    expect(resolved.electoralCollegeResult).toMatchObject({
+      stateWinners: { WY: "player" },
+      evByCandidate: { player: 3 },
+      totalEv: 3,
+      resolutionMode: "majority",
+    });
+    expect(resolved.winners).toEqual(["player"]);
+    expect(resolved.stateTallyStates).toEqual(history);
+    expect(savedWorld(session).executives.US?.presidentId).toBe("player");
+    const resumed = new GameSession();
+    resumed.load(session.serialize(SAVED_AT));
+    expect(savedWorld(resumed).elections.find((record) => record.id === race.id)).toEqual(resolved);
+    expect(savedWorld(resumed).executives.US).toEqual(savedWorld(session).executives.US);
+  });
+});
