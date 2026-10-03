@@ -81,4 +81,33 @@ describe("source Eastern Bloc background election systems", () => {
     const resumed = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
     expect(resumed.elections.filter((election) => SATELLITES.includes(election.countryId))).toEqual(rows);
   });
+
+  it("resolves an explicitly activated source-record fixture into a saved regional seat holder", () => {
+    const world = createWorld({ seed: "eastern-background-resolution-fixture", playerName: "Player", countryId: "US", era: "1953", autonomyLevel: "off" });
+    advanceTurn(world);
+    const race = world.elections.find((election) => election.countryId === "PL" && election.state === "PL_MAZ")!;
+    // Keep the expensive all-systems timeline separate. This fixture advances
+    // the source-produced record to each exact public lifecycle boundary; all
+    // candidate generation, tally accumulation, resolution and persistence
+    // still run through ordinary turns and the shared election engine.
+    world.meta.turn = race.startTurn - 1;
+    advanceTurn(world);
+    expect(race.status).toBe("active");
+    expect(race.candidates.length).toBeGreaterThan(0);
+    world.meta.turn = race.endTurn - 1;
+    advanceTurn(world);
+
+    expect(race.status).toBe("resolved");
+    expect(race.tally).not.toEqual({});
+    expect(race.winners?.length).toBeGreaterThan(0);
+    const holder = world.politicians.find((politician) => race.winners?.includes(politician.id));
+    expect(holder?.countryId).toBe("PL");
+    expect(holder?.electedState).toBe("PL_MAZ");
+    expect(holder?.seatsHeld).toBe(65);
+    expect(world.legislatures.PL!.chambers[0]!.composition.seatsByParty[holder!.partyId]).toBe(65);
+
+    const resumed = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
+    expect(resumed.elections.find((election) => election.id === race.id)).toEqual(race);
+    expect(resumed.politicians.find((politician) => politician.id === holder!.id)).toEqual(holder);
+  });
 });
