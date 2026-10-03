@@ -1,0 +1,52 @@
+{
+  "sourceRepository": "Egg3901/AHDGame",
+  "sourceCommit": "96831835fb6b28983aa14fe66cb6eae9ecfde84c",
+  "sourceFiles": {
+    "src/lib/politicalLegislation/catalog.ts": "623f660c351309fd87a22a8f656060a516894c9c6a4e07193b336a611f66879e",
+    "src/lib/politicalLegislation/dynamics.ts": "2900d56db25275644c6e933bad637ecc20d16b4bf4c012f6a89c2ea6e97db9ef",
+    "src/lib/politicalLegislation/macroResidual.ts": "af24f6ccd1341eb3877acd7a72d08dc52a9a5469d58798f99977751c2749e7b5",
+    "src/lib/politicalMetrics/engineNodes.ts": "ba90eb2f88b3976a8d4c712cd051c6080c51bf17e19e510fbf8c39329bbd135e",
+    "src/lib/politicalMetrics/engineTerm.ts": "5433ee086e8a70f7243d42a28fa5aaa361c5bf755073794bfd8759c1f894b834"
+  },
+  "nativeInputCommit": "0c763f397f4f26071426e2ce276e842c8e8e7702",
+  "boundary": "Independently executed source law/macro/node helpers on observed ordinary political-phase inputs; diagnostic worlds matched public GameSession saved-turn twins.",
+  "appointmentBoundary": "Recorded UK holder fixture; does not establish earned appointment or upstream macro/world parity.",
+  "cases": [
+    {
+      "familyId": "economy.workerSecurity",
+      "sourceNationalTarget": 30,
+      "sourceRegionalPoints": 0,
+      "structuralResidual": 23.6,
+      "lawTarget": 53.6,
+      "sourceMacroResidual": 12,
+      "sourceEngineTerm": 0,
+      "auxiliaryTerms": {
+        "cabinet": 0,
+        "labour": 0,
+        "livingConflict": 0
+      },
+      "completeTarget": 65.6,
+      "preValue": 53.6,
+      "sourceExpectedOneTurnValue": 53.84,
+      "exactMatch": true
+    },
+    {
+      "familyId": "economy.workerSecurity",
+      "sourceNationalTarget": 30,
+      "sourceRegionalPoints": 0,
+      "structuralResidual": 23.6,
+      "lawTarget": 53.6,
+      "sourceMacroResidual": 12,
+      "sourceEngineTerm": 0,
+      "auxiliaryTerms": {
+        "cabinet": 0.9422,
+        "labour": 0,
+        "livingConflict": 0
+      },
+      "completeTarget": 66.54220000000001,
+      "preValue": 53.84,
+      "sourceExpectedOneTurnValue": 54.094044000000004,
+      "exactMatch": true
+    }
+  ]
+}
