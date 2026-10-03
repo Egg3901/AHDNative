@@ -1577,16 +1577,20 @@ function executeActionInner(
     if (!billId || !vote) return { ok: false, error: "voteOnBill requires billId and vote" };
     const bill = world.bills.find((b) => b.id === billId);
     if (!bill) return { ok: false, error: `Unknown bill: ${billId}` };
-    const playerSeat = (world.player as unknown as { legislativeSeat: { chamberKey: string } | null }).legislativeSeat;
+    const playerSeat = world.player.legislativeSeat as { countryId: string; chamberKey: string } | null;
     if (!playerSeat) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Must hold a legislative seat to vote" };
     }
-    if (playerSeat.chamberKey !== bill.currentChamber) {
+    const overrideChamber = bill.status === "veto_override" && bill.countryId === "US"
+      && world.legislatures.US?.chambers.some((chamber) => chamber.key === playerSeat.chamberKey && chamber.elected) === true;
+    if (playerSeat.countryId !== bill.countryId || (playerSeat.chamberKey !== bill.currentChamber && !overrideChamber)) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
-      return { ok: false, error: `Player chamber ${playerSeat.chamberKey} does not match bill chamber ${bill.currentChamber}` };
+      return { ok: false, error: bill.status === "veto_override"
+        ? `Player chamber ${playerSeat.chamberKey} is not a voting chamber for this override`
+        : `Player chamber ${playerSeat.chamberKey} does not match bill chamber ${bill.currentChamber}` };
     }
     if (bill.status !== "active" && bill.status !== "active_other" && bill.status !== "veto_override") {
       actor.actions += cost;
@@ -1955,6 +1959,26 @@ function executeActionInner(
     bill.updatedAtTurn = world.meta.turn;
     if (world.partyWhips) world.partyWhips = world.partyWhips.filter((whip) => whip.billId !== bill.id);
     return { ok: true, message: `Vetoed ${bill.title}; the override vote is now open` };
+  }
+  if (actionId === "signBill") {
+    if (found.kind !== "player" || world.player.countryId !== "US" || world.executives.US?.presidentId !== actorId) {
+      return { ok: false, error: "Only the sitting US President may sign a national bill" };
+    }
+    const bill = world.bills.find((candidate) => candidate.id === params.billId);
+    if (!bill) return { ok: false, error: `Unknown bill: ${params.billId ?? ""}` };
+    if (bill.countryId !== "US" || bill.status !== "enrolled") {
+      return { ok: false, error: "Only an enrolled US bill may be signed" };
+    }
+
+    // The source presidential action claims enrolled→signed and applies the
+    // enacted law immediately. Native shares the same effect applier as the
+    // ordinary executive-window expiry path.
+    bill.status = "signed";
+    bill.presidentAction = "signed";
+    bill.enactedAtTurn = world.meta.turn;
+    bill.updatedAtTurn = world.meta.turn;
+    applyBillEffects(world, bill);
+    return { ok: true, message: `Signed ${bill.title} into law` };
   }
   if (actionId === "issuePartyWhip") {
     if (found.kind !== "player") return { ok: false, error: "Only player can issue a party whip" };
@@ -3011,7 +3035,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "voteOnBill":
       return params.billId && params.vote ? null : "voteOnBill requires billId and vote";
     case "vetoBill":
-      return params.billId ? null : "vetoBill requires billId";
+    case "signBill":
+      return params.billId ? null : `${actionId} requires billId`;
     case "votePmAppointment":
       return params.pmAppointmentVoteId && (params.pmVote === "aye" || params.pmVote === "nay")
         ? null

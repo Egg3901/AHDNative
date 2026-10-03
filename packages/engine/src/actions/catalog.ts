@@ -70,6 +70,7 @@ export type ActionId =
   | "governorEndorsePresidentialCandidate"
   | "withdrawGovernorEndorsement"
   | "sponsorBill"
+  | "signBill"
   | "vetoBill"
   | "voteOnBill"
   | "proposePmAppointment"
@@ -554,6 +555,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["legislation/executive-veto"],
+    status: "available",
+  },
+  signBill: {
+    id: "signBill",
+    name: "Sign Bill",
+    description: "As the sitting US President, sign an enrolled bill into law. This executive decision costs no action points or funds.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["legislation/executive-signature"],
     status: "available",
   },
   voteOnBill: {

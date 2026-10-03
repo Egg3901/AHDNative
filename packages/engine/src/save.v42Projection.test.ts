@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
+import type { Bill } from "./legislation/types.js";
 import {
   SCHEMA_VERSION,
   advanceTurn,
@@ -71,6 +72,26 @@ function parseProjected(contents: string): {
     hasHomeRegionId: Object.prototype.hasOwnProperty.call(parsed.world.player, "homeRegionId"),
   };
 }
+
+it("refuses a source-shaped per-chamber override result that schema 42 cannot continue", () => {
+  const world = loadHistoricalFresh();
+  const bill: Bill = {
+    id: "override-v42", title: "Override history", summary: "Declared persistence boundary fixture.",
+    countryId: "US", category: "economy", provisions: [], originChamber: "house", currentChamber: "house",
+    status: "override_failed", sponsorId: null, sponsorName: "Fixture", sponsorPartyId: null,
+    votes: {}, votesFor: 0, votesAgainst: 0, votesAbstain: 0, proposedAtTurn: 0,
+    filibusterInvocations: [], updatedAtTurn: 0,
+    overrideDisplaySnapshot: {
+      house: { for: 200, against: 100, seats: 435 },
+      senate: { for: 60, against: 20, seats: 100 },
+    },
+  };
+  world.bills.push(bill);
+  expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+    ok: false,
+    error: expect.stringContaining("Per-chamber veto override history"),
+  });
+});
 
 it("refuses SOE production independently of the regional metric guard", () => {
   // Start from the historical, otherwise-projectable envelope so newer

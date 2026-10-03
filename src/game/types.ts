@@ -203,6 +203,7 @@ export interface LegislatureView {
   sponsor: ActionView;
   bills: { id: string; title: string; status: string; chamber: string; chamberKey?: string; sponsorName: string;
     votesFor: number; votesAgainst: number; votesAbstain: number; hardWhip?: ActionView;
+    overrideByChamber?: Array<{ chamberKey: string; for: number; against: number; seats: number; passed: boolean }>;
     playerVote: "for" | "against" | "abstain" | null; voting: ActionView; }[];
   /** Configured chambers for this country (index.ts projection). */
   chambers?: LegislatureChamberView[];

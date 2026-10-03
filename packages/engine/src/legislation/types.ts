@@ -56,7 +56,7 @@ export interface Bill {
   proposalNpiCost?: number;
   proposalCostsRefunded?: boolean;
   /** Source presidential bill decision metadata for the veto-to-override transition. */
-  presidentAction?: "signed" | "vetoed";
+  presidentAction?: "signed" | "vetoed" | "override";
   vetoMessage?: string;
   vetoedByCharacterId?: string;
   vetoedAtTurn?: number;
@@ -89,7 +89,11 @@ export interface Bill {
   // Snapshots (frozen tally for display)
   voteSnapshot?: BillVoteRecord | null;
   otherChamberVoteSnapshot?: BillVoteRecord | null;
-  overrideDisplaySnapshot?: { for: number; against: number; seats: number } | null;
+  /** Historical pre-73 Native aggregate snapshot; retained unchanged on old bills. */
+  overrideDisplaySnapshot?: { for: number; against: number; seats: number } | {
+    house: { for: number; against: number; seats: number };
+    senate: { for: number; against: number; seats: number };
+  } | null;
   enactedAtTurn?: number;
   failedAtTurn?: number;
   updatedAtTurn: number;

@@ -29,6 +29,7 @@ import {
   proposalNpiCost,
   BILL_PROPOSE_ACTION_COST,
   resolveCurrentBillVote,
+  resolveVetoOverrideTally,
   partyWhipEligibilityError,
   type WorldState,
 } from "@ahdclient/engine";
@@ -59,7 +60,9 @@ export interface LegislationBillMeta {
   voteDisabledReason?: string;
   voteCost: number;
   hardWhip?: { available: boolean; disabledReason?: string };
-  /** Only the modeled sitting US President can use the source veto route. */
+  overrideByChamber?: Array<{ chamberKey: string; chamberName: string; for: number; against: number; seats: number; passed: boolean }>;
+  /** Only the modeled sitting US President can use source national sign/veto actions. */
+  signAvailable?: boolean;
   vetoAvailable?: boolean;
 }
 
@@ -370,9 +373,11 @@ export function buildLegislationDetails(
     const catalog = ACTION_CATALOG.voteOnBill;
     const cost = getActionCost(catalog, player.donorBaseLevel, player.politicalInfluence, player.favorability);
     const remaining = (player.actionCooldowns.voteOnBill ?? 0) - world.meta.turn;
+    const overrideChamber = status === "veto_override" && billCountryId === "US" && seat?.countryId === billCountryId
+      && world.legislatures.US?.chambers.some((chamber) => chamber.key === seat.chamberKey && chamber.elected) === true;
     const reason = !seat
       ? "Win a legislative seat before voting."
-      : seat.countryId !== billCountryId || seat.chamberKey !== billChamber
+      : seat.countryId !== billCountryId || (seat.chamberKey !== billChamber && !overrideChamber)
         ? "This bill is in another chamber."
         : !VOTING_OPEN_STATUSES.has(status)
           ? "Voting is not open on this bill."
@@ -395,7 +400,12 @@ export function buildLegislationDetails(
       against: (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
       abstain: (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
     };
-    const liveTally = resolveCurrentBillVote(world, bill.countryId, bill.currentChamber, votes, stored).totals;
+    const overrideTally = override && votingOpen
+      ? resolveVetoOverrideTally(world, bill.countryId, bill.vetoOverrideVotes)
+      : null;
+    const liveTally = overrideTally
+      ? { for: overrideTally.for, against: overrideTally.against, abstain: 0 }
+      : resolveCurrentBillVote(world, bill.countryId, bill.currentChamber, votes, stored).totals;
     const gate = voteGate(bill.countryId, bill.currentChamber, bill.status);
     return {
       id: bill.id,
@@ -418,6 +428,16 @@ export function buildLegislationDetails(
       votingAvailable: gate.available,
       ...(gate.disabledReason ? { voteDisabledReason: gate.disabledReason } : {}),
       voteCost: gate.cost,
+      ...(overrideTally ? {
+        overrideByChamber: Object.entries(overrideTally.byChamber).map(([chamberKey, tally]) => ({
+          chamberKey, chamberName: chamberName(chamberKey), ...tally,
+        })),
+      } : bill.overrideDisplaySnapshot && "house" in bill.overrideDisplaySnapshot ? {
+        overrideByChamber: Object.entries(bill.overrideDisplaySnapshot).map(([chamberKey, tally]) => ({
+          chamberKey, chamberName: chamberName(chamberKey), ...tally,
+          passed: tally.seats > 0 && tally.for >= Math.ceil((2 / 3) * tally.seats),
+        })),
+      } : {}),
       ...(bill.status === "active" || bill.status === "active_other" || bill.status === "veto_override"
         ? (() => {
             const disabledReason = partyWhipEligibilityError(world, bill, observedAt) ?? undefined;
@@ -425,7 +445,7 @@ export function buildLegislationDetails(
           })()
         : {}),
       ...(bill.countryId === "US" && bill.status === "enrolled" && world.executives.US?.presidentId === "player"
-        ? { vetoAvailable: true }
+        ? { signAvailable: true, vetoAvailable: true }
         : {}),
     };
   };

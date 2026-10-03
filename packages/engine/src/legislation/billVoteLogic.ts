@@ -27,6 +27,54 @@ export function resolveCurrentBillVote(
   return { totals: tallyVotes(scoped, weights), votes: scoped };
 }
 
+/**
+ * Game resolves a US presidential veto override against 2/3 of the occupied
+ * seats in every elected chamber. One persisted voter map spans both chambers;
+ * the holder's actual chamber selects the threshold and contributes weight.
+ */
+export function resolveVetoOverrideTally(
+  world: WorldState,
+  countryId: string,
+  votes: Record<string, "for" | "against"> | undefined,
+): { for: number; against: number; seats: number; passed: boolean; byChamber: Record<string, { for: number; against: number; seats: number; passed: boolean }> } {
+  const configured = world.legislatures[countryId]?.chambers ?? [];
+  const chambers = countryId === "US"
+    ? (["house", "senate"] as const).flatMap((key) => {
+        const chamber = configured.find((candidate) => candidate.key === key && candidate.elected);
+        return chamber ? [chamber] : [];
+      })
+    : [];
+  const currentHoldersWorld = {
+    ...world,
+    politicians: world.politicians.filter((politician) => politician.retiredAt == null),
+  };
+  let forVotes = 0;
+  let againstVotes = 0;
+  let totalSeats = 0;
+  let passed = chambers.length === 2;
+  const byChamber: Record<string, { for: number; against: number; seats: number; passed: boolean }> = {};
+
+  for (const chamber of chambers) {
+    const weights = chamberSeatWeights(currentHoldersWorld, countryId, chamber.key);
+    const seats = [...weights.values()].reduce((sum, value) => sum + value, 0);
+    const tally = resolveCurrentBillVote(
+      currentHoldersWorld,
+      countryId,
+      chamber.key,
+      votes,
+      { for: 0, against: 0, abstain: 0 },
+    ).totals;
+    const chamberPassed = seats > 0 && tally.for >= Math.ceil((2 / 3) * seats);
+    byChamber[chamber.key] = { for: tally.for, against: tally.against, seats, passed: chamberPassed };
+    totalSeats += seats;
+    forVotes += tally.for;
+    againstVotes += tally.against;
+    if (!chamberPassed) passed = false;
+  }
+
+  return { for: forVotes, against: againstVotes, seats: totalSeats, passed, byChamber };
+}
+
 // Re-export helpers from mainline billLifecycleHelpers
 export function didPass(votesFor: number, votesAgainst: number): boolean {
   return votesFor > votesAgainst;

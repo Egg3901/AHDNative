@@ -47,6 +47,70 @@ function addEnrolledBill(session: GameSession) {
 }
 
 describe("US presidential veto action boundary", () => {
+  it("reaches an NPP-sponsored US bill through ordinary turns, vetoes it, and resolves the override after reload", () => {
+    const session = new GameSession(() => new Date(SAVED_AT));
+    session.create({ era: "1953", countryId: "US", seed: "presidential-veto-ordinary-turn", playerName: "President", mode: "hos", homeRegionId: "NY" });
+    expect(session.view().player).toMatchObject({ mode: "hos", currentOffice: "president" });
+
+    let enrolled: Record<string, unknown> | undefined;
+    for (let turn = 0; turn < 24 && !enrolled; turn += 1) {
+      const saved = JSON.parse(session.serialize(SAVED_AT)) as { world: { bills: Array<Record<string, unknown>> } };
+      enrolled = saved.world.bills.find((bill) => bill["countryId"] === "US" && bill["nppSponsored"] === true && bill["status"] === "enrolled");
+      if (!enrolled) session.advance();
+    }
+    if (!enrolled) {
+      const saved = JSON.parse(session.serialize(SAVED_AT)) as { world: { bills: Array<Record<string, unknown>> } };
+      enrolled = saved.world.bills.find((bill) => bill["countryId"] === "US" && bill["nppSponsored"] === true && bill["status"] === "enrolled");
+    }
+    expect(enrolled, "ordinary US NPP legislation should pass a chamber and reach the President").toBeDefined();
+    const billId = String(enrolled!["id"]);
+    const billBeforeVeto = JSON.parse(session.serialize(SAVED_AT)).world.bills.find((bill: Record<string, unknown>) => bill["id"] === billId);
+    expect(billBeforeVeto).toMatchObject({ status: "enrolled", nppSponsored: true });
+    expect(billBeforeVeto.votesFor).toBeGreaterThan(0);
+
+    expect(session.act("vetoBill", { billId, vetoMessage: "Returned for reconsideration." })).toMatchObject({ ok: true });
+    const vetoedSave = session.serialize(SAVED_AT);
+    const vetoedWorld = JSON.parse(vetoedSave).world;
+    const vetoed = vetoedWorld.bills.find((bill: Record<string, unknown>) => bill["id"] === billId);
+    expect(vetoed).toMatchObject({
+      status: "veto_override",
+      presidentAction: "vetoed",
+      vetoMessage: "Returned for reconsideration.",
+      overrideVotingStartedAtTurn: vetoedWorld.meta.turn,
+      overrideVotingEndsOnTurn: vetoedWorld.meta.turn + 2,
+    });
+
+    const resumed = new GameSession(() => new Date(SAVED_AT));
+    resumed.load(vetoedSave);
+    resumed.advance();
+    expect(JSON.parse(resumed.serialize(SAVED_AT)).world.bills.find((bill: Record<string, unknown>) => bill["id"] === billId))
+      .toMatchObject({ status: "veto_override" });
+    resumed.advance();
+    const resolved = JSON.parse(resumed.serialize(SAVED_AT)).world.bills.find((bill: Record<string, unknown>) => bill["id"] === billId);
+    expect(["signed", "override_failed"]).toContain(resolved.status);
+    expect(resolved.vetoedByCharacterId).toBe("player");
+    if (resolved.status === "signed") expect(resolved.presidentAction).toBe("override");
+  });
+
+  it("signs an enrolled bill through GameSession and persists the applied enactment", () => {
+    const creator = new GameSession(() => new Date(SAVED_AT));
+    creator.create({ era: "1953", countryId: "US", seed: "presidential-sign-boundary", playerName: "President", mode: "hos", homeRegionId: "NY" });
+    const session = addEnrolledBill(creator);
+
+    expect(session.act("signBill", { billId: "presidential-veto-contract" })).toMatchObject({ ok: true });
+    const signed = JSON.parse(session.serialize(SAVED_AT)) as { world: { bills: Array<Record<string, unknown>>; enactedLaws: Array<Record<string, unknown>> } };
+    expect(signed.world.bills.find((bill) => bill["id"] === "presidential-veto-contract")).toMatchObject({
+      status: "signed",
+      presidentAction: "signed",
+    });
+    expect(signed.world.enactedLaws).toContainEqual(expect.objectContaining({ billId: "presidential-veto-contract" }));
+
+    const resumed = new GameSession(() => new Date(SAVED_AT));
+    resumed.load(session.serialize(SAVED_AT));
+    expect(JSON.parse(resumed.serialize(SAVED_AT)).world.bills.find((bill: Record<string, unknown>) => bill["id"] === "presidential-veto-contract"))
+      .toMatchObject({ status: "signed", presidentAction: "signed" });
+  });
+
   it("vetoes an enrolled bill through GameSession and preserves a clean override window across reload", () => {
     const creator = new GameSession(() => new Date(SAVED_AT));
     creator.create({ era: "1953", countryId: "US", seed: "veto-action-boundary", playerName: "President", mode: "hos", homeRegionId: "NY" });
@@ -80,11 +144,15 @@ describe("US presidential veto action boundary", () => {
     expect(resumed.view().turn).toBe(after.world.meta.turn + 1);
   });
 
-  it("refuses a veto when the player is not the recorded US President without changing the save", () => {
+  it("refuses sign and veto when the player is not the recorded US President without changing the save", () => {
     const creator = new GameSession(() => new Date(SAVED_AT));
     creator.create({ era: "1953", countryId: "US", seed: "veto-not-president", playerName: "Candidate", mode: "career", homeRegionId: "NY" });
     const session = addEnrolledBill(creator);
     const before = session.serialize(SAVED_AT);
+    expect(session.act("signBill", { billId: "presidential-veto-contract" })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/sitting US President/i),
+    });
     expect(session.act("vetoBill", { billId: "presidential-veto-contract" })).toMatchObject({
       ok: false,
       error: expect.stringMatching(/sitting US President/i),

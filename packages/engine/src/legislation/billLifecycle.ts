@@ -16,7 +16,7 @@ import type { WorldState } from "../types.js";
 import { applyLegislativeWholeTaking } from "../corporation/nationalization.js";
 import type { WorldRng } from "../rng.js";
 import type { Bill } from "./types.js";
-import { didPass, didPassWithFilibusterCheck, resolveCurrentBillVote } from "./billVoteLogic.js";
+import { didPass, didPassWithFilibusterCheck, resolveCurrentBillVote, resolveVetoOverrideTally } from "./billVoteLogic.js";
 import { assignBillToCommittee } from "./committees.js";
 import { getLaw, resolveCatalogPolicyOption, type CatalogEntry } from "./catalog.js";
 import { UNEMPLOYMENT_MIN, UNEMPLOYMENT_MAX } from "../economy/macroConstants.js";
@@ -165,30 +165,28 @@ export function processBillLifecycle(world: WorldState, _rng: WorldRng): { bills
     billsPassed++;
   }
 
-  // Veto override not yet modeled via player executive action;
-  // bills in "veto_override" with deadline close
+  // Resolve the separate post-veto chamber ballot at its ordinary deadline.
+  // The sitting-President action opens this status and blanks prior-phase votes.
   const overrideExpiring = world.bills.filter((b) => b.status === "veto_override" && (b.overrideVotingEndsOnTurn ?? Infinity) <= turn);
   for (const bill of overrideExpiring) {
-    const tally = buildVoteSnapshot(world, bill, "vetoOverrideVotes");
+    const tally = resolveVetoOverrideTally(world, bill.countryId, bill.vetoOverrideVotes);
     bill.vetoOverrideVotesFor = tally.for;
     bill.vetoOverrideVotesAgainst = tally.against;
-    // 2/3 of seats? For solo quorum, use 2/3 of votes cast per mainline override threshold simplification.
-    // Mainline uses seats; solo uses votes cast for simplicity but tests check threshold.
-    const leg = world.legislatures[bill.countryId];
-    const chamberSeats = leg?.chambers.find((c) => c.key === bill.currentChamber)?.seats ?? 100;
-    const needed = Math.ceil((2 / 3) * chamberSeats);
-    // For solo, we check if for >= 2/3 seats; if leg missing, use votes cast 2/3
-    let overridePassed: boolean;
-    if (leg) {
-      // Count for votes; need to meet seat threshold
-      overridePassed = tally.for >= needed;
-      bill.overrideDisplaySnapshot = { for: tally.for, against: tally.against, seats: chamberSeats };
-    } else {
-      const cast = tally.for + tally.against;
-      overridePassed = cast > 0 && tally.for * 3 >= 2 * cast;
-    }
-    if (overridePassed) {
+    bill.overrideDisplaySnapshot = {
+      house: {
+        for: tally.byChamber.house?.for ?? 0,
+        against: tally.byChamber.house?.against ?? 0,
+        seats: tally.byChamber.house?.seats ?? 0,
+      },
+      senate: {
+        for: tally.byChamber.senate?.for ?? 0,
+        against: tally.byChamber.senate?.against ?? 0,
+        seats: tally.byChamber.senate?.seats ?? 0,
+      },
+    };
+    if (tally.passed) {
       bill.status = "signed";
+      bill.presidentAction = "override";
       bill.enactedAtTurn = turn;
       bill.updatedAtTurn = turn;
       applyBillEffects(world, bill);

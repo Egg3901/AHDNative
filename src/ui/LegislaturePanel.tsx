@@ -79,7 +79,8 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
   // first chamber so the chamber view always shows the house itself.
   const diagramChamber = selectedChamber ?? (legislature.chambers ?? [])[0] ?? null;
   const visibleBills = selectedChamber
-    ? legislature.bills.filter((bill) => (bill.chamberKey ?? bill.chamber) === selectedChamber.key || bill.chamber === selectedChamber.name)
+    ? legislature.bills.filter((bill) => (bill.chamberKey ?? bill.chamber) === selectedChamber.key || bill.chamber === selectedChamber.name ||
+        (bill.overrideByChamber?.some((chamber) => chamber.chamberKey === selectedChamber.key)))
     : legislature.bills;
 
   const billPageCount = Math.max(1, Math.ceil(visibleBills.length / BILLS_PAGE_SIZE));
@@ -440,6 +441,11 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
                 <div style={{ fontSize: "0.78rem", marginTop: "0.3rem" }}>
                   {bill.votesFor} for · {bill.votesAgainst} against · {bill.votesAbstain} abstain
                 </div>
+                {bill.overrideByChamber?.filter((row) => !selectedChamber || row.chamberKey === selectedChamber.key).map((row) => (
+                  <div key={row.chamberKey} className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                    {row.chamberKey === "house" ? "House" : "Senate"} override: {row.for} for / {Math.ceil((2 / 3) * row.seats)} required of {row.seats} seats · {row.against} against
+                  </div>
+                ))}
                 <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.15rem" }}>
                   {bill.playerVote ? `Your vote: ${bill.playerVote}` : votingOpen ? "Not yet voted" : "No recorded vote"}
                 </div>

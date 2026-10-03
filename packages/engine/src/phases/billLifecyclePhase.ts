@@ -28,25 +28,31 @@ function autoVote(world: WorldState, rng: WorldRng): void {
   for (const bill of world.bills) {
     if (bill.status !== "active" && bill.status !== "active_other" && bill.status !== "veto_override") continue;
     if (!isFederalBillVoteWindowOpen(world, bill)) continue;
-    const chamberKey = bill.currentChamber;
     const targetVotesField = bill.status === "active_other" ? "otherChamberVotes" : bill.status === "veto_override" ? "vetoOverrideVotes" : "votes";
     const voteMap = (bill as unknown as Record<string, Record<string, string>>)[targetVotesField] ?? {};
     // Ensure map exists
     if (!(targetVotesField in bill)) (bill as unknown as Record<string, unknown>)[targetVotesField] = voteMap;
 
-    for (const pol of world.politicians) {
-      if (pol.countryId !== bill.countryId) continue;
-      if (pol.chamberKey !== chamberKey) continue;
-      if (!isEligibleNppBillVoter(world, bill, pol)) continue;
-      const key = pol.id;
-      if (key in voteMap) continue;
-      // Skip if already voted in this phase (player vote may have used same id prefix)
-      // Federal bills use the same source cross-pressure resolver in the
-      // lifecycle catch-up pass as in nppBehavior. This path catches bills
-      // which became active after that phase ran; retaining ideologyVote here
-      // would silently restore chance-based voting for their first ballot.
-      const finalVote = resolveNppBillVote(world, bill, pol);
-      voteMap[key] = finalVote;
+    const legislature = world.legislatures[bill.countryId];
+    const votingChambers = bill.status === "veto_override"
+      ? legislature?.chambers.filter((chamber) => chamber.elected).map((chamber) => chamber.key) ?? []
+      : [bill.currentChamber];
+    for (const chamberKey of votingChambers) {
+      const phaseBill = bill.status === "veto_override" ? { ...bill, currentChamber: chamberKey } : bill;
+      for (const pol of world.politicians) {
+        if (pol.countryId !== bill.countryId) continue;
+        if (pol.chamberKey !== chamberKey) continue;
+        if (!isEligibleNppBillVoter(world, bill, pol)) continue;
+        const key = pol.id;
+        if (key in voteMap) continue;
+        // Skip if already voted in this phase (player vote may have used same id prefix)
+        // Federal bills use the same source cross-pressure resolver in the
+        // lifecycle catch-up pass as in nppBehavior. During a US veto override,
+        // the same ballot map spans both chambers and each voter resolves the
+        // whip for their actual chamber.
+        const finalVote = resolveNppBillVote(world, phaseBill, pol);
+        voteMap[key] = finalVote;
+      }
     }
     // Write back
     (bill as unknown as Record<string, unknown>)[targetVotesField] = voteMap;

@@ -677,6 +677,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (hasOwn(world, "stateOwnershipLedger")) {
     return { ok: false, error: "State ownership history cannot be continued by schema 42. Keep this Native save." };
   }
+  const billsWithChamberOverrideSnapshot = world["bills"];
+  if (Array.isArray(billsWithChamberOverrideSnapshot) && billsWithChamberOverrideSnapshot.some((bill) =>
+    isRecord(bill) && isRecord(bill["overrideDisplaySnapshot"]) &&
+    (hasOwn(bill["overrideDisplaySnapshot"], "house") || hasOwn(bill["overrideDisplaySnapshot"], "senate")))) {
+    return { ok: false, error: "Per-chamber veto override history cannot be continued by schema 42. Keep this Native save." };
+  }
   const statehood = world["statehood"];
   if (statehood !== undefined && (!isRecord(statehood) ||
       Object.keys(statehood).some((key) => key !== "startingPreset"))) {
@@ -1380,7 +1386,7 @@ function assertCurrentWorldState(world: WorldState): void {
     if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
     }
-    if (rawBill["presidentAction"] !== undefined && rawBill["presidentAction"] !== "signed" && rawBill["presidentAction"] !== "vetoed") {
+    if (rawBill["presidentAction"] !== undefined && rawBill["presidentAction"] !== "signed" && rawBill["presidentAction"] !== "vetoed" && rawBill["presidentAction"] !== "override") {
       throw new Error("Not a valid save file: invalid bill presidentAction");
     }
     if (rawBill["vetoMessage"] !== undefined && typeof rawBill["vetoMessage"] !== "string") {
@@ -1395,6 +1401,23 @@ function assertCurrentWorldState(world: WorldState): void {
     const overrideStarted = rawBill["overrideVotingStartedAtTurn"];
     if (overrideStarted !== undefined && (!Number.isSafeInteger(overrideStarted) || (overrideStarted as number) < 0 || (overrideStarted as number) > (meta["turn"] as number))) {
       throw new Error("Not a valid save file: invalid bill overrideVotingStartedAtTurn");
+    }
+    const overrideSnapshot = rawBill["overrideDisplaySnapshot"];
+    if (overrideSnapshot !== undefined && overrideSnapshot !== null) {
+      const validCount = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+      const validChamber = (value: unknown): value is Record<string, unknown> =>
+        isRecord(value) && Object.keys(value).length === 3 &&
+        Object.keys(value).every((key) => key === "for" || key === "against" || key === "seats") &&
+        validCount(value["for"]) && validCount(value["against"]) && validCount(value["seats"]) &&
+        (value["for"] as number) + (value["against"] as number) <= (value["seats"] as number);
+      const legacy = isRecord(overrideSnapshot) && validCount(overrideSnapshot["for"]) &&
+        validCount(overrideSnapshot["against"]) && validCount(overrideSnapshot["seats"]) &&
+        Object.keys(overrideSnapshot).length === 3 &&
+        Object.keys(overrideSnapshot).every((key) => key === "for" || key === "against" || key === "seats") &&
+        (overrideSnapshot["for"] as number) + (overrideSnapshot["against"] as number) <= (overrideSnapshot["seats"] as number);
+      const sourceShaped = isRecord(overrideSnapshot) && validChamber(overrideSnapshot["house"]) && validChamber(overrideSnapshot["senate"]) &&
+        Object.keys(overrideSnapshot).every((key) => key === "house" || key === "senate");
+      if (!legacy && !sourceShaped) throw new Error("Not a valid save file: invalid bill override display snapshot");
     }
     const provisions = rawBill["provisions"];
     if (!Array.isArray(provisions)) throw new Error("Not a valid save file: invalid bill provisions");
@@ -4279,6 +4302,11 @@ export function deserializeSave(raw: string): WorldState {
   // anchors remain absent; no history is inferred. Schema 70 is owned by the
   // independent JP budget continuation family.
   if (save.schemaVersion < 71) save.world.meta.schemaVersion = 71;
+  // v73: new veto-override conclusions write the source's separate House and
+  // Senate display snapshots. Old aggregate snapshots and absent history stay
+  // unchanged; no historical chamber rows are inferred. Finance-owned v72 is
+  // integrated as a separate actual writer before release.
+  if (save.schemaVersion < 73) save.world.meta.schemaVersion = 73;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

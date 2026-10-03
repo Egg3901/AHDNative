@@ -30,7 +30,7 @@ import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, setJPRegionalBudgetAllocation,
   nationalizationTargets, nationalizationUnavailableReason,
-  resolveCurrentBillVote,
+  resolveCurrentBillVote, resolveVetoOverrideTally,
   isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, campaignAdTargetChoices, currentAdBonus,
   partyWhipEligibilityError,
   quoteTargetedAds,
@@ -1511,26 +1511,39 @@ function projectLegislature(world: WorldState, observedAt: string): LegislatureV
         const other = !override && bill.currentChamber !== bill.originChamber;
         const votingOpen = ["active", "active_other", "veto_override"].includes(bill.status);
         const votes = other ? bill.otherChamberVotes : override ? bill.vetoOverrideVotes : bill.votes;
-        const liveTally = resolveCurrentBillVote(
-          world,
-          bill.countryId,
-          bill.currentChamber,
-          votes,
-          {
-            for: (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
-            against: (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
-            abstain: (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
-          },
-        ).totals;
+        const overrideTally = bill.status === "veto_override"
+          ? resolveVetoOverrideTally(world, bill.countryId, bill.vetoOverrideVotes)
+          : null;
+        const liveTally = overrideTally
+          ? { for: overrideTally.for, against: overrideTally.against, abstain: 0 }
+          : resolveCurrentBillVote(
+              world,
+              bill.countryId,
+              bill.currentChamber,
+              votes,
+              {
+                for: (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
+                against: (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
+                abstain: (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
+              },
+            ).totals;
+        const overrideSeat = bill.status === "veto_override" && bill.countryId === "US" && seat?.countryId === bill.countryId
+          && world.legislatures.US?.chambers.some((chamber) => chamber.key === seat.chamberKey && chamber.elected) === true;
         const reason = !seat ? "Win a legislative seat before voting."
-          : seat.countryId !== bill.countryId || seat.chamberKey !== bill.currentChamber ? "This bill is in another chamber."
+          : seat.countryId !== bill.countryId || (seat.chamberKey !== bill.currentChamber && !overrideSeat) ? "This bill is in another chamber."
           : !votingOpen ? "Voting is not open on this bill." : undefined;
         const whipReason = partyWhipEligibilityError(world, bill, observedAt) ?? undefined;
         return { id: bill.id, title: bill.title, status: bill.status, chamber: chamberName(bill.countryId, bill.currentChamber), chamberKey: bill.currentChamber, sponsorName: bill.sponsorName,
           votesFor: votingOpen ? liveTally.for : (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
           votesAgainst: votingOpen ? liveTally.against : (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
           votesAbstain: votingOpen ? liveTally.abstain : (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
-          playerVote: votes?.player ?? null, voting: action("voteOnBill", reason), hardWhip: action("issuePartyWhip", whipReason) };
+          playerVote: votes?.player ?? null, voting: action("voteOnBill", reason), hardWhip: action("issuePartyWhip", whipReason),
+          ...(overrideTally ? { overrideByChamber: Object.entries(overrideTally.byChamber).map(([chamberKey, tally]) => ({ chamberKey, ...tally })) } : {}),
+          ...(bill.status !== "veto_override" && bill.overrideDisplaySnapshot && "house" in bill.overrideDisplaySnapshot
+            ? { overrideByChamber: Object.entries(bill.overrideDisplaySnapshot).map(([chamberKey, tally]) => ({
+                chamberKey, ...tally, passed: tally.seats > 0 && tally.for >= Math.ceil((2 / 3) * tally.seats),
+              })) }
+            : {}) };
       }),
   };
 }

@@ -161,6 +161,14 @@ function BillCard({
           <div><dt style={{ display: "inline", fontWeight: 700 }}>Chamber: </dt><dd style={{ display: "inline", margin: 0 }}>{bill.chamberName}</dd></div>
           <div><dt style={{ display: "inline", fontWeight: 700 }}>Sponsor: </dt><dd style={{ display: "inline", margin: 0 }}>{bill.sponsorName}</dd></div>
           <div><dt style={{ display: "inline", fontWeight: 700 }}>Your vote: </dt><dd style={{ display: "inline", margin: 0 }}>{bill.playerVote ?? (bill.votingOpen ? "Not yet voted" : "No recorded vote")}</dd></div>
+          {bill.overrideByChamber?.map((chamber) => (
+            <div key={chamber.chamberKey}>
+              <dt style={{ display: "inline", fontWeight: 700 }}>{chamber.chamberName} override: </dt>
+              <dd style={{ display: "inline", margin: 0 }}>
+                {chamber.for} for / {Math.ceil((2 / 3) * chamber.seats)} required of {chamber.seats} seats · {chamber.against} against
+              </dd>
+            </div>
+          ))}
           {!bill.votingAvailable && bill.voteDisabledReason ? (
             <div className="ahd-muted"><dt style={{ display: "inline", fontWeight: 700 }}>Voting: </dt><dd style={{ display: "inline", margin: 0 }}>{bill.voteDisabledReason}</dd></div>
           ) : null}
@@ -203,17 +211,22 @@ function BillCard({
           ) : null}
         </div>
       ) : null}
-      {bill.vetoAvailable ? (
+      {bill.signAvailable || bill.vetoAvailable ? (
         <div style={{ marginTop: "0.5rem" }}>
-          <button
-            type="button"
-            className="ahd-btn ahd-btn-sm"
-            disabled={busy}
-            onClick={() => onAction("vetoBill", { billId: bill.id })}
-            aria-label={`Veto ${bill.title}`}
-          >
-            Veto bill
-          </button>
+          {bill.signAvailable ? (
+            <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy}
+              onClick={() => onAction("signBill", { billId: bill.id })}
+              aria-label={`Sign ${bill.title}`}>
+              Sign bill
+            </button>
+          ) : null}
+          {bill.vetoAvailable ? (
+            <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy}
+              onClick={() => onAction("vetoBill", { billId: bill.id })}
+              aria-label={`Veto ${bill.title}`}>
+              Veto bill
+            </button>
+          ) : null}
         </div>
       ) : null}
     </article>
