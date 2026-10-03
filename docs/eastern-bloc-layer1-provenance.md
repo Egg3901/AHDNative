@@ -8,11 +8,11 @@ The source oracle is AHDGame commit `b769e1141f0c0b8aa55f48fe45c8f2e1025a0ea6`. 
 
 For each of PL, CS, HU, RO, BG, YU, UKR, BLR, and BAL, the source `src/lib/seeds/international/{pl,cs,hu,ro,bg,yu,ua,blr,bal}.ts` chooses the 1953/1979 census bundle and calls the shared `makeEasternBlocModel`. `getCountryLayer1Model` plus `buildModelRegionDemographics` in `src/lib/seeds/international/index.ts` and `derive.ts` produce the rows. The shared category composition/lean definitions are in `src/lib/seeds/shared/easternBlocModel.ts`; country census inputs live in `src/lib/seeds/{pl,cs,hu,ro,bg,yu,ua,blr,bal}/*RegionCensusData*.ts`. The regular world seed consumer is `src/lib/admin/seed/seedEasternBloc.ts::seedEasternBlocCountry`, which calls the model builder for each region. The separate `seedEasternBlocStatePartyOrg.ts` producer sets `partyId` from the country profile's `seqId` and registration equal to organization.
 
-The archived source snapshot is `/tmp/ahdgame-source-b769`. The export harness `/tmp/export_eastern_layer1.cjs` loads the AHDGame seed modules through TypeScript transpilation and strips only nondeterministic `lastUpdated` fields. Its pinned-snapshot variant was produced and checked with:
+The portable export harness is `scripts/export-eastern-layer1.cjs`. It executes the immutable source seed modules with Native's installed TypeScript transpiler and retains only the deterministic region fields. Export the pinned Git tree into an empty directory, then run:
 
 ```sh
-sed 's#/root/projects/AHDGame/src#/tmp/ahdgame-source-b769/src#g' /tmp/export_eastern_layer1.cjs > /tmp/export_eastern_layer1_b769.cjs
-node /tmp/export_eastern_layer1_b769.cjs > /tmp/eastern-layer1-source-pinned-b769.json
+git -C <AHDGame-checkout> archive b769e1141f0c0b8aa55f48fe45c8f2e1025a0ea6 | tar -x -C <immutable-source-directory>
+node scripts/export-eastern-layer1.cjs <immutable-source-directory> > eastern-layer1-source.json
 ```
 
 The JSON is 65,963 bytes with SHA-256 `6799f9408a8125b4a6dcba1d3afa734fe176e102e09fcdb6751c85214e179575`. Parsed rows from that export compare exactly equal to the committed static table. Its per-country row hashes (SHA-256 of compact JSON in source property order, UTF-8) are:
