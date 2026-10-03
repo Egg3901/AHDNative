@@ -525,6 +525,12 @@ export interface WorldState {
    */
   exchangeRates: Record<string, import("./forex/types.js").ExchangeRate>;
   /**
+   * Player FX conversions with source trade-time anchor notionals. Absence on
+   * older saves means no reconstructable history; do not infer trades from
+   * current balances or rates. Schema v66.
+   */
+  forexTradeHistory?: import("./forex/types.js").ForexTradeRecord[];
+  /**
    * Pre-forex balance checkpoint — captured each turn immediately before
    * forexTurn reprices every currency. Ports
    * src/lib/ledger/balanceSnapshot.ts writePreForexBalanceCheckpoint and the

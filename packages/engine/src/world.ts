@@ -194,7 +194,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // stamps, source UK devolution institutions/Northern Ireland conflict state,
 // and UK Commons recall petition clocks/signatures/declarations/support samples.
 // Older readers must refuse these continuations.
-export const SCHEMA_VERSION = 65;
+// v66: persisted player FX trade witnesses drive source size-fee lookback and
+// 24-turn market-flow/breadth pressure. Older saves retain absent history.
+export const SCHEMA_VERSION = 66;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1314,6 +1316,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     unions,
     bonds: {},
     exchangeRates,
+    forexTradeHistory: [],
     ledgerPreForexSnapshot: null,
     // W6 metric engine cluster
     nationalMetrics: {},

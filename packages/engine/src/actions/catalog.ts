@@ -37,6 +37,7 @@ import {
 export type ActionId =
   | "buyBond"
   | "sellBond"
+  | "exchangeCurrency"
   | "issueCorporateBond"
   | "buybackCorporateBond"
   | "fundraise"
@@ -211,6 +212,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["bonds"],
+    status: "available",
+  },
+  exchangeCurrency: {
+    id: "exchangeCurrency",
+    name: "Exchange Currency",
+    description: "Exchange personal balances at the current market-maker quote, including size and recent-volume fees.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["forex", "personal-cash"],
     status: "available",
   },
   issueCorporateBond: {

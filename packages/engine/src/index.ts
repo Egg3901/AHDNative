@@ -3,6 +3,8 @@ export { politicalMetricsForCountry } from "./politicalMetrics/registry.js";
 export type { PoliticalRegistryView, PoliticalCategoryView, PoliticalMetricView, PoliticalMetricRegionView } from "./politicalMetrics/registry.js";
 export type { AdvanceTurnOptions } from "./engine.js";
 export { clearCommodity, TRADE_IPF_ITERATIONS } from "./trade/clearing.js";
+export { quoteForexTrade, sizeFeeRate, liquidityFeeMultiplier, currencyVolumesForLookback, computeVolumePressure } from "./forex/trade.js";
+export type { ForexTradeQuote, ForexTradeQuoteResult, CurrencyVolume } from "./forex/trade.js";
 export type { CommodityClearingInput, CommodityClearingResult, CountryCommodityClearing } from "./trade/clearing.js";
 export { corporateTradeSnapshotPhase, recordCorporateTradeSnapshot } from "./trade/corporateTrade.js";
 export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCountryEconomyRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
