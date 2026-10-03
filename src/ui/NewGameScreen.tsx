@@ -16,7 +16,7 @@ import { PartyMark } from "./PartyMark";
 import { EraDateSelector, resetDateIso } from "./EraDateSelector";
 import "./ui.css";
 
-function countriesForMode(era: EraChoice | undefined, mode: "career" | "hos" | "worldsim") {
+function countriesForMode(era: EraChoice | null | undefined, mode: "career" | "hos" | "worldsim") {
   return (era?.countries ?? []).filter((country) => mode === "worldsim" || country.playerSelectable !== false);
 }
 

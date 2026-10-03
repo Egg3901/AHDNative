@@ -134,7 +134,12 @@ export const INITIAL_RATES_2019: Readonly<Record<string, CurrencyPerAnchor>> = {
 function sourceInitialRatesForYear(year: 1999 | 2007 | 2023): Readonly<Record<string, CurrencyPerAnchor>> {
   const row = SOURCE_REFERENCE_ERA_OUTPUTS.eras.find((entry) => entry.year === year);
   if (!row?.initialExchangeRates) throw new Error(`Missing source initial rates for ${year}`);
-  return row.initialExchangeRates;
+  return Object.fromEntries(Object.entries(row.initialExchangeRates).map(([countryId, rate]) => {
+    if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
+      throw new Error(`Invalid source initial rate for ${year}/${countryId}`);
+    }
+    return [countryId, rate] as const;
+  }));
 }
 
 export const INITIAL_RATES_1999 = sourceInitialRatesForYear(1999);

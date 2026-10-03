@@ -160,7 +160,11 @@ export function validatePack(pack: SeedPack): void {
       if (!isFiniteNumber(population) || !Number.isInteger(population as number) || (population as number) <= 0) throw new Error(`validatePack: states[${i}].population must be a finite integer > 0 for id "${id}", got ${String(population)}`);
       if (!isFiniteNumber(gdp) || (gdp as number) <= 0) throw new Error(`validatePack: states[${i}].gdp must be a finite number > 0 for id "${id}", got ${String(gdp)}`);
       if (!isFiniteNumber(houseSeats) || !Number.isInteger(houseSeats as number) || (houseSeats as number) < 0) throw new Error(`validatePack: states[${i}].houseSeats must be a finite integer >= 0 for id "${id}", got ${String(houseSeats)}`);
-      if (!isFiniteNumber(senateSeats) || !Number.isInteger(senateSeats as number) || (senateSeats as number) <= 0) throw new Error(`validatePack: states[${i}].senateSeats must be a finite integer > 0 for id "${id}", got ${String(senateSeats)}`);
+      const federalDistrict = countryId === "US" && id === "DC";
+      if (federalDistrict && (houseSeats !== 0 || senateSeats !== 0)) {
+        throw new Error(`validatePack: US federal district DC must have zero House and state-senate seats`);
+      }
+      if (!isFiniteNumber(senateSeats) || !Number.isInteger(senateSeats as number) || (senateSeats as number) < (federalDistrict ? 0 : 1)) throw new Error(`validatePack: states[${i}].senateSeats must be a finite integer ${federalDistrict ? ">= 0" : "> 0"} for id "${id}", got ${String(senateSeats)}`);
       if (typeof region !== "string" || region.trim() === "") throw new Error(`validatePack: states[${i}].region must be a non-empty string for id "${id}"`);
       if (!Array.isArray(senateClasses) || senateClasses.length !== 2) throw new Error(`validatePack: states[${i}].senateClasses must be a [1|2|3, 1|2|3] pair for id "${id}"`);
       for (let k = 0; k < 2; k++) {

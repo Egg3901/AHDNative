@@ -141,6 +141,16 @@ describe("validatePack", () => {
     }
   });
 
+  it("accepts the source federal district without giving political states zero Senate seats", () => {
+    expect(() => validatePack(pack2023)).not.toThrow();
+    const missingStateSeats = structuredClone(pack2023);
+    missingStateSeats.states!.find((state) => state.countryId === "US" && state.id === "VA")!.senateSeats = 0;
+    expect(() => validatePack(missingStateSeats)).toThrow(/senateSeats.*> 0/);
+    const districtSeats = structuredClone(pack2023);
+    districtSeats.states!.find((state) => state.id === "DC")!.houseSeats = 1;
+    expect(() => validatePack(districtSeats)).toThrow(/federal district DC.*zero/);
+  });
+
   it("rejects duplicate country ids", () => {
     const dup: SeedPack = structuredClone(PACKS[0]!) as SeedPack;
     dup.countries.push({ ...dup.countries[0]! });
