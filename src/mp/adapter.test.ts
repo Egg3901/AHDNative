@@ -719,6 +719,9 @@ describe("MpModeSession election detail (#359 election slice)", () => {
       "running-mate-characters": [JSON.stringify({ characters: [{
         id: mateId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
         partyColor: "#123456", countryId: "US",
+      }, {
+        id: "507f1f77bcf86cd799439014", name: "Cal", party: "7", partyName: "Green", homeState: "UT",
+        partyColor: "#00aa55", countryId: "US",
       }] })],
       "election-detail": [presidentialSummary(mateId, "Bea")],
     }, {
@@ -733,6 +736,9 @@ describe("MpModeSession election detail (#359 election slice)", () => {
     expect(choices.runningMateOptions).toEqual([{
       id: mateId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
       partyColor: "#123456", countryId: "US",
+    }, {
+      id: "507f1f77bcf86cd799439014", name: "Cal", party: "7", partyName: "Green", homeState: "UT",
+      partyColor: "#00aa55", countryId: "US",
     }]);
     const saved = await session.setRunningMate(PRESIDENT_SEAT_ID, mateId);
     expect(saved.phase).toBe("ready");

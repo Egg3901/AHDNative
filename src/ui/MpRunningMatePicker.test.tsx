@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MpRunningMatePicker } from "./MpRunningMatePicker";
 
@@ -10,6 +10,15 @@ const option = {
   partyName: "Labor",
   homeState: "WY",
   partyColor: "#123456",
+  countryId: "US",
+};
+const secondOption = {
+  id: "507f1f77bcf86cd799439014",
+  name: "Cal Okafor",
+  party: "7",
+  partyName: "Green",
+  homeState: "UT",
+  partyColor: "#00aa55",
   countryId: "US",
 };
 
@@ -28,6 +37,34 @@ describe("Native MP running-mate action", () => {
     await user.click(screen.getByRole("button", { name: "Save running mate" }));
     expect(onSave).toHaveBeenCalledWith("68a000000000000000000001", option.id);
     expect(screen.getByText(/eligible player from your country/)).toBeInTheDocument();
+  });
+
+  it("searches server-eligible players and filters those results by source party", async () => {
+    const user = userEvent.setup();
+    render(<MpRunningMatePicker electionId="US-president" options={[option, secondOption]} currentRunningMateCharacterId={null} currentRunningMateName={null} busy={false} onLoad={vi.fn()} onSave={vi.fn()} />);
+
+    await user.type(screen.getByRole("searchbox", { name: "Search eligible players" }), "ut");
+    const party = screen.getByRole("combobox", { name: "Filter eligible players by party" });
+    await user.selectOptions(party, "7");
+    const choice = screen.getByRole("combobox", { name: "Choose a running mate" });
+    expect(choice).toHaveValue("");
+    expect(within(choice).getAllByRole("option").map((item) => item.textContent)).toEqual([
+      "Choose an eligible player",
+      "Cal Okafor · Green · UT",
+    ]);
+    const search = screen.getByRole("searchbox", { name: "Search eligible players" });
+    await user.clear(search);
+    await user.type(search, "cal okafor");
+    expect(within(choice).getAllByRole("option").map((item) => item.textContent)).toEqual([
+      "Choose an eligible player",
+      "Cal Okafor · Green · UT",
+    ]);
+
+    await user.selectOptions(choice, secondOption.id);
+    expect(screen.getByRole("button", { name: "Save running mate" })).toBeEnabled();
+    await user.clear(search);
+    await user.selectOptions(party, option.party);
+    expect(screen.getByRole("button", { name: "Save running mate" })).toBeDisabled();
   });
 
   it("shows the source-selected mate and clears it through the null source action", async () => {
