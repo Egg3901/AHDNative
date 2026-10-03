@@ -312,7 +312,7 @@ export const EASTERN_BLOC_ELECTIONS_1979 = materialize([
     })),
     party:
       row.countryId === "HU"
-        ? party("HU_MSZMP", "HU", "Magyar Szocialista Munkáspárt", "MSZMP", -4, 2)
+        ? party("HU_MSZMP", "HU", "Magyar Szocialista Munkáspárt", "MSZMP", -3, 1)
         : row.countryId === "RO"
           ? party("RO_PCR", "RO", "Partidul Comunist Român", "PCR", -4, 3)
           : row.party,
