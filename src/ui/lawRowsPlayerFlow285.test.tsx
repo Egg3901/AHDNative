@@ -188,6 +188,8 @@ describe("released law player controls through saved GameSession (#285)", () => 
       expect(replacedSave.view().turn).toBe(beforeReplacementAdvance + 1);
       expect(replacedSave.legislation().enactedLaws?.filter((law) => law.id === row.id))
         .toEqual(activeRows);
-    });
+    // Match the dedicated law gate: this public journey accrues resources,
+    // enacts two policies and continues both complete saves through real turns.
+    }, 60_000);
   }
 });
