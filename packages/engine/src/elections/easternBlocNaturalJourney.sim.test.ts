@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { writeFileSync } from "node:fs";
 import { getPackByEra } from "@ahdclient/content";
 import { advanceTurn } from "../engine.js";
 import { createWorld } from "../world.js";
@@ -75,7 +76,7 @@ describe("Eastern Bloc natural-calendar journey", () => {
     expect(resumed.politicians.filter((politician) => resolved.winners?.includes(politician.id))).toEqual(holders);
     expect(resumed.legislatures.PL!.chambers[0]!.composition.seatsByParty[source.party.id]).toBe(460);
 
-    console.info("EASTERN_BLOC_NATURAL_JOURNEY", JSON.stringify({
+    const trace = {
       source: {
         gameCommit: "b769e1141f0c0b8aa55f48fe45c8f2e1025a0ea6",
         currentEquivalentCommit: "283fa48a53e0efa856510e44acb9714ec43875c2",
@@ -104,6 +105,15 @@ describe("Eastern Bloc natural-calendar journey", () => {
         partyComposition: chamber.composition.seatsByParty[source.party.id],
         savedComposition: resumed.legislatures.PL!.chambers[0]!.composition.seatsByParty[source.party.id],
       },
-    }));
+    };
+    console.info("EASTERN_BLOC_NATURAL_JOURNEY", JSON.stringify(trace));
+    const tracePath = process.env.AHD_EASTERN_BLOC_NATURAL_TRACE_PATH;
+    if (tracePath) {
+      writeFileSync(tracePath, JSON.stringify(trace, (_key, value: unknown) => {
+        if (value instanceof Map) return { __type: "Map", entries: [...value.entries()] };
+        if (value instanceof Set) return { __type: "Set", values: [...value.values()] };
+        return value;
+      }, 2), "utf8");
+    }
   }, 240_000);
 });
