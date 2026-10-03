@@ -25,6 +25,33 @@ const renderPanel = async () => {
 };
 
 describe("FinancePanel portfolio", () => {
+  it("subscribes to and redeems a saved index-fund position through GameSession", async () => {
+    const user = userEvent.setup();
+    const FinancePanel = await renderPanel();
+    const { GameSession } = await import("../game/session");
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "index-fund-portfolio-ui", playerName: "Alex" });
+    const cashBefore = session.view().finance.cash;
+    const onAction = vi.fn((id: string, params?: import("../game/actionInput").GameActionParams) => session.act(id, params).ok);
+    const renderFinance = () => <FinancePanel finance={session.view().finance} section="portfolio" busy={false} onAction={onAction} />;
+    const mounted = render(renderFinance());
+
+    expect(screen.getByText(/US Large-Cap 25 Index/)).toBeInTheDocument();
+    expect(screen.getByText("Your units: 0 · Redemption queued: 0")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Subscribe" }));
+    expect(onAction).toHaveBeenCalledWith("subscribeIndexFund", { fundSlug: "us_top_25", units: 1 });
+    const cashAfterSubscription = session.view().finance.cash;
+    expect(cashAfterSubscription).toBe(cashBefore - 100);
+    mounted.rerender(renderFinance());
+    expect(screen.getByText("Your units: 1 · Redemption queued: 0")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Redeem" }));
+    expect(onAction).toHaveBeenLastCalledWith("redeemIndexFund", { fundSlug: "us_top_25", units: 1 });
+    expect(session.view().finance.cash).toBe(cashBefore);
+    mounted.rerender(renderFinance());
+    expect(screen.getByText("Your units: 0 · Redemption queued: 0")).toBeInTheDocument();
+  });
+
   it("shows cash, savings, and per-holding currency/price/shares without a foreign aggregate total", async () => {
     const FinancePanel = await renderPanel();
     render(<FinancePanel finance={makeFinance()} section="portfolio" busy={false} onAction={vi.fn()} />);

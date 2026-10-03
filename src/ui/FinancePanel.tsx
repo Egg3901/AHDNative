@@ -173,7 +173,7 @@ function HoldingCompanyLink({ id, name, onOpenCompany }: { id: string; name: str
   );
 }
 
-function PortfolioSection({ finance, onNavigate, onOpenCompany }: { finance: FinanceView; onNavigate?: (route: "portfolio" | "banking") => void; onOpenCompany?: (holdingId: string) => void }) {
+function PortfolioSection({ finance, onNavigate, onOpenCompany, onAction, busy }: { finance: FinanceView; onNavigate?: (route: "portfolio" | "banking") => void; onOpenCompany?: (holdingId: string) => void; onAction: GameScreenProps["onAction"]; busy: boolean }) {
   const multiHolding = finance.holdings.length > 1;
   return (
     <div className="ahd-wallet-grid">
@@ -245,6 +245,7 @@ function PortfolioSection({ finance, onNavigate, onOpenCompany }: { finance: Fin
             Values are shown in each holding&apos;s own currency.
           </p>
         </div>
+        <IndexFundSection finance={finance} onAction={onAction} busy={busy} />
       </div>
 
       <div className="ahd-stack" style={{ minWidth: 0 }}>
@@ -305,6 +306,62 @@ function PortfolioSection({ finance, onNavigate, onOpenCompany }: { finance: Fin
         </div>
         <CapabilityNote />
       </div>
+    </div>
+  );
+}
+
+function IndexFundSection({ finance, onAction, busy }: { finance: FinanceView; onAction: GameScreenProps["onAction"]; busy: boolean }) {
+  const funds = finance.indexFunds ?? [];
+  const [unitsByFund, setUnitsByFund] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const parseUnits = (slug: string) => {
+    const raw = unitsByFund[slug] ?? "1";
+    const units = Number(raw);
+    return Number.isSafeInteger(units) && units > 0 ? units : null;
+  };
+  return (
+    <div className="ahd-card ahd-card-pad">
+      <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Index funds</h3>
+      {funds.length === 0 ? <div className="ahd-empty">No index funds are available.</div> : (
+        <div className="ahd-stack" style={{ marginTop: "0.5rem", gap: "0.65rem" }}>
+          {funds.map((fund) => {
+            const units = parseUnits(fund.slug);
+            return (
+              <div key={fund.slug} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.5rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <strong>{fund.name} <span className="ahd-muted">({fund.ticker})</span></strong>
+                  <span className="ahd-mono">NAV {formatFinanceMoney(fund.nav, fund.currency)}</span>
+                </div>
+                <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.3rem 0" }}>
+                  Your units: {fund.units.toLocaleString()} · Redemption queued: {fund.queuedUnits.toLocaleString()}
+                </p>
+                <label style={{ display: "block", fontSize: "0.76rem" }}>
+                  Units
+                  <input
+                    type="number" min={1} step={1} value={unitsByFund[fund.slug] ?? "1"}
+                    onChange={(event) => setUnitsByFund((current) => ({ ...current, [fund.slug]: event.currentTarget.value }))}
+                    aria-label={`${fund.ticker} units`} className="ahd-input" style={{ display: "block", width: "100%", minHeight: 44, marginTop: "0.2rem" }}
+                  />
+                </label>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
+                  <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy || units === null}
+                    onClick={() => { setFeedback(null); void onAction("subscribeIndexFund", { fundSlug: fund.slug, units: units! }); }}>
+                    Subscribe
+                  </button>
+                  <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy || units === null || units > fund.units}
+                    onClick={() => { setFeedback(null); void onAction("redeemIndexFund", { fundSlug: fund.slug, units: units! }); }}>
+                    Redeem
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {feedback ? <p role="status" className="ahd-muted">{feedback}</p> : null}
+      <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.55rem 0 0" }}>
+        Orders use the current saved NAV. Redemptions may queue when fund cash is unavailable.
+      </p>
     </div>
   );
 }
@@ -693,7 +750,7 @@ export function FinancePanel({ finance, section, busy, onAction, quoteForexTrade
     <div className="ahd-wallet">
       {section === "banking"
         ? <BankingSection finance={finance} busy={busy} onAction={onAction} onNavigate={onNavigate} countryId={countryId} />
-        : <PortfolioSection finance={finance} onNavigate={onNavigate} onOpenCompany={onOpenCompany} />}
+        : <PortfolioSection finance={finance} onNavigate={onNavigate} onOpenCompany={onOpenCompany} onAction={onAction} busy={busy} />}
     </div>
   );
 }

@@ -259,6 +259,7 @@ export interface FinanceView {
   /** Raw holder id behind the savingsHolder display ("centralBank" or the bank corporation id). */
   savingsHolderId?: string;
   holdings: { id: string; name: string; ticker: string; shares: number; price: number; currency: string }[];
+  indexFunds?: { slug: string; name: string; ticker: string; nav: number; currency: string; units: number; queuedUnits: number }[];
   deposit: ActionView; withdraw: ActionView;
   /** Recorded bank options plus the moveSavings action (#76 bank selection). Absent on older projections. */
   banks?: BankOption[];

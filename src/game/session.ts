@@ -1239,6 +1239,19 @@ function projectFinance(world: WorldState): FinanceView {
       return [{ id: corp.id, name: corp.id, ticker: corp.tickerSymbol, shares: entry.shares,
         price: corp.sharePrice, currency: homeCurrency(world, corp.countryId) }];
     }),
+    indexFunds: Object.values(world.indexFundBook?.funds ?? {}).map((fund) => ({
+      slug: fund.slug,
+      name: fund.name,
+      ticker: fund.ticker,
+      nav: fund.quotedNav,
+      currency: fund.currencyCode,
+      units: world.indexFundBook?.positions
+        .filter((position) => position.fundSlug === fund.slug && position.holderKind === "player" && position.holderId === "player")
+        .reduce((sum, position) => sum + position.units, 0) ?? 0,
+      queuedUnits: world.indexFundBook?.redemptions
+        .filter((redemption) => redemption.fundSlug === fund.slug && redemption.holderId === "player")
+        .reduce((sum, redemption) => sum + redemption.queuedUnits, 0) ?? 0,
+    })),
     deposit: savingsAction("depositSavings", "amount", player.cash <= 0, "No cash to deposit."),
     withdraw: savingsAction("withdrawSavings", "amount", player.savings <= 0, "No savings to withdraw."),
     banks,
