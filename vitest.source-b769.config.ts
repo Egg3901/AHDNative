@@ -14,7 +14,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/game/presidentialSourceDistributorReplay.test.ts"],
+    include: ["scripts/presidentialSourceDistributorReplay.test.ts"],
     testTimeout: 120_000,
     maxWorkers: 1,
   },
