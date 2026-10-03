@@ -4,8 +4,9 @@ import { assignSourceHomeStates } from "./elections/sourceHomeState.js";
 import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
-import type { BackgroundElectionSeed } from "@ahdclient/content";
+import type { BackgroundElectionSeed, SeedPack } from "@ahdclient/content";
 import { eraToPreset } from "./electionEngine/resolution/constants.js";
+import { createJPRegionalBudgetRows } from "./budget/jpRegionalBudget.js";
 import { createPoliticiansForWorld, generatePolitician } from "./politician.js";
 import { CATEGORIES_BY_COUNTRY_1953 } from "./demographics/categories.js";
 import { US_STATE_DEMOGRAPHICS_1953, type StateDemographicsSeed } from "./demographics/usStateDemographics1953.js";
@@ -15,6 +16,7 @@ import { DD_DEMOGRAPHICS_1953 } from "./demographics/ddDemographics1953.js";
 import { US_STATE_DEMOGRAPHICS_1979 } from "./demographics/usStateDemographics1979.js";
 import { US_STATE_DEMOGRAPHICS_1991 } from "./demographics/usStateDemographics1991.js";
 import { US_STATE_DEMOGRAPHICS_2019 } from "./demographics/usStateDemographics2019.js";
+import { US_STATE_DEMOGRAPHICS_2023 } from "./demographics/usStateDemographics2023.js";
 import { UK_DEMOGRAPHICS_1979 } from "./demographics/ukDemographics1979.js";
 import { UK_DEMOGRAPHICS_1991 } from "./demographics/ukDemographics1991.js";
 import { UK_DEMOGRAPHICS_2019 } from "./demographics/ukDemographics2019.js";
@@ -202,8 +204,10 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v68: regional cost-of-living coexistence baseline is now persisted and
 // consumed by union local mandates; readers without that lifecycle must refuse.
 // v69: standing targeted-ad exposure and its source election-year anchor.
-// v70: Japanese regional budget state is owned by the parallel country slice.
-// v71: persisted national whip attempts, veto-override attempt-window start,
+// v70: source JP background fiscal rows and optional Internal Affairs grant
+// shares. Existing saves keep absent mutable allocations; missing base rows are
+// reconstructed from immutable era pack data at the next ordinary budget turn.
+// v71: persisted national whip attempt phases (including veto-override reset),
 // and source wall-clock party-control anchors.
 export const SCHEMA_VERSION = 71;
 
@@ -1687,8 +1691,8 @@ function seedDemographics(
   // demographics fallback below, exactly as before this table existed.
   const eraId = pack.era.id;
   const pick = <T>(table: Record<string, T>): T | null => table[eraId] ?? null;
-  const usSeeds: StateDemographicsSeed[] | null = pick({ "1953": US_STATE_DEMOGRAPHICS_1953, "1979": US_STATE_DEMOGRAPHICS_1979, "1991": US_STATE_DEMOGRAPHICS_1991, "2019": US_STATE_DEMOGRAPHICS_2019 });
-  const ukSeeds: StateDemographicsSeed[] | null = pick({ "1953": UK_DEMOGRAPHICS_1953, "1979": UK_DEMOGRAPHICS_1979, "1991": UK_DEMOGRAPHICS_1991, "2019": UK_DEMOGRAPHICS_2019 });
+  const usSeeds: StateDemographicsSeed[] | null = pick({ "1953": US_STATE_DEMOGRAPHICS_1953, "1979": US_STATE_DEMOGRAPHICS_1979, "1991": US_STATE_DEMOGRAPHICS_1991, "1999": US_STATE_DEMOGRAPHICS_2019, "2007": US_STATE_DEMOGRAPHICS_2019, "2019": US_STATE_DEMOGRAPHICS_2019, "2023": US_STATE_DEMOGRAPHICS_2023 });
+  const ukSeeds: StateDemographicsSeed[] | null = pick({ "1953": UK_DEMOGRAPHICS_1953, "1979": UK_DEMOGRAPHICS_1979, "1991": UK_DEMOGRAPHICS_1991, "1999": UK_DEMOGRAPHICS_2019, "2007": UK_DEMOGRAPHICS_2019, "2019": UK_DEMOGRAPHICS_2019, "2023": UK_DEMOGRAPHICS_2019 });
   const ruSeeds: StateDemographicsSeed[] | null = pick({ "1953": RU_DEMOGRAPHICS_1953, "1979": RU_DEMOGRAPHICS_1979 });
   const ddSeeds: StateDemographicsSeed[] | null = pick({ "1953": DD_DEMOGRAPHICS_1953, "1979": DD_DEMOGRAPHICS_1979 });
   const usMap = new Map<string, StateDemographicsSeed>();
@@ -1711,11 +1715,11 @@ function seedDemographics(
     UK: ukMap,
     RU: ruMap,
     DD: ddMap,
-    JP: toMap(pick({ "1991": JP_DEMOGRAPHICS_1991, "2019": JP_DEMOGRAPHICS_2019 })),
-    DE: toMap(pick({ "1991": DE_DEMOGRAPHICS_1991, "2019": DE_DEMOGRAPHICS_2019 })),
-    CN: toMap(pick({ "1991": CN_DEMOGRAPHICS_1991, "2019": CN_DEMOGRAPHICS_2019 })),
+    JP: toMap(pick({ "1991": JP_DEMOGRAPHICS_1991, "1999": JP_DEMOGRAPHICS_2019, "2007": JP_DEMOGRAPHICS_2019, "2019": JP_DEMOGRAPHICS_2019, "2023": JP_DEMOGRAPHICS_2019 })),
+    DE: toMap(pick({ "1991": DE_DEMOGRAPHICS_1991, "1999": DE_DEMOGRAPHICS_2019, "2007": DE_DEMOGRAPHICS_2019, "2019": DE_DEMOGRAPHICS_2019, "2023": DE_DEMOGRAPHICS_2019 })),
+    CN: toMap(pick({ "1991": CN_DEMOGRAPHICS_1991, "1999": CN_DEMOGRAPHICS_2019, "2007": CN_DEMOGRAPHICS_2019, "2019": CN_DEMOGRAPHICS_2019, "2023": CN_DEMOGRAPHICS_2019 })),
     BR: toMap(pick({ "1991": BR_DEMOGRAPHICS_1991 })),
-    IE: toMap(pick({ "1991": IE_DEMOGRAPHICS_1991, "2019": IE_DEMOGRAPHICS_2019 })),
+    IE: toMap(pick({ "1991": IE_DEMOGRAPHICS_1991, "1999": IE_DEMOGRAPHICS_2019, "2007": IE_DEMOGRAPHICS_2019, "2019": IE_DEMOGRAPHICS_2019, "2023": IE_DEMOGRAPHICS_2019 })),
   };
 
   const nowIso = `${_startDate}T00:00:00.000Z`;
@@ -1786,21 +1790,7 @@ function seedDemographics(
 }
 
 function seedBudgets(
-  pack: { era: { id: string }; budgets?: Array<{
-    countryId: string;
-    fiscalYear: number;
-    population: number;
-    gdp: number;
-    currencyCode: string;
-    taxBaseRatios: { taxableIncome: number; corporateProfits: number; wagesAndSalaries: number; importValue: number; taxableSales: number };
-    taxRates: { incomeTax: number; domesticCorporateTax: number; foreignCorporateTax: number; payrollTax: number; tariffs: number; salesTax: number; solidaritySurcharge?: number };
-    otherRevenue: number;
-    debt: { principal: number; interestRate: number; ceiling: number };
-    creditRating: string;
-    baselineSpendingByCategory: Record<string, number>;
-    baselineStateGrants: number;
-    economicFactors: { gdpGrowth: number; wageGrowth: number; inflationRate: number; tradeGrowth: number };
-  }> },
+  pack: SeedPack,
   regions: WorldState["regions"],
 ): { budgets: WorldState["budgets"]; regionalBudgets: WorldState["regionalBudgets"] } {
   const budgets: WorldState["budgets"] = {};
@@ -1966,6 +1956,17 @@ function seedBudgets(
     };
   }
 
+  // Japan participates as a simulated source country even while the player
+  // creation gate remains closed. Keep its eight source regional-budget rows
+  // in the fiscal book only; putting these rows in the shared Region table
+  // would incorrectly seed elections and demographics from an economy-only
+  // action. The source seeds every JP regional StatePolicy at its center option
+  // in all eras; these remain fiscal rows and do not create voter regions.
+  // createWorld uses the same deterministic source baseline as the ordinary
+  // phase's legacy-row initializer. Neither path fabricates electoral regions
+  // or a minister's historical grant allocation.
+  if (budgets.JP) Object.assign(regionalBudgets, createJPRegionalBudgetRows(pack.era.id));
+
   return { budgets, regionalBudgets };
 }
 
@@ -1989,6 +1990,7 @@ function seedGovernors(regions: WorldState["regions"]): WorldState["governors"] 
   const governors: WorldState["governors"] = {};
   for (const region of Object.values(regions)) {
     if (!GOVERNOR_COUNTRIES.has(region.countryId)) continue;
+    if (region.countryId === "US" && region.id === "DC") continue;
     if (region.countryId === "UK" && !UK_DEVOLVED_GOVERNOR_REGIONS.has(region.id)) continue;
     governors[region.id] = {
       stateId: region.id,

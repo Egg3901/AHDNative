@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rulingPartyIdForCountry } from "@ahdclient/engine";
-import { GameSession } from "./session";
+import { GameSession, gameChoices } from "./session";
 
 const options = { era: "1953", countryId: "US", seed: "native-session-v1", playerName: "Alex" };
 const savingsSaveAt = "2026-10-03T06:00:00.000Z";
@@ -50,6 +50,114 @@ function sessionWithConstrainedCentralBankPool(): GameSession {
 }
 
 describe("singleplayer session", () => {
+  it("blocks source-unavailable new-character choices but keeps worldsim spectator creation distinct", () => {
+    const player = new GameSession();
+    expect(() => player.create({ ...options, era: "1991", countryId: "IE", mode: "career" }))
+      .toThrow(/playable country/);
+    const spectator = new GameSession();
+    spectator.create({ ...options, era: "1991", countryId: "IE", mode: "worldsim" });
+    const saved = JSON.parse(spectator.serialize("2026-10-03T06:00:00.000Z"));
+    expect(saved.world.player.mode).toBe("worldsim");
+    expect(saved.world.player.countryId).toBe("IE");
+  });
+
+  it("allows only ready US/UK characters in the 1999/2007/2023 source presets", () => {
+    for (const era of ["1999", "2007", "2023"]) {
+      for (const countryId of ["US", "UK"]) {
+        const session = new GameSession();
+        expect(session.create({ ...options, era, countryId }).countryId).toBe(countryId);
+      }
+      for (const countryId of ["JP", "CN", "DE", "IE"]) {
+        const unavailable = new GameSession();
+        expect(() => unavailable.create({ ...options, era, countryId })).toThrow(/playable country/);
+      }
+    }
+  });
+
+  it("creates, saves, and reloads every ordinary selectable era/country with stable content identity", () => {
+    const stamp = "2026-10-03T06:00:00.000Z";
+    const pairs = gameChoices().flatMap((era) => era.countries
+      .filter((country) => country.playerSelectable)
+      .map((country) => ({ era: era.id, countryId: country.id })));
+    expect(pairs.map(({ era, countryId }) => `${era}/${countryId}`).sort()).toEqual([
+      "1953/DD", "1953/RU", "1953/UK", "1953/US",
+      "1979/DD", "1979/RU", "1979/UK", "1979/US",
+      "1991/UK", "1991/US", "1999/UK", "1999/US", "2007/UK", "2007/US",
+      "2019/UK", "2019/US", "2023/UK", "2023/US",
+    ]);
+
+    for (const { era, countryId } of pairs) {
+      const session = new GameSession();
+      const created = session.create({ era, countryId, seed: `matrix-${era}-${countryId}`, playerName: "Matrix" });
+      const contentIdentity = {
+        era: created.era,
+        countryId: created.countryId,
+        partyIds: created.parties.map((party) => party.id).sort(),
+        regionIds: created.regions.map((region) => region.id).sort(),
+        chamberKeys: (created.legislature.chambers ?? []).map((chamber) => chamber.key).sort(),
+      };
+      const save = session.serialize(stamp);
+      const stored = JSON.parse(save) as { world: { meta: { era: string; startingYear?: number }; player: { countryId: string } } };
+      expect(stored.world.meta.era).toBe(era);
+      expect(stored.world.player.countryId).toBe(countryId);
+      if (["1999", "2007", "2023"].includes(era)) {
+        expect(stored.world.meta.startingYear).toBe(Number(era));
+      }
+
+      const restored = new GameSession();
+      const reloaded = restored.load(save);
+      expect({
+        era: reloaded.era,
+        countryId: reloaded.countryId,
+        partyIds: reloaded.parties.map((party) => party.id).sort(),
+        regionIds: reloaded.regions.map((region) => region.id).sort(),
+        chamberKeys: (reloaded.legislature.chambers ?? []).map((chamber) => chamber.key).sort(),
+      }).toEqual(contentIdentity);
+      expect(restored.serialize(stamp)).toBe(save);
+    }
+  });
+
+  it("continues a public US 1999/2007/2023 world through save, reload, and an ordinary turn", () => {
+    const stamp = "2026-10-03T06:00:00.000Z";
+    const tfpPaths = [
+      "economic.rdIntensity",
+      "education.workforceSkill",
+      "infrastructure.transportEfficiency",
+      "infrastructure.broadbandAccess",
+      "infrastructure.powerGridReliability",
+      "population.urbanizationRate",
+    ];
+    const starts = ["1999", "2007", "2023"].flatMap((era) => [
+      { era, countryId: "US", regionId: "CA" },
+      { era, countryId: "UK", regionId: "LON" },
+    ] as const);
+    for (const { era, countryId, regionId } of starts) {
+      const session = new GameSession();
+      session.create({ era, countryId, seed: `era-tfp-continuation-${era}-${countryId}`, playerName: "Matrix" });
+      const initialSave = session.serialize(stamp);
+      const initial = JSON.parse(initialSave) as {
+        world: { meta: { era: string; turn: number }; regionalMetrics: Record<string, Record<string, { value?: number }>> };
+      };
+      expect(initial.world.meta.era).toBe(era);
+      for (const path of tfpPaths) {
+        expect(initial.world.regionalMetrics[regionId]?.[path]?.value, `${era}/${countryId}/${regionId}/${path}`).toEqual(expect.any(Number));
+      }
+
+      const restored = new GameSession();
+      restored.load(initialSave);
+      expect(restored.serialize(stamp)).toBe(initialSave);
+      restored.advance();
+      const continued = JSON.parse(restored.serialize(stamp)) as {
+        world: { meta: { era: string; turn: number }; regionalMetrics: Record<string, Record<string, { value?: number }>> };
+      };
+      expect(continued.world.meta.turn).toBeGreaterThan(initial.world.meta.turn);
+      expect(continued.world.meta.era).toBe(era);
+      for (const path of tfpPaths) {
+        expect(Number.isFinite(continued.world.regionalMetrics[regionId]?.[path]?.value), `${era}/${countryId}/${regionId}/${path}`).toBe(true);
+      }
+    }
+  });
+
   it("executes a quoted home-to-foreign-currency trade through the public session", () => {
     const session = new GameSession();
     session.create({ ...options, era: "1979" });
@@ -336,6 +444,7 @@ describe("world setup through the session contract (#241)", () => {
     loaded.load(session.serialize(stamp));
     expect(loaded.view().player).toMatchObject({ mode: "hos", hosPartyId: "US_REP", homeRegionId: "NY", permanentHeadOfState: true, currentOffice: "president" });
     expect(loaded.view().actions.map((action) => action.id)).toEqual(["targetedAds", "adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation"]);
+    expect(loaded.view().actions.find((action) => action.id === "targetedAds")?.category).toBe("influence");
   });
 
   it("applies Historical initialization as a real 1953 UK consequence versus Founding", () => {

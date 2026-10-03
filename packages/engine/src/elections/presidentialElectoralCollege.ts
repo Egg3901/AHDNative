@@ -35,8 +35,8 @@ import { eraToPreset } from "../electionEngine/resolution/constants.js";
 /**
  * Electoral votes per modeled region of `countryId`, via the ported
  * `electoralVotesFromSeats` helper (live `houseSeats`, era preset + live
- * year). DC is included only when a headquarters-only DC row exists and its
- * source year gate is active.
+ * year). DC uses its own source presidential unit when either the fallback
+ * headquarters row or an authored federal-district row exists.
  */
 export function electoralVotesByState(world: WorldState, countryId: string): Record<string, number> {
   const seats: Record<string, number> = {};
@@ -57,7 +57,7 @@ export function electoralVotesByState(world: WorldState, countryId: string): Rec
     const v = evAll[id];
     if (v !== undefined) ev[id] = v;
   }
-  if (countryId === "US" && world.regions.DC?.corporationHeadquartersOnly === true && evAll.DC !== undefined) {
+  if (countryId === "US" && world.regions.DC?.countryId === "US" && evAll.DC !== undefined) {
     ev.DC = evAll.DC;
   }
   return ev;
@@ -84,7 +84,7 @@ export function electoralVoteUnitsForWorld(
   // from regional population and other election mechanics.
   return units.filter((unit) =>
     seats[unit.stateId] !== undefined ||
-    (unit.stateId === "DC" && world.regions.DC?.corporationHeadquartersOnly === true),
+    (unit.stateId === "DC" && world.regions.DC?.countryId === "US"),
   );
 }
 

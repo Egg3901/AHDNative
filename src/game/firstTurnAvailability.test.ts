@@ -110,13 +110,18 @@ describe("first actionable state from world creation", () => {
       for (const country of era.countries) {
         for (const mode of [undefined, "hos"] as const) {
           const session = new GameSession();
-          const view = session.create({
+          const options = {
             era: era.id,
             countryId: country.id,
             seed: `first-turn-${era.id}-${country.id}-${mode ?? "career"}`,
             playerName: "Alex",
             ...(mode ? { mode } : {}),
-          });
+          };
+          if (!country.playerSelectable) {
+            expect(() => session.create(options)).toThrow("Choose a playable country");
+            continue;
+          }
+          const view = session.create(options);
           // No silent disables: every unavailable action names its blocker.
           for (const action of view.actions) {
             expect(

@@ -79,7 +79,7 @@ export function resolveNppBillVote(
   if (recordedWhip?.direction === "abstain") return "abstain";
 
   const partyWhip: CrossPressurePartyWhip | null = recordedWhip
-    ? { direction: recordedWhip.direction, mode: recordedWhip.mode }
+    ? { direction: recordedWhip.direction, ...(recordedWhip.mode === undefined ? {} : { mode: recordedWhip.mode }) }
     : null;
   const level = effectiveNppAutonomyLevelForCountry(world.nppAutonomyLevel, bill.countryId, world.player.countryId);
   const opposition = nppAutonomyLevelAtLeast(level, "v1")

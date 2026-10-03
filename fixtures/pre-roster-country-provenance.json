@@ -1,0 +1,47 @@
+{
+  "purpose": "Existing Irish/German worlds remain resumable; current source roster does not permit new characters in these countries.",
+  "fixtures": [
+    {
+      "fixture": "pre-roster-2019-IE.save.json.gz",
+      "sourceRepository": "Egg3901/AHDNative",
+      "sourceCommit": "3b353135ddb24f56c85e398d35085eb35f701cff",
+      "sourceBoundary": "GameSession.create/serialize/load with the pre-roster public country selection",
+      "options": {
+        "era": "2019",
+        "countryId": "IE",
+        "seed": "law-285-pre-roster-IE",
+        "playerName": "Policy Chair",
+        "mode": "hos",
+        "autonomyLevel": "off"
+      },
+      "savedAt": "2026-10-03T00:00:00.000Z",
+      "schemaVersion": 65,
+      "turn": 0,
+      "bytes": 6326995,
+      "sha256": "4a7c5b719bbba7198e90a2a06bbc7e3301ed3c577f327e59bd118ee39178a3e3",
+      "gzipBytes": 400276,
+      "gzipSha256": "084f8a6ded70ff185325143e28b3c64d6735d20b9735fcead21a4e8e540c974b"
+    },
+    {
+      "fixture": "pre-roster-2019-DE.save.json.gz",
+      "sourceRepository": "Egg3901/AHDNative",
+      "sourceCommit": "3b353135ddb24f56c85e398d35085eb35f701cff",
+      "sourceBoundary": "GameSession.create/serialize/load with the pre-roster public country selection",
+      "options": {
+        "era": "2019",
+        "countryId": "DE",
+        "seed": "law-285-pre-roster-DE",
+        "playerName": "Policy Chair",
+        "mode": "hos",
+        "autonomyLevel": "off"
+      },
+      "savedAt": "2026-10-03T00:00:00.000Z",
+      "schemaVersion": 65,
+      "turn": 0,
+      "bytes": 6327373,
+      "sha256": "6a5ab3788ae6f52ef4aa1d507f9416da733940efcc41bc19b4076025b4bf2762",
+      "gzipBytes": 400299,
+      "gzipSha256": "9c2ff34fe7c55c9893d219cb02589b3ab93a59662b9bcefe111dd66ed1cb19ba"
+    }
+  ]
+}

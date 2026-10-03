@@ -25,9 +25,9 @@ describe("source political metric destination (#263)", () => {
     await user.click(screen.getByRole("button", { name: "Trade Union Strength and Worker Protections" }));
     expect(screen.getByRole("heading", { name: "Trade Union Strength and Worker Protections" })).toBeInTheDocument();
     const regions = screen.getByRole("table", { name: "Regional breakdown" });
-    // Independently run Game political dynamics records53.858844; its query
-    // serves one decimal. The same saved order outcome appears at this route.
-    expect(within(regions).getByRole("row", { name: /London.*53\.9/ })).toBeInTheDocument();
+    // Game political dynamics at 96831835, replayed with these two public
+    // turns, yields 53.84 then 54.094044000000004. Its query serves one decimal.
+    expect(within(regions).getByRole("row", { name: /London.*54\.1/ })).toBeInTheDocument();
     expect(screen.getByText("Ministerial orders")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Back to Economy & Labour" }));
     expect(screen.getByRole("heading", { name: "Economy & Labour" })).toBeInTheDocument();

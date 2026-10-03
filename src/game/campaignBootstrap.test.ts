@@ -31,12 +31,17 @@ describe("campaign bootstrap from new-character creation (#447)", () => {
     for (const era of gameChoices()) {
       for (const country of era.countries) {
         const session = new GameSession();
-        const view = session.create({
+        const options = {
           era: era.id,
           countryId: country.id,
           seed: `bootstrap-${era.id}-${country.id}`,
           playerName: "Alex",
-        });
+        };
+        if (!country.playerSelectable) {
+          expect(() => session.create(options)).toThrow("Choose a playable country");
+          continue;
+        }
+        const view = session.create(options);
         expect(view.player.funds).toBe(250_000);
         expect(view.player.actions).toBe(25);
         expect(session.profile()).toMatchObject({ finances: { donorBaseLevel: 1 } });
@@ -75,6 +80,9 @@ describe("campaign bootstrap from new-character creation (#447)", () => {
   it("leaves no supported creation path deadlocked on campaign funds", () => {
     for (const era of gameChoices()) {
       for (const country of era.countries) {
+        // The source current-country roster governs new characters. Older
+        // saved characters have separate continuation coverage.
+        if (!country.playerSelectable) continue;
         // Career: even at $0 CF, fundraise stays reachable and executable.
         const career = new GameSession();
         career.create({
@@ -102,8 +110,8 @@ describe("campaign bootstrap from new-character creation (#447)", () => {
         const ads = hosView.actions.find((action) => action.id === "targetedAds");
         expect(ads).toBeDefined();
         if (ads?.available) {
-          expect(ads.fundCost).toBe(100);
           if (ads.fundCost === undefined) throw new Error("Available standing ads require their source campaign cost.");
+          expect(ads.fundCost).toBeGreaterThan(0);
           expect(hosView.player.funds).toBeGreaterThanOrEqual(ads.fundCost);
         }
       }

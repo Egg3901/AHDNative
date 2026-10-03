@@ -12,6 +12,8 @@ export interface SeedPack {
   /** Data format version for this pack. Bump when required fields change. */
   packVersion: number;
   era: EraSeed;
+  /** Source preset identity and lane-by-lane fallback disclosure for era packs. */
+  sourceProvenance?: EraPackSourceProvenance;
   countries: CountrySeed[];
   /** Optional extension tables: states, parties, sectors, budgets. */
   states?: StateSeed[];
@@ -33,6 +35,14 @@ export interface SeedPack {
    * not make a country selectable or create a macro-economy country by themselves.
    */
   backgroundElections?: BackgroundElectionSeed[];
+}
+
+export interface EraPackSourceProvenance {
+  sourceRepository: string;
+  sourceCommit: string;
+  sourcePreset: string;
+  /** Describes the source producer actually used for each seeded lane. */
+  lanes: Record<string, string>;
 }
 
 export interface BackgroundElectionSeed {
@@ -150,6 +160,8 @@ export interface StateSeed {
   senateSeats: number;
   /** Census region. */
   region: string;
+  /** Source State.votingSystem. Seed fidelity only: Native Region/election consumers do not yet port this axis. */
+  votingSystem?: "fptp" | "rcv";
   /** Senate class pair from SENATE_CLASSES_BY_STATE. */
   senateClasses: [1 | 2 | 3, 1 | 2 | 3];
   /** Support/election transforms consume this bundle. */
@@ -227,6 +239,8 @@ export interface BudgetSeed {
   /** Country id — must match a CountrySeed id. */
   countryId: string;
   fiscalYear: number;
+  /** Source data year before an explicitly authored preset overlay/fallback. */
+  sourceFiscalYear?: number;
   population: number;
   gdp: number; // absolute local currency
   currencyCode: string;

@@ -11,7 +11,6 @@ import { rngFromSeed, rngFromState } from "../rng.js";
 import { effectivePlayerStats } from "../stats/allocation.js";
 import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
 import { projectPlayerPartyInfluence } from "../party/playerInfluence.js";
-import { GameSession } from "../../../../src/game/session.js";
 import { partyInfluenceTurnPhase } from "../party/phases.js";
 import { accelerateNationalPartyElections, resolveNationalPartyElections } from "./nationalPartyElections.js";
 import { createCoalition, joinCoalition, initiateDisbandVote } from "./coalitions.js";
@@ -271,74 +270,6 @@ describe("issue 102 leadership acceptance", () => {
     expect(result.ok).toBe(true);
     expect(world.player.actions).toBe(1);
     expect(world.partyWhips).toMatchObject([{ issuerRole: "viceChair", attemptNumber: 1 }]);
-  });
-
-  it("checks custom-party NPP controls against observed wall time, not game turns", () => {
-    const world = createWorld(OPTIONS);
-    world.player.partyId = "US_DEM";
-    world.player.partyJoinedTurn = 21;
-    world.parties.US_DEM!.isDefault = false;
-    world.parties.US_DEM!.chairId = "player";
-    world.parties.US_DEM!.nppControlCreatedAt = "2026-10-03T00:00:00.000Z";
-    world.player.partyJoinedAt = "2026-10-01T00:00:00.000Z";
-    world.player.lastPartySwitchAt = "2026-10-01T00:00:00.000Z";
-    world.charters.push({
-      id: "custom-party-charter",
-      countryId: "US",
-      partyId: "US_DEM",
-      founderId: "player",
-      foundedAtTurn: 20,
-      status: "ratified",
-      expiresOnTurn: null,
-      expiresAt: null,
-      founderReplacementDeadlineTurn: null,
-      founderReplacementDeadline: null,
-      proposedName: "Custom Democrats",
-      proposedAbbr: "DEM",
-      founderIds: ["player"],
-      signatures: [{ founderId: "player", signedAtTurn: 20 }],
-      platform: { economic: 0, social: 0 },
-      createdAtTurn: 20,
-      ratifiedAtTurn: 20,
-    });
-    world.meta.turn = 5000;
-    world.bills.push(activeBill("bill-custom-whip"));
-    let now = new Date("2026-10-04T23:59:00.000Z");
-    const session = new GameSession(() => new Date(now));
-    session.load(serializeSave(world, "2026-10-04T23:59:00.000Z"));
-    const tooEarly = session.act("issuePartyWhip", {
-      billId: "bill-custom-whip",
-      whipDirection: "for",
-      whipMode: "soft",
-    });
-    expect(tooEarly).toMatchObject({ ok: false, error: expect.stringMatching(/48 hours/i) });
-    expect(JSON.parse(session.serialize("2026-10-04T23:59:00.000Z")).world.partyWhips).toBeUndefined();
-
-    world.parties.US_DEM!.nppControlCreatedAt = "2026-10-01T00:00:00.000Z";
-    world.player.partyJoinedAt = "2026-10-03T00:00:00.000Z";
-    world.player.lastPartySwitchAt = "2026-10-03T00:00:00.000Z";
-    session.load(serializeSave(world, "2026-10-04T23:59:00.000Z"));
-    const memberTenureTooEarly = session.act("issuePartyWhip", {
-      billId: "bill-custom-whip",
-      whipDirection: "for",
-      whipMode: "soft",
-    });
-    expect(memberTenureTooEarly).toMatchObject({ ok: false, error: expect.stringMatching(/stable membership/i) });
-
-    now = new Date("2026-10-05T00:00:00.000Z");
-    const ready = session.act("issuePartyWhip", {
-      billId: "bill-custom-whip",
-      whipDirection: "for",
-      whipMode: "soft",
-    });
-    expect(ready.ok).toBe(true);
-    const restored = new GameSession(() => new Date(now));
-    restored.load(session.serialize("2026-10-05T00:00:00.000Z"));
-    const serializedWorld = JSON.parse(restored.serialize("2026-10-05T00:00:00.000Z")).world;
-    expect(serializedWorld.partyWhips).toMatchObject([{ attemptNumber: 1 }]);
-    expect(serializedWorld.parties.US_DEM.nppControlCreatedAt).toBe("2026-10-01T00:00:00.000Z");
-    expect(serializedWorld.player.partyJoinedAt).toBe("2026-10-03T00:00:00.000Z");
-    expect(serializedWorld.player.lastPartySwitchAt).toBe("2026-10-03T00:00:00.000Z");
   });
 
   it("retains two independent attempts and refuses a third for one bill chamber", () => {

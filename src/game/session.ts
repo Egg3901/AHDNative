@@ -6,7 +6,7 @@ import { validateProfileUpdate } from "./profileValidation";
 import type { ProfileUpdate } from "./profileTypes";
 import { applyProfileConstituency } from "./profileConstituency";
 import { projectRegions, type RegionsQuery } from "./regions";
-import { projectCabinetOffice, type IssueCabinetOrderInput } from "./cabinetOffice";
+import { projectCabinetOffice, type IssueCabinetOrderInput, type SetJPRegionalAllocationInput } from "./cabinetOffice";
 import { projectCabinetMembership } from "./cabinetSeat";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
@@ -28,10 +28,13 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveCurrentBillVote, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
+  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, setJPRegionalBudgetAllocation,
+  nationalizationTargets, nationalizationUnavailableReason,
+  resolveCurrentBillVote,
   isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, campaignAdTargetChoices, currentAdBonus,
   partyWhipEligibilityError,
   quoteTargetedAds,
+  isNewCharacterSelection,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -170,6 +173,7 @@ export function gameChoices(): EraChoice[] {
   return listEras().map((era) => ({ id: era.id, label: era.label, startDate: era.startDate,
     countries: listPlayableCountries(era.id).map((country) => ({
       id: country.id, name: country.name,
+      playerSelectable: isNewCharacterSelection(era.id, country.id),
       regions: listCreationHomeRegions(era.id, country.id).map((region) => ({ id: region.id, name: region.name })),
       headOfStateOffice: headOfStateOfficeForCountry(country.id),
       rulingPartyByInitialization: {
@@ -199,8 +203,10 @@ export class GameSession {
     if (creationName !== undefined && (!creationName || creationName.length > 80)) {
       throw new Error("Enter a character name between 1 and 80 characters.");
     }
+    const mode = resolveSingleplayerMode(options.mode);
     const era = gameChoices().find((choice) => choice.id === options.era);
-    if (!era?.countries.some((country) => country.id === options.countryId)) {
+    const selectedCountry = era?.countries.find((country) => country.id === options.countryId);
+    if (!selectedCountry || (mode !== "worldsim" && !selectedCountry.playerSelectable)) {
       throw new Error("Choose a playable country in the selected era.");
     }
     // Issue #334: the engine owns difficulty validation, but the session
@@ -209,7 +215,6 @@ export class GameSession {
     const difficulty = resolveSingleplayerDifficulty(options.difficulty);
     // Issue #346: same pre-creation gate for the play mode. Career is the
     // default; worldsim marks a spectator world with no player character.
-    const mode = resolveSingleplayerMode(options.mode);
     const autonomyLevel = resolveNppAutonomyLevel(options.autonomyLevel);
     const world = createWorld({
       ...options,
@@ -605,6 +610,17 @@ export class GameSession {
         view: this.view(),
       };
     }
+  }
+
+  /** Set Japan's Internal Affairs regional grant shares through the source-shaped cabinet command. */
+  setJPRegionalAllocation(input: SetJPRegionalAllocationInput): {
+    result: { ok: true } | { ok: false; error: string };
+    view: GameView;
+  } {
+    const candidate = structuredClone(this.requireWorld());
+    const result = setJPRegionalBudgetAllocation(candidate, input.allocationPercents);
+    const view = result.ok ? this.commit(candidate) : this.view();
+    return { result, view };
   }
 
   partyManagement() { return projectPartyManagement(this.requireWorld()); }

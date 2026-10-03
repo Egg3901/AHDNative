@@ -4,17 +4,16 @@ import { getPackByEra, PACKS } from "./packs/index.js";
  * Explicit supported-world matrix for issue #118.
  *
  * Ground truth is the shipped pack table (PACKS); this module publishes the
- * reviewable statement of what is supported, what is deliberately
- * unavailable, and where the Native playable set differs from the pinned
- * AHDGame authority — without inventing historical data or silently
- * widening playable flags.
+ * reviewable statement of raw engine-pack content, new-character eligibility,
+ * and deliberately unavailable eras. The raw factory keeps authored rows for
+ * internal fixtures; the GameSession boundary uses the narrower player set.
  *
- * Pinned authority: Egg3901/AHDGame@96831835
- * (src/lib/world/worldEntityManifest.ts):
- * - COLD_WAR_PLAYER = ["US","UK","RU","DD"] for 1953/1979-default.
- * - POST_COLD_WAR_PLAYER = ["US","UK"] for
- *   1991/1999/2007/2019/2023-default.
- * - No "1960" preset exists in the authority at all.
+ * Pinned authority: Egg3901/AHDGame@c35bcd86cbdbb877e73a0e9a45b0726605bdbc7a
+ * (`src/lib/world/eraRoster.ts#tierFor` and
+ * `src/lib/admin/seed/seedCountryGameStates.ts#seedCountryGameStates`):
+ * - US/UK/RU/DD are player tier for 1953/1979.
+ * - US/UK/JP are player tier for 1991/1999/2007/2019/2023.
+ * - No "1960" preset exists in that authority.
  */
 
 export interface EraCoverageRow {
@@ -23,21 +22,26 @@ export interface EraCoverageRow {
   label: string;
   startDate: string;
   packVersion: number;
-  /** Sorted playable country ids actually shipped in the pack. */
+  /** Sorted engine-playable country ids actually shipped in the pack. */
   playableCountries: string[];
+  /** Countries allowed to start a new character under current source rules and Native readiness. */
+  newCharacterCountries: string[];
   /** Authority preset id this pack was ported from. */
   authorityPreset: string;
-  /** Pinned authority player roster for that preset. */
+  /** Current source's preset player roster. */
   authorityPlayer: readonly string[];
   /**
-   * Native playable ids absent from the authority player roster. Explicit
-   * unresolved deltas under #118: recorded here, never silently applied.
+   * Native engine-playable ids absent from the source player roster. These
+   * remain available to internal fixtures and playerless worldsim; the
+   * GameSession new-character boundary applies newCharacterCountries.
    */
   playableDelta: string[];
+  /** Source player ids that Native withholds while their full systems are unready. */
+  authorityPlayerUnavailableInNative: string[];
 }
 
 /**
- * The four supported eras. playableCountries mirrors the shipped packs;
+ * The supported eras. playableCountries mirrors the shipped packs;
  * assertSupportedMatrixMatchesPacks() fails closed on any drift.
  */
 export const SUPPORTED_MATRIX: EraCoverageRow[] = [
@@ -47,9 +51,11 @@ export const SUPPORTED_MATRIX: EraCoverageRow[] = [
     startDate: "1953-01-06",
     packVersion: 1,
     playableCountries: ["DD", "RU", "UK", "US"],
+    newCharacterCountries: ["DD", "RU", "UK", "US"],
     authorityPreset: "1953-default",
     authorityPlayer: ["US", "UK", "RU", "DD"],
     playableDelta: [],
+    authorityPlayerUnavailableInNative: [],
   },
   {
     era: "1979",
@@ -57,9 +63,11 @@ export const SUPPORTED_MATRIX: EraCoverageRow[] = [
     startDate: "1979-01-01",
     packVersion: 1,
     playableCountries: ["DD", "RU", "UK", "US"],
+    newCharacterCountries: ["DD", "RU", "UK", "US"],
     authorityPreset: "1979-default",
     authorityPlayer: ["US", "UK", "RU", "DD"],
     playableDelta: [],
+    authorityPlayerUnavailableInNative: [],
   },
   {
     era: "1991",
@@ -67,9 +75,35 @@ export const SUPPORTED_MATRIX: EraCoverageRow[] = [
     startDate: "1991-01-01",
     packVersion: 1,
     playableCountries: ["BR", "CN", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
     authorityPreset: "1991-default",
-    authorityPlayer: ["US", "UK"],
+    authorityPlayer: ["US", "UK", "JP"],
     playableDelta: ["BR", "CN", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
+  },
+  {
+    era: "1999",
+    label: "1999 Start Date - Default Parties",
+    startDate: "1999-01-01",
+    packVersion: 1,
+    playableCountries: ["CN", "DE", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
+    authorityPreset: "1999-default",
+    authorityPlayer: ["US", "UK", "JP"],
+    playableDelta: ["CN", "DE", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
+  },
+  {
+    era: "2007",
+    label: "2007 Start Date - Default Parties",
+    startDate: "2007-01-01",
+    packVersion: 1,
+    playableCountries: ["CN", "DE", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
+    authorityPreset: "2007-default",
+    authorityPlayer: ["US", "UK", "JP"],
+    playableDelta: ["CN", "DE", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
   },
   {
     era: "2019",
@@ -77,12 +111,23 @@ export const SUPPORTED_MATRIX: EraCoverageRow[] = [
     startDate: "2019-01-01",
     packVersion: 1,
     playableCountries: ["CN", "DE", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
     authorityPreset: "2019-default",
-    authorityPlayer: ["US", "UK"],
-    // DE is enabled by current Game countryAccess (active DE_CONFIG) and
-    // its 2019 character-creation route, despite the older manifest player
-    // roster containing only US/UK. Keep this scope delta explicit under #118.
+    authorityPlayer: ["US", "UK", "JP"],
     playableDelta: ["CN", "DE", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
+  },
+  {
+    era: "2023",
+    label: "2023 Start Date - Default Parties",
+    startDate: "2023-01-01",
+    packVersion: 1,
+    playableCountries: ["CN", "DE", "IE", "UK", "US"],
+    newCharacterCountries: ["UK", "US"],
+    authorityPreset: "2023-default",
+    authorityPlayer: ["US", "UK", "JP"],
+    playableDelta: ["CN", "DE", "IE"],
+    authorityPlayerUnavailableInNative: ["JP"],
   },
 ];
 
@@ -96,7 +141,6 @@ export interface UnavailableEra {
 
 /**
  * Eras that must stay unavailable until authorized content exists.
- * 1999/2007/2023 have authority presets but no ported Native pack;
  * 1960 has neither an authority preset nor a pack — only a calendar
  * anchor (engine calendar.ts) plus the v40 legacyEra save backfill so
  * pre-removal saves migrate instead of crashing.
@@ -110,30 +154,6 @@ export const UNAVAILABLE_ERAS: UnavailableEra[] = [
       "No authority preset and no pack: fabricated era removed. " +
       "Legacy saves with meta.era 1960 migrate via the calendar anchor " +
       "and the v40 legacyEra backfill; no new world may be created.",
-  },
-  {
-    era: "1999",
-    status: "no-pack",
-    authorityPreset: "1999-default",
-    reason:
-      "Authority player is US/UK but no Native content has been ported; " +
-      "no historical data may be invented to fill the gap.",
-  },
-  {
-    era: "2007",
-    status: "no-pack",
-    authorityPreset: "2007-default",
-    reason:
-      "Authority player is US/UK but no Native content has been ported; " +
-      "no historical data may be invented to fill the gap.",
-  },
-  {
-    era: "2023",
-    status: "no-pack",
-    authorityPreset: "2023-default",
-    reason:
-      "Authority player is US/UK but no Native content has been ported; " +
-      "no historical data may be invented to fill the gap.",
   },
 ];
 
@@ -167,12 +187,22 @@ export function assertSupportedMatrixMatchesPacks(): void {
       throw new Error(`Matrix packVersion drift for era "${row.era}": pack has ${pack.packVersion}`);
     }
     const playable = pack.countries.filter((c) => c.playable).map((c) => c.id).sort();
-    if (JSON.stringify(playable) !== JSON.stringify(row.playableCountries)) {
+    if (JSON.stringify(playable) !== JSON.stringify([...row.playableCountries].sort())) {
       throw new Error(
         `Matrix playable drift for era "${row.era}": pack has [${playable.join(",")}]`,
       );
     }
-    for (const id of row.playableCountries) {
+    const classifiedSourcePlayers = [
+      ...row.newCharacterCountries,
+      ...row.authorityPlayerUnavailableInNative,
+    ].sort();
+    if (JSON.stringify(classifiedSourcePlayers) !== JSON.stringify([...row.authorityPlayer].sort())) {
+      throw new Error(`Source player availability is not fully classified for era "${row.era}"`);
+    }
+    for (const id of row.newCharacterCountries) {
+      if (!row.authorityPlayer.includes(id)) {
+        throw new Error(`New-character country ${id} is not source-authorized in era "${row.era}"`);
+      }
       const missing: RequiredSystem[] = [];
       if (!(pack.parties ?? []).some((p) => p.countryId === id)) missing.push("parties");
       if (!(pack.legislatures ?? []).some((l) => l.countryId === id)) missing.push("legislature");
@@ -192,7 +222,12 @@ export function assertSupportedMatrixMatchesPacks(): void {
   }
 }
 
-/** True for the four eras with shipped packs. */
+/** Whether an era/country pair may create a new character in Native. */
+export function isNewCharacterSelection(era: string, countryId: string): boolean {
+  return SUPPORTED_MATRIX.find((row) => row.era === era)?.newCharacterCountries.includes(countryId) ?? false;
+}
+
+/** True for eras with shipped packs. */
 export function isSupportedEra(era: string): boolean {
   return getPackByEra(era) !== undefined;
 }

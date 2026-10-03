@@ -68,6 +68,7 @@ import {
   validateCollectiveAgreements,
 } from "./unions/campaigns.js";
 import { validateTargetedAds } from "./campaigns/targetedAds.js";
+import { JP_REGIONAL_POLICY_CATALOG, JP_REGIONAL_POLICY_IDS } from "./budget/jpRegionalPolicyCatalog.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -359,6 +360,19 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const homeRegionId = player["homeRegionId"];
   const featureFlags = world["featureFlags"];
+  if (hasOwn(world, "jpRegionalBudgetAllocation")) {
+    return { ok: false, error: `Japan regional allocation state cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  const regionalBudgetsForProjection = isRecord(world["regionalBudgets"]) ? world["regionalBudgets"] : {};
+  for (const [regionId, row] of Object.entries(regionalBudgetsForProjection)) {
+    if (isRecord(row) && row["countryId"] === "JP" &&
+      (hasOwn(row, "jpNationalGrantPerCapita") ||
+        hasOwn(row, "jpPopulation") || hasOwn(row, "jpPropertyValuePerCapita") || hasOwn(row, "jpPropertyValueBaseline") ||
+        hasOwn(row, "jpRegionalPolicies") || hasOwn(row, "jpEnactedPolicyCosts") || hasOwn(row, "jpSubsidyCosts") ||
+        (isRecord(row["revenue"]) && (hasOwn(row["revenue"], "jpResidentTax") || hasOwn(row["revenue"], "jpFixedAssetTax"))))) {
+      return { ok: false, error: `Japan regional budget state for ${regionId} cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
+  }
   if (isRecord(featureFlags) && featureFlags["rpgStats"] === false) {
     return {
       ok: false,
@@ -1028,6 +1042,83 @@ function assertCurrentWorldState(world: WorldState): void {
     (player["homeRegionId"] !== null && typeof player["homeRegionId"] !== "string")
   ) {
     throw new Error("Not a valid save file: invalid world state");
+  }
+
+  const jpAllocation = value["jpRegionalBudgetAllocation"];
+  if (jpAllocation !== undefined) {
+    if (!isRecord(jpAllocation) || !isRecord(jpAllocation["allocationPercents"]) ||
+      !Number.isSafeInteger(jpAllocation["lastAllocationChangedTurn"]) ||
+      (jpAllocation["lastAllocationChangedTurn"] as number) < 0 ||
+      (jpAllocation["lastAllocationChangedTurn"] as number) > (meta["turn"] as number)) {
+      throw new Error("Not a valid save file: invalid Japan regional allocation state");
+    }
+    const shares = Object.values(jpAllocation["allocationPercents"]);
+    if (shares.length === 0 || shares.some((share) => typeof share !== "number" || !Number.isFinite(share) || share < 0 || share > 100) ||
+      Math.abs(shares.reduce<number>((sum, share) => sum + (share as number), 0) - 100) > 0.1) {
+      throw new Error("Not a valid save file: invalid Japan regional allocation shares");
+    }
+  }
+
+  const jpBudgetRows = value["regionalBudgets"];
+  if (!isRecord(jpBudgetRows)) throw new Error("Not a valid save file: invalid regional budgets");
+  for (const [regionId, row] of Object.entries(jpBudgetRows)) {
+    if (!isRecord(row)) throw new Error(`Not a valid save file: invalid regional budget ${regionId}`);
+    const grantPerCapita = row["jpNationalGrantPerCapita"];
+    const jpPopulation = row["jpPopulation"];
+    const jpPropertyValuePerCapita = row["jpPropertyValuePerCapita"];
+    const jpPropertyValueBaseline = row["jpPropertyValueBaseline"];
+    const jpRegionalPolicies = row["jpRegionalPolicies"];
+    const jpEnactedPolicyCosts = row["jpEnactedPolicyCosts"];
+    const jpSubsidyCosts = row["jpSubsidyCosts"];
+    const revenue = row["revenue"];
+    const jpResidentTax = isRecord(revenue) ? revenue["jpResidentTax"] : undefined;
+    const jpFixedAssetTax = isRecord(revenue) ? revenue["jpFixedAssetTax"] : undefined;
+    if (grantPerCapita !== undefined || jpPopulation !== undefined || jpPropertyValuePerCapita !== undefined ||
+      jpPropertyValueBaseline !== undefined || jpResidentTax !== undefined || jpFixedAssetTax !== undefined ||
+      jpRegionalPolicies !== undefined || jpEnactedPolicyCosts !== undefined || jpSubsidyCosts !== undefined) {
+      if (row["countryId"] !== "JP" ||
+        (grantPerCapita !== undefined && (typeof grantPerCapita !== "number" || !Number.isFinite(grantPerCapita) || grantPerCapita < 0)) ||
+        (jpPopulation !== undefined && (typeof jpPopulation !== "number" || !Number.isFinite(jpPopulation) || jpPopulation < 0)) ||
+        (jpPropertyValuePerCapita !== undefined && (typeof jpPropertyValuePerCapita !== "number" || !Number.isFinite(jpPropertyValuePerCapita) || jpPropertyValuePerCapita < 0)) ||
+        (jpPropertyValueBaseline !== undefined && (typeof jpPropertyValueBaseline !== "number" || !Number.isFinite(jpPropertyValueBaseline) || jpPropertyValueBaseline < 0)) ||
+        (jpResidentTax !== undefined && (typeof jpResidentTax !== "number" || !Number.isFinite(jpResidentTax) || jpResidentTax < 0)) ||
+        (jpFixedAssetTax !== undefined && (typeof jpFixedAssetTax !== "number" || !Number.isFinite(jpFixedAssetTax) || jpFixedAssetTax < 0)) ||
+        (jpEnactedPolicyCosts !== undefined && (typeof jpEnactedPolicyCosts !== "number" || !Number.isFinite(jpEnactedPolicyCosts) || jpEnactedPolicyCosts < 0)) ||
+        (jpSubsidyCosts !== undefined && (typeof jpSubsidyCosts !== "number" || !Number.isFinite(jpSubsidyCosts) || jpSubsidyCosts < 0))) {
+        throw new Error(`Not a valid save file: invalid Japan regional budget ${regionId}`);
+      }
+      if (!isRecord(revenue) || typeof revenue["grant"] !== "number" || !Number.isFinite(revenue["grant"]) || revenue["grant"] < 0) {
+        throw new Error(`Not a valid save file: invalid Japan regional grant ${regionId}`);
+      }
+      if (jpRegionalPolicies !== undefined) {
+        if (!Array.isArray(jpRegionalPolicies) || jpRegionalPolicies.length !== JP_REGIONAL_POLICY_CATALOG.length) {
+          throw new Error(`Not a valid save file: invalid Japan regional policies ${regionId}`);
+        }
+        const seen = new Set<string>();
+        for (const [policyIndex, policy] of jpRegionalPolicies.entries()) {
+          if (!isRecord(policy)) throw new Error(`Not a valid save file: invalid Japan regional policy ${regionId}`);
+          const id = policy["legislationTypeId"];
+          const optionIndex = policy["policyOptionIndex"];
+          const optionId = policy["policyOptionId"];
+          const economic = policy["economic"];
+          const social = policy["social"];
+          const direction = policy["effectDirection"];
+          const catalog = JP_REGIONAL_POLICY_CATALOG[policyIndex];
+          if (typeof id !== "string" || id !== JP_REGIONAL_POLICY_IDS[policyIndex] || seen.has(id) ||
+            !Number.isSafeInteger(optionIndex) || (optionIndex as number) < 0 || (optionIndex as number) >= (catalog?.options.length ?? 0) ||
+            optionId !== `${id}_opt_${String(optionIndex)}` ||
+            typeof economic !== "number" || !Number.isFinite(economic) || economic < -5 || economic > 5 ||
+            typeof social !== "number" || !Number.isFinite(social) || social < -5 || social > 5 ||
+            (direction !== -1 && direction !== 0 && direction !== 1)) {
+            throw new Error(`Not a valid save file: invalid Japan regional policy ${regionId}`);
+          }
+          seen.add(id);
+        }
+        if (JP_REGIONAL_POLICY_IDS.some((id) => !seen.has(id))) {
+          throw new Error(`Not a valid save file: incomplete Japan regional policies ${regionId}`);
+        }
+      }
+    }
   }
 
   validatePartyWhipHistory(value["partyWhips"], value["bills"]);
@@ -3886,8 +3977,7 @@ export function deserializeSave(raw: string): WorldState {
   // from mainline's actual preset data.
   //
   // Adds `meta.legacyEra` (WorldState shape change, hence the bump): true
-  // for any save whose `meta.era` is not one of the four real shipped pack
-  // ids ("1953"/"1979"/"1991"/"2019") — in practice this can currently only
+  // for any save whose `meta.era` is not a real shipped pack id — in practice this can currently only
   // be "1960", the fabricated era, for saves created before this fix.
   // `false`/absent for every real-pack era. This is a pure backfill (no RNG
   // consumed, no other field touched); calendar.ts's `nextEraForDate` keeps
@@ -3898,7 +3988,7 @@ export function deserializeSave(raw: string): WorldState {
     const w = save.world as unknown as Record<string, unknown>;
     const meta = w["meta"] as Record<string, unknown> | undefined;
     const era = typeof meta?.["era"] === "string" ? (meta["era"] as string) : "1953";
-    const REAL_PACK_ERAS = new Set(["1953", "1979", "1991", "2019"]);
+    const REAL_PACK_ERAS = new Set(["1953", "1979", "1991", "1999", "2007", "2019", "2023"]);
     if (meta && typeof meta["legacyEra"] !== "boolean") {
       meta["legacyEra"] = !REAL_PACK_ERAS.has(era);
     }
@@ -4175,6 +4265,13 @@ export function deserializeSave(raw: string): WorldState {
   // purchase turn, state and exposure history cannot be reconstructed from
   // the old flat category/group map.
   if (save.schemaVersion < 69) save.world.meta.schemaVersion = 69;
+  // v70: Japan's Internal Affairs allocation is absent until the minister
+  // changes it. There is no truthful historical allocation to backfill, so
+  // legacy saves retain an absent field and the source budget phase applies
+  // its even-split default. Any absent immutable JP fiscal rows are rebuilt
+  // from the selected era's source pack at the next ordinary budget turn, not
+  // during load. This migration consumes no RNG.
+  if (save.schemaVersion < 70) save.world.meta.schemaVersion = 70;
   // v71: national NPP whips retain the source's two independent attempts per
   // bill/chamber phase; the explicit veto-override start separates the source
   // reset window. New custom-party/member wall-clock anchors preserve the

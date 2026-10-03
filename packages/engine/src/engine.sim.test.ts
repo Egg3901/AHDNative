@@ -285,13 +285,16 @@ describe("seed packs integration", () => {
     }
   });
 
-  it("listEras returns the four real mainline eras sorted by startDate, no fabricated ones", () => {
+  it("listEras returns the seven real mainline eras sorted by startDate", () => {
     const eras = listEras();
-    expect(eras.map((e) => e.id)).toEqual(["1953", "1979", "1991", "2019"]);
+    expect(eras.map((e) => e.id)).toEqual(["1953", "1979", "1991", "1999", "2007", "2019", "2023"]);
     expect(eras[0]!.startDate).toBe("1953-01-06");
     expect(eras[1]!.startDate).toBe("1979-01-01");
     expect(eras[2]!.startDate).toBe("1991-01-01");
-    expect(eras[3]!.startDate).toBe("2019-01-01");
+    expect(eras[3]!.startDate).toBe("1999-01-01");
+    expect(eras[4]!.startDate).toBe("2007-01-01");
+    expect(eras[5]!.startDate).toBe("2019-01-01");
+    expect(eras[6]!.startDate).toBe("2023-01-01");
     for (const bad of ["1960", "1968", "1976"]) {
       expect(eras.map((e) => e.id)).not.toContain(bad);
     }
@@ -306,7 +309,7 @@ describe("seed packs integration", () => {
     }
   });
 
-  it("keeps JP and DE economy-preview when their regional budget variants are unavailable", () => {
+  it("keeps JP and economy-preview countries unavailable in the relevant raw packs", () => {
     for (const era of ["1953", "1979", "1991", "2019"]) {
       const countries = listCountries(era);
       expect(countries.find((country) => country.id === "JP")?.playable, `${era}/JP`).toBe(false);
@@ -314,6 +317,10 @@ describe("seed packs integration", () => {
       expect(listPlayableCountries(era).map((country) => country.id)).not.toEqual(
         expect.arrayContaining(["JP", "DE"]),
       );
+    }
+    for (const era of ["1999", "2007", "2023"]) {
+      expect(listCountries(era).find((country) => country.id === "JP")?.playable, `${era}/JP`).toBe(false);
+      expect(listPlayableCountries(era).map((country) => country.id)).not.toContain("JP");
     }
 
     expect(() => createWorld({ seed: "regional-budget", playerName: "P", countryId: "JP", era: "1991" }))

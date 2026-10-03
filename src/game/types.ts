@@ -60,6 +60,8 @@ export interface EraChoice {
   countries: {
     id: string;
     name: string;
+    /** Native source-ready new-character choice; spectator worlds are separate. */
+    playerSelectable?: boolean;
     regions: { id: string; name: string }[];
     /** National executive office key from the engine registry; null when none exists. */
     headOfStateOffice: string | null;
@@ -340,6 +342,7 @@ export interface GameScreenProps {
   loadCabinetOffice?: () => Promise<import("./cabinetOffice").CabinetOfficeView>;
   /** Validated ministerial order issue; present alongside loadCabinetOffice. */
   onIssueCabinetOrder?: (input: import("./cabinetOffice").IssueCabinetOrderInput) => void;
+  onSetJPRegionalAllocation?: (input: import("./cabinetOffice").SetJPRegionalAllocationInput) => void;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
   loadStateOwnership?: (countryId?: string) => Promise<import("./stateOwnership").StateOwnershipView>;

@@ -3,7 +3,7 @@ import { createWorld } from "../world.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { SCHEMA_VERSION } from "../world.js";
-import { INITIAL_RATES_1953, MONETARY_BASELINES_1953 } from "./constants.js";
+import { INITIAL_RATES_1953, INITIAL_RATES_1999, INITIAL_RATES_2007, INITIAL_RATES_2023, MONETARY_BASELINES_1953 } from "./constants.js";
 import { localToAnchor, anchorToLocal, roundTripInvariant } from "./conversion.js";
 import { regimeForEra, clampToRegimeBand, bandForRegime } from "./regime.js";
 import { computeMacroTarget } from "./rateCalculation.js";
@@ -38,6 +38,25 @@ describe("INITIAL_RATES_1953 table vs mainline", () => {
     // 50_000_000_000 / 4.2 = 11_904_761_905 USD, pack stores 11_905 * 1e6
     const ddmRate = INITIAL_RATES_1953["DD"]!;
     expect(50_000_000_000 / ddmRate / 1_000_000).toBeCloseTo(11905, 0);
+  });
+});
+
+describe("source initial rates for playable source-year packs", () => {
+  it("uses the exact pinned Game getInitialRatesForYear output at seed and save boundary", () => {
+    expect(INITIAL_RATES_1999.UK).toBe(0.6164929507127012);
+    expect(INITIAL_RATES_1999.JP).toBe(125.6535422222685);
+    expect(INITIAL_RATES_2007.UK).toBe(0.6667781724183387);
+    expect(INITIAL_RATES_2007.JP).toBe(117.38894180671696);
+    expect(INITIAL_RATES_2023.UK).toBe(0.75);
+    expect(INITIAL_RATES_2023.JP).toBe(106);
+    for (const [era, rates] of [["1999", INITIAL_RATES_1999], ["2007", INITIAL_RATES_2007], ["2023", INITIAL_RATES_2023]] as const) {
+      const world = createWorld({ seed: `source-fx-${era}`, playerName: "P", countryId: "US", era });
+      expect(world.exchangeRates.UK?.baseRate).toBe(rates.UK);
+      expect(world.exchangeRates.JP?.baseRate).toBe(rates.JP);
+      const restored = deserializeSave(serializeSave(world, `2026-10-03T00:00:00.000Z`));
+      expect(restored.exchangeRates.UK?.baseRate).toBe(rates.UK);
+      expect(restored.exchangeRates.JP?.baseRate).toBe(rates.JP);
+    }
   });
 });
 
