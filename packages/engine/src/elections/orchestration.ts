@@ -1,6 +1,7 @@
 import type { WorldRng } from "../rng.js";
 import type { Politician, WorldState } from "../types.js";
 import type { ElectionCandidate, ElectionRecord } from "./types.js";
+import { getPackByEra } from "@ahdclient/content";
 import {
   planNextElectionForType,
   planNextHouseElection,
@@ -447,6 +448,31 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
         chamberKey: "volkskammer",
         totalSeats: vk.seats,
       });
+  }
+  // Cold-War Eastern Bloc elections are content-only political systems. The
+  // six source beta countries run in these packs without being selectable;
+  // the three Union Republic abstractions are latent and require NPP v1.
+  // This follows the source beta/NPP gate rather than treating every country
+  // other than the selected player country as NPP-governed.
+  const easternBackground = getPackByEra(world.meta.era)?.backgroundElections ?? [];
+  for (const entry of easternBackground) {
+    if (entry.availability === "npp-v1" && !nppAutonomyLevelAtLeast(
+      resolveNppAutonomyLevel(world.nppAutonomyLevel),
+      "v1",
+    )) continue;
+    const legislature = world.legislatures[entry.countryId];
+    const chamber = legislature?.chambers.find((candidate) => candidate.key === entry.chamberKey);
+    if (!chamber?.elected) continue;
+    for (const region of entry.regions) {
+      if (regions[region.id]?.countryId !== entry.countryId) continue;
+      specs.push({
+        electionType: entry.electionType,
+        countryId: entry.countryId,
+        chamberKey: entry.chamberKey,
+        state: region.id,
+        totalSeats: region.seats,
+      });
+    }
   }
   // W40: subnational/regional chambers, per-region records mirroring the US
   // house loop above — mainline confirms all four run real per-region races

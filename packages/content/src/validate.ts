@@ -339,4 +339,80 @@ export function validatePack(pack: SeedPack): void {
       if (!path.trim() || !isFiniteNumber(value)) throw new Error(`validatePack: economyRegions[${index}].metrics contains an invalid path or value`);
     }
   }
+
+  const backgroundCountries = new Set<string>();
+  const backgroundRegions = new Set<string>();
+  const backgroundParties = new Set<string>();
+  for (const [index, row] of (pack.backgroundElections ?? []).entries()) {
+    if (typeof row !== "object" || row === null || Array.isArray(row)) {
+      throw new Error(`validatePack: backgroundElections[${index}] must be an object`);
+    }
+    if (Object.keys(row).some((key) => !["countryId", "name", "availability", "party", "electionType", "chamberKey", "chamberName", "cycleAnchor", "cyclePeriodHours", "regions", "initialSeatAllocations"].includes(key))) {
+      throw new Error(`validatePack: backgroundElections[${index}] contains an unknown field`);
+    }
+    if (!row.countryId.trim() || !row.name.trim() || !row.chamberKey.trim() || !row.chamberName.trim()) {
+      throw new Error(`validatePack: backgroundElections[${index}] requires country, name, and chamber identity`);
+    }
+    if (pack.countries.some((country) => country.id === row.countryId && country.playable)) {
+      throw new Error(`validatePack: backgroundElections[${index}] must not make a selectable country a background-only system`);
+    }
+    if (backgroundCountries.has(row.countryId)) throw new Error(`validatePack: duplicate background election country "${row.countryId}"`);
+    backgroundCountries.add(row.countryId);
+    if (row.availability !== "beta" && row.availability !== "npp-v1") throw new Error(`validatePack: backgroundElections[${index}].availability is invalid`);
+    if (row.cycleAnchor !== "ddVolkskammer" && row.cycleAnchor !== "ruRepublicSoviet") throw new Error(`validatePack: backgroundElections[${index}].cycleAnchor is invalid`);
+    const backgroundCycles: Record<string, { anchor: "ddVolkskammer" | "ruRepublicSoviet"; hours: number }> = {
+      sejm: { anchor: "ddVolkskammer", hours: 192 },
+      chamberOfThePeople: { anchor: "ddVolkskammer", hours: 240 },
+      nationalAssembly: { anchor: "ddVolkskammer", hours: 240 },
+      grandNationalAssembly: { anchor: "ddVolkskammer", hours: 240 },
+      federalAssembly: { anchor: "ddVolkskammer", hours: 192 },
+      supremeSoviet: { anchor: "ruRepublicSoviet", hours: 192 },
+    };
+    const cycle = backgroundCycles[row.electionType];
+    if (!cycle || row.chamberKey !== row.electionType || row.cycleAnchor !== cycle.anchor || row.cyclePeriodHours !== cycle.hours) {
+      throw new Error(`validatePack: backgroundElections[${index}] has an unsupported source election calendar`);
+    }
+    if (!isFiniteNumber(row.cyclePeriodHours) || !Number.isInteger(row.cyclePeriodHours) || row.cyclePeriodHours <= 0) {
+      throw new Error(`validatePack: backgroundElections[${index}].cyclePeriodHours must be a positive integer`);
+    }
+    const party = row.party;
+    if (party.countryId !== row.countryId || !party.id.trim() || !party.name.trim() || !party.abbreviation.trim() || !party.color.trim() || party.regimeStatus !== "ruling") {
+      throw new Error(`validatePack: backgroundElections[${index}].party identity is invalid`);
+    }
+    if (!isFiniteNumber(party.economicPosition) || party.economicPosition < -5 || party.economicPosition > 5 || !isFiniteNumber(party.socialPosition) || party.socialPosition < -5 || party.socialPosition > 5) {
+      throw new Error(`validatePack: backgroundElections[${index}].party positions must be in [-5,5]`);
+    }
+    if (backgroundParties.has(party.id) || pack.parties?.some((candidate) => candidate.id === party.id)) {
+      throw new Error(`validatePack: duplicate background party id "${party.id}"`);
+    }
+    backgroundParties.add(party.id);
+    if (!Array.isArray(row.regions) || row.regions.length === 0) throw new Error(`validatePack: backgroundElections[${index}].regions must not be empty`);
+    let totalSeats = 0;
+    for (const sourceRegion of row.regions) {
+      const key = `${row.countryId}:${sourceRegion.id}`;
+      if (!sourceRegion.id.trim() || !sourceRegion.name.trim() || backgroundRegions.has(key)) {
+        throw new Error(`validatePack: backgroundElections[${index}] has an invalid or duplicate region`);
+      }
+      backgroundRegions.add(key);
+      if (!Number.isInteger(sourceRegion.seats) || sourceRegion.seats <= 0) throw new Error(`validatePack: background region "${key}" must have positive integer seats`);
+      if (!isFiniteNumber(sourceRegion.partyOrganization) || sourceRegion.partyOrganization < 0 || sourceRegion.partyOrganization > 100) {
+        throw new Error(`validatePack: background region "${key}" partyOrganization must be in [0,100]`);
+      }
+      totalSeats += sourceRegion.seats;
+    }
+    const allocations = row.initialSeatAllocations ?? [];
+    const allocatedRegionIds = new Set<string>();
+    const allocated = allocations.reduce((sum, allocation) => {
+      const region = row.regions.find((candidate) => candidate.id === allocation.regionId);
+      if (!region || allocatedRegionIds.has(allocation.regionId) || !Number.isInteger(allocation.seats) || allocation.seats <= 0 || allocation.seats > region.seats) {
+        throw new Error(`validatePack: backgroundElections[${index}] has an invalid initial seat allocation`);
+      }
+      allocatedRegionIds.add(allocation.regionId);
+      return sum + allocation.seats;
+    }, 0);
+    if (allocated > totalSeats) throw new Error(`validatePack: backgroundElections[${index}] allocations exceed chamber seats`);
+    if (allocations.length > 0 && (allocated !== totalSeats || allocations.length !== row.regions.length || row.regions.some((region) => allocations.find((allocation) => allocation.regionId === region.id)?.seats !== region.seats))) {
+      throw new Error(`validatePack: backgroundElections[${index}] historical allocations must fill every authored regional seat`);
+    }
+  }
 }

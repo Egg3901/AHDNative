@@ -5,6 +5,7 @@ import { ruRegions1953 } from "./ruRegions1953.js";
 import { ddRegions1953 } from "./ddRegions1953.js";
 import { cnRegions1953 } from "./cnRegions1953.js";
 import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
+import { EASTERN_BLOC_ELECTIONS_1953 } from "./easternBlocElections.js";
 
 /**
  * Generated from mainline AHDGame  -  DO NOT HAND-EDIT.
@@ -45,6 +46,7 @@ import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.j
  */
 export const pack1953: SeedPack = {
   packVersion: 1,
+  backgroundElections: EASTERN_BLOC_ELECTIONS_1953,
   era: { id: "1953", label: "1953: Cold War Dawn", startDate: "1953-01-06" },
   // Budgets: national fiscal structures for US/UK/RU/DD (1953).
   // Sources: src/lib/seeds/reference/budgets.ts NATIONAL_BUDGET_SEED_CONFIGS_1953
