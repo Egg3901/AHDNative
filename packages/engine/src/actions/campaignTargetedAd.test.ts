@@ -215,7 +215,7 @@ describe("campaignTargetedAd", () => {
     for (let i = 0; i < 25; i += 1) expect(executeAction(world, "player", "campaignTargetedAd", { ...params, ...quoteParams(world) }).ok).toBe(true);
 
     const baselineWorld = deserializeSave(serializeSave(world, "2026-09-11T00:00:00.000Z"));
-    baselineWorld.player.targetedAds = undefined;
+    delete baselineWorld.player.targetedAds;
     const baselineRace = baselineWorld.elections.find((e) => e.id === race.id)!;
     let baselinePlayerBonuses: Record<string, number> | undefined;
     let treatedPlayerBonuses: Record<string, number> | undefined;

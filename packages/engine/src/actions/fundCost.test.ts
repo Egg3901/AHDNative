@@ -55,6 +55,9 @@ function pricedWorld(options: Parameters<typeof createWorld>[0]) {
 }
 function quoteContext(world: ReturnType<typeof createWorld>) {
   const home = world.regions[world.player.homeRegionId!]!;
+  if (world.player.stats === undefined || home.gdp === undefined || home.population === undefined) {
+    throw new Error("The priced fixture requires allocated stats, GDP and population");
+  }
   return { stats: world.player.stats, gdpMillions: home.gdp, population: home.population, era: world.meta.era };
 }
 
@@ -62,7 +65,7 @@ describe("executeAction charges exactly the quoted campaign cost (#242)", () => 
   it("charges the high-Intellect campaign cost the quote advertises, at the affordability edge", () => {
     const stats = spiked("intellect");
     const world = pricedWorld({ ...base, homeRegionId: "NY", stats });
-    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, stats, catalogFundCost: 20_000, ...quoteContext(world) });
+    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, catalogFundCost: 20_000, ...quoteContext(world) });
     // Fund the exact quote: the charge must not exceed it, or the edge attempt fails.
     world.player.funds = quoted;
     const before = world.player.funds;
@@ -75,7 +78,7 @@ describe("executeAction charges exactly the quoted campaign cost (#242)", () => 
   it("rejects the campaign one unit under the quoted cost", () => {
     const stats = spiked("intellect");
     const world = pricedWorld({ ...base, homeRegionId: "NY", stats });
-    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, stats, catalogFundCost: 20_000, ...quoteContext(world) });
+    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, catalogFundCost: 20_000, ...quoteContext(world) });
     world.player.funds = quoted - 1;
     expect(executeAction(world, "player", "campaign", { regionId: "NY" }).ok).toBe(false);
   });
@@ -111,7 +114,6 @@ describe("executeAction charges exactly the quoted campaign cost (#242)", () => 
       actionId: "buildDonorBase",
       actionCost: 4,
       donorBaseLevel: world.player.donorBaseLevel,
-      stats,
       catalogFundCost: 3_000,
       ...quoteContext(world),
     });

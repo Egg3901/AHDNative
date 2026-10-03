@@ -8,6 +8,7 @@ describe("public standing targeted-ad journey", () => {
     const before = session.create({ seed: "standing-ad-public", playerName: "Tester", countryId: "US", era: "1953", homeRegionId: "PA" });
     const action = before.actions.find((entry) => entry.id === "targetedAds")!;
     expect(action).toMatchObject({ available: true, requires: "targetedAd", quoteRevision: 0, quoteTurn: before.turn, quoteUnitCost: 100, maxActionCount: 50, fundCost: 100 });
+    if (action.quoteUnitCost === undefined) throw new Error("Standing ads must supply their reviewed unit price");
     const region = action.regionChoices?.find((choice) => choice.id === "PA");
     const target = action.choices?.find((choice) => choice.id === "race:white");
     expect(region).toEqual({ id: "PA", label: "Pennsylvania" });

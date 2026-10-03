@@ -87,7 +87,8 @@ describe("HoS tax directives phase in like enacted tax law (#93)", () => {
       { id: "fiscal-0-probe", countryId: "US", kind: "tax", field: "notATax", value: 50, proposedTurn: 0 },
     ];
     advanceTurn(world);
-    expect((world.budgets["US"]!.taxRates as Record<string, unknown>)["notATax"]).toBeUndefined();
+    expect(Reflect.get(world.budgets["US"]!.taxRates, "notATax")).toBeUndefined();
+    expect(Object.hasOwn(world.budgets["US"]!.taxRates, "notATax")).toBe(false);
     expect(world.pendingFiscalDirectives).toEqual([]);
   });
 
