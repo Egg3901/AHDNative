@@ -66,6 +66,9 @@ describe("IE statutory corporation tax source row", () => {
     // one-point phase-in, then the ordinary turn advances one more point.
     expect(world.budgets.IE?.taxRates.domesticCorporateTax).toBe(14);
     expect(world.budgets.IE?.taxRatePhaseIn?.domesticCorporateTax).toBe(12.5);
+    const repealProfitBase = world.budgets.IE!.taxBases.domesticCorporateProfits;
+    expect(world.budgets.IE?.revenue.domesticCorporateTax)
+      .toBe(Math.round(repealProfitBase * 0.14));
     const repealed = deserializeSave(serializeSave(world, "2019-01-06T00:00:00.000Z"));
     advanceTurn(world);
     advanceTurn(repealed);
