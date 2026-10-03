@@ -139,7 +139,10 @@ export function createJPRegionalBudgetRows(era: string): Record<string, Regional
  */
 export function processJPRegionalBudget(world: import("../types.js").WorldState, regionId: string): boolean {
   const pack = getPackByEra(world.meta.era);
-  const sourceRegions = [...(pack?.states ?? []), ...(pack?.economyRegions ?? [])]
+  // Source fiscal calculations use the dedicated economy-region table when
+  // one exists. Cold-era packs also carry political State rows for elections;
+  // concatenating both tables would double-count JP's national population.
+  const sourceRegions = (pack?.economyRegions ?? pack?.states ?? [])
     .filter((candidate) => candidate.countryId === "JP");
   const region = sourceRegions.find((candidate) => candidate.id === regionId);
   const row = world.regionalBudgets[regionId];

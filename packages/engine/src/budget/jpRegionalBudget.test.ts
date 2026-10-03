@@ -168,7 +168,10 @@ describe("Japan regional budget source formula", () => {
   it("uses persisted current JP populations and preserves the source regional property base", () => {
     const world = createWorld({ seed: "jp-budget-current-base", playerName: "Tester", countryId: "US", era: "2019" });
     for (const row of Object.values(world.regionalBudgets)) {
-      if (row.countryId === "JP") row.jpPopulation = 1_000_000;
+      if (row.countryId === "JP") {
+        row.jpPopulation = 1_000_000;
+        world.regions[row.regionId]!.population = 1_000_000;
+      }
     }
     const hokkaido = world.regionalBudgets.HOK!;
     hokkaido.jpPropertyValuePerCapita = 12_000_000;
@@ -189,6 +192,21 @@ describe("Japan regional budget source formula", () => {
       jpPropertyValuePerCapita: 12_000_000,
       jpPropertyValueBaseline: 9_000_000,
     });
+  });
+
+  it("uses only the fiscal region table when cold-era packs also seed political JP states", () => {
+    const world = createWorld({ seed: "jp-budget-cold-era-population", playerName: "Tester", countryId: "US", era: "1953" });
+    for (const region of Object.values(world.regions)) {
+      if (region.countryId === "JP") region.population = 1_000_000;
+    }
+
+    processJPRegionalBudget(world, "HOK");
+
+    // Eight source regions at one million residents allocate an equal grant
+    // of ¥128bn. Counting both political States and the separate fiscal table
+    // would incorrectly double the national population and grant.
+    expect(world.regionalBudgets.HOK?.jpPopulation).toBe(1_000_000);
+    expect(world.regionalBudgets.HOK?.revenue.grant).toBe(128_000_000_000);
   });
 
   it("rebuilds only immutable missing JP budget rows on a legacy turn", () => {
@@ -214,6 +232,12 @@ describe("Japan regional budget source formula", () => {
     // no state is dropped from the complete modern save or its turn reader.
     const legacyClockDocument = JSON.parse(contents);
     delete legacyClockDocument.world.meta.startingYear;
+    // The integrated schema also carries an independent DE surcharge. Remove
+    // only that unrelated state from this deliberately partial legacy fixture
+    // so the assertion reaches the JP-specific refusal below.
+    const deBudget = legacyClockDocument.world.budgets.DE;
+    if (deBudget?.taxRates) delete deBudget.taxRates.solidaritySurcharge;
+    if (deBudget?.taxRatePhaseIn) delete deBudget.taxRatePhaseIn.solidaritySurcharge;
     const result = projectSaveToV42(JSON.stringify(legacyClockDocument));
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Japan regional budget state") });
   });
