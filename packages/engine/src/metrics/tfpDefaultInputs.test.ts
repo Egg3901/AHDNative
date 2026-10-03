@@ -14,6 +14,7 @@ import {
 import { AUTHORED_TFP_LEAVES, type TfpLeaves } from "./tfpAuthoredLeaves.js";
 import { gameRepo, loadGameTree, overlayedLeaves, TFP_GAME_PIN } from "./tfpGameOracle.js";
 import tfpGameFixtures from "./tfpGameFixtures.json";
+const sourceCombos: Readonly<Record<string, Readonly<Record<string, TfpLeaves>>>> = tfpGameFixtures.combos;
 
 /**
  * Issue #40 / #106 — default-world TFP inputs from AHDGame seed formulas at
@@ -71,13 +72,19 @@ function regionLeaves(world: WorldState, regionId: string): TfpLeaves {
 
 function nationalTfp(world: WorldState, countryId: string): TfpBasketInputs {
   const row = world.nationalMetrics[countryId] ?? {};
+  const rdIntensity = row[PATHS.rdIntensity]?.value;
+  const workforceSkill = row[PATHS.workforceSkill]?.value;
+  const transportEfficiency = row[PATHS.transportEfficiency]?.value;
+  const broadbandAccess = row[PATHS.broadbandAccess]?.value;
+  const powerGridReliability = row[PATHS.powerGridReliability]?.value;
+  const urbanizationRate = row[PATHS.urbanizationRate]?.value;
   return {
-    rdIntensity: row[PATHS.rdIntensity]?.value,
-    workforceSkill: row[PATHS.workforceSkill]?.value,
-    transportEfficiency: row[PATHS.transportEfficiency]?.value,
-    broadbandAccess: row[PATHS.broadbandAccess]?.value,
-    powerGridReliability: row[PATHS.powerGridReliability]?.value,
-    urbanizationRate: row[PATHS.urbanizationRate]?.value,
+    ...(rdIntensity === undefined ? {} : { rdIntensity }),
+    ...(workforceSkill === undefined ? {} : { workforceSkill }),
+    ...(transportEfficiency === undefined ? {} : { transportEfficiency }),
+    ...(broadbandAccess === undefined ? {} : { broadbandAccess }),
+    ...(powerGridReliability === undefined ? {} : { powerGridReliability }),
+    ...(urbanizationRate === undefined ? {} : { urbanizationRate }),
   };
 }
 
@@ -145,7 +152,7 @@ describe("#40/#106 default TFP seed at createWorld", () => {
     expect(tfpGameFixtures.pin).toBe(TFP_GAME_PIN);
     for (const { era, countryId } of PLAYABLE) {
       const world = createWorld(opts(countryId, era, fixtureSeed(countryId, era)));
-      const expected = tfpGameFixtures.combos[fixtureKey(countryId, era)] as Record<string, TfpLeaves> | undefined;
+      const expected = sourceCombos[fixtureKey(countryId, era)];
       expect(expected, `${countryId} ${era} fixture`).toBeDefined();
       for (const region of countryRegions(world, countryId)) {
         expect(regionLeaves(world, region.id), `${era} ${region.id}`).toEqual(expected![region.id]);
@@ -260,7 +267,7 @@ describe.skipIf(!repo)("#40/#106 source-executed Game pin vectors", () => {
         : undefined;
       const expected = overlayedLeaves(docs, overlays, entry.apply1991);
       expect(AUTHORED_TFP_LEAVES[entry.countryId]?.[entry.era], `${entry.countryId} ${entry.era}`).toEqual(expected);
-      expect(tfpGameFixtures.combos[`${entry.countryId}:${entry.era}`], `${entry.countryId} ${entry.era} fixture`).toEqual(expected);
+      expect(sourceCombos[`${entry.countryId}:${entry.era}`], `${entry.countryId} ${entry.era} fixture`).toEqual(expected);
     }
   });
 

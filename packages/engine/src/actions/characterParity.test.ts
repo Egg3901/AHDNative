@@ -31,13 +31,13 @@ describe("current Game character actions through the public engine (#91)", () =>
     const world = createWorld({ era: "1953", countryId: "US", playerName: "Debater", seed: "debate-clock",
       stats: { charisma: 3, debate: 10, energy: 3, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 3 } });
     world.meta.turn = 71;
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     advanceTurn(loaded);
     expect(loaded.player.stats?.debate).toBe(9);
     advanceTurn(loaded);
     expect(loaded.player.stats?.debate).toBe(9);
     // Legacy date anchors do not accrue a synthetic debt on first adoption.
-    const legacy = JSON.parse(serializeSave(world));
+    const legacy = JSON.parse(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     delete legacy.world.player.debateDecayAnchorTurn;
     const migrated = deserializeSave(JSON.stringify(legacy));
     advanceTurn(migrated);
@@ -59,7 +59,7 @@ describe("current Game character actions through the public engine (#91)", () =>
     expect(world.player.funds).toBe(0);
     expect(world.player.actions).toBe(46);
     expect(world.player.politicalInfluence).toBeCloseTo(65.944, 12);
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     advanceTurn(world);
     advanceTurn(loaded);
     expect(serializeSave(loaded, "2026-10-01T00:00:00.000Z")).toBe(serializeSave(world, "2026-10-01T00:00:00.000Z"));
@@ -73,7 +73,7 @@ describe("current Game character actions through the public engine (#91)", () =>
     expect(executeAction(world, "player", "fundraise")).toMatchObject({ ok: true });
     // Game command source writes 0.03 to fundraising and Energy per success.
     expect(world.player.statXp).toEqual({ fundraising: 0.03, energy: 0.03 });
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     advanceTurn(loaded);
     expect(loaded.player.stats?.energy).toBe(3.03);
     expect(loaded.player.stats?.fundraising).toBe(10);
@@ -88,7 +88,7 @@ describe("current Game character actions through the public engine (#91)", () =>
     delete world.player.statsAllocated;
     world.player.actions = 50;
     world.player.funds = 1_000_000;
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     const before = serializeSave(loaded, "2026-10-01T00:00:00.000Z");
     expect(executeAction(loaded, "player", action)).toMatchObject({ ok: false, error: expect.stringContaining("allocated") });
     expect(serializeSave(loaded, "2026-10-01T00:00:00.000Z")).toBe(before);

@@ -90,6 +90,7 @@ import { resignUkCommonsSeat, validateUkCommonsDefection, vacatePlayerCommonsSea
 import { declareUkCommonsRecall, signUkCommonsRecallPetition } from "../elections/ukCommonsRecall.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 import { castPartyMergerVote, proposePartyMerger } from "../party/mergerProposals.js";
+import { executeForexTrade } from "../forex/trade.js";
 
 export type ExecuteActionParams = {
   /** Player preference for automatic re-entry in the most recent state race. */
@@ -97,9 +98,10 @@ export type ExecuteActionParams = {
   regionId?: string;
   contractId?: string;
   issuerLevel?: "national" | "state";
-  /** Source canvassing batch size, 1 through 50. */
-  count?: number;
+  /** Source batch size for canvassing and standing ads, 1 through 50. */
   amount?: number; // for convertCash
+  fromCurrency?: string;
+  toCurrency?: string;
   corporationName?: string;
   tickerSymbol?: string;
   sectorType?: CorporationType;
@@ -211,6 +213,12 @@ export type ExecuteActionParams = {
   managerId?: string;
   demographicCategory?: string;
   demographicGroup?: string;
+  /** Optimistic quote revision for standing ad purchase. */
+  expectedRevision?: number;
+  /** Source-shaped targeted-ad quote fields; stale quotes are rejected before charging. */
+  expectedTurn?: number;
+  expectedCost?: number;
+  count?: number;
   // #68 campaign strength
   /** Batched single-click count for campaignContribute; "max" resolves server-side. */
   clicks?: number | "max";
@@ -444,6 +452,17 @@ function executeActionInner(
   const readyAt = actor.actionCooldowns[actionId] ?? 0;
   if (turn < readyAt) return { ok: false, error: `Action ${actionId} on cooldown until turn ${readyAt}` };
 
+  if (actionId === "exchangeCurrency") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can exchange personal currency" };
+    if (!params.fromCurrency || !params.toCurrency || params.amount === undefined) {
+      return { ok: false, error: "exchangeCurrency requires fromCurrency, toCurrency, and amount" };
+    }
+    const result = executeForexTrade(world, params.fromCurrency, params.toCurrency, params.amount);
+    return result.ok
+      ? { ok: true, message: `Exchanged ${result.quote.fromAmount} ${result.quote.fromCurrency} for ${result.quote.toAmount} ${result.quote.toCurrency} at a ${(result.quote.feeRate * 100).toFixed(2)}% fee.` }
+      : { ok: false, error: result.error };
+  }
+
   // These source commands are recorded in parliamentary state, not charged
   // through generic action points or action counters.
   if (actionId === "proposePmAppointment") {
@@ -530,7 +549,7 @@ function executeActionInner(
       tickerSymbol: params.tickerSymbol ?? "",
       sectorType: params.sectorType!,
       ...(params.secondarySectorType ? { secondarySectorType: params.secondarySectorType } : {}),
-      startingCapital: params.startingCapital,
+      ...(params.startingCapital !== undefined ? { startingCapital: params.startingCapital } : {}),
     });
     return result.ok
       ? { ok: true, message: `Founded ${world.corporations[result.corporationId]!.name} (${world.corporations[result.corporationId]!.tickerSymbol}) with ${result.startingCapital} in starting capital.` }
@@ -590,8 +609,17 @@ function executeActionInner(
   if (nppInfluence && !nppInfluence.ok) return nppInfluence;
   const nppRecruit = actionId === "recruitCaucusNpp" ? quoteRecruitCaucusNpp(world, params, actorId) : null;
   if (nppRecruit && !nppRecruit.ok) return nppRecruit;
+  const targetedAdQuote = actionId === "targetedAds" || actionId === "campaignTargetedAd"
+    ? CampaignTargetedAd.quoteTargetedAds(world, params.count ?? 1)
+    : null;
+  if ((actionId === "targetedAds" || actionId === "campaignTargetedAd") &&
+    (!targetedAdQuote || params.expectedTurn !== targetedAdQuote.turn || params.expectedCost !== targetedAdQuote.cost ||
+      params.expectedRevision !== targetedAdQuote.revision)) {
+    return { ok: false, error: "The ad quote changed. Refresh before buying." };
+  }
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
-  const cost = canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
+  const cost = targetedAdQuote ? targetedAdQuote.count * CampaignTargetedAd.CAMPAIGN_TARGETED_AD_ACTIONS
+    : canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
     ? partyCaucus.actionCost
     : actionId === "sponsorBill"
       ? BILL_PROPOSE_ACTION_COST
@@ -605,7 +633,7 @@ function executeActionInner(
   // Game character quotes price the actor's home state, not a UI target.
   const actionRegion = world.regions[actor.homeRegionId ?? ""];
   const playerStats = found.kind === "player" ? effectivePlayerStats(world) : undefined;
-  const fundCost = canvass?.ok ? canvass.funds : nppInfluence?.ok ? nppInfluence.fundCost : nppRecruit?.ok ? nppRecruit.fundCost : partyCaucus ? partyCaucus.fundCost : actionFundCost({
+  const fundCost = targetedAdQuote?.cost ?? (canvass?.ok ? canvass.funds : nppInfluence?.ok ? nppInfluence.fundCost : nppRecruit?.ok ? nppRecruit.fundCost : partyCaucus ? partyCaucus.fundCost : actionFundCost({
     actionId,
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
@@ -615,7 +643,7 @@ function executeActionInner(
     population: actionRegion?.population,
     era: world.meta.era,
     ...(playerStats ? { stats: playerStats } : {}),
-  });
+  }));
   if (fundCost > 0) {
     // Prefer campaign funds; allow actor.funds only (player funds field)
     const available = actor.funds ?? 0;
@@ -1103,6 +1131,29 @@ function executeActionInner(
       regionId: params.regionId,
       demographicCategory: params.demographicCategory,
       demographicGroup: params.demographicGroup,
+      expectedRevision: params.expectedRevision,
+      expectedTurn: params.expectedTurn,
+      expectedCost: params.expectedCost,
+      count: params.count,
+    });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "targetedAds") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can buy standing targeted ads" };
+    const res = CampaignTargetedAd.purchaseStandingTargetedAd(world, {
+      regionId: params.regionId,
+      demographicCategory: params.demographicCategory,
+      demographicGroup: params.demographicGroup,
+      expectedRevision: params.expectedRevision,
+      expectedTurn: params.expectedTurn,
+      expectedCost: params.expectedCost,
+      count: params.count,
     });
     if (!res.ok) {
       actor.actions += cost;
@@ -2728,6 +2779,9 @@ function executeActionInner(
 
 function validateRequiredActionParams(actionId: string, params: ExecuteActionParams): string | null {
   switch (actionId) {
+    case "exchangeCurrency":
+      return params.fromCurrency && params.toCurrency && params.amount !== undefined
+        ? null : "exchangeCurrency requires fromCurrency, toCurrency, and amount";
     case "foundCorporation":
       return params.corporationName && params.tickerSymbol && params.sectorType
         ? null : "foundCorporation requires corporationName, tickerSymbol, and sectorType";
@@ -2838,9 +2892,13 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         ? null
         : "campaignCanvass requires electionId, regionId, demographicCategory, and demographicGroup";
     case "campaignTargetedAd":
-      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
+      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup && typeof params.expectedRevision === "number"
         ? null
-        : "campaignTargetedAd requires electionId, regionId, demographicCategory, and demographicGroup";
+        : "campaignTargetedAd requires electionId, regionId, demographicCategory, demographicGroup, and expectedRevision";
+    case "targetedAds":
+      return params.regionId && params.demographicCategory && params.demographicGroup && typeof params.expectedRevision === "number"
+        ? null
+        : "targetedAds requires regionId, demographicCategory, demographicGroup, and expectedRevision";
     case "campaignContribute":
       return params.electionId ? null : "campaignContribute requires electionId";
     case "sponsorBill":

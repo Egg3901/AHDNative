@@ -229,7 +229,7 @@ describe("discount-window servicing (#327)", () => {
 describe("discount-window stigma (#327)", () => {
   it("is zero for a bank that never drew and scales with cap usage", () => {
     expect(discountWindowStigma({ npcDeposits: 1_000_000, discountWindowDebt: 0 })).toBe(0);
-    expect(discountWindowStigma({ npcDeposits: 1_000_000, discountWindowDebt: undefined })).toBe(0);
+    expect(discountWindowStigma({ npcDeposits: 1_000_000 })).toBe(0);
     const small = discountWindowStigma({ npcDeposits: 400_000, discountWindowDebt: 100_000 });
     const large = discountWindowStigma({ npcDeposits: 40_000_000, discountWindowDebt: 100_000 });
     expect(small).toBeGreaterThan(large);
@@ -260,7 +260,7 @@ describe("discount-window stigma (#327)", () => {
     const clean = computeConfidence(base);
     const stained = computeConfidence({ ...base, discountWindowStigma: 0.05 });
     expect(stained.confidence).toBeCloseTo(clean.confidence - 0.05, 10);
-    expect(computeConfidence({ ...base, discountWindowStigma: undefined }).confidence).toBe(
+    expect(computeConfidence(base).confidence).toBe(
       clean.confidence,
     );
   });

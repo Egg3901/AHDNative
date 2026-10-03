@@ -58,6 +58,7 @@ import { validateNationalCorporations } from "./corporation/nationalCorporation.
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { validatePendingNationalizations } from "./corporation/pendingNationalizations.js";
 import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
+import { countPrStv, validateRankedBallots } from "./elections/prStv.js";
 import { validateNppStrategyState } from "./corporation/nppCorpStrategy.js";
 import { validateCorporateRelocationVote } from "./corporation/relocationVotes.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
@@ -66,6 +67,7 @@ import {
   validateBargainingCampaigns,
   validateCollectiveAgreements,
 } from "./unions/campaigns.js";
+import { validateTargetedAds } from "./campaigns/targetedAds.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -187,6 +189,38 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  // Schema 42 has no writer for Native's manual-trade lookback. Those rows
+  // affect later player fees and currency-rate pressure, so preserving them
+  // as unknown JSON is not enough to continue this world. The empty array is
+  // the reconstructable no-trade default and remains exportable.
+  const forexTradeHistory = world["forexTradeHistory"];
+  if (Array.isArray(forexTradeHistory) && forexTradeHistory.length > 0) {
+    return { ok: false, error: `Manual currency trade history cannot be continued by the schema 42 turn reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
+  }
+  // These snapshots are derived solely from the recorded manual lookback.
+  // Neutral zero snapshots are equivalent to the absent pre-feature state;
+  // active or malformed snapshots must remain on the current schema.
+  const forexRates = world["exchangeRates"];
+  if (isRecord(forexRates)) for (const [countryId, row] of Object.entries(forexRates)) {
+    if (!isRecord(row)) continue;
+    for (const field of ["buyVolume24", "sellVolume24"] as const) {
+      const volume = row[field];
+      if (volume === undefined) continue;
+      if (typeof volume !== "number" || !Number.isFinite(volume) || volume < 0) {
+        return { ok: false, error: `Exchange-rate ${countryId} has an invalid ${field} snapshot; keep this Native save as schema ${SCHEMA_VERSION}` };
+      }
+      if (volume !== 0) {
+        return { ok: false, error: `Active currency-volume pressure cannot be continued by the schema 42 turn reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
+  const standingAds = isRecord(world["player"]) ? world["player"]["targetedAds"] : undefined;
+  if (Array.isArray(standingAds) && standingAds.length > 0) {
+    return { ok: false, error: "Standing targeted-ad exposure cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
+  if (isRecord(world["meta"]) && hasOwn(world["meta"], "startingYear")) {
+    return { ok: false, error: "The source 48-turn election clock cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
   if (hasOwn(world, "pendingNationalizations")) {
     return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
   }
@@ -793,6 +827,41 @@ function assertSaveWorldRoot(value: unknown): asserts value is WorldState {
   }
 }
 
+function validateDurableLayer1CheckpointOverlays(world: WorldState): void {
+  for (const [regionId, raw] of Object.entries(world.baselineDemographics)) {
+    if (!isRecord(raw)) throw new Error(`Not a valid save file: invalid baseline demographics for ${regionId}`);
+    const positions = raw["layer1PositionOverrides"];
+    if (positions !== undefined) {
+      if (!isRecord(positions)) throw new Error("Not a valid save file: invalid durable Layer-1 position overrides");
+      for (const [dimension, byBucket] of Object.entries(positions)) {
+        if (!dimension || !isRecord(byBucket)) throw new Error("Not a valid save file: invalid durable Layer-1 position dimension");
+        for (const [bucket, axes] of Object.entries(byBucket)) {
+          if (!bucket || !isRecord(axes) || Object.keys(axes).some((axis) => axis !== "economicLean" && axis !== "socialLean")) {
+            throw new Error("Not a valid save file: invalid durable Layer-1 position bucket");
+          }
+          for (const value of Object.values(axes)) {
+            if (typeof value !== "number" || !Number.isFinite(value) || value < -5 || value > 5) {
+              throw new Error("Not a valid save file: durable Layer-1 position delta is outside source bounds");
+            }
+          }
+        }
+      }
+    }
+    const turnout = raw["layer1TurnoutOverrides"];
+    if (turnout !== undefined) {
+      if (!isRecord(turnout)) throw new Error("Not a valid save file: invalid durable Layer-1 turnout overrides");
+      for (const [dimension, byBucket] of Object.entries(turnout)) {
+        if (!dimension || !isRecord(byBucket)) throw new Error("Not a valid save file: invalid durable Layer-1 turnout dimension");
+        for (const [bucket, value] of Object.entries(byBucket)) {
+          if (!bucket || typeof value !== "number" || !Number.isFinite(value) || value < -80 || value > 80) {
+            throw new Error("Not a valid save file: durable Layer-1 turnout delta is outside source bounds");
+          }
+        }
+      }
+    }
+  }
+}
+
 function validatePmAppointmentVotes(world: WorldState): void {
   const records = (world as unknown as Record<string, unknown>)["pmAppointmentVotes"];
   if (!Array.isArray(records)) throw new Error("Not a valid save file: invalid PM appointment votes");
@@ -960,6 +1029,33 @@ function assertCurrentWorldState(world: WorldState): void {
   ) {
     throw new Error("Not a valid save file: invalid world state");
   }
+
+  // Schema 68 adds source metric-engine coexistence state only to the
+  // cost-of-living node. Old rows may legitimately omit it; present values
+  // must be consumable by the 40..200 bounded source node.
+  const regionalMetrics = value["regionalMetrics"];
+  if (!isRecord(regionalMetrics)) throw new Error("Not a valid save file: invalid regional metrics");
+  for (const [regionId, regionMetrics] of Object.entries(regionalMetrics)) {
+    if (!isRecord(regionMetrics)) throw new Error(`Not a valid save file: invalid regional metrics for ${regionId}`);
+    const col = regionMetrics["economic.costOfLiving"];
+    if (col === undefined) continue;
+    if (
+      !isRecord(col) ||
+      Object.keys(col).some((key) => key !== "value" && key !== "simBaseline") ||
+      typeof col["value"] !== "number" || !Number.isFinite(col["value"]) ||
+      (col["value"] as number) < 40 || (col["value"] as number) > 200 ||
+      (col["simBaseline"] !== undefined &&
+        (typeof col["simBaseline"] !== "number" || !Number.isFinite(col["simBaseline"]) ||
+          (col["simBaseline"] as number) < 40 || (col["simBaseline"] as number) > 200))
+    ) {
+      throw new Error(`Not a valid save file: invalid regional cost-of-living metric for ${regionId}`);
+    }
+  }
+  if (meta["startingYear"] !== undefined &&
+      (!Number.isSafeInteger(meta["startingYear"]) || (meta["startingYear"] as number) < 1000 || (meta["startingYear"] as number) > 9999)) {
+    throw new Error("Not a valid save file: invalid source starting year");
+  }
+  validateDurableLayer1CheckpointOverlays(world);
   const lastRelocatedTurn = player["lastRelocatedTurn"];
   if (lastRelocatedTurn !== undefined &&
       (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
@@ -1792,6 +1888,58 @@ function validatePresidentialGeneralMechanics(world: WorldState): void {
       }
       ids.add(row["id"] as string);
       if (row["isActive"] === true) activeGovernorStates.add(row["stateId"] as string);
+    }
+  }
+}
+
+function validatePrStvElectionState(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const race = rawRace;
+    const hasPrStvState = ["countingMethod", "rankedBallots", "rankedPreferenceModel", "prStvResult", "resolutionPath"]
+      .some((key) => race[key] !== undefined && (key !== "resolutionPath" || race[key] === "pr_stv"));
+    if (!hasPrStvState) continue;
+    if (race["countingMethod"] !== "pr_stv" || race["countryId"] !== "IE" ||
+      !["dail", "localCouncil"].includes(String(race["electionType"]))) {
+      throw new Error("Not a valid save file: ranked PR-STV state belongs only to an opted-in Irish Dail or local council race");
+    }
+    if (race["rankedPreferenceModel"] !== "same_party_then_policy_distance_v1" || !Array.isArray(race["rankedBallots"])) {
+      throw new Error("Not a valid save file: invalid ranked PR-STV ballot grammar");
+    }
+    const tally = race["tally"];
+    const candidates = race["candidates"];
+    if (!isRecord(tally) || !Array.isArray(candidates)) {
+      throw new Error("Not a valid save file: ranked PR-STV election is missing its tally or candidates");
+    }
+    try {
+      validateRankedBallots(race["rankedBallots"], tally as Record<string, number>);
+    } catch (error) {
+      throw new Error(`Not a valid save file: invalid ranked PR-STV ballots (${error instanceof Error ? error.message : "invalid evidence"})`);
+    }
+    if (race["conversionTerms"] !== undefined) {
+      throw new Error("Not a valid save file: ranked PR-STV cannot carry conversion terms or reserved seat floors");
+    }
+    const result = race["prStvResult"];
+    if (race["status"] === "resolved") {
+      if (!isRecord(result) || race["resolutionPath"] !== "pr_stv") {
+        throw new Error("Not a valid save file: resolved ranked PR-STV election is missing its count receipt");
+      }
+      const activeIds = candidates.flatMap((candidate) =>
+        isRecord(candidate) && candidate["status"] !== "withdrawn" && typeof candidate["id"] === "string"
+          ? [candidate["id"]]
+          : [],
+      );
+      let expected;
+      try {
+        expected = countPrStv(activeIds, race["totalSeats"] as number, race["rankedBallots"]);
+      } catch (error) {
+        throw new Error(`Not a valid save file: ranked PR-STV count cannot be reproduced (${error instanceof Error ? error.message : "invalid result"})`);
+      }
+      if (JSON.stringify(result) !== JSON.stringify(expected)) {
+        throw new Error("Not a valid save file: ranked PR-STV count receipt does not match the stored ballots");
+      }
+    } else if (result !== undefined || race["resolutionPath"] === "pr_stv") {
+      throw new Error("Not a valid save file: unresolved ranked PR-STV election carries a completed count receipt");
     }
   }
 }
@@ -3917,6 +4065,23 @@ export function deserializeSave(raw: string): WorldState {
     if (typeof statehood.startingPreset !== "string") statehood.startingPreset = inferredPreset;
     save.world.statehood = statehood as NonNullable<typeof save.world.statehood>;
   }
+  // v66: player FX execution stamps trade notional for the source size-fee
+  // lookback and keeps exact trade flow for breadth/pressure. Older saves
+  // have no reconstructable trade history: keep the field absent rather than
+  // inferring trades from balances or exchange-rate snapshots.
+  if (save.schemaVersion < 66) save.world.meta.schemaVersion = 66;
+  // v67: preserve genuinely absent ranked-count state on historical and
+  // default Irish races. The schema barrier makes opt-in ballot/result
+  // continuations unreadable to the prior tally grammar.
+  if (save.schemaVersion < 67) save.world.meta.schemaVersion = 67;
+  // v68: preserve genuinely absent regional rows and coexistence baselines
+  // until their first ordinary cost-of-living metric turn.
+  if (save.schemaVersion < 68) save.world.meta.schemaVersion = 68;
+  // v69: source-shaped standing ad flights and quote revision are optional
+  // player state. Leave prior campaign-targeted-ad modifiers untouched: their
+  // purchase turn, state and exposure history cannot be reconstructed from
+  // the old flat category/group map.
+  if (save.schemaVersion < 69) save.world.meta.schemaVersion = 69;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3952,6 +4117,16 @@ export function deserializeSave(raw: string): WorldState {
     // renumber is needed.
     if (typeof campaign.campaignStrength !== "number") campaign.campaignStrength = 0;
   }
+  if (save.world.player.targetedAds !== undefined) {
+    validateTargetedAds(save.world.player.targetedAds, "player.targetedAds", save.world);
+    if (!Number.isSafeInteger(save.world.player.targetedAdsRevision) || (save.world.player.targetedAdsRevision ?? -1) < 0) {
+      throw new Error("Invalid targetedAdsRevision at player");
+    }
+  }
+  if (save.world.player.targetedAdsRevision !== undefined &&
+    (!Number.isSafeInteger(save.world.player.targetedAdsRevision) || save.world.player.targetedAdsRevision < 0)) {
+    throw new Error("Invalid targetedAdsRevision at player");
+  }
   // Pre-#48 Native saves always applied recorded stats. Preserve that ruleset
   // when the new key is absent; present malformed values still fail closed.
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
@@ -3975,6 +4150,7 @@ export function deserializeSave(raw: string): WorldState {
   }
   validatePresidentialPrimaryLedger(save.world);
   validatePresidentialGeneralMechanics(save.world);
+  validatePrStvElectionState(save.world);
   validatePrimaryStateOrganizations(save.world);
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);
@@ -4179,6 +4355,32 @@ export function deserializeSave(raw: string): WorldState {
   // no version renumber is needed.
   if (save.world.alignments !== undefined) {
     validateAlignmentRecords(save.world.alignments);
+  }
+  if (save.world.forexTradeHistory !== undefined) {
+    if (!Array.isArray(save.world.forexTradeHistory)) throw new Error("Not a valid save file: invalid forex trade history");
+    const seenForexTradeIds = new Set<string>();
+    const forexCurrencies = new Set(Object.values(save.world.exchangeRates).map((exchangeRate) => exchangeRate.currencyCode));
+    const supportedForexCurrencies = new Set(Object.values(CURRENCY_CODE_BY_COUNTRY));
+    for (const [index, trade] of save.world.forexTradeHistory.entries()) {
+      if (
+        !isRecord(trade) || typeof trade.id !== "string" || trade.id !== `fx-${String(trade.turn)}-${index + 1}` || seenForexTradeIds.has(trade.id) ||
+        !Number.isSafeInteger(trade.turn) || trade.turn < 0 || trade.turn > save.world.meta.turn ||
+        trade.traderId !== "player" ||
+        typeof trade.fromCurrency !== "string" || !supportedForexCurrencies.has(trade.fromCurrency) || !forexCurrencies.has(trade.fromCurrency) ||
+        typeof trade.toCurrency !== "string" || !supportedForexCurrencies.has(trade.toCurrency) || !forexCurrencies.has(trade.toCurrency) || trade.fromCurrency === trade.toCurrency ||
+        !Number.isFinite(trade.amount) || trade.amount <= 0 ||
+        !Number.isFinite(trade.anchorAmount) || trade.anchorAmount <= 0 ||
+        !Number.isFinite(trade.spread) || trade.spread < 0 || trade.spread > trade.amount ||
+        trade.source !== "manual"
+      ) throw new Error("Not a valid save file: invalid forex trade history row");
+      seenForexTradeIds.add(trade.id);
+    }
+  }
+  for (const exchangeRate of Object.values(save.world.exchangeRates)) {
+    if (
+      exchangeRate.buyVolume24 !== undefined && (!Number.isFinite(exchangeRate.buyVolume24) || exchangeRate.buyVolume24 < 0) ||
+      exchangeRate.sellVolume24 !== undefined && (!Number.isFinite(exchangeRate.sellVolume24) || exchangeRate.sellVolume24 < 0)
+    ) throw new Error("Not a valid save file: invalid forex volume snapshot");
   }
   return save.world;
 }

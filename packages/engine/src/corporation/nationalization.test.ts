@@ -100,7 +100,7 @@ describe("executive nationalization ownership transfer", () => {
     asset.soldUnits = 250;
     asset.soldFraction = 0.625;
     asset.realizedRevenue = 100;
-    asset.soldByCommodity = { textiles: 0.5, steel: 0.75 };
+    asset.soldByCommodity = { advertising: 0.5, steel: 0.75 };
     const nationalId = `NAT-${corporation.countryId}-${corporation.sectorType}`;
     const existing = {
       ...corporation,
@@ -149,7 +149,7 @@ describe("executive nationalization ownership transfer", () => {
       soldUnits: 500,
       realizedRevenue: 200,
       soldFraction: 0.625,
-      soldByCommodity: { textiles: 0.5, steel: 0.75 },
+      soldByCommodity: { advertising: 0.5, steel: 0.75 },
     });
     expect(world.corporateSectors![asset.id]).toBeUndefined();
     expect(world.unownedSectors[poolKey]).toEqual(unownedBefore);

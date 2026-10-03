@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
+import { FIRST_CHOICE_RNG } from "./testRng.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import {
   averageAnnualWage,
@@ -163,7 +164,7 @@ describe("#320 union organizer identity and strength", () => {
     const requested = politicalContributionPerTurn(freeCashFlowPerTurn(duesIncome, 0), 0.5);
     expect(requested).toBeGreaterThan(0);
     const before = union.treasury;
-    const rng = { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! };
+    const rng = FIRST_CHOICE_RNG;
     unionsTurnPhase.run(world, rng);
     // Strength decay ran first, so the paid split follows the decayed 3:1 weights exactly.
     const decayed = 1 - UNION_STRENGTH_DECAY_PER_TURN;

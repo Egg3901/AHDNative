@@ -17,6 +17,7 @@ import {
 } from "./bondTurn.js";
 import { bondCouponMaturityPhase } from "./phases.js";
 import { resolveBondCurrency } from "./denomination.js";
+import { rngFromSeed } from "../rng.js";
 import { executeAction } from "../actions/execute.js";
 import { ACTION_CATALOG } from "../actions/catalog.js";
 
@@ -181,14 +182,14 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
     };
 
     const coupon = perTurnCouponPayment(4.8, 1_000) * 2;
-    bondCouponMaturityPhase.run(world, { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! });
+    bondCouponMaturityPhase.run(world, rngFromSeed("coupon-maturity-first"));
 
     expect(world.player.cash).toBe(25_000);
     expect(world.player.currencyBalances?.personal.GBP).toBeCloseTo(coupon, 8);
 
-    const reloaded = deserializeSave(serializeSave(world));
+    const reloaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     reloaded.meta.turn += 1;
-    bondCouponMaturityPhase.run(reloaded, { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! });
+    bondCouponMaturityPhase.run(reloaded, rngFromSeed("coupon-maturity-reloaded"));
 
     expect(reloaded.player.cash).toBe(25_000);
     expect(reloaded.player.currencyBalances?.personal.GBP).toBeCloseTo(2_000 + coupon * 2, 8);
@@ -199,15 +200,14 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
     const world = createWorld(OPTS);
     const legacy = {
       countryId: "UK",
-      currencyCode: undefined,
     };
     expect(resolveBondCurrency(world, legacy)).toBe("GBP");
     expect(resolveBondCurrency(world, { ...legacy, currencyCode: "" })).toBe("GBP");
-    expect(resolveBondCurrency(world, { countryId: "unknown", currencyCode: undefined })).toBe("USD");
+    expect(resolveBondCurrency(world, { countryId: "unknown" })).toBe("USD");
     // Non-player budgets may carry a USD placeholder; the pinned country
     // currency table still identifies the source-authored local denomination.
     world.budgets.DE = { ...world.budgets.US!, countryId: "DE", currencyCode: "USD" };
-    expect(resolveBondCurrency(world, { countryId: "DE", currencyCode: undefined })).toBe("EUR");
+    expect(resolveBondCurrency(world, { countryId: "DE" })).toBe("EUR");
   });
 
   it("keeps legacy domestic maturity settlement in home cash through the public phase", () => {
@@ -237,7 +237,7 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
       updatedAt: world.meta.date,
     };
 
-    bondCouponMaturityPhase.run(world, { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! });
+    bondCouponMaturityPhase.run(world, rngFromSeed("legacy-coupon-maturity"));
 
     expect(world.player.cash).toBe(1_100);
     expect(world.player.currencyBalances).toBeUndefined();

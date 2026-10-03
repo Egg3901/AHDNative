@@ -1,8 +1,12 @@
 export { advanceTurn } from "./engine.js";
+export { SOURCE_TURNS_PER_YEAR, sourceElectionClockForWorld } from "./elections/sourceElectionClock.js";
+export type { SourceElectionClock } from "./elections/sourceElectionClock.js";
 export { politicalMetricsForCountry } from "./politicalMetrics/registry.js";
 export type { PoliticalRegistryView, PoliticalCategoryView, PoliticalMetricView, PoliticalMetricRegionView } from "./politicalMetrics/registry.js";
 export type { AdvanceTurnOptions } from "./engine.js";
 export { clearCommodity, TRADE_IPF_ITERATIONS } from "./trade/clearing.js";
+export { quoteForexTrade, sizeFeeRate, liquidityFeeMultiplier, currencyVolumesForLookback, computeVolumePressure } from "./forex/trade.js";
+export type { ForexTradeQuote, ForexTradeQuoteResult, CurrencyVolume } from "./forex/trade.js";
 export type { CommodityClearingInput, CommodityClearingResult, CountryCommodityClearing } from "./trade/clearing.js";
 export { corporateTradeSnapshotPhase, recordCorporateTradeSnapshot } from "./trade/corporateTrade.js";
 export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCountryEconomyRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
@@ -68,7 +72,9 @@ export * from "./actions/fundGeneration.js";
 // #242: one stat-scaled fund-cost source shared by executeAction and the quote.
 export { actionFundCost } from "./actions/fundCost.js";
 export type { FundCostInput } from "./actions/fundCost.js";
-export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
+export { CAMPAIGN_TARGETED_AD_CAP, CAMPAIGN_TARGETED_AD_BOOST, CAMPAIGN_TARGETED_AD_MAX_ACTIONS, quoteTargetedAds, type TargetedAdQuote } from "./actions/campaignTargetedAd.js";
+export { campaignCellsForRegion, campaignAdTargetChoices, targetedAdBonuses, meanAdBonus, campaignPrimaryScore, currentAdBonus, planAdPurchase, adExposure, targetedAdBonusByGroup, type TargetedAd, type CampaignCell, type CampaignAdTargetChoice } from "./campaigns/targetedAds.js";
+export { standingTargetedAdRegions, campaignTargetedAdRegions } from "./actions/campaignTargetedAd.js";
 export * from "./actions/polling.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
 export { proposalNpiCost, BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST } from "./legislation/proposalCosts.js";

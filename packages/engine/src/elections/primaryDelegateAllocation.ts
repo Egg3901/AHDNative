@@ -37,7 +37,8 @@ export function allocateProportional(
       return (votesByCandidate[b.id] ?? 0) - (votesByCandidate[a.id] ?? 0);
     });
     for (let index = 0; index < leftover && index < ranked.length; index += 1) {
-      byCandidate[ranked[index]!.id] += 1;
+      const candidateId = ranked[index]!.id;
+      byCandidate[candidateId] = (byCandidate[candidateId] ?? 0) + 1;
       assigned += 1;
     }
   }

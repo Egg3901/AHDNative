@@ -32,10 +32,10 @@ export function earnCareerGovernment(world: WorldState, catalogId: string): Worl
   const vote = world.pmAppointmentVotes.at(-1)!;
   expect(vote).toMatchObject({ countryId, nomineeId: "player", status: "active", closesTurn: world.meta.turn + 24 });
   expect(executeAction(world, "player", "votePmAppointment", { pmAppointmentVoteId: vote.id, pmVote: "aye" }).ok).toBe(true);
-  world = deserializeSave(serializeSave(world));
+  world = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
   for (let i = 0; i < 24; i++) advanceTurn(world);
   expect(world.pmAppointmentVotes.find(v => v.id === vote.id)).toMatchObject({ status: "passed" });
   expect(world.governments[countryId]).toMatchObject({ status: "formed", pmPoliticianId: "player" });
   expect(world.player.currentOffice).toMatchObject({ countryId, type: EXECUTIVE_OFFICE_BY_COUNTRY[countryId] });
-  return deserializeSave(serializeSave(world));
+  return deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
 }

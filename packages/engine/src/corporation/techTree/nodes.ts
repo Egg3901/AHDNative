@@ -7093,7 +7093,7 @@ function specToNode(
     name: spec.name,
     description: spec.description,
     cost,
-    cashRevenueFraction: spec.cashRevenueFraction,
+    ...(spec.cashRevenueFraction !== undefined ? { cashRevenueFraction: spec.cashRevenueFraction } : {}),
     effects: spec.effects,
   };
 }
@@ -7116,7 +7116,7 @@ function specToNodeV3(
   return {
     ...specToNode(spec, idOf(slot), decadeId, lane, slot, baseCost * (SLOT_COST_MULT[slot] ?? 1)),
     prereqIds: isSpec ? [idOf(8), idOf(9)] : [idOf(slot - 3)],
-    exclusiveGroup: isSpec ? `${idOf(0).replace(/-0$/, "")}-spec` : undefined,
+    ...(isSpec ? { exclusiveGroup: `${idOf(0).replace(/-0$/, "")}-spec` } : {}),
   };
 }
 

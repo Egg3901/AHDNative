@@ -12,6 +12,7 @@ export type GameCommand =
   | { type: "creationChoices"; era: string; countryId: string }
   | { type: "create"; options: NewGameOptions }
   | { type: "view" }
+  | { type: "forexQuote"; fromCurrency: string; toCurrency: string; amount: number }
   | { type: "profile" }
   | { type: "profileDestination" }
   | { type: "imperialProfile" }

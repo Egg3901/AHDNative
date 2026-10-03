@@ -75,9 +75,9 @@ export function resolveCreditAllocation(
   if (sectorCredit && Object.keys(sectorCredit).length) {
     const weights = soes.map((soe) => {
       const weight = sectorCredit[soe.sector];
-      return Number.isFinite(weight) && weight > 0 ? weight : 0;
+      return weight !== undefined && Number.isFinite(weight) && weight > 0 ? weight : 0;
     });
-    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    const totalWeight = weights.reduce<number>((sum, weight) => sum + weight, 0);
     soes.forEach((soe, index) => allocations.set(soe.sector, totalWeight > 0 ? credit * weights[index]! / totalWeight : 0));
     return allocations;
   }
@@ -86,7 +86,7 @@ export function resolveCreditAllocation(
     const shortfall = Math.max(0, SOE_PERF_BASELINE - planFulfillment(soe));
     return Math.max(0, target * (CREDIT_ALLOCATION_FLOOR + shortfall));
   });
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const totalWeight = weights.reduce<number>((sum, weight) => sum + weight, 0);
   soes.forEach((soe, index) => allocations.set(soe.sector, credit * (totalWeight > 0 ? weights[index]! / totalWeight : 1 / soes.length)));
   return allocations;
 }

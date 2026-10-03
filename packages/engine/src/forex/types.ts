@@ -42,6 +42,24 @@ export interface ExchangeRate {
   regime: "pegged" | "floating";
   /** Turn the rate was last updated. */
   updatedTurn: number;
+  /** Source's most recently computed gross 24-turn anchor volume, when available. */
+  buyVolume24?: number;
+  sellVolume24?: number;
+}
+
+/** Persisted player-conversion witness used by source-equivalent fee/flow lookbacks. */
+export interface ForexTradeRecord {
+  id: string;
+  turn: number;
+  traderId: string;
+  fromCurrency: string;
+  toCurrency: string;
+  /** Gross amount spent, in fromCurrency units (source tradeHistory.amount). */
+  amount: number;
+  /** Gross notional at execution, in anchor units; stamped for split-resistant fees. */
+  anchorAmount: number;
+  spread: number;
+  source: "manual";
 }
 
 /**

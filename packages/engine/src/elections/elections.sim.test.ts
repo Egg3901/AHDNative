@@ -268,8 +268,9 @@ describe("election orchestration (W21c)", () => {
       endTurn: 30,
       candidates: [],
       tally: {},
-      resolvedTurn: undefined,
     };
+    // Active elections have no resolvedTurn field in persisted state.
+    delete next.resolvedTurn;
     w.elections = [previous, next];
 
     runAutoReelectionEntry(w);

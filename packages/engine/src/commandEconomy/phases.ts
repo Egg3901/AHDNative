@@ -63,7 +63,10 @@ export const commandEconomyPhase: TurnPhase = {
         if (!plannedRegimeAtResolution) continue;
         if (directive.creditAggressiveness !== undefined) ce.creditAggressiveness = directive.creditAggressiveness;
         if (directive.budgetSoftness !== undefined) ce.budgetSoftness = directive.budgetSoftness;
-        if (directive.sectorCredit !== undefined) ce.sectorCredit = directive.sectorCredit ?? undefined;
+        if (directive.sectorCredit !== undefined) {
+          if (directive.sectorCredit === null) delete ce.sectorCredit;
+          else ce.sectorCredit = directive.sectorCredit;
+        }
       }
       ce.pendingDirectives = future;
 

@@ -23,6 +23,7 @@ import {
   MONETARY_BASELINES_1953,
   RATE_NOISE_MAX,
 } from "./constants.js";
+import { computeVolumePressure, type CurrencyVolume } from "./trade.js";
 
 export interface MacroInputs {
   primeRate: number; // percent
@@ -117,6 +118,7 @@ export function applyNoise(rate: number, noise: number): number {
 export interface RateUpdateResult {
   rate: number;
   macroTarget: number;
+  volumePressure: number;
 }
 
 /**
@@ -131,10 +133,13 @@ export function computeRateUpdate(
   noise: number,
   era: string | null | undefined,
   driftMultiplier = 1,
+  volumes: CurrencyVolume & { syntheticNet?: number } = { buyVolume24: 0, sellVolume24: 0 },
 ): RateUpdateResult {
   const macroTarget = computeMacroTarget(baseRate, macro, countryId, era);
   const drifted = applyDrift(currentRate, macroTarget, DRIFT_SPEED * driftMultiplier);
-  const withNoise = applyNoise(drifted, noise);
+  const volumePressure = computeVolumePressure(volumes);
+  const withVolume = drifted * (1 - volumePressure);
+  const withNoise = applyNoise(withVolume, noise);
   const clamped = clampRate(withNoise, baseRate);
-  return { rate: clamped, macroTarget };
+  return { rate: clamped, macroTarget, volumePressure };
 }

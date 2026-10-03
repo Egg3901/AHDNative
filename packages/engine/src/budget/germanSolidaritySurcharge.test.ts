@@ -36,10 +36,11 @@ describe("German solidarity surcharge budget line", () => {
     const before = world.budgets.DE!.revenue.total;
     expect(world.budgets.DE!.revenue.solidaritySurcharge).toBe(47_817_000_000);
     expect(world.budgets.DE!.revenue.total).toBe(before);
-    const projected = projectSaveToV42(serializeSave(world));
+    const projected = projectSaveToV42(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("An active solidarity surcharge must refuse historical export");
     expect(projected.error).toContain("solidarity surcharge");
-    const roundtrip = deserializeSave(serializeSave(world));
+    const roundtrip = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     expect(roundtrip.budgets.DE?.taxRates.solidaritySurcharge).toBe(5.5);
     expect(roundtrip.budgets.DE?.revenue.solidaritySurcharge).toBe(47_817_000_000);
   });

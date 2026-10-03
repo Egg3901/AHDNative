@@ -178,7 +178,7 @@ function reconcileUKDevolutionForTurn(world: WorldState): void {
     state,
     currentUKDevolutionPolicy(world),
     completedCycles,
-    24 + DEFAULT_DURATIONS.governor.generalDurationHours,
+    24 + DEFAULT_DURATIONS.governor!.generalDurationHours,
   );
   if (next !== state) world.ukDevolution = next;
   const effective = world.ukDevolution ?? state;
@@ -278,6 +278,9 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
       if (!UK_DEVOLVED_GOVERNOR_REGIONS.has(r.id)) continue;
       const institution = ukInstitutionState.regions[r.id as UKExecutiveRegion];
       if (!institution?.active) continue;
+      const customEndTurn = institution.firstElectionEndTurn !== undefined
+        ? executiveCycleAnchor(institution, DEFAULT_DURATIONS.governor!.durationHours)
+        : undefined;
       specs.push({
         electionType: "governor",
         countryId: "UK",
@@ -285,14 +288,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
         state: r.id,
         totalSeats: 1,
         firstCycle: institution.firstCycle,
-        ...(institution.firstElectionEndTurn !== undefined
-          ? {
-              customCycle1EndTurn: executiveCycleAnchor(
-                institution,
-                DEFAULT_DURATIONS.governor.durationHours,
-              ),
-            }
-          : {}),
+        ...(customEndTurn !== undefined ? { customCycle1EndTurn: customEndTurn } : {}),
       });
       continue;
     }
@@ -523,7 +519,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
             // five-year cycles while avoiding a single nationwide wipe.
             customCycle1EndTurn:
               cycleAnchors.ukCommons +
-              UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id] * 48,
+              UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id]! * 48,
           }
         : {}),
     });
@@ -1027,6 +1023,7 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
   };
   const result = resolveGeneralElectionPure(input);
   if (!result) return;
+
   // seatsEstimate may assign the single seat to a candidate id; winner is the one with >0 seats.
   let winnerId: string | null = null;
   let maxSeats = 0;
@@ -1113,7 +1110,14 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
       cycle: rec.cycle,
       status: rec.status,
     } as GeneralResolutionInput["election"],
-    tally: { electionId: rec.id, totalVotes: rec.tally, finalized: true },
+    tally: {
+      electionId: rec.id,
+      totalVotes: rec.tally,
+      finalized: true,
+      ...(rec.countingMethod ? { countingMethod: rec.countingMethod } : {}),
+      ...(rec.rankedBallots ? { rankedBallots: rec.rankedBallots } : {}),
+      ...(rec.conversionTerms ? { conversionTerms: rec.conversionTerms } : {}),
+    },
     candidates,
     totalSeats: rec.totalSeats,
     // Without this, house allocation falls back to mainline's 2020-census
@@ -1129,6 +1133,8 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   };
   const result = resolveGeneralElectionPure(input);
   if (!result) return;
+  if (result.resolutionPath) rec.resolutionPath = result.resolutionPath;
+  if (result.prStvResult) rec.prStvResult = result.prStvResult;
 
   // Game stores each actual winner with its allocated seatsHeld. A nominee
   // can represent several seats; redistributing by party and capping at the
@@ -1230,7 +1236,7 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
       : `${label} election resolved${topWinner ? `: ${topWinner.name} (${topWinner.partyId}) leads the winners` : ""}`,
     category: "Election",
     countryId: rec.countryId,
-    partyId: topWinner?.partyId,
+    ...(topWinner?.partyId ? { partyId: topWinner.partyId } : {}),
     electionId: rec.id,
   });
 }

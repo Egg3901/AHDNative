@@ -316,6 +316,7 @@ export function App() {
       });
       return accepted;
     }}
+    quoteForexTrade={(fromCurrency, toCurrency, amount) => client.current!.forexQuote(fromCurrency, toCurrency, amount)}
     onSectorSale={(op, params) => void run(async () => {
       const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor, params.buyerCorporationId);
       setWorld(response.view);

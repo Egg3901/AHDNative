@@ -25,10 +25,14 @@ import { buildNationwideElectoratePreload } from "../electionEngine/nationwideEl
 import { distributeVotesByGroupLevelAllocation } from "../electionEngine/voteDistribution.js";
 import { distributeVotesBySwingFlow } from "../electionEngine/voteDistributionSwingFlow.js";
 import { CAMPAIGN_TARGETED_AD_CAP } from "../actions/campaignTargetedAd.js";
+import { hasSource1953DemographicShape, hasSourceYearDemographicShape, sourceLayer1Overlays, targetedAdBonuses } from "../campaigns/targetedAds.js";
+import { remapArchetypeValuesToSourceUnits, sourceCampaignUnits1953, sourceCampaignUnitsForYear } from "../campaigns/sourceCampaignElectorate.js";
+import { sourceElectionClockForWorld } from "./sourceElectionClock.js";
 import { electoralVoteUnitsForWorld } from "./presidentialElectoralCollege.js";
 import { appliesExplicitPresidentialLean, presidentialRulesetVersionFor } from "./presidentialRuleset.js";
 import { displayLean, PRESIDENTIAL_UNIT_LEAN, presidentialLeanVoteMultiplier, sourceFallbackStateLean } from "./presidentialLean.js";
 import { dcPresidentialDemographics } from "./dcPresidentialDemographics.js";
+import { castRankedBallots, countPrStv, mergeRankedBallots, validateRankedBallots } from "./prStv.js";
 
 /**
  * W21c tally wiring: feeds the ported accumulateVoteTurn from WorldState.
@@ -119,16 +123,96 @@ function campaignTargetedAdBonuses(
   candidateId: string,
 ): Record<string, number> | undefined {
   const campaign = world.campaigns[campaignKey(electionId, candidateId)];
-  if (!campaign || campaign.status !== "active") return undefined;
-  const bonuses: Record<string, number> = {};
-  for (const [key, value] of Object.entries(campaign.targetedAdModifiers ?? {})) {
+  const legacy: Record<string, number> = {};
+  if (campaign?.status === "active") for (const [key, value] of Object.entries(campaign.targetedAdModifiers ?? {})) {
     const separator = key.indexOf(":");
     if (separator < 0 || !Number.isFinite(value)) continue;
     const groupId = key.slice(separator + 1);
     const bonus = Math.max(0, Math.min(CAMPAIGN_TARGETED_AD_CAP, value));
-    if (bonus > 0) bonuses[groupId] = (bonuses[groupId] ?? 0) + bonus;
+    if (bonus > 0) legacy[groupId] = (legacy[groupId] ?? 0) + bonus;
   }
-  return Object.keys(bonuses).length > 0 ? bonuses : undefined;
+  return Object.keys(legacy).length > 0 ? legacy : undefined;
+}
+
+/** Build the actual source 1953 US counted-unit substrate for a regional
+ * general tally. This is ephemeral: saved StateDemographics and historical
+ * one-axis campaign ledgers remain untouched. */
+function sourceGranularSubstrateForTurn(
+  world: WorldState,
+  rec: ElectionRecord,
+  slice: StateSlice,
+  enriched: import("../electionEngine/types.js").EnrichedCandidate[],
+  index?: TallyTurnIndex,
+) {
+  if (rec.countryId !== "US") return null;
+  const clock = sourceElectionClockForWorld(world);
+  const sourceYearShape = clock !== null && hasSourceYearDemographicShape(world, slice.stateId);
+  const legacy1953Shape = clock === null && hasSource1953DemographicShape(world, slice.stateId);
+  if (!sourceYearShape && !legacy1953Shape) return null;
+  const legacyTurnout = campaignTurnoutModifiers(world, rec.id, index);
+  const overlays = sourceLayer1Overlays(world, slice.stateId, legacyTurnout);
+  const units = sourceYearShape && clock
+    ? sourceCampaignUnitsForYear(slice.stateId, clock.currentYear, clock.startingYear, overlays)
+    : sourceCampaignUnits1953(slice.stateId, overlays);
+  if (!units) return null;
+  const groups = Object.fromEntries(units.map((unit) => [unit.id, {
+    population: unit.share * 100,
+    economicLean: unit.economicLean,
+    socialLean: unit.socialLean,
+    turnout: unit.turnout,
+  }]));
+  const demographics: EngineStateDemographics = {
+    ...slice.demographics,
+    categoryWeights: { granularCells: 100 },
+    groups,
+  };
+  const categories = [{
+    _id: "granularCells",
+    name: "Granular Electorate Units",
+    defaultWeight: 100,
+    groups: units.map((unit) => ({
+      id: unit.id,
+      name: unit.id,
+      defaultEconomicLean: unit.economicLean,
+      defaultSocialLean: unit.socialLean,
+      defaultTurnout: unit.turnout,
+    })),
+  }];
+  const campaignCells = units.flatMap((unit) => unit.campaignCells);
+  const remappedEnriched = enriched.map((candidate) => {
+    const approvals = candidate.archetypeApprovals
+      ? remapArchetypeValuesToSourceUnits(candidate.archetypeApprovals, units)
+      : undefined;
+    const legacyAds = candidate.targetedAdBonuses
+      ? remapArchetypeValuesToSourceUnits(candidate.targetedAdBonuses, units)
+      : {};
+    const standingAds = candidate.characterId === "player" && world.player.targetedAds?.length
+      ? targetedAdBonuses(
+          campaignCells,
+          { economicLean: candidate.charEP, socialLean: candidate.charSP },
+          world.player.targetedAds,
+          slice.stateId,
+          world.meta.turn,
+        )
+      : {};
+    const adByUnit: Record<string, number> = { ...legacyAds };
+    for (const unit of units) {
+      const members = unit.campaignCells;
+      const weight = members.reduce((sum, cell) => sum + cell.share * cell.turnout, 0);
+      const bonus = members.reduce((sum, cell) => sum + cell.share * cell.turnout * (standingAds[cell.id] ?? 0), 0);
+      const standing = weight > 0 ? bonus / weight : 0;
+      if (standing > 0) adByUnit[unit.id] = (adByUnit[unit.id] ?? 0) + standing;
+    }
+    return {
+      ...candidate,
+      ...(approvals ? { archetypeApprovals: approvals } : {}),
+      ...(Object.keys(adByUnit).length > 0 ? { targetedAdBonuses: adByUnit } : { targetedAdBonuses: undefined }),
+    };
+  });
+  const liveTurnouts = Object.fromEntries(units.map((unit) => [unit.id, unit.turnout]));
+  const meanTurnout = units.reduce((sum, unit) => sum + unit.share * unit.turnout, 0);
+  const totalPool = Math.round((slice.state.votingEligiblePopulation ?? slice.state.population) * meanTurnout / 100);
+  return { demographics, categories, liveTurnouts, totalPool, enriched: remappedEnriched };
 }
 
 /**
@@ -474,6 +558,7 @@ function runAccumulate(
   if (!result) return false;
   rec.tallyState = result.tallyState as unknown as ElectionRecord["tallyState"];
   rec.tally = { ...result.totals };
+  if (result.rankedBallots) rec.rankedBallots = result.rankedBallots;
   return true;
 }
 
@@ -493,8 +578,27 @@ function runAccumulateCore(
   presidentialModifierStateId: string = slice.stateId,
   index?: TallyTurnIndex,
   observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
-): { tallyState: unknown; totals: Record<string, number> } | null {
+): { tallyState: unknown; totals: Record<string, number>; rankedBallots?: ElectionRecord["rankedBallots"] } | null {
   const { stateId, state, demographics, turnout, statePartyOrgs } = slice;
+
+  if (rec.countingMethod === "pr_stv") {
+    if (rec.countryId !== "IE" || !["dail", "localCouncil"].includes(rec.electionType))
+      throw new Error("Ranked PR-STV is supported only for Irish Dail and local council races");
+    if (rec.conversionTerms)
+      throw new Error("Ranked PR-STV does not support conversion vote penalties or reserved seat floors");
+    const previous = priorTallyState as TallyInput | undefined;
+    if (rec.rankedBallots === undefined) {
+      const alreadyTallied = Object.values(rec.tally).some((votes) => votes > 0) ||
+        Object.values(previous?.totalVotes ?? {}).some((votes) => votes > 0) ||
+        (previous?.turnSnapshots.length ?? 0) > 0;
+      if (alreadyTallied)
+        throw new Error("Cannot reinitialize a PR-STV tally after ballots were cast");
+      rec.rankedBallots = [];
+    }
+    if (rec.rankedPreferenceModel !== undefined && rec.rankedPreferenceModel !== "same_party_then_policy_distance_v1")
+      throw new Error("Unsupported ranked PR-STV preference model");
+    rec.rankedPreferenceModel = "same_party_then_policy_distance_v1";
+  }
 
   const now = worldNow(world);
   const player = world.player;
@@ -559,7 +663,7 @@ function runAccumulateCore(
     ];
   });
 
-  const enriched = enrichCandidates(
+  const enrichedBase = enrichCandidates(
     candidates.map((c) => ({
       _id: c._id,
       electionId: c.electionId,
@@ -591,6 +695,10 @@ function runAccumulateCore(
   );
 
   const isGeneralElection = world.meta.turn >= rec.primaryEndTurn;
+  const sourceSubstrate = sourceGranularSubstrateForTurn(world, rec, slice, enrichedBase, index);
+  const enriched = sourceSubstrate?.enriched ?? enrichedBase;
+  const derived = derivedInputs(world, rec, index);
+  if (sourceSubstrate) derived.granularSubstrate = sourceSubstrate;
   // #68: campaign strength only multiplies presidential GENERAL votes (see
   // buildCampaignStrengthVoteMultipliers). Down-ballot races and primary-phase
   // president tallies pass nothing, so the accumulator is byte-identical.
@@ -632,7 +740,7 @@ function runAccumulateCore(
     enriched,
     turnNumber: world.meta.turn,
     now,
-    derived: derivedInputs(world, rec, index),
+    derived,
     distributeFn: isGeneralElection
       ? distributeVotesBySwingFlow
       : distributeVotesByGroupLevelAllocation,
@@ -647,7 +755,47 @@ function runAccumulateCore(
 
   const result = accumulateVoteTurn(input);
   if (!result) return null;
-  return { tallyState: result.tally, totals: { ...result.newTotals } };
+  if (!rec.countingMethod) return { tallyState: result.tally, totals: { ...result.newTotals } };
+
+  if (rec.countryId !== "IE" || !["dail", "localCouncil"].includes(rec.electionType))
+    throw new Error("Ranked PR-STV is supported only for Irish Dail and local council races");
+  if (rec.conversionTerms)
+    throw new Error("Ranked PR-STV does not support conversion vote penalties or reserved seat floors");
+  const previous = tallyState as TallyInput;
+  const totals = { ...(previous?.totalVotes ?? {}), ...result.newTotals };
+  const increments = Object.fromEntries(activeCandidates.map((candidate) => [
+    candidate.id,
+    (result.newTotals[candidate.id] ?? 0) - (previous?.totalVotes[candidate.id] ?? 0),
+  ]));
+  const ballots = mergeRankedBallots(
+    rec.rankedBallots ?? [],
+    castRankedBallots(
+      enriched.map((candidate) => ({
+        candidateId: candidate.candidateId,
+        party: candidate.party,
+        charEP: candidate.charEP,
+        charSP: candidate.charSP,
+      })),
+      increments,
+    ),
+  );
+  validateRankedBallots(ballots, totals);
+  const tallyWithRankedHistory = structuredClone(result.tally) as TallyInput;
+  tallyWithRankedHistory.totalVotes = totals;
+  if (ballots.length > 0) {
+    const seatsEstimate = countPrStv(enriched.map((candidate) => candidate.candidateId), rec.totalSeats, ballots).seats;
+    tallyWithRankedHistory.seatsEstimate = seatsEstimate;
+  }
+  const lastSnapshot = tallyWithRankedHistory.turnSnapshots.at(-1);
+  if (lastSnapshot) {
+    lastSnapshot.cumulativeVotes = { ...totals };
+    const sum = Object.values(totals).reduce((total, votes) => total + votes, 0);
+    lastSnapshot.sharesPct = Object.fromEntries(
+      Object.entries(totals).map(([candidateId, votes]) => [candidateId, sum > 0 ? Math.round((votes / sum) * 1000) / 10 : 0]),
+    );
+    if (ballots.length > 0) lastSnapshot.seatsEstimate = tallyWithRankedHistory.seatsEstimate!;
+  }
+  return { tallyState: tallyWithRankedHistory, totals, rankedBallots: ballots };
 }
 
 function scaledElectoralDistrictSlice(slice: StateSlice, unitId: string, share: number): StateSlice {
@@ -836,12 +984,12 @@ export function realAccumulate(
   rng: WorldRng,
   rec: ElectionRecord,
   index?: TallyTurnIndex,
-  observeInput?: (snapshot: unknown) => void,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
 ): boolean {
   if (rec.electionType === "president") {
     return realAccumulatePresident(world, rng, rec, index, observeInput);
   }
   const slice = rec.state ? stateSliceFor(world, rec.state, rec.id, false, index) : null;
   if (!slice) return false;
-  return runAccumulate(world, rng, rec, slice, index, observeInput as ((snapshot: VoteDistributionDiagnosticSnapshot) => void) | undefined);
+  return runAccumulate(world, rng, rec, slice, index, observeInput);
 }

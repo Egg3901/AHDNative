@@ -156,7 +156,7 @@ describe("wireTransfer", () => {
   it("denominates the quota in anchor units at the sender-home rate", () => {
     const w = createWorld(OPTS);
     const targetId = samePoliticianCountry(w);
-    w.exchangeRates["US"].rate = 4;
+    w.exchangeRates["US"]!.rate = 4;
     w.player.cash = DAILY_WIRE_CAP_ANCHOR * 4;
     const res = wireTransfer(w, targetId, 4000);
     expect(res.ok).toBe(true);
@@ -169,7 +169,7 @@ describe("wireTransfer", () => {
     const w = createWorld(OPTS);
     const targetId = samePoliticianCountry(w);
     w.player.cash = 100;
-    w.exchangeRates["US"].rate = NaN;
+    w.exchangeRates["US"]!.rate = NaN;
     const before = serializeSave(w, "2026-01-01T00:00:00.000Z");
     expect(wireTransfer(w, targetId, 1000)).toEqual({
       ok: false,
@@ -203,7 +203,7 @@ describe("wireTransfer", () => {
   it("refuses fail-closed when the sender-home rate is missing", () => {
     const w = createWorld(OPTS);
     const targetId = samePoliticianCountry(w);
-    w.exchangeRates["US"].rate = NaN;
+    w.exchangeRates["US"]!.rate = NaN;
     const before = serializeSave(w, "2026-01-01T00:00:00.000Z");
     expect(wireTransfer(w, targetId, 100)).toEqual({
       ok: false,
