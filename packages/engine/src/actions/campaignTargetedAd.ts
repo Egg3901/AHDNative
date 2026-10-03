@@ -1,14 +1,16 @@
 import type { WorldState } from "../types.js";
-import { campaignAnchorToLocal } from "../campaigns/campaignCurrency.js";
 import { isCampaignEligibleElection } from "../campaigns/isCampaignEligible.js";
 import { campaignKey } from "../campaigns/lifecycle.js";
-import { AD_BONUS_CAP, planAdPurchase, type TargetedAd } from "../campaigns/targetedAds.js";
+import { AD_BONUS_CAP, AD_MAX_ACTIONS, AD_BOOST_PER_ACTION, currentAdBonus, planAdPurchase, type TargetedAd } from "../campaigns/targetedAds.js";
 
 export interface TargetedAdPurchaseParams {
   regionId?: string | undefined;
   demographicCategory?: string | undefined;
   demographicGroup?: string | undefined;
   expectedRevision?: number | undefined;
+  expectedTurn?: number | undefined;
+  expectedCost?: number | undefined;
+  count?: number | undefined;
 }
 
 export type TargetedAdPurchaseResult = { ok: true; message: string } | { ok: false; error: string };
@@ -17,7 +19,38 @@ export const CAMPAIGN_TARGETED_AD_FUNDS = 100;
 export const CAMPAIGN_TARGETED_AD_ACTIONS = 1;
 export const CAMPAIGN_TARGETED_AD_CAP = AD_BONUS_CAP;
 export const CAMPAIGN_TARGETED_AD_BOOST = 0.01;
+export const CAMPAIGN_TARGETED_AD_MAX_ACTIONS = AD_MAX_ACTIONS;
 export const CAMPAIGN_TARGETED_AD_HALF_LIFE = 24;
+
+export interface TargetedAdQuote {
+  turn: number;
+  cost: number;
+  revision: number;
+  count: number;
+  unitCost: number;
+}
+
+/**
+ * Source ad quote uses its frozen exchangeRates.baseRate when forex is on and
+ * a price level of 1 when the optional external campaign-era price flag is off.
+ * Native does not import that server-only flag, so this port follows its
+ * default-off contract; enabled source price-level worlds are not represented.
+ */
+export function quoteTargetedAds(world: WorldState, count = 1): TargetedAdQuote | null {
+  if (!Number.isSafeInteger(count) || count < 1 || count > AD_MAX_ACTIONS) return null;
+  const rate = world.featureFlags.foreignExchange
+    ? world.exchangeRates[world.player.countryId]?.baseRate
+    : 1;
+  if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) return null;
+  const unitCost = CAMPAIGN_TARGETED_AD_FUNDS * rate;
+  return {
+    turn: world.meta.turn,
+    cost: unitCost * count,
+    revision: world.player.targetedAdsRevision ?? 0,
+    count,
+    unitCost,
+  };
+}
 
 /** Keep the old campaign-scoped ledger decay intact for already-saved worlds. */
 export function decayCampaignTargetedAdModifiers(
@@ -72,11 +105,13 @@ export function campaignTargetedAdRegions(
 }
 
 function validateTarget(world: WorldState, params: TargetedAdPurchaseParams, allowedRegions = standingTargetedAdRegions(world)) {
-  const { regionId, demographicCategory, demographicGroup, expectedRevision } = params;
+  const { regionId, demographicCategory, demographicGroup, expectedRevision, expectedTurn, expectedCost } = params;
+  const quote = quoteTargetedAds(world, params.count ?? 1);
   if (!regionId || !demographicCategory || !demographicGroup) {
     return { ok: false as const, error: "targetedAds requires regionId, demographicCategory, and demographicGroup" };
   }
-  if (!Number.isSafeInteger(expectedRevision) || expectedRevision !== (world.player.targetedAdsRevision ?? 0)) {
+  if (!quote || !Number.isSafeInteger(expectedRevision) || expectedRevision !== quote.revision ||
+    expectedTurn !== quote.turn || expectedCost !== quote.cost) {
     return { ok: false as const, error: "The ad quote changed. Refresh before buying." };
   }
   if (!allowedRegions.includes(regionId)) {
@@ -89,19 +124,22 @@ function validateTarget(world: WorldState, params: TargetedAdPurchaseParams, all
     !item.groups.some((candidateGroup) => candidateGroup.id === demographicGroup))) {
     return { ok: false as const, error: "Choose a recorded demographic target in this region." };
   }
-  return { ok: true as const, regionId, dimension: demographicCategory, bucket: demographicGroup, groupName: group.name };
+  const current = currentAdBonus(world.player.targetedAds ?? [], { stateId: regionId, dimension: demographicCategory, bucket: demographicGroup }, world.meta.turn);
+  const maxCount = Math.min(AD_MAX_ACTIONS, Math.ceil(Math.max(0, AD_BONUS_CAP - current - 1e-10) / AD_BOOST_PER_ACTION));
+  if ((params.count ?? 1) > maxCount) return { ok: false as const, error: "Invalid target or action count" };
+  return { ok: true as const, regionId, dimension: demographicCategory, bucket: demographicGroup, groupName: group.name, count: params.count ?? 1 };
 }
 
-/** AHDGame /api/targeted-ads purchaseStandingAds, represented as one action per purchase. */
+/** AHDGame /api/targeted-ads purchaseStandingAds, represented by a bounded batch of actions. */
 export function purchaseStandingTargetedAd(world: WorldState, params: TargetedAdPurchaseParams, allowedRegions?: string[]): TargetedAdPurchaseResult {
   const target = validateTarget(world, params, allowedRegions ?? standingTargetedAdRegions(world));
   if (!target.ok) return target;
   const ads: TargetedAd[] = world.player.targetedAds ?? [];
-  const next = planAdPurchase(ads, { stateId: target.regionId, dimension: target.dimension, bucket: target.bucket }, world.meta.turn);
+  const next = planAdPurchase(ads, { stateId: target.regionId, dimension: target.dimension, bucket: target.bucket }, world.meta.turn, target.count);
   if (!next) return { ok: false, error: "This demographic target is already at the ad bonus cap." };
   world.player.targetedAds = next;
   world.player.targetedAdsRevision = (world.player.targetedAdsRevision ?? 0) + 1;
-  return { ok: true, message: `Bought targeted ads for ${target.groupName} voters in ${world.regions[target.regionId]?.name ?? target.regionId}.` };
+  return { ok: true, message: `Bought ${target.count} targeted ad action${target.count === 1 ? "" : "s"} for ${target.groupName} voters in ${world.regions[target.regionId]?.name ?? target.regionId}.` };
 }
 
 /** Active-campaign endpoint: Game delegates human nominees to the same standing writer. */

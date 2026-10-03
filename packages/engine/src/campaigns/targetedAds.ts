@@ -30,6 +30,7 @@ type AdTarget = { stateId: string; dimension: string; bucket: string };
 export const AD_BONUS_CAP = 0.25;
 export const AD_BOOST_PER_ACTION = 0.01;
 export const AD_HALF_LIFE = 24;
+export const AD_MAX_ACTIONS = 50;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -166,12 +167,13 @@ export function currentAdBonus(ads: TargetedAd[], target: AdTarget, turn: number
   return previous ? adExposure(previous, turn) : 0;
 }
 
-export function planAdPurchase(ads: TargetedAd[], target: AdTarget, turn: number): TargetedAd[] | null {
+export function planAdPurchase(ads: TargetedAd[], target: AdTarget, turn: number, count = 1): TargetedAd[] | null {
+  if (!Number.isSafeInteger(count) || count < 1 || count > AD_MAX_ACTIONS) return null;
   const current = currentAdBonus(ads, target, turn);
   if (current >= AD_BONUS_CAP - 1e-10) return null;
   return [
     ...ads.filter((ad) => !(ad.stateId === target.stateId && ad.dimension === target.dimension && ad.bucket === target.bucket) && adExposure(ad, turn) >= 0.00001),
-    { ...target, bonus: Math.min(AD_BONUS_CAP, current + AD_BOOST_PER_ACTION), lastPurchaseTurn: turn },
+    { ...target, bonus: Math.min(AD_BONUS_CAP, current + AD_BOOST_PER_ACTION * count), lastPurchaseTurn: turn },
   ];
 }
 

@@ -452,6 +452,7 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
       `${target.category}:${target.group}` === current) ? current : "");
   }, [campaign.canvassing.targets]);
   const [targetedAdTarget, setTargetedAdTarget] = useState("");
+  const [targetedAdCount, setTargetedAdCount] = useState("1");
   const [targetedAdRegion, setTargetedAdRegion] = useState(campaign.targetedAds.regionId ?? "");
   useEffect(() => {
     setTargetedAdRegion((current) => campaign.targetedAds.regions.some((region) => region.id === current)
@@ -495,13 +496,18 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
     });
   };
   const buyTargetedAd = () => {
-    if (busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed || !targetedAdRegion) return;
+    const count = Number(targetedAdCount);
+    if (busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed || !targetedAdRegion ||
+      !Number.isSafeInteger(count) || count < 1 || count > selectedTargetedAd.maxCount) return;
     onAction("campaignTargetedAd", {
       electionId,
       regionId: targetedAdRegion,
       demographicCategory: selectedTargetedAd.category,
       demographicGroup: selectedTargetedAd.group,
       expectedRevision: campaign.targetedAds.revision,
+      expectedTurn: campaign.targetedAds.quoteTurn ?? 0,
+      expectedCost: (campaign.targetedAds.quoteUnitCost ?? 0) * count,
+      count,
     });
   };
   const contributeStrength = (
@@ -719,6 +725,11 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
             ))}
           </select>
         </label>
+        <label className="ahd-field" style={{ maxWidth: "12rem" }}>
+          <span className="ahd-label">Actions to spend</span>
+          <input className="ahd-input" type="number" min={1} max={selectedTargetedAd?.maxCount ?? 1} step={1} value={targetedAdCount} onChange={(event) => setTargetedAdCount(event.target.value)} disabled={busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed} aria-label="Campaign targeted ad action count" />
+        </label>
+        {campaign.targetedAds.quoteUnitCost !== undefined ? <p className="ahd-help" aria-live="polite">Quoted funds: {campaign.targetedAds.quoteUnitCost * (Number(targetedAdCount) || 0)} ({campaign.targetedAds.quoteUnitCost} per action), turn {campaign.targetedAds.quoteTurn}.</p> : null}
         <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.35rem" }}>
           <button
             type="button"

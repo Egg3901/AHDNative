@@ -70,7 +70,7 @@ export * from "./actions/fundGeneration.js";
 // #242: one stat-scaled fund-cost source shared by executeAction and the quote.
 export { actionFundCost } from "./actions/fundCost.js";
 export type { FundCostInput } from "./actions/fundCost.js";
-export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
+export { CAMPAIGN_TARGETED_AD_CAP, CAMPAIGN_TARGETED_AD_BOOST, CAMPAIGN_TARGETED_AD_MAX_ACTIONS, quoteTargetedAds, type TargetedAdQuote } from "./actions/campaignTargetedAd.js";
 export { campaignCellsForRegion, targetedAdBonuses, meanAdBonus, campaignPrimaryScore, currentAdBonus, planAdPurchase, adExposure, targetedAdBonusByGroup, type TargetedAd, type CampaignCell } from "./campaigns/targetedAds.js";
 export { standingTargetedAdRegions, campaignTargetedAdRegions } from "./actions/campaignTargetedAd.js";
 export * from "./actions/polling.js";

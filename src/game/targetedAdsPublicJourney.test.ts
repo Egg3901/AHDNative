@@ -3,11 +3,11 @@ import { adExposure } from "@ahdclient/engine";
 import { GameSession } from "./session.js";
 
 describe("public standing targeted-ad journey", () => {
-  it("buys a quoted home-region audience, advances, and reloads source exposure", () => {
+  it("reviews a multi-action home-region quote, confirms it, advances, and reloads source exposure", () => {
     const session = new GameSession();
     const before = session.create({ seed: "standing-ad-public", playerName: "Tester", countryId: "US", era: "1953" });
     const action = before.actions.find((entry) => entry.id === "targetedAds")!;
-    expect(action).toMatchObject({ available: true, requires: "targetedAd", quoteRevision: 0, fundCost: 100 });
+    expect(action).toMatchObject({ available: true, requires: "targetedAd", quoteRevision: 0, quoteTurn: before.turn, quoteUnitCost: 100, maxActionCount: 50, fundCost: 100 });
     const region = action.regionChoices?.[0];
     const target = action.choices?.[0];
     expect(region).toBeDefined();
@@ -18,6 +18,9 @@ describe("public standing targeted-ad journey", () => {
       demographicCategory: target!.id.split(":")[0],
       demographicGroup: target!.id.split(":")[1],
       expectedRevision: action.quoteRevision,
+      expectedTurn: action.quoteTurn,
+      expectedCost: action.quoteUnitCost * 3,
+      count: 3,
     });
     expect(result.ok).toBe(true);
     const afterPurchase = JSON.parse(session.serialize("2026-10-03T00:00:00.000Z")) as {
@@ -27,7 +30,7 @@ describe("public standing targeted-ad journey", () => {
       stateId: region!.id,
       dimension: target!.id.split(":")[0],
       bucket: target!.id.split(":")[1],
-      bonus: 0.01,
+      bonus: 0.03,
       lastPurchaseTurn: before.turn,
     }]);
     expect(afterPurchase.world.player.targetedAdsRevision).toBe(1);
@@ -43,7 +46,7 @@ describe("public standing targeted-ad journey", () => {
     };
     expect(reloaded.world.player.targetedAdsRevision).toBe(1);
     expect(reloaded.world.player.targetedAds[0]).toMatchObject(afterPurchase.world.player.targetedAds[0]!);
-    expect(reloaded.world.player.targetedAds[0]!.bonus).toBe(0.01);
-    expect(adExposure(reloaded.world.player.targetedAds[0]!, loaded.turn)).toBeCloseTo(0.01 * 2 ** (-1 / 24), 12);
+    expect(reloaded.world.player.targetedAds[0]!.bonus).toBe(0.03);
+    expect(adExposure(reloaded.world.player.targetedAds[0]!, loaded.turn)).toBeCloseTo(0.03 * 2 ** (-1 / 24), 12);
   });
 });

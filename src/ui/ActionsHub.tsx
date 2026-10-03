@@ -79,6 +79,7 @@ function ActionCard({
   const [regionId, setRegionId] = useState(action.regionChoices?.[0]?.id ?? action.destinations?.[0]?.id ?? regions[0]?.id ?? "");
   const [corporationId, setCorporationId] = useState(action.choices?.[0]?.id ?? "");
   const [targetedAdTarget, setTargetedAdTarget] = useState(action.choices?.[0]?.id ?? "");
+  const [targetedAdCount, setTargetedAdCount] = useState("1");
   const [relocationChoice, setRelocationChoice] = useState<"yes" | "no">("yes");
   const [budgetCategory, setBudgetCategory] = useState("defense");
   const [taxField, setTaxField] = useState("incomeTax");
@@ -136,6 +137,11 @@ function ActionCard({
       params.demographicCategory = targetedAdTarget.slice(0, separator);
       params.demographicGroup = targetedAdTarget.slice(separator + 1);
       params.expectedRevision = action.quoteRevision ?? 0;
+      const count = Number(targetedAdCount);
+      if (!Number.isSafeInteger(count) || count < 1 || count > (action.maxActionCount ?? 1)) return;
+      params.count = count;
+      params.expectedTurn = action.quoteTurn ?? 0;
+      params.expectedCost = (action.quoteUnitCost ?? 0) * count;
     }
     if (action.requires === "corporation") {
       const corporation = action.choices?.find((choice) => choice.id === corporationId) ?? action.choices?.[0];
@@ -261,6 +267,7 @@ function ActionCard({
           {selectedRegion ? <div className="ahd-help" aria-live="polite">Target: {"label" in selectedRegion ? selectedRegion.label : selectedRegion.name}. This region is sent with the action.</div> : null}
           {regionError ? <span id={`region-error-${action.id}`} className="ahd-error-text" role="alert">{regionError}</span> : null}
           {action.requires === "targetedAd" ? (
+            <>
             <label className="ahd-field" style={{ maxWidth: "20rem" }}>
               <span className="ahd-label">Voter group</span>
               <select className="ahd-select" value={targetedAdTarget} onChange={(event) => setTargetedAdTarget(event.target.value)} disabled={busy || !action.available || !action.choices?.length} aria-label="Targeted ad voter group">
@@ -268,6 +275,12 @@ function ActionCard({
                 {!action.choices?.length ? <option value="">No target groups</option> : null}
               </select>
             </label>
+            <label className="ahd-field" style={{ maxWidth: "12rem" }}>
+              <span className="ahd-label">Actions to spend</span>
+              <input className="ahd-input" type="number" min={1} max={action.maxActionCount ?? 1} step={1} value={targetedAdCount} onChange={(event) => setTargetedAdCount(event.target.value)} disabled={busy || !action.available} aria-label="Targeted ad action count" />
+            </label>
+            {action.quoteUnitCost !== undefined ? <div className="ahd-help" aria-live="polite">Quoted funds: {action.quoteUnitCost * (Number(targetedAdCount) || 0)} ({action.quoteUnitCost} per action), turn {action.quoteTurn}.</div> : null}
+            </>
           ) : null}
         </div>
       ) : null}

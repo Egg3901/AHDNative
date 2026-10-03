@@ -30,6 +30,7 @@ import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, currentAdBonus,
+  quoteTargetedAds,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -1029,7 +1030,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     actions: (isWorldsimMode(player.mode) ? [] : player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, effectivePlayerStats(world), world);
+      const targetedAdQuote = id === "targetedAds" ? quoteTargetedAds(world, 1) : null;
+      const fundCost = targetedAdQuote?.unitCost ?? quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, effectivePlayerStats(world), world);
       const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
       // Gate order mirrors executeAction validation; executeAction stays authoritative.
       // The debatePrep Debate-stat preflight is mirrored here so the hub never
@@ -1059,6 +1061,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "canvass" && canvassing.error ? canvassing.error
         : id === "targetedAds" && targetedAdRegions.length === 0 ? "Choose a home region before buying targeted ads."
         : id === "targetedAds" && targetedAdChoices.length === 0 ? "No recorded demographic targets are available."
+        : id === "targetedAds" && !targetedAdQuote ? "Campaign currency quote unavailable for this country."
         : id === "targetedAds" && targetedAdRegions.every((regionId) => targetedAdChoices.every((target) =>
           currentAdBonus(player.targetedAds ?? [], { stateId: regionId, dimension: target.categoryId, bucket: target.groupId }, world.meta.turn) >= 0.25 - 1e-10)) ? "All eligible ad audiences are at the bonus cap."
         : id === "leaveParty" && !player.partyId ? "You are independent."
@@ -1068,6 +1071,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         ...(id === "targetedAds" ? {
           regionChoices: targetedAdRegions.map((regionId) => ({ id: regionId, label: world.regions[regionId]?.name ?? regionId })),
           quoteRevision: player.targetedAdsRevision ?? 0,
+          ...(targetedAdQuote ? { quoteTurn: targetedAdQuote.turn, quoteUnitCost: targetedAdQuote.unitCost, maxActionCount: 50 } : {}),
         } : {}),
         ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: campaignAnchorToLocal(fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)), player.countryId) } : {}),
         ...(requires ? { requires } : {}), ...(choices ? { choices } : {}), ...(destinations ? { destinations } : {}), ...(prerequisite ? { prerequisite } : {}),
