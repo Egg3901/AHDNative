@@ -6,6 +6,7 @@ import type { CommodityType } from "../commodity/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import {
   applyNppSourceStrategyRetools,
+  corporationHasStrategy,
   sourceCorporateStrategyStaggerEligible,
   sourceStrategyPriceScore,
 } from "./strategyRetooling.js";
@@ -39,6 +40,21 @@ describe("AHDGame NPP strategy retooling", () => {
     // non-ObjectId key gives its turn-8 slot without manufacturing an ObjectId.
     expect(sourceCorporateStrategyStaggerEligible(issuerId, 7)).toBe(false);
     expect(sourceCorporateStrategyStaggerEligible(issuerId, 8)).toBe(true);
+  });
+
+  it("checks secondary-sector recipes without changing the issuer's source tech-tree identity", () => {
+    const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: "npp-secondary-strategy-gate", playerName: "Alex" });
+    const energyIssuer = world.corporations["US-energy"]!;
+
+    // Game's chooseNppStrategyRetool iterates candidates from the owned
+    // CorporateSector.sectorType, then passes that candidate to
+    // getStrategyAvailability with the issuer's own type/tech tree. An energy
+    // issuer therefore asks whether its energy tech tree unlocks a valid
+    // manufacturing recipe; the cross-sector recipe lookup must not be
+    // redirected to (or throw against) the issuer's energy catalog.
+    // The exact getStrategyAvailability helper at Game 283fa48 returns
+    // { locked: true, reason: "tech" } for this unresearched 2029 input.
+    expect(corporationHasStrategy(energyIssuer, "additive_manufacturing", 2029, "manufacturing")).toBe(false);
   });
 
   it("searches the issuer's remaining eligible assets when its first asset is transitioning", () => {

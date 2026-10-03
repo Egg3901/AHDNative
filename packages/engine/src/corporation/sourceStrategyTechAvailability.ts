@@ -30,13 +30,17 @@ const BASELINE_TECH_UNLOCK_YEAR: Partial<Record<CorporationType, Record<string, 
 
 /** Native projects the source's free passed-decade tree grants, not research choices. */
 export function isBaselineSourceStrategyAvailable(
-  sectorType: CorporationType,
+  strategySectorType: CorporationType,
   strategyId: string,
   currentYear: number,
+  corporationSectorType: CorporationType = strategySectorType,
 ): boolean {
-  const strategy = getSectorStrategy(sectorType, strategyId);
+  const strategy = getSectorStrategy(strategySectorType, strategyId);
   if (strategy.minDecade && currentYear < Number(strategy.minDecade)) return false;
   if (!strategy.requiresTechUnlock) return true;
-  const unlockedYear = BASELINE_TECH_UNLOCK_YEAR[sectorType]?.[strategyId];
+  // Game chooses a candidate from the CorporateSector's recipe catalog, but
+  // evaluates its unlock against the owning Corporation's tech tree. Those
+  // sector identities can differ for acquired or secondary-sector assets.
+  const unlockedYear = BASELINE_TECH_UNLOCK_YEAR[corporationSectorType]?.[strategyId];
   return typeof unlockedYear === "number" && currentYear >= unlockedYear;
 }
