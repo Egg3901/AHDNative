@@ -51,6 +51,14 @@ import {
 } from "./notifications";
 import type { SerializedSave } from "./serializedSave";
 
+/** CI fixture builds only: correlate worker stages with external memory samples. */
+function traceSmokeStage(stage: string, turn: number, codeUnits?: number) {
+  if (import.meta.env?.VITE_AHD_SMOKE_FIXTURES !== "1") return;
+  console.info("[AHD session stage]", JSON.stringify({
+    stage, turn, at: new Date().toISOString(), ...(codeUnits === undefined ? {} : { codeUnits }),
+  }));
+}
+
 /**
  * Player Actions hub membership. Categories mirror AHDGame src/app/actions
  * (influence/money/research): campaign, advertise and canvass drive influence;
@@ -328,12 +336,19 @@ export class GameSession {
   advance(): GameView {
     // The engine mutates in place. Commit only a completed turn so phase failures
     // cannot leave the active session partially advanced. Profile this copy cost.
+    traceSmokeStage("advance:before-snapshot", this.requireWorld().meta.turn);
     const before = snapshotNotifications(this.requireWorld());
+    traceSmokeStage("advance:before-clone", this.requireWorld().meta.turn);
     const candidate = structuredClone(this.requireWorld());
+    traceSmokeStage("advance:after-clone", candidate.meta.turn);
     advanceTurn(candidate);
+    traceSmokeStage("advance:after-engine", candidate.meta.turn);
     const world = candidate;
-    return this.commit(candidate, addNotifications(
+    traceSmokeStage("advance:before-commit", candidate.meta.turn);
+    const view = this.commit(candidate, addNotifications(
       this.notifications, diffTurnSnapshots(before, snapshotNotifications(world), world.player.name)));
+    traceSmokeStage("advance:after-commit", candidate.meta.turn);
+    return view;
   }
 
   markNotificationRead(id: string): GameView {
@@ -361,7 +376,9 @@ export class GameSession {
 
   serialize(savedAt: string, includeSaveNotice = false): string {
     const world = this.requireWorld();
+    traceSmokeStage("serialize:before-engine", world.meta.turn);
     const envelope = serializeSave(world, savedAt);
+    traceSmokeStage("serialize:after-engine", world.meta.turn, envelope.length);
     const items = includeSaveNotice
       ? addNotifications(this.notifications, [saveNotification(world.meta.turn, world.meta.date)])
       : this.notifications;
@@ -369,7 +386,9 @@ export class GameSession {
     // to identical bytes so reload round-trips stay byte-deterministic.
     // serializeSave returns a compact object. Append app metadata without
     // parsing and copying the full world a second time on every autosave.
-    return envelope.slice(0, -1) + ",\"notifications\":" + JSON.stringify(parseNotifications(items)) + "}";
+    const contents = envelope.slice(0, -1) + ",\"notifications\":" + JSON.stringify(parseNotifications(items)) + "}";
+    traceSmokeStage("serialize:after-notifications", world.meta.turn, contents.length);
+    return contents;
   }
 
   /** Serialize the same bytes while returning small metadata from that world. */
@@ -388,9 +407,14 @@ export class GameSession {
   }
 
   load(contents: string): GameView {
+    traceSmokeStage("load:before-engine", -1, contents.length);
     const world = deserializeSave(contents);
+    traceSmokeStage("load:after-engine", world.meta.turn);
     const stored = parseNotifications((JSON.parse(contents) as { notifications?: unknown }).notifications);
-    return this.commit(world, stored);
+    traceSmokeStage("load:after-notifications", world.meta.turn);
+    const view = this.commit(world, stored);
+    traceSmokeStage("load:after-commit", world.meta.turn);
+    return view;
   }
 
   profile() { return projectProfile(this.requireWorld()); }
