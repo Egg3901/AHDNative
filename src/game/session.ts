@@ -29,7 +29,7 @@ import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
-  isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, currentAdBonus,
+  isCorpStateOwned, privateEnterprisePermittedInCountry, standingTargetedAdRegions, campaignAdTargetChoices, currentAdBonus,
   quoteTargetedAds,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -967,14 +967,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   const myCorporation = projectMyCorporation(world);
   const canvassing = projectCanvassing(world);
   const targetedAdRegions = standingTargetedAdRegions(world);
-  const targetedAdChoices = [...new Map((world.demographicCategories[player.countryId] ?? []).flatMap((category) =>
-    category.groups.map((group) => [`${category._id}:${group.id}`, {
-      id: `${category._id}:${group.id}`,
-      label: `${group.name} (${category.name})`,
-      categoryId: category._id,
-      groupId: group.id,
-    }] as const),
-  )).values()];
+  const targetedAdChoices = campaignAdTargetChoices(world, targetedAdRegions);
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     foundingActive: isFoundingActive(world.elections),
