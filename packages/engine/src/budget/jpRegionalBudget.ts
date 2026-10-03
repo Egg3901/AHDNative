@@ -9,6 +9,13 @@
  */
 import { getPackByEra } from "@ahdclient/content";
 import type { RegionalBudget } from "./types.js";
+import {
+  createJPRegionalPolicyState,
+  JP_REGIONAL_POLICY_CATALOG,
+  JP_REGIONAL_TAX_POLICY_IDS,
+  type JPRegionalPolicyState,
+} from "./jpRegionalPolicyCatalog.js";
+import { calculateStateSubsidyCostForRegion } from "./subsidyBudget.js";
 export interface JPRegionalBudgetInput {
   residentTaxRate: number;
   fixedAssetTaxRate: number;
@@ -30,6 +37,13 @@ export interface JPRegionalBudgetResult {
 const JP_REGION_COUNT = 8;
 export const JP_RESIDENT_TAX_MEDIAN_INCOME_FALLBACK = 4_400_000;
 export const JP_PROPERTY_VALUE_PER_CAPITA_FALLBACK = 8_000_000;
+export const JP_ENACTED_POLICIES_SPENDING_KEY = "jpEnactedPolicies";
+
+function jpPolicyOption(row: RegionalBudget, legislationTypeId: string) {
+  const statePolicy = row.jpRegionalPolicies?.find((policy) => policy.legislationTypeId === legislationTypeId);
+  if (!statePolicy || statePolicy.policyOptionId !== `${legislationTypeId}_opt_${statePolicy.policyOptionIndex}`) return undefined;
+  return JP_REGIONAL_POLICY_CATALOG.find((law) => law.id === legislationTypeId)?.options[statePolicy.policyOptionIndex];
+}
 
 export function jpRegionalBudgetDefaults(era: string): {
   residentTaxRatePercent: number;
@@ -69,6 +83,11 @@ export function createJPRegionalBudgetRows(era: string): Record<string, Regional
   const nationalPopulation = sourceRegions.reduce((sum, candidate) => sum + candidate.population, 0);
   const policy = jpRegionalBudgetDefaults(era);
   const rows: Record<string, RegionalBudget> = {};
+  const regionalPolicies = createJPRegionalPolicyState();
+  const policyCostPerCapita = regionalPolicies.reduce((sum, statePolicy) => {
+    const law = JP_REGIONAL_POLICY_CATALOG.find(({ id }) => id === statePolicy.legislationTypeId);
+    return sum + (law?.options[statePolicy.policyOptionIndex]?.annualCostPerCapita ?? 0);
+  }, 0);
   for (const region of sourceRegions) {
     const result = calculateJPRegionalBudget({
       residentTaxRate: policy.residentTaxRatePercent / 100,
@@ -84,10 +103,16 @@ export function createJPRegionalBudgetRows(era: string): Record<string, Regional
       regionId: region.id,
       countryId: "JP",
       jpNationalGrantPerCapita: policy.nationalGrantPerCapita,
+      jpPopulation: region.population,
+      jpPropertyValuePerCapita: JP_PROPERTY_VALUE_PER_CAPITA_FALLBACK,
+      jpPropertyValueBaseline: JP_PROPERTY_VALUE_PER_CAPITA_FALLBACK,
       taxRates: {
         residentTax: policy.residentTaxRatePercent,
         fixedAssetTax: policy.fixedAssetTaxRatePercent,
       },
+      jpRegionalPolicies: structuredClone(regionalPolicies),
+      jpEnactedPolicyCosts: policyCostPerCapita * region.population,
+      jpSubsidyCosts: 0,
       revenue: {
         councilTax: 0,
         businessRates: 0,
@@ -96,8 +121,11 @@ export function createJPRegionalBudgetRows(era: string): Record<string, Regional
         grant: result.nationalGrant,
         total: result.totalBudget,
       },
-      spending: { byCategory: {}, total: 0 },
-      balance: result.totalBudget,
+      spending: {
+        byCategory: { [JP_ENACTED_POLICIES_SPENDING_KEY]: policyCostPerCapita * region.population },
+        total: policyCostPerCapita * region.population,
+      },
+      balance: result.totalBudget - policyCostPerCapita * region.population,
       consecutiveDeficits: 0,
     };
   }
@@ -105,10 +133,8 @@ export function createJPRegionalBudgetRows(era: string): Record<string, Regional
 }
 
 /**
- * Recompute one recorded JP prefectural budget from inputs Native can
- * currently represent. Missing fiscal fields use the source center-option
- * defaults seeded by Game; source regional spending-policy records, subsidy
- * costs, and forced austerity remain explicit limitations.
+ * Recompute one JP prefectural budget from its source-shaped regional tax,
+ * StatePolicy, subsidy, and allocation inputs.
  */
 export function processJPRegionalBudget(world: import("../types.js").WorldState, regionId: string): boolean {
   const pack = getPackByEra(world.meta.era);
@@ -118,13 +144,20 @@ export function processJPRegionalBudget(world: import("../types.js").WorldState,
   const row = world.regionalBudgets[regionId];
   if (!region || !row || row.countryId !== "JP") return false;
 
-  const nationalPopulation = sourceRegions.reduce((sum, candidate) => sum + candidate.population, 0);
-  const population = region.population ?? 0;
+  const currentPopulation = (sourceRegionId: string, packPopulation: number): number =>
+    world.regions[sourceRegionId]?.population ?? world.regionalBudgets[sourceRegionId]?.jpPopulation ?? packPopulation;
+  const nationalPopulation = sourceRegions.reduce(
+    (sum, candidate) => sum + currentPopulation(candidate.id, candidate.population),
+    0,
+  );
+  const population = currentPopulation(regionId, region.population ?? 0);
   if (!(nationalPopulation > 0) || !(population >= 0)) return false;
+  row.jpPopulation = population;
 
   const policy = jpRegionalBudgetDefaults(world.meta.era);
-  const residentTaxRatePercent = row.taxRates?.residentTax ?? policy.residentTaxRatePercent;
-  const fixedAssetTaxRatePercent = row.taxRates?.fixedAssetTax ?? policy.fixedAssetTaxRatePercent;
+  const regionalPolicies = row.jpRegionalPolicies ?? [];
+  const residentTaxRatePercent = jpPolicyOption(row, "jp_resident_tax")?.rate ?? row.taxRates?.residentTax ?? policy.residentTaxRatePercent;
+  const fixedAssetTaxRatePercent = jpPolicyOption(row, "jp_fixed_asset_tax")?.rate ?? row.taxRates?.fixedAssetTax ?? policy.fixedAssetTaxRatePercent;
   const nationalGrantPerCapita = row.jpNationalGrantPerCapita ?? policy.nationalGrantPerCapita;
   row.jpNationalGrantPerCapita = nationalGrantPerCapita;
   row.taxRates = {
@@ -141,13 +174,17 @@ export function processJPRegionalBudget(world: import("../types.js").WorldState,
   const fixedAssetTaxRate = fixedAssetTaxRatePercent / 100;
   const medianIncome = world.regionalMetrics[regionId]?.["economic.medianIncome"]?.value
     ?? JP_RESIDENT_TAX_MEDIAN_INCOME_FALLBACK;
+  const propertyValuePerCapita = row.jpPropertyValuePerCapita ?? JP_PROPERTY_VALUE_PER_CAPITA_FALLBACK;
+  const propertyValueBaseline = row.jpPropertyValueBaseline ?? JP_PROPERTY_VALUE_PER_CAPITA_FALLBACK;
+  row.jpPropertyValuePerCapita = propertyValuePerCapita;
+  row.jpPropertyValueBaseline = propertyValueBaseline;
   const result = calculateJPRegionalBudget({
     residentTaxRate,
     fixedAssetTaxRate,
     nationalGrantPerCapita,
     regionPopulation: population,
     medianIncome,
-    propertyValueBase: JP_PROPERTY_VALUE_PER_CAPITA_FALLBACK,
+    propertyValueBase: propertyValuePerCapita,
     nationalPopulation,
     ministerAllocation,
   });
@@ -159,11 +196,56 @@ export function processJPRegionalBudget(world: import("../types.js").WorldState,
   row.revenue.grant = result.nationalGrant;
   row.revenue.total = result.residentTaxRevenue + result.fixedAssetTaxRevenue + result.nationalGrant
     + (row.revenue.resourceRoyalties ?? 0);
-  // Native does not yet persist the JP StatePolicy/LegislationType spending
-  // rows consumed by Game. Preserve explicitly represented row spending and
-  // do not apportion national categories as a substitute for those policies.
+  let enactedPolicyCosts = 0;
+  const policiesWithCost = regionalPolicies.flatMap((statePolicy, sourceOrder) => {
+    if (JP_REGIONAL_TAX_POLICY_IDS.has(statePolicy.legislationTypeId)) return [];
+    const law = JP_REGIONAL_POLICY_CATALOG.find(({ id }) => id === statePolicy.legislationTypeId);
+    const option = law?.options[statePolicy.policyOptionIndex];
+    if (!law || !option || statePolicy.policyOptionId !== `${law.id}_opt_${statePolicy.policyOptionIndex}`) return [];
+    enactedPolicyCosts += option.annualCostPerCapita * population;
+    return [{ statePolicy, sourceOrder, cost: option.annualCostPerCapita, law }];
+  });
+  const subsidyCosts = calculateStateSubsidyCostForRegion(
+    Object.values(world.corporateSectors ?? {}),
+    Object.values(world.corporations ?? {}),
+    world.subsidies ?? [],
+    "JP",
+    regionId,
+  );
+  row.jpEnactedPolicyCosts = enactedPolicyCosts;
+  row.jpSubsidyCosts = subsidyCosts;
+  const retainedSpending = Object.entries(row.spending.byCategory)
+    .filter(([key]) => key !== JP_ENACTED_POLICIES_SPENDING_KEY && key !== "sectorSubsidies")
+    .reduce((sum, [, value]) => sum + value, 0);
+  row.spending.byCategory = {
+    ...row.spending.byCategory,
+    [JP_ENACTED_POLICIES_SPENDING_KEY]: enactedPolicyCosts,
+    sectorSubsidies: subsidyCosts,
+  };
+  row.spending.total = retainedSpending + enactedPolicyCosts + subsidyCosts;
   row.balance = row.revenue.total - row.spending.total;
   row.consecutiveDeficits = row.balance < 0 ? row.consecutiveDeficits + 1 : 0;
+
+  // AHDGame's source processor selects the highest annual per-capita cost and
+  // decrements that option index after more than one consecutive deficit.
+  // That is the observed ladder direction, even though the comment calls it
+  // a downgrade; preserving the actual write is necessary for parity.
+  if (row.consecutiveDeficits > 1 && policiesWithCost.length > 0) {
+    policiesWithCost.sort((a, b) => b.cost - a.cost || a.sourceOrder - b.sourceOrder);
+    const mostExpensive = policiesWithCost[0];
+    if (mostExpensive && mostExpensive.cost > 0 && mostExpensive.statePolicy.policyOptionIndex > 0) {
+      const nextIndex = mostExpensive.statePolicy.policyOptionIndex - 1;
+      const nextOption = mostExpensive.law.options[nextIndex];
+      if (nextOption) {
+        const sourcePolicy = mostExpensive.statePolicy as JPRegionalPolicyState;
+        sourcePolicy.policyOptionIndex = nextIndex;
+        sourcePolicy.policyOptionId = `${mostExpensive.law.id}_opt_${nextIndex}`;
+        sourcePolicy.economic = nextOption.economic;
+        sourcePolicy.social = nextOption.social;
+        sourcePolicy.effectDirection = nextOption.effectDirection;
+      }
+    }
+  }
   return true;
 }
 

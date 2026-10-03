@@ -1959,7 +1959,8 @@ function seedBudgets(
   // creation gate remains closed. Keep its eight source regional-budget rows
   // in the fiscal book only; putting these rows in the shared Region table
   // would incorrectly seed elections and demographics from an economy-only
-  // action. Source policy-map absence (1999/2007/2023) stays zero by contract.
+  // action. The source seeds every JP regional StatePolicy at its center option
+  // in all eras; these remain fiscal rows and do not create voter regions.
   // createWorld uses the same deterministic source baseline as the ordinary
   // phase's legacy-row initializer. Neither path fabricates electoral regions
   // or a minister's historical grant allocation.

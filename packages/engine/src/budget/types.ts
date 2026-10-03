@@ -120,7 +120,7 @@ export interface CountryBudget {
  * Source: src/lib/turn/regionalBudget.ts BudgetCalculationInput/Result + StateBudget shape.
  * The generic processor covers the supported country rows. Japan's source
  * regional-budget subset uses its dedicated processor in budget/phases.ts;
- * remaining source StatePolicy/subsidy/austerity state is not represented yet.
+ * schema v70 retains the source JP StatePolicy ladder and budget cost outputs.
  * Fiscal-only JP rows deliberately do not imply electoral Region entities or
  * new-character eligibility.
  */
@@ -129,6 +129,22 @@ export interface RegionalBudget {
   countryId: string;
   /** Japan's authored Local Allocation Tax option cost, in JPY per capita. Schema v70. */
   jpNationalGrantPerCapita?: number;
+  /** Current source JP `State.population`, retained with the fiscal-only row. */
+  jpPopulation?: number;
+  /** Source JP `RegionalBudget.propertyValuePerCapita`, defaulting to ¥8m. */
+  jpPropertyValuePerCapita?: number;
+  /** Source JP `RegionalBudget.propertyValueBaseline`, defaulting to ¥8m. */
+  jpPropertyValueBaseline?: number;
+  /**
+   * Source JP prefectural StatePolicy rows. The option ID/index and political
+   * axes are retained because source forced austerity mutates this ladder.
+   * Absent on historical rows; only fresh source rows seed center options.
+   */
+  jpRegionalPolicies?: import("./jpRegionalPolicyCatalog.js").JPRegionalPolicyState[];
+  /** Annual source StatePolicy cost total, JPY. */
+  jpEnactedPolicyCosts?: number;
+  /** Annual state-subsidy cost total, JPY. */
+  jpSubsidyCosts?: number;
   revenue: {
     councilTax: number;
     businessRates: number;

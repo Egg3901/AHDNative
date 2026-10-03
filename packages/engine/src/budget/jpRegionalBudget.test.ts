@@ -5,6 +5,8 @@ import { regionalBudgetProcessingPhase } from "./phases.js";
 import { setJPRegionalBudgetAllocation } from "./jpAllocation.js";
 import { getPackByEra } from "@ahdclient/content";
 import { projectSaveToV42, serializeSave } from "../save.js";
+import { JP_REGIONAL_POLICY_CATALOG } from "./jpRegionalPolicyCatalog.js";
+import { calculateStateSubsidyCostForRegion } from "./subsidyBudget.js";
 
 describe("Japan regional budget source formula", () => {
   const sourceInput = {
@@ -55,7 +57,76 @@ describe("Japan regional budget source formula", () => {
       expect(jpBudgets.every((row) => row.jpNationalGrantPerCapita === 128_000)).toBe(true);
       expect(jpBudgets.every((row) => row.taxRates?.fixedAssetTax === 1.4)).toBe(true);
       expect(jpBudgets.every((row) => row.taxRates?.residentTax === (era === "1953" || era === "1979" ? 8 : 10))).toBe(true);
+      expect(jpBudgets.every((row) => row.jpRegionalPolicies?.length === 14)).toBe(true);
+      const packRegions = [...(pack.states ?? []), ...(pack.economyRegions ?? [])];
+      expect(jpBudgets.every((row) => row.jpEnactedPolicyCosts === 100_000 * packRegions.find((state) => state.id === row.regionId)?.population)).toBe(true);
     }
+  });
+
+  it("uses source regional policy ladder costs and saves their option identities", () => {
+    const world = createWorld({ seed: "jp-budget-policy-ladder", playerName: "Tester", countryId: "US", era: "2019" });
+    const hokkaido = world.regionalBudgets.HOK!;
+    expect(JP_REGIONAL_POLICY_CATALOG.map(({ id }) => id)).toEqual([
+      "jp_resident_tax", "jp_fixed_asset_tax", "jp_regional_health", "jp_regional_education", "jp_regional_skills",
+      "jp_regional_economic_development", "jp_regional_transport", "jp_regional_utilities",
+      "jp_regional_environment", "jp_regional_social_services", "jp_regional_agriculture",
+      "jp_regional_autonomy", "jp_regional_governance", "jp_regional_policing",
+    ]);
+    expect(hokkaido.jpRegionalPolicies?.find((law) => law.legislationTypeId === "jp_regional_education"))
+      .toMatchObject({ policyOptionId: "jp_regional_education_opt_3", policyOptionIndex: 3, economic: 0, social: 0 });
+    expect(hokkaido.jpRegionalPolicies?.filter((law) => law.legislationTypeId.endsWith("_tax")))
+      .toMatchObject([
+        { legislationTypeId: "jp_resident_tax", policyOptionId: "jp_resident_tax_opt_5", policyOptionIndex: 5 },
+        { legislationTypeId: "jp_fixed_asset_tax", policyOptionId: "jp_fixed_asset_tax_opt_5", policyOptionIndex: 5 },
+      ]);
+    expect(hokkaido.jpEnactedPolicyCosts).toBe(520_000_000_000);
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T00:00:00Z"));
+    expect(restored.regionalBudgets.HOK?.jpRegionalPolicies).toEqual(hokkaido.jpRegionalPolicies);
+  });
+
+  it("applies the source two-deficit austerity write to the highest-cost regional law", () => {
+    const world = createWorld({ seed: "jp-budget-austerity", playerName: "Tester", countryId: "US", era: "2019" });
+    const hokkaido = world.regionalBudgets.HOK!;
+    hokkaido.jpNationalGrantPerCapita = 0;
+    hokkaido.taxRates = { residentTax: 0, fixedAssetTax: 0 };
+    world.regionalMetrics.HOK = { "economic.medianIncome": { value: 0 } };
+    const education = hokkaido.jpRegionalPolicies!.find((law) => law.legislationTypeId === "jp_regional_education")!;
+
+    processJPRegionalBudget(world, "HOK");
+    expect(hokkaido.consecutiveDeficits).toBe(1);
+    expect(education.policyOptionIndex).toBe(3);
+    processJPRegionalBudget(world, "HOK");
+    expect(hokkaido.consecutiveDeficits).toBe(2);
+    expect(education).toMatchObject({
+      policyOptionId: "jp_regional_education_opt_2",
+      policyOptionIndex: 2,
+      economic: -1,
+      social: -1,
+      effectDirection: 1,
+    });
+    expect(hokkaido.jpEnactedPolicyCosts).toBe(520_000_000_000);
+  });
+
+  it("charges only source-qualified active regional subsidies to the matching JP budget", () => {
+    const cost = calculateStateSubsidyCostForRegion(
+      [
+        { corporationId: "corp-a", countryId: "JP", stateId: "HOK", sectorType: "energy", revenue: 1_000 },
+        { corporationId: "corp-a", countryId: "JP", stateId: "TOK", sectorType: "energy", revenue: 2_000 },
+        { corporationId: "corp-b", countryId: "JP", stateId: "HOK", sectorType: "agriculture", revenue: 3_000 },
+      ],
+      [
+        { id: "corp-a", countryId: "JP", headquartersRegionId: "HOK" },
+        { id: "corp-b", countryId: "JP", headquartersRegionId: "TOK" },
+      ],
+      [
+        { id: "hoka-energy", countryId: "JP", scope: "state", scopeType: "sector", targetSectorType: "energy", stateId: "HOK", domesticOnly: true, active: true },
+        { id: "inactive", countryId: "JP", scope: "state", scopeType: "economy_wide", stateId: "HOK", domesticOnly: false, active: false },
+        { id: "national", countryId: "JP", scope: "national", scopeType: "economy_wide", domesticOnly: false, active: true },
+      ],
+      "JP",
+      "HOK",
+    );
+    expect(cost).toBe(5_040);
   });
 
   it("runs the source grant and tax formula in the ordinary regional-budget phase", () => {
@@ -73,6 +144,31 @@ describe("Japan regional budget source formula", () => {
       jpFixedAssetTax: 582_400_000_000,
       grant: 2_677_500_000_000,
       total: 5_079_900_000_000,
+    });
+  });
+
+  it("uses persisted current JP populations and preserves the source regional property base", () => {
+    const world = createWorld({ seed: "jp-budget-current-base", playerName: "Tester", countryId: "US", era: "2019" });
+    for (const row of Object.values(world.regionalBudgets)) {
+      if (row.countryId === "JP") row.jpPopulation = 1_000_000;
+    }
+    const hokkaido = world.regionalBudgets.HOK!;
+    hokkaido.jpPropertyValuePerCapita = 12_000_000;
+    hokkaido.jpPropertyValueBaseline = 9_000_000;
+    world.regionalMetrics.HOK = { "economic.medianIncome": { value: 2_000_000 } };
+
+    processJPRegionalBudget(world, "HOK");
+
+    expect(hokkaido.revenue).toMatchObject({
+      jpResidentTax: 200_000_000_000,
+      jpFixedAssetTax: 168_000_000_000,
+      grant: 128_000_000_000,
+      total: 496_000_000_000,
+    });
+    expect(hokkaido).toMatchObject({
+      jpPopulation: 1_000_000,
+      jpPropertyValuePerCapita: 12_000_000,
+      jpPropertyValueBaseline: 9_000_000,
     });
   });
 

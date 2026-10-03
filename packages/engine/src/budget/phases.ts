@@ -154,9 +154,8 @@ export const fiscalYearPhase: TurnPhase = {
 
 // ── Regional budget processing (generic) ─────────────────────────────
 // Source: src/lib/turn/regionalBudget.ts processRegionalBudgets (generic).
-// Country-specific JP/DE variants remain unported (issue #103). JP and DE
-// are economy entries, not player countries, in the 1991 and 2019 packs.
-// The generic processor consumes any recorded regional budget rows.
+// JP uses its dedicated source processor below. DE remains an unported
+// country-specific variant (issue #103).
 export const regionalBudgetProcessingPhase: TurnPhase = {
   name: "regionalBudgetProcessing",
   run(world) {
@@ -182,10 +181,8 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
           rb.taxRatePhaseIn = ramp.pending;
         }
       }
-      // Japan uses the source prefectural revenue formula when its source
-      // budget row exists; generic UK-style council/business revenue is not a
-      // substitute. JP policy-spending and forced-austerity records are still
-      // unrepresented and are intentionally not synthesized here.
+      // Japan uses its source prefectural processor below; generic UK-style
+      // council/business revenue is not a substitute.
       if (region.countryId === "JP") {
         continue;
       }
@@ -231,7 +228,8 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
     // unplayable; the source pack supplies the eight immutable prefectoral
     // identities/populations to the country-specific processor. Game seeds
     // each JP regional policy at its center option for every preset; the
-    // shared row builder records those exact center rates and grant cost.
+    // shared row builder records the exact center StatePolicy ladders and
+    // source tax rates/grant cost. Legacy absent policy history remains absent.
     if (world.budgets?.JP) {
       for (const [regionId, row] of Object.entries(createJPRegionalBudgetRows(world.meta.era))) {
         if (!world.regionalBudgets[regionId]) world.regionalBudgets[regionId] = row;
