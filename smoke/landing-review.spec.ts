@@ -26,6 +26,14 @@ for (const size of [
         return range.getClientRects().length;
       }));
       expect(titleLines, 'the game title keeps whole words at 200% text size').toEqual([1, 1]);
+      const multiplayerWordLines = await page.getByRole('button', { name: 'Enter multiplayer', exact: true }).evaluate(button => {
+        const text = button.querySelector('span')!.firstChild!;
+        const range = document.createRange();
+        range.setStart(text, 'Enter '.length);
+        range.setEnd(text, 'Enter multiplayer'.length);
+        return range.getClientRects().length;
+      });
+      expect(multiplayerWordLines, 'menu padding leaves room for whole action words').toBe(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: 'artifacts/smoke/landing-320-large-text.png', fullPage: true });
       await page.evaluate(() => { document.documentElement.style.fontSize = ''; });

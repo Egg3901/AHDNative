@@ -1153,7 +1153,7 @@ html {
   width: 100%;
   max-width: 23rem;
 }
-.ahd-menu-choice { min-height: 3.65rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.85rem 1rem; border-color: #a7aec72e; background: #0b122585; text-align: left; font-size: 0.95rem; border-radius: 3px; }
+.ahd-menu-choice { min-height: 3.65rem; display: flex; align-items: center; justify-content: space-between; gap: min(1rem, 4vw); padding: 0.85rem min(1rem, 5vw); border-color: #a7aec72e; background: #0b122585; text-align: left; font-size: 0.95rem; border-radius: 3px; }
 .ahd-menu-choice > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .ahd-menu-choice > span:last-child { color: #a7aec7; font-size: 1.2rem; font-weight: 400; }
 .ahd-menu-choice small { display: block; margin-top: 0.2rem; color: #b4bdcf; font-size: 0.67rem; font-weight: 400; }
