@@ -588,10 +588,11 @@ export function backfillSectorPlantCapital(world: WorldState, assets: Record<str
   for (const asset of Object.values(assets)) {
     const corporation = world.corporations[asset.corporationId];
     if (!corporation) continue;
+    if (asset.capitalStock !== undefined && asset.capacityBookAnchor !== undefined) continue;
     const seed = seedPlantCapital({
-      revenueLocal: corporation.revenue,
-      localPerAnchor: getRateForCountry(world, corporation.countryId),
-      sectorType: corporation.sectorType,
+      revenueLocal: asset.revenue ?? corporation.revenue,
+      localPerAnchor: getRateForCountry(world, asset.countryId),
+      sectorType: asset.sectorType,
       ...(asset.strategyId !== undefined ? { strategyId: asset.strategyId } : {}),
       year: Number(world.meta.date.slice(0, 4)),
       basePrices,
