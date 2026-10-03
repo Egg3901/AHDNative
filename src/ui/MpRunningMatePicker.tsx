@@ -40,7 +40,7 @@ export function MpRunningMatePicker({
     <section aria-label="Presidential running mate" className="ahd-mp-running-mate">
       <h3 className="ahd-h3">Running mate</h3>
       <p className="ahd-help" role="note">
-        The live game lets a presidential candidate choose another eligible player from their country.
+        Choose an eligible player from your country to join your ticket.
       </p>
       <p className="ahd-muted" role="status">
         Current running mate: {currentRunningMateName ?? (currentRunningMateCharacterId ? "Selected player" : "None selected")}
