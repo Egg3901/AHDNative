@@ -20,7 +20,7 @@ function savedRaceDoc() {
     endTurn: 10,
     totalSeats: 1,
     chamberKey: "president",
-    candidates: [{ id: candidateId, partyId, name: "Candidate", status: "active" }],
+    candidates: [{ id: candidateId, partyId, name: "Candidate", status: "active", isNPP: false, incumbent: false }],
     tally: {},
     primaryRulesetVersion: 3,
     primaryStateVotes: { [partyId]: { [stateId]: { [candidateId]: 5 } } },

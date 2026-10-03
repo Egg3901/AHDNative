@@ -6,6 +6,7 @@ import { serializeSave, deserializeSave } from "../save.js";
 import { runReferendumLifecycle } from "./lifecycle.js";
 import { corporationTurnPhase } from "../corporation/corporationTurn.js";
 import { materializeSourceParentSectorRows } from "../corporation/sourceRegionalSectorSeed.js";
+import { rngFromState } from "../rng.js";
 
 describe("referendum secession sector fan-out", () => {
   it("materializes the source parent-sector rows before the independence event", () => {
@@ -32,7 +33,7 @@ describe("referendum secession sector fan-out", () => {
     // The source receipt share defines opening physical stock. Actual later
     // sales are computed per plant and need not preserve that opening ratio.
     expect(walManufacturing.revenue! / manufacturer.revenue).toBeCloseTo(274_510 / 8_512_171, 9);
-    corporationTurnPhase.run(world);
+    corporationTurnPhase.run(world, rngFromState(world.meta.rng));
     const updatedManufacturer = world.corporations["UK-manufacturing"]!;
     const updatedIssuerAssets = Object.values(world.corporateSectors!).filter((asset) => asset.corporationId === updatedManufacturer.id);
     expect(updatedIssuerAssets.reduce((sum, asset) => sum + asset.revenue!, 0)).toBeCloseTo(updatedManufacturer.revenue, 6);
@@ -59,7 +60,7 @@ describe("referendum secession sector fan-out", () => {
     const world = createWorld({ era: "1953", countryId: "UK", homeRegionId: "LON", playerName: "Tester", seed: "plant-parent-split" });
     const original = Object.values(world.corporateSectors!).find((asset) => asset.corporationId === "UK-manufacturing" && asset.stateId === null)!;
     const national = structuredClone(original);
-    national.revenue = undefined;
+    delete national.revenue;
     national.stateId = null;
     national.capitalStock = 1_000;
     national.capacityBookAnchor = 40_000;
@@ -67,7 +68,7 @@ describe("referendum secession sector fan-out", () => {
     national.soldUnits = 520;
     national.soldFraction = 0.65;
     national.realizedRevenue = 12_000;
-    national.soldByCommodity = { textiles: 0.5, steel: 0.8 };
+    national.soldByCommodity = { food: 0.5, steel: 0.8 };
     const nationalPlantTotals = {
       capitalStock: national.capitalStock,
       capacityBookAnchor: national.capacityBookAnchor,
@@ -87,8 +88,8 @@ describe("referendum secession sector fan-out", () => {
     const wal = slices.find((asset) => asset.stateId === "WAL")!;
     expect(wal.capitalStock).toBeCloseTo(1_000 * 274_510 / 8_512_171, 9);
     expect(wal.soldFraction).toBe(0.65);
-    expect(wal.soldByCommodity).toEqual({ textiles: 0.5, steel: 0.8 });
-    for (const commodity of ["textiles", "steel"] as const) {
+    expect(wal.soldByCommodity).toEqual({ food: 0.5, steel: 0.8 });
+    for (const commodity of ["food", "steel"] as const) {
       expect(slices.reduce((sum, asset) => sum + (asset.producedUnits ?? 0) * (asset.soldByCommodity?.[commodity] ?? 0), 0))
         .toBeCloseTo(nationalPlantTotals.producedUnits! * nationalPlantTotals.soldByCommodity![commodity]!, 9);
     }

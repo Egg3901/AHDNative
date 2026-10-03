@@ -243,13 +243,14 @@ describe("Germany national tax laws (#287)", () => {
       const law = getLaw(id)!;
       const policy = law.taxPolicy!;
       const taxType = policy.taxType as keyof NonNullable<typeof world.budgets.DE>["taxRates"];
-      const beforeRate = world.budgets.DE!.taxRates[taxType];
+      const beforeRate = world.budgets.DE!.taxRates[taxType]!;
       const option = [...(policy.options ?? [])]
         .filter((candidate) => candidate.rate !== beforeRate && candidate.economic > 0)
         .sort((a, b) => Math.abs(a.economic) - Math.abs(b.economic) || Math.abs(a.rate - beforeRate) - Math.abs(b.rate - beforeRate))[0];
       expect(option, id).toBeDefined();
       const sponsored = executeAction(world, "player", "sponsorBill", { catalogId: id, taxRate: option!.rate });
       expect(sponsored.ok, `${id}: ${sponsored.ok ? "" : sponsored.error}`).toBe(true);
+      if (!sponsored.ok) throw new Error(`${id}: ${sponsored.error}`);
       let bill = world.bills.at(-1)!;
       expect(bill.status, id).toBe("proposed");
       advanceTurn(world);
@@ -276,7 +277,7 @@ describe("Germany national tax laws (#287)", () => {
       expect(currentRate !== entry.before || phaseIn === entry.selected, id).toBe(true);
       expect(bill.selectedRate, id).toBe(entry.selected);
     }
-    const restored = deserializeSave(serializeSave(world));
+    const restored = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     expect(restored.player.legislativeSeat).toEqual(world.player.legislativeSeat);
     expect(restored.enactedLaws).toEqual(world.enactedLaws);
   });

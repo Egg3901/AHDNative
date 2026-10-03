@@ -6,6 +6,8 @@ import {
   computeWhipForce,
   verdictFromForces,
 } from "./crossPressure.js";
+import type { Bill } from "../legislation/types.js";
+import type { CatalogEntry } from "../legislation/catalog.js";
 
 const voter = {
   partyId: "CN_CCP",
@@ -14,7 +16,7 @@ const voter = {
   personality: { loyalty: 80, stubbornness: 20, ambition: 50 },
 } as const;
 
-const bill = {
+const bill: Pick<Bill, "countryId" | "sponsorPartyId" | "legislationTypeId" | "effectDirection" | "provisions" | "category"> = {
   countryId: "CN",
   category: "economic",
   sponsorPartyId: "CN_OTHER",
@@ -28,13 +30,13 @@ const bill = {
     economic: 3,
     social: 0,
   }],
-} as const;
+};
 
-const selectedLaw = {
+const selectedLaw: Pick<CatalogEntry, "taxPolicy"> = {
   taxPolicy: {
     options: [{ id: "cn_value_added_tax_opt_8", rate: 19, effectDirection: 1, economic: 3, social: 0 }],
   },
-} as const;
+};
 
 describe("source NPP bill cross-pressure", () => {
   it("matches the pinned Game tax-vector force and verdict", () => {
@@ -66,6 +68,8 @@ describe("source NPP bill cross-pressure", () => {
   it("still applies a recorded source whip when a federal bill has no policy provision", () => {
     const result = computeCrossPressureForces(voter, {
       sponsorPartyId: null,
+      legislationTypeId: null,
+      effectDirection: 0,
       provisions: [],
       category: "economic",
     }, {}, {
