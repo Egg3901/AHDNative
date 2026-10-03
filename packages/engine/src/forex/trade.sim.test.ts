@@ -44,5 +44,17 @@ describe("source-sized currency trade fees and volume pressure", () => {
     const malformed = JSON.parse(raw);
     malformed.world.forexTradeHistory[0].spread = -1;
     expect(() => deserializeSave(JSON.stringify(malformed))).toThrow("invalid forex trade history row");
+
+    for (const [key, value] of [
+      ["fromCurrency", "ZZZ"],
+      ["traderId", "npc"],
+      ["id", "invented"],
+      ["turn", 1],
+      ["amount", null],
+    ] as const) {
+      const invalid = JSON.parse(raw);
+      invalid.world.forexTradeHistory[0][key] = value;
+      expect(() => deserializeSave(JSON.stringify(invalid))).toThrow("invalid forex trade history row");
+    }
   });
 });

@@ -187,6 +187,31 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  // Schema 42 has no writer for Native's manual-trade lookback. Those rows
+  // affect later player fees and currency-rate pressure, so preserving them
+  // as unknown JSON is not enough to continue this world. The empty array is
+  // the reconstructable no-trade default and remains exportable.
+  const forexTradeHistory = world["forexTradeHistory"];
+  if (Array.isArray(forexTradeHistory) && forexTradeHistory.length > 0) {
+    return { ok: false, error: `Manual currency trade history cannot be continued by the schema 42 turn reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
+  }
+  // These snapshots are derived solely from the recorded manual lookback.
+  // Neutral zero snapshots are equivalent to the absent pre-feature state;
+  // active or malformed snapshots must remain on the current schema.
+  const forexRates = world["exchangeRates"];
+  if (isRecord(forexRates)) for (const [countryId, row] of Object.entries(forexRates)) {
+    if (!isRecord(row)) continue;
+    for (const field of ["buyVolume24", "sellVolume24"] as const) {
+      const volume = row[field];
+      if (volume === undefined) continue;
+      if (typeof volume !== "number" || !Number.isFinite(volume) || volume < 0) {
+        return { ok: false, error: `Exchange-rate ${countryId} has an invalid ${field} snapshot; keep this Native save as schema ${SCHEMA_VERSION}` };
+      }
+      if (volume !== 0) {
+        return { ok: false, error: `Active currency-volume pressure cannot be continued by the schema 42 turn reader. Keep this Native save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
   if (hasOwn(world, "pendingNationalizations")) {
     return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
   }
@@ -4178,13 +4203,15 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.forexTradeHistory !== undefined) {
     if (!Array.isArray(save.world.forexTradeHistory)) throw new Error("Not a valid save file: invalid forex trade history");
     const seenForexTradeIds = new Set<string>();
-    for (const trade of save.world.forexTradeHistory) {
+    const forexCurrencies = new Set(Object.values(save.world.exchangeRates).map((exchangeRate) => exchangeRate.currencyCode));
+    const supportedForexCurrencies = new Set(Object.values(CURRENCY_CODE_BY_COUNTRY));
+    for (const [index, trade] of save.world.forexTradeHistory.entries()) {
       if (
-        !isRecord(trade) || typeof trade.id !== "string" || trade.id.length === 0 || seenForexTradeIds.has(trade.id) ||
+        !isRecord(trade) || typeof trade.id !== "string" || trade.id !== `fx-${String(trade.turn)}-${index + 1}` || seenForexTradeIds.has(trade.id) ||
         !Number.isSafeInteger(trade.turn) || trade.turn < 0 || trade.turn > save.world.meta.turn ||
-        typeof trade.traderId !== "string" || trade.traderId.length === 0 ||
-        typeof trade.fromCurrency !== "string" || trade.fromCurrency.length === 0 ||
-        typeof trade.toCurrency !== "string" || trade.toCurrency.length === 0 || trade.fromCurrency === trade.toCurrency ||
+        trade.traderId !== "player" ||
+        typeof trade.fromCurrency !== "string" || !supportedForexCurrencies.has(trade.fromCurrency) || !forexCurrencies.has(trade.fromCurrency) ||
+        typeof trade.toCurrency !== "string" || !supportedForexCurrencies.has(trade.toCurrency) || !forexCurrencies.has(trade.toCurrency) || trade.fromCurrency === trade.toCurrency ||
         !Number.isFinite(trade.amount) || trade.amount <= 0 ||
         !Number.isFinite(trade.anchorAmount) || trade.anchorAmount <= 0 ||
         !Number.isFinite(trade.spread) || trade.spread < 0 || trade.spread > trade.amount ||
