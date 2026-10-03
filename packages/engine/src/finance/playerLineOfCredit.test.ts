@@ -4,6 +4,7 @@ import { advanceTurn } from "../engine.js";
 import { TURN_PHASES } from "../phases/registry.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { playerLineOfCreditPhase } from "./playerLineOfCredit.js";
+import { rngFromSeed } from "../rng.js";
 
 const OPTS = {
   seed: "loc-phase",
@@ -11,11 +12,7 @@ const OPTS = {
   countryId: "US",
   era: "1953",
 } as const;
-const RNG = {
-  next: () => 0.5,
-  int: () => 0,
-  pick: <T>(items: T[]) => items[0]!,
-};
+const RNG = rngFromSeed("player-line-of-credit-test");
 
 function fundedWorld() {
   const world = createWorld(OPTS);
@@ -239,7 +236,7 @@ describe("playerLineOfCreditPhase", () => {
     expect(world.player.lineOfCredit!.arrears).toBe(0);
     expect(world.player.lineOfCredit!.drawFrozen).toBe(false);
 
-    const reloaded = deserializeSave(serializeSave(world));
+    const reloaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     expect(reloaded.player.currencyBalances!.personal.GBP).toBe(17.96);
     expect(reloaded.player.lineOfCredit).toEqual(world.player.lineOfCredit);
     playerLineOfCreditPhase.run(reloaded, RNG);
@@ -326,7 +323,7 @@ describe("playerLineOfCreditPhase", () => {
     const direct = fundedWorld();
     playerLineOfCreditPhase.run(direct, RNG);
 
-    const reloaded = deserializeSave(serializeSave(fundedWorld()));
+    const reloaded = deserializeSave(serializeSave(fundedWorld(), "2026-10-03T00:00:00.000Z"));
     playerLineOfCreditPhase.run(reloaded, RNG);
 
     expect(reloaded.player).toEqual(direct.player);
@@ -385,9 +382,9 @@ describe("playerLineOfCreditPhase", () => {
       const world = fundedWorld();
       world.player.currencyBalances = { personal: { GBP: 20, EUR: 10 } };
       world.player.lineOfCredit = lineOfCredit as never;
-      const before = serializeSave(world);
+      const before = serializeSave(world, "2026-10-03T00:00:00.000Z");
       expect(() => playerLineOfCreditPhase.run(world, RNG)).toThrow();
-      expect(serializeSave(world)).toBe(before);
+      expect(serializeSave(world, "2026-10-03T00:00:00.000Z")).toBe(before);
     }
   });
 
@@ -399,7 +396,7 @@ describe("playerLineOfCreditPhase", () => {
       "Invalid GBP personal wallet balance",
     );
     expect(JSON.stringify(world)).toBe(before);
-    expect(() => deserializeSave(serializeSave(world))).toThrow(
+    expect(() => deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"))).toThrow(
       "Invalid GBP personal wallet balance",
     );
   });
@@ -424,9 +421,9 @@ describe("playerLineOfCreditPhase", () => {
       arrears: 0,
       drawFrozen: false,
     };
-    expect(() => deserializeSave(serializeSave(world))).not.toThrow();
+    expect(() => deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"))).not.toThrow();
 
-    const raw = JSON.parse(serializeSave(world)) as {
+    const raw = JSON.parse(serializeSave(world, "2026-10-03T00:00:00.000Z")) as {
       world: { player: { lineOfCredit: { balance: number } } };
     };
     raw.world.player.lineOfCredit.balance = -5;
