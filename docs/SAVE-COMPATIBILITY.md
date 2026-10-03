@@ -12,11 +12,11 @@ Schema 65 adds bill corporation targets, legislative acquisition provenance and 
 
 The unpublished schema 65 integration also contains source NPP strategy memory, physical capacity replacement, corporate cash records, headquarters votes and corporate currency relocation. Individual producer tests are recorded separately. The bounded combined public-session save check below qualifies its exact producer and refusal boundary; the full integration gate and original mechanics criteria remain open. This is partial work on #107 and #75.
 
-Schema 65 also contains source annual statehood admission, UK devolution and Northern Ireland conflict records, Commons vacancies and recall petition clocks, signatures, declarations and support samples. The local migration preserves their historical absence except for the statehood preset guard. Existing recorded public fixtures qualify their named boundaries; complete country journeys, combined validation and published-reader refusal remain open.
+Schema 65 also contains source annual statehood admission, UK devolution and Northern Ireland conflict records, Commons vacancies and recall petition clocks, signatures, declarations and support samples. The local migration preserves their historical absence except for the statehood preset guard. Existing recorded public fixtures qualify their named boundaries; complete country journeys and combined validation remain open. The producer checkpoint below records exact older-reader refusal.
 
 ## Combined schema 65 producer checkpoint, 2026-10-03
 
-Writer `350ba0643948b5418e0b4290c3612971995283bc` creates a fresh 1953 US/WY
+Writer `4d78e31016d053c82ed00823045257819a5d7b8f` creates a fresh 1953 US/WY
 character through `GameSession` with the legal 28-point character allocation,
 joins the Republican party, campaigns and advances one untouched-calendar turn.
 Its raw `serialize` output is 14,782,172 bytes, schema 65 in both envelope and
