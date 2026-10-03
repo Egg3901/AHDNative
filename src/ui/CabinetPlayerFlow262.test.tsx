@@ -32,6 +32,14 @@ const OPTIONS = {
   seed: "native-cabinet-player-flow-262",
   playerName: "Alex",
   mode: "hos",
+  creation: {
+    partyId: null,
+    policies: { economic: 0, social: 0 },
+    demographics: { race: "white", gender: "female", education: "college", wealth: "middle" },
+    // Legal 28-point build. The ministerial-order source expectation below is
+    // specifically for an issuer with Statecraft 6, not an unallocated player.
+    stats: { charisma: 4, debate: 3, energy: 3, fundraising: 4, businessAcumen: 4, statecraft: 6, intellect: 4 },
+  },
 } as const;
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 const POSITION = "secretary_of_treasury";
@@ -215,21 +223,29 @@ describe("cabinet ministerial-order player flow (#262)", () => {
       turnsRemaining: duration - 1,
     });
     const saved = JSON.parse(session.serialize(SAVED_AT)) as {
-      world: { ministerialOrders: Array<{ orderId?: string; lastAppliedTurn?: number }> };
+      world: {
+        player: { stats?: { statecraft?: number } };
+        ministerialOrders: Array<{ orderId?: string; lastAppliedTurn?: number }>;
+      };
     };
+    expect(saved.world.player.stats?.statecraft).toBe(6);
     expect(saved.world.ministerialOrders.find((order) => order.orderId === ORDER)?.lastAppliedTurn).toBe(25);
     const orderedMetric = metricOf(session);
     const noOrderMetric = metricOf(noOrderTwin);
     expect(Number.isFinite(orderedMetric)).toBe(true);
     expect(Number.isFinite(noOrderMetric)).toBe(true);
-    // Game 96831835 combines the -0.03 authored order with 1.25 cabinet
-    // strength and the player's Statecraft multiplier (this source-seeded
-    // character has statecraft 6, so 1 + (6 - 5.5) * .04 = 1.02). The source
-    // span helper floors this metric's scale at 1 because (15 - 2) / 100 is
-    // below one. Thus -0.03 * 1.25 * 1.02 = -0.03825, rounded to -0.038 in
-    // the saved national metric. Compare same-turn worlds so macro
-    // recalculation is shared by the treatment and control.
-    expect(orderedMetric! - noOrderMetric!).toBeCloseTo(-0.038, 3);
+    // Game 0538 combines the -0.03 authored order with 1.25 cabinet strength
+    // and statMultiplier(6)=1.02. Its absent-stat fallback is neutral 5.5; the
+    // legal creation allocation above is what makes this a 6-stat source case.
+    // The source span helper is max(1, (15 - 2) / 100)=1 for unemployment.
+    // Thus the source step is -0.03 * 1.02 * 1.25 * 1 = -0.03825. The saved
+    // national metric rounds to 3 decimals; compare same-turn twins so all
+    // non-order recalculation is shared by treatment and control.
+    const statecraftMultiplier = 1 + (saved.world.player.stats!.statecraft! - 5.5) * 0.04;
+    const sourceStep = -0.03 * statecraftMultiplier * 1.25 * Math.max(1, (15 - 2) / 100);
+    expect(statecraftMultiplier).toBe(1.02);
+    expect(sourceStep).toBe(-0.03825);
+    expect(orderedMetric! - noOrderMetric!).toBeCloseTo(Math.round(sourceStep * 1000) / 1000, 3);
 
     // Save/reload preserves the seat, the pool, and the live order.
     const before = session.cabinetOffice();
