@@ -441,13 +441,14 @@ describe("China's executable national budget-tax slice (#286)", () => {
       const law = getLaw(row.id)!;
       const policy = law.taxPolicy!;
       const taxType = row.taxType as keyof BudgetTaxRates;
-      const beforeRate = world.budgets.CN!.taxRates[taxType];
+      const beforeRate = world.budgets.CN!.taxRates[taxType]!;
       const option = [...(policy.options ?? [])]
         .filter((candidate) => candidate.rate !== beforeRate && candidate.economic < 0)
         .sort((a, b) => Math.abs(a.economic) - Math.abs(b.economic) || Math.abs(a.rate - beforeRate) - Math.abs(b.rate - beforeRate))[0];
       expect(option, row.id).toBeDefined();
       const sponsored = executeAction(world, "player", "sponsorBill", { catalogId: row.id, taxRate: option!.rate });
       expect(sponsored.ok, `${row.id}: ${sponsored.ok ? "" : sponsored.error}`).toBe(true);
+      if (!sponsored.ok) throw new Error(`${row.id}: ${sponsored.error}`);
       let bill = world.bills.at(-1)!;
       expect(bill.status, row.id).toBe("proposed");
       advanceTurn(world);
@@ -482,7 +483,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
       expect(currentRate !== entry.before || phaseIn === entry.selected, rowId).toBe(true);
       expect(bill.selectedRate, rowId).toBe(entry.selected);
     }
-    const restored = deserializeSave(serializeSave(world));
+    const restored = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     expect(restored.player.legislativeSeat).toEqual(world.player.legislativeSeat);
     expect(restored.enactedLaws).toEqual(world.enactedLaws);
   });

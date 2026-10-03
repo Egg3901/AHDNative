@@ -14,6 +14,7 @@ function race(countryId: string, electionType: string, state?: string): Election
     cycle: 1,
     status: "active",
     startTurn: 0,
+    primaryEndTurn: 0,
     endTurn: 10,
     totalSeats: 1,
     chamberKey: electionType === "governor" ? "governor" : "president",
