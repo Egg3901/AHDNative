@@ -407,6 +407,59 @@ export function validateElectionId(id: unknown): { ok: true; id: string } | { ok
   return { ok: true, id: id };
 }
 
+export interface MpRunningMateOption {
+  id: string;
+  name: string;
+  party: string;
+  partyName: string | null;
+  homeState: string;
+  partyColor: string | null;
+  countryId: string;
+}
+
+/** Validate the exact authenticated source running-mate POST payload. */
+export function validateRunningMateSelection(args: {
+  electionId: unknown;
+  runningMateId: unknown;
+}): { ok: true; body: { electionId: string; runningMateId: string | null } } | { ok: false; reason: string } {
+  const election = validateElectionId(args.electionId);
+  if (!election.ok) return { ok: false, reason: election.reason };
+  if (args.runningMateId !== null && (typeof args.runningMateId !== "string" || !HEX_OBJECT_ID.test(args.runningMateId))) {
+    return { ok: false, reason: "Choose an eligible player character as running mate." };
+  }
+  return { ok: true, body: { electionId: election.id, runningMateId: args.runningMateId } };
+}
+
+/** Parse GET /api/elections/[id]/running-mate/characters without widening identity. */
+export function parseRunningMateCharacters(bodyText: string): MpRunningMateOption[] | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record || !Array.isArray(record.characters)) return null;
+  const options: MpRunningMateOption[] = [];
+  for (const value of record.characters) {
+    const row = asRecord(value);
+    if (!row) return null;
+    const id = asTrimmedString(row.id);
+    const name = asTrimmedString(row.name);
+    const party = asTrimmedString(row.party);
+    const countryId = asTrimmedString(row.countryId);
+    const homeState = asTrimmedString(row.homeState);
+    if (!id || !HEX_OBJECT_ID.test(id) || !name || !party || !countryId || !homeState) return null;
+    const partyName = row.partyName === null ? null : asTrimmedString(row.partyName);
+    const partyColor = row.partyColor === null ? null : asTrimmedString(row.partyColor);
+    if (row.partyName !== null && partyName === null) return null;
+    if (row.partyColor !== null && partyColor === null) return null;
+    options.push({ id, name, party, partyName, homeState, partyColor, countryId });
+  }
+  return options;
+}
+
+/** The source endpoint acknowledges its own persisted candidate update. */
+export function parseRunningMateMutation(bodyText: string): string | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record || record.success !== true) return null;
+  return asTrimmedString(record.message);
+}
+
 export interface MpElectionDetailView {
   id: string;
   seatId: string | null;

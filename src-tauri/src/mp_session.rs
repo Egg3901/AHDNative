@@ -127,6 +127,9 @@ pub enum MpFetchOp {
     /// `view=summary` (optional auth, 404 when the race is gone). The id is
     /// a 24-hex ObjectId or a bounded seatId; see [`is_election_id`].
     ElectionDetail,
+    /// Source eligibility-filtered running-mate options; candidate auth is
+    /// checked by GET /api/elections/[id]/running-mate/characters.
+    RunningMateCharacters,
     /// Standing corporation detail; GET /api/corporations/[id] (public with
     /// optional auth, 400 on an invalid id, 404 when the company is gone).
     /// The id is a sequential numeric id or a 24-hex ObjectId; see
@@ -174,6 +177,7 @@ impl MpFetchOp {
             "mail-sent" => Some(Self::MailSent),
             "admin-maintenance" => Some(Self::AdminMaintenance),
             "election-detail" => Some(Self::ElectionDetail),
+            "running-mate-characters" => Some(Self::RunningMateCharacters),
             "corporation-detail" => Some(Self::CorporationDetail),
             "union-detail" => Some(Self::UnionDetail),
             "cabinet-detail" => Some(Self::CabinetDetail),
@@ -196,6 +200,7 @@ impl MpFetchOp {
             Self::MailSent => "/api/mail/sent",
             Self::AdminMaintenance => "/api/admin/maintenance",
             Self::ElectionDetail => "/api/elections",
+            Self::RunningMateCharacters => "/api/elections",
             Self::CorporationDetail => "/api/corporations",
             Self::UnionDetail => "/api/unions",
             Self::CabinetDetail => "/api/country",
@@ -249,6 +254,8 @@ pub enum MpMutateOp {
     SavingsOpen,
     SavingsDeposit,
     SavingsWithdraw,
+    /// Candidate-authorized POST /api/elections/[id]/running-mate.
+    RunningMateSet,
 }
 
 impl MpMutateOp {
@@ -271,6 +278,7 @@ impl MpMutateOp {
             "savings-open" => Some(Self::SavingsOpen),
             "savings-deposit" => Some(Self::SavingsDeposit),
             "savings-withdraw" => Some(Self::SavingsWithdraw),
+            "running-mate-set" => Some(Self::RunningMateSet),
             _ => None,
         }
     }
@@ -284,6 +292,7 @@ impl MpMutateOp {
             | Self::SavingsOpen
             | Self::SavingsDeposit
             | Self::SavingsWithdraw => "POST",
+            Self::RunningMateSet => "POST",
             Self::NotificationPreference => "PUT",
             Self::MailDelete | Self::MailSentDelete => "DELETE",
             Self::NotificationRead
@@ -315,6 +324,7 @@ impl MpMutateOp {
             Self::SavingsOpen => "/api/character/savings/open",
             Self::SavingsDeposit => "/api/character/savings/deposit",
             Self::SavingsWithdraw => "/api/character/savings/withdraw",
+            Self::RunningMateSet => "/api/elections",
         }
     }
 }
@@ -588,6 +598,27 @@ fn fetch_election_path(election_id: &str) -> Result<String, String> {
         "{}?id={election_id}&view=summary",
         MpFetchOp::ElectionDetail.path()
     ))
+}
+
+fn running_mate_characters_path(election_id: &str) -> Result<String, String> {
+    if !is_election_id(election_id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(format!(
+        "/api/elections/{election_id}/running-mate/characters"
+    ))
+}
+
+fn running_mate_set_path(payload: &serde_json::Value) -> Result<String, String> {
+    let election_id = payload
+        .as_object()
+        .and_then(|object| object.get("electionId"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| error::BAD_ARG.to_string())?;
+    if !is_election_id(election_id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(format!("/api/elections/{election_id}/running-mate"))
 }
 
 /// Corporation reference accepted by GET /api/corporations/[id]: a
@@ -906,6 +937,15 @@ fn mutate_body(op: MpMutateOp, payload: &serde_json::Value) -> Result<serde_json
             mail_id_from(payload)?;
             Ok(serde_json::json!({}))
         }
+        MpMutateOp::RunningMateSet => {
+            let value = object
+                .get("runningMateId")
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !value.is_null() && !value.as_str().is_some_and(is_hex_object_id) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            Ok(serde_json::json!({ "runningMateId": value }))
+        }
         MpMutateOp::AuthLogout => {
             // Unlink takes no arguments: the live session cookie is the
             // identity. The payload must still be an object so stray fields
@@ -928,6 +968,7 @@ fn mutate_path(op: MpMutateOp, payload: &serde_json::Value) -> Result<String, St
         }
         MpMutateOp::MailSentDelete => Ok(format!("/api/mail/sent/{}", mail_id_from(payload)?)),
         MpMutateOp::MailReport => Ok(format!("/api/mail/{}/report", mail_id_from(payload)?)),
+        MpMutateOp::RunningMateSet => running_mate_set_path(payload),
         _ => Ok(op.path().to_string()),
     }
 }
@@ -1004,6 +1045,18 @@ fn is_election_query(query: &str) -> bool {
         }
     }
     id_ok && view_ok
+}
+
+fn is_running_mate_characters_path(path: &str) -> bool {
+    path.strip_prefix("/api/elections/")
+        .and_then(|rest| rest.strip_suffix("/running-mate/characters"))
+        .is_some_and(is_election_id)
+}
+
+fn is_running_mate_set_path(path: &str) -> bool {
+    path.strip_prefix("/api/elections/")
+        .and_then(|rest| rest.strip_suffix("/running-mate"))
+        .is_some_and(is_election_id)
 }
 
 /// Corporation detail path: exactly `/api/corporations/<validated id>`
@@ -1104,6 +1157,9 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
             Some(query) => is_election_query(query),
             None => false,
         },
+        ("GET", path) if path.starts_with("/api/elections/") => {
+            query.is_none() && is_running_mate_characters_path(path)
+        }
         ("GET", path) if path.starts_with("/api/corporations/") => {
             query.is_none() && is_corporation_path(path)
         }
@@ -1122,6 +1178,9 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
             query.is_none()
         }
         ("POST", path) if is_mail_report_path(path) => query.is_none(),
+        ("POST", path) if path.starts_with("/api/elections/") => {
+            query.is_none() && is_running_mate_set_path(path)
+        }
         _ => false,
     }
 }
@@ -1690,6 +1749,24 @@ pub async fn mp_session_fetch(
                 .as_deref()
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_election_path(id)?
+        }
+        MpFetchOp::RunningMateCharacters => {
+            if limit.is_some()
+                || offset.is_some()
+                || detail.corporation_id.is_some()
+                || detail.union_id.is_some()
+                || detail.cabinet_country_code.is_some()
+                || detail.cabinet_position_id.is_some()
+                || detail.governor_country_code.is_some()
+                || detail.governor_state_id.is_some()
+            {
+                return Err(error::UNSUPPORTED_OP.to_string());
+            }
+            let id = detail
+                .election_id
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            running_mate_characters_path(id)?
         }
         MpFetchOp::CorporationDetail => {
             if limit.is_some()
@@ -2478,6 +2555,67 @@ mod tests {
                 "{bad:?} must be rejected"
             );
         }
+    }
+
+    #[test]
+    fn running_mate_routes_are_narrowly_pinned_to_a_single_election() {
+        let id = "68a000000000000000000001";
+        assert_eq!(
+            MpFetchOp::from_id("running-mate-characters"),
+            Some(MpFetchOp::RunningMateCharacters)
+        );
+        assert_eq!(
+            running_mate_characters_path(id).unwrap(),
+            format!("/api/elections/{id}/running-mate/characters")
+        );
+        assert!(running_mate_characters_path("../admin").is_err());
+        let payload = serde_json::json!({ "electionId": id, "runningMateId": "507f1f77bcf86cd799439013", "path": "/api/admin" });
+        assert_eq!(
+            MpMutateOp::from_id("running-mate-set"),
+            Some(MpMutateOp::RunningMateSet)
+        );
+        assert_eq!(MpMutateOp::RunningMateSet.method(), "POST");
+        assert_eq!(
+            mutate_path(MpMutateOp::RunningMateSet, &payload).unwrap(),
+            format!("/api/elections/{id}/running-mate")
+        );
+        assert_eq!(
+            mutate_body(MpMutateOp::RunningMateSet, &payload).unwrap(),
+            serde_json::json!({ "runningMateId": "507f1f77bcf86cd799439013" })
+        );
+        let clear = serde_json::json!({ "electionId": id, "runningMateId": null });
+        assert_eq!(
+            mutate_body(MpMutateOp::RunningMateSet, &clear).unwrap(),
+            serde_json::json!({ "runningMateId": null })
+        );
+        let invalid_election =
+            serde_json::json!({ "electionId": "../../admin", "runningMateId": null });
+        assert!(mutate_path(MpMutateOp::RunningMateSet, &invalid_election).is_err());
+        let invalid_mate = serde_json::json!({ "electionId": id, "runningMateId": "player" });
+        assert!(mutate_body(MpMutateOp::RunningMateSet, &invalid_mate).is_err());
+        let missing_mate = serde_json::json!({ "electionId": id });
+        assert!(mutate_body(MpMutateOp::RunningMateSet, &missing_mate).is_err());
+        for (method, path) in [
+            (
+                "GET",
+                format!("/api/elections/{id}/running-mate/characters"),
+            ),
+            ("POST", format!("/api/elections/{id}/running-mate")),
+        ] {
+            assert!(is_allowlisted_call(method, &path));
+        }
+        assert!(!is_allowlisted_call(
+            "DELETE",
+            &format!("/api/elections/{id}/running-mate")
+        ));
+        assert!(!is_allowlisted_call(
+            "POST",
+            "/api/elections/../../admin/running-mate"
+        ));
+        assert!(!is_allowlisted_call(
+            "GET",
+            &format!("/api/elections/{id}/running-mate/characters?view=full")
+        ));
     }
 
     #[test]

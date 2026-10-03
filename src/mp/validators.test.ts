@@ -18,6 +18,8 @@ import {
   parseLogoutAck,
   parseMutationAck,
   parsePlayersOnline,
+  parseRunningMateCharacters,
+  parseRunningMateMutation,
   parseSessionProbe,
   parseTurnStatus,
   parseUnionDetail,
@@ -29,6 +31,7 @@ import {
   validateExecuteArgs,
   validateNotificationId,
   validateNotificationPreference,
+  validateRunningMateSelection,
   validateSnoozeMinutes,
   validateUnionId,
 } from "./validators";
@@ -422,6 +425,35 @@ describe("election-detail reference and payload (#359 election slice)", () => {
       expect(validateElectionId(bad).ok).toBe(false);
     }
     expect(validateElectionId(SEAT_ID)).toEqual({ ok: true, id: SEAT_ID });
+  });
+
+  it("validates the source running-mate choice and acknowledgement contract", () => {
+    const characterId = "507f1f77bcf86cd799439013";
+    expect(validateRunningMateSelection({ electionId: SEAT_ID, runningMateId: characterId })).toEqual({
+      ok: true,
+      body: { electionId: SEAT_ID, runningMateId: characterId },
+    });
+    expect(validateRunningMateSelection({ electionId: HEX_ID, runningMateId: null })).toEqual({
+      ok: true,
+      body: { electionId: HEX_ID, runningMateId: null },
+    });
+    for (const bad of [
+      { electionId: "../admin", runningMateId: characterId },
+      { electionId: SEAT_ID, runningMateId: "player" },
+      { electionId: SEAT_ID, runningMateId: 7 },
+    ]) {
+      expect(validateRunningMateSelection(bad).ok, JSON.stringify(bad)).toBe(false);
+    }
+    expect(parseRunningMateCharacters(JSON.stringify({ characters: [{
+      id: characterId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
+      partyColor: "#123456", countryId: "US",
+    }] }))).toEqual([{
+      id: characterId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
+      partyColor: "#123456", countryId: "US",
+    }]);
+    expect(parseRunningMateCharacters(JSON.stringify({ characters: [{ id: "player", name: "Self" }] }))).toBeNull();
+    expect(parseRunningMateMutation(JSON.stringify({ success: true, message: "Bea is now your running mate." }))).toBe("Bea is now your running mate.");
+    expect(parseRunningMateMutation(JSON.stringify({ success: false, message: "No" }))).toBeNull();
   });
 
   const summary = (overrides: Record<string, unknown> = {}) =>
