@@ -54,6 +54,12 @@ describe("Japan regional budget source formula", () => {
       expect(jpBudgets.map((row) => row.regionId).sort(), `${era} exact source geography`).toEqual(sourceIds);
       expect(Object.values(world.regions).some((region) => region.countryId === "JP"), `${era} electoral JP regions`).toBe(false);
       expect(world.budgets.JP, `${era} national JP budget`).toBeDefined();
+      if (era === "1953") {
+        expect(world.budgets.JP).toMatchObject({ fiscalYear: 1953, population: 86_600_000, gdp: 25_800_000_000, currencyCode: "JPY" });
+      }
+      if (era === "1979") {
+        expect(world.budgets.JP).toMatchObject({ fiscalYear: 1979, population: 115_900_000, gdp: 230_000_000_000_000, currencyCode: "JPY" });
+      }
       expect(jpBudgets.every((row) => row.jpNationalGrantPerCapita === 128_000)).toBe(true);
       expect(jpBudgets.every((row) => row.taxRates?.fixedAssetTax === 1.4)).toBe(true);
       expect(jpBudgets.every((row) => row.taxRates?.residentTax === (era === "1953" || era === "1979" ? 8 : 10))).toBe(true);
@@ -92,6 +98,12 @@ describe("Japan regional budget source formula", () => {
     const world = createWorld({ seed: "jp-budget-austerity", playerName: "Tester", countryId: "US", era: "2019" });
     const hokkaido = world.regionalBudgets.HOK!;
     hokkaido.jpNationalGrantPerCapita = 0;
+    const residentTax = hokkaido.jpRegionalPolicies!.find((law) => law.legislationTypeId === "jp_resident_tax")!;
+    residentTax.policyOptionId = "jp_resident_tax_opt_0";
+    residentTax.policyOptionIndex = 0;
+    const fixedAssetTax = hokkaido.jpRegionalPolicies!.find((law) => law.legislationTypeId === "jp_fixed_asset_tax")!;
+    fixedAssetTax.policyOptionId = "jp_fixed_asset_tax_opt_0";
+    fixedAssetTax.policyOptionIndex = 0;
     hokkaido.taxRates = { residentTax: 0, fixedAssetTax: 0 };
     world.regionalMetrics.HOK = { "economic.medianIncome": { value: 0 } };
     const education = hokkaido.jpRegionalPolicies!.find((law) => law.legislationTypeId === "jp_regional_education")!;
