@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { GameSession } from "./session";
-import { projectSaveToV42 } from "@ahdclient/engine";
+import { advanceTurn, deserializeSave, projectSaveToV42 } from "@ahdclient/engine";
+import { buildIndexFundTargetConstituents } from "/root/misc/archive/2026-10-03-ahdnative-index-funds-72/source-oracle/src/lib/indexFunds/constituents";
+import { planFundTargetRebalance } from "/root/misc/archive/2026-10-03-ahdnative-index-funds-72/source-oracle/src/lib/indexFunds/fundTargetRebalance";
 
 describe("source-seeded index fund player lifecycle", () => {
   it("subscribes to the source US Top 25 fund through the public session and preserves the position", () => {
@@ -49,7 +51,92 @@ describe("source-seeded index fund player lifecycle", () => {
     right.load(raw);
     left.advance();
     right.advance();
-    expect(left.serialize("2026-10-03T15:00:00.000Z")).toBe(right.serialize("2026-10-03T15:00:00.000Z"));
+    const continuedRaw = left.serialize("2026-10-03T15:00:00.000Z");
+    expect(continuedRaw).toBe(right.serialize("2026-10-03T15:00:00.000Z"));
+    const next = JSON.parse(continuedRaw).world;
+    expect(next.indexFundBook.funds.us_top_25.targetConstituents.length).toBeGreaterThan(0);
+    const oracleWorld = deserializeSave(raw);
+    let beforeFundPhase: typeof oracleWorld | undefined;
+    advanceTurn(oracleWorld, {
+      afterPhase(name, world) {
+        if (name === "countryPolitics") beforeFundPhase = structuredClone(world) as typeof oracleWorld;
+      },
+    });
+    expect(beforeFundPhase).toBeDefined();
+    const sourceCandidates = Object.entries(beforeFundPhase!.corporations).map(([id, corp]: [string, any]) => ({
+      _id: { toString: () => id },
+      countryId: corp.countryId,
+      type: corp.sectorType,
+      secondaryType: corp.secondarySectorType,
+      sharePrice: corp.sharePrice,
+      totalShares: corp.totalShares,
+      liquidCurrencyCode: corp.liquidCurrencyCode ?? "USD",
+      countryOwnerId: corp.countryOwnerId,
+      isPrivate: corp.isPrivate,
+      hiddenFromExchange: corp.hiddenFromExchange,
+      publicFloat: corp.publicFloat,
+      liquidCapital: corp.liquidCapital,
+    }));
+    const sourceTargets = buildIndexFundTargetConstituents({
+      corporations: sourceCandidates,
+      definition: { scope: "country", kind: "broad", countryId: "US", topN: 25, anchorCurrencyCode: "USD" },
+      exchangeRates: { USD: 1 },
+    }).constituents.map(({ corporationId, marketCapAnchor, targetWeight, rank }) => ({
+      corporationId: corporationId.toString(), marketCapAnchor, targetWeight, rank,
+    }));
+    const nativeTargets = next.indexFundBook.funds.us_top_25.targetConstituents;
+    expect(nativeTargets.map(({ corporationId, rank }) => ({ corporationId, rank }))).toEqual(
+      sourceTargets.map(({ corporationId, rank }) => ({ corporationId, rank })),
+    );
+    nativeTargets.forEach((target, index) => {
+      expect(target.marketCapAnchor).toBeCloseTo(sourceTargets[index].marketCapAnchor, 7);
+      expect(target.targetWeight).toBeCloseTo(sourceTargets[index].targetWeight, 14);
+    });
+    const fundBefore = beforeFundPhase!.indexFundBook.funds.us_top_25;
+    const sourcePlan = planFundTargetRebalance({
+      fund: {
+        _id: { toString: () => "us_top_25" },
+        anchorCurrencyCode: "USD",
+        cashAnchor: fundBefore.cashAnchor,
+        holdings: Object.entries(fundBefore.holdings).map(([corporationId, holding]) => ({
+          corporationId: { toString: () => corporationId },
+          shares: holding.shares,
+          lastValueAnchor: holding.lastValueAnchor,
+          avgCostPerShareAnchor: holding.averageCostPerShare,
+        })),
+        targetConstituents: sourceTargets.map((target) => ({
+          corporationId: { toString: () => target.corporationId },
+          marketCapAnchor: target.marketCapAnchor,
+          targetWeight: target.targetWeight,
+          rank: target.rank,
+        })),
+      },
+      corps: Object.entries(beforeFundPhase!.corporations).map(([id, corp]: [string, any]) => ({
+        _id: { toString: () => id },
+        sharePrice: corp.sharePrice,
+        fundamentalSharePrice: corp.fundamentalSharePrice,
+        totalShares: corp.totalShares,
+        publicFloat: corp.publicFloat,
+        liquidCurrencyCode: corp.liquidCurrencyCode ?? "USD",
+      })),
+      exchangeRates: { USD: 1 },
+      bondPrincipalAnchor: 0,
+    });
+    const actualPurchases = next.indexFundBook.transactions
+      .filter((transaction) => transaction.turn === next.meta.turn && transaction.kind === "floatPurchase")
+      .map(({ corporationId, units, cashAnchor }) => ({ corporationId, shares: units, valueAnchor: cashAnchor }))
+      .sort((a, b) => a.corporationId!.localeCompare(b.corporationId!));
+    const expectedPurchases = sourcePlan.buys
+      .map((leg) => ({ corporationId: leg.corporationId.toString(), shares: leg.shares, valueAnchor: leg.valueAnchor }))
+      .sort((a, b) => a.corporationId.localeCompare(b.corporationId));
+    expect(actualPurchases).toEqual(expectedPurchases);
+    const holdings = next.indexFundBook.funds.us_top_25.holdings as Record<string, { shares: number }>;
+    expect(Object.values(holdings).reduce((sum: number, holding) => sum + holding.shares, 0)).toBeGreaterThan(0);
+    for (const [corpId, holding] of Object.entries(holdings)) {
+      expect(left.markets().listings.find((listing) => listing.id === corpId)?.shareholders).toContainEqual(
+        expect.objectContaining({ holder: "fund", holderId: "us_top_25", shares: holding.shares }),
+      );
+    }
 
     const corrupt = JSON.parse(raw);
     corrupt.world.indexFundBook.funds.us_top_25.unitSupply += 1;

@@ -197,16 +197,17 @@ export interface MarketListing {
 }
 
 /**
- * Recorded holder kind. Mirrors the engine's Corporation ShareholderKind —
- * the only owner identity AHDClient actually stores ("npc" founder block, or
- * the single "player"). cross-corp / fund / state owner kinds are not ported,
- * so they are deliberately absent rather than invented.
+ * Recorded holder kind. Issuer shareholder records retain the source NPC and
+ * player blocks; source fund custody is projected from the paired fund holding
+ * book and carries its actual fund slug.
  */
-export type ShareholderKind = "npc" | "player";
+export type ShareholderKind = "npc" | "player" | "fund";
 
 /** One recorded shareholder block (holder kind + raw share count). */
 export interface MarketShareholder {
   holder: ShareholderKind;
+  /** Source fund slug for a passive-fund shareholder. */
+  holderId?: string;
   shares: number;
   /** Recorded weighted-average cost per share; null for the founding NPC block (no purchase event). */
   avgCostPerShare: number | null;
@@ -539,12 +540,26 @@ export function projectMarkets(world: WorldState): MarketsView {
       priceHistory,
       buy: listingTrade("buyShares", world, trade),
       sell: listingTrade("sellShares", world, trade),
-      shareholders: corp.shareholders.map((shareholder) => ({
-        holder: shareholder.holder,
-        shares: shareholder.shares,
-        avgCostPerShare: shareholder.avgCostPerShare ?? null,
-      })),
-      controllingHolder: controllingHolder(corp.shareholders),
+      shareholders: [
+        ...corp.shareholders.map((shareholder) => ({
+          holder: shareholder.holder,
+          shares: shareholder.shares,
+          avgCostPerShare: shareholder.avgCostPerShare ?? null,
+        })),
+        ...Object.values(world.indexFundBook?.funds ?? {}).flatMap((fund) => {
+          const holding = fund.holdings[corp.id];
+          return holding && holding.shares > 0
+            ? [{ holder: "fund" as const, holderId: fund.slug, shares: holding.shares, avgCostPerShare: holding.averageCostPerShare }]
+            : [];
+        }),
+      ],
+      controllingHolder: controllingHolder([
+        ...corp.shareholders,
+        ...Object.values(world.indexFundBook?.funds ?? {}).flatMap((fund) => {
+          const holding = fund.holdings[corp.id];
+          return holding && holding.shares > 0 ? [{ holder: "fund" as const, shares: holding.shares }] : [];
+        }),
+      ]),
       ...(corp.ceoId !== undefined ? { ceoId: corp.ceoId } : {}),
       ...(corp.ceoVacant !== undefined ? { ceoVacant: corp.ceoVacant } : {}),
       ...(corp.pendingCeoId !== undefined ? { pendingCeoId: corp.pendingCeoId } : {}),

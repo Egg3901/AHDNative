@@ -989,8 +989,24 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
       !Number.isSafeInteger(fund["unitSupply"]) || (fund["unitSupply"] as number) < 0 ||
       !Number.isSafeInteger(fund["reserveUnits"]) || (fund["reserveUnits"] as number) < 0 ||
       !Number.isFinite(fund["cashAnchor"]) || (fund["cashAnchor"] as number) < 0 ||
-      !Array.isArray(fund["targetConstituents"]) || !fund["targetConstituents"].every((id) => typeof id === "string") ||
-      !isRecord(fund["holdings"])) fail();
+      !Array.isArray(fund["targetConstituents"]) || !isRecord(fund["holdings"])) fail();
+  const constituentIds = new Set<string>();
+  for (const row of fund["targetConstituents"]) {
+    if (!isRecord(row) || Object.keys(row).some((key) => !["corporationId", "targetWeight", "marketCapAnchor", "rank"].includes(key)) ||
+        typeof row["corporationId"] !== "string" || row["corporationId"].length === 0 || constituentIds.has(row["corporationId"]) ||
+        !Number.isFinite(row["targetWeight"]) || (row["targetWeight"] as number) < 0 || (row["targetWeight"] as number) > 0.2 ||
+        !Number.isFinite(row["marketCapAnchor"]) || (row["marketCapAnchor"] as number) <= 0 || !Number.isSafeInteger(row["rank"]) || (row["rank"] as number) < 1) fail();
+    constituentIds.add(row["corporationId"] as string);
+  }
+  let holdingValue = 0;
+  const holdings = fund["holdings"] as Record<string, unknown>;
+  for (const [corpId, row] of Object.entries(holdings)) {
+    if (!isRecord(row) || Object.keys(row).some((key) => !["shares", "averageCostPerShare", "lastValueAnchor"].includes(key)) ||
+        !corpId || !Number.isSafeInteger(row["shares"]) || (row["shares"] as number) < 1 ||
+        !Number.isFinite(row["averageCostPerShare"]) || (row["averageCostPerShare"] as number) <= 0 ||
+        !Number.isFinite(row["lastValueAnchor"]) || (row["lastValueAnchor"] as number) < 0) fail();
+    holdingValue += row["lastValueAnchor"] as number;
+  }
 
   const positions = record["positions"] as unknown[];
   const holderKeys = new Set<string>();
@@ -1020,7 +1036,8 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
         typeof item["id"] !== "string" || item["id"].length === 0 || ids.has(item["id"]) || item["fundSlug"] !== "us_top_25" || item["holderId"] !== "player" ||
         !Number.isSafeInteger(item["requestedUnits"]) || (item["requestedUnits"] as number) < 1 || !Number.isSafeInteger(item["paidUnits"]) || (item["paidUnits"] as number) < 0 ||
         !Number.isSafeInteger(item["queuedUnits"]) || (item["queuedUnits"] as number) < 1 ||
-        (item["paidUnits"] as number) + (item["queuedUnits"] as number) !== item["requestedUnits"] || item["queuedAmountAnchor"] !== (item["queuedUnits"] as number) * (fund["quotedNav"] as number) ||
+        !Number.isFinite(item["queuedNavAnchor"]) || (item["queuedNavAnchor"] as number) <= 0 ||
+        (item["paidUnits"] as number) + (item["queuedUnits"] as number) !== item["requestedUnits"] || item["queuedAmountAnchor"] !== (item["queuedUnits"] as number) * (item["queuedNavAnchor"] as number) ||
         !Number.isSafeInteger(item["createdTurn"]) || (item["createdTurn"] as number) < 0 || (item["createdTurn"] as number) > turn ||
         !["partial", "queued"].includes(String(item["status"])) || (item["status"] === "queued" && item["paidUnits"] !== 0) || (item["status"] === "partial" && (item["paidUnits"] as number) < 1)) fail();
     ids.add(item["id"] as string);
@@ -1033,11 +1050,13 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
   const txIds = new Set<string>();
   for (const rawItem of transactions) {
     const item = rawItem as Record<string, unknown>;
-    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "turn", "fundSlug", "kind", "units", "cashAnchor"].includes(key)) ||
+    if (!isRecord(item) || Object.keys(item).some((key) => !["id", "turn", "fundSlug", "kind", "corporationId", "units", "cashAnchor"].includes(key)) ||
         typeof item["id"] !== "string" || item["id"].length === 0 || txIds.has(item["id"]) || !Number.isSafeInteger(item["turn"]) ||
         (item["turn"] as number) < 0 || (item["turn"] as number) > turn || item["fundSlug"] !== "us_top_25" ||
-        !["subscription", "redemption"].includes(String(item["kind"])) || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
-        !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0) fail();
+        !["subscription", "redemption", "redemptionPayout", "floatPurchase", "floatSale"].includes(String(item["kind"])) || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
+        !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0 ||
+        (["floatPurchase", "floatSale"].includes(String(item["kind"])) && (typeof item["corporationId"] !== "string" || item["corporationId"].length === 0)) ||
+        (!(["floatPurchase", "floatSale"].includes(String(item["kind"]))) && item["corporationId"] !== undefined)) fail();
     txIds.add(item["id"] as string);
   }
   const txRows = transactions as Array<Record<string, unknown>>;
@@ -1047,9 +1066,13 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
   const subscribedUnits = sumField("subscription", "units");
   const redeemedUnits = sumField("redemption", "units");
   const subscribedCash = sumField("subscription", "cashAnchor");
-  const redeemedCash = sumField("redemption", "cashAnchor");
+  const redeemedCash = sumField("redemption", "cashAnchor") + sumField("redemptionPayout", "cashAnchor");
+  const floatPurchases = sumField("floatPurchase", "cashAnchor");
+  const floatSales = sumField("floatSale", "cashAnchor");
+  const queuedUnitsTotal = redemptions.reduce((sum, item) => sum + (item as Record<string, number>)["queuedUnits"], 0);
   if (fund["unitSupply"] !== INDEX_FUND_SEED_RESERVE_UNITS + subscribedUnits - redeemedUnits ||
-      Math.abs((fund["cashAnchor"] as number) - (INDEX_FUND_SEED_CASH_ANCHOR + subscribedCash - redeemedCash)) > 1e-8) fail();
+      Math.abs((fund["cashAnchor"] as number) - (INDEX_FUND_SEED_CASH_ANCHOR + subscribedCash - redeemedCash - floatPurchases + floatSales)) > 1e-8 ||
+      Math.abs((fund["quotedNav"] as number) - ((fund["cashAnchor"] as number) + holdingValue) / ((fund["unitSupply"] as number) + queuedUnitsTotal)) > 1e-6) fail();
 }
 
 function assertCurrentWorldState(world: WorldState): void {
@@ -1083,6 +1106,27 @@ function assertCurrentWorldState(world: WorldState): void {
   }
   const indexFundBook = value["indexFundBook"];
   if (indexFundBook !== undefined) validateIndexFundBook(indexFundBook, meta["turn"] as number);
+  if (isRecord(indexFundBook) && isRecord(indexFundBook["funds"]) && isRecord(indexFundBook["funds"]["us_top_25"]) && isRecord(value["corporations"])) {
+    const fund = indexFundBook["funds"]["us_top_25"] as Record<string, unknown>;
+    const holdings = isRecord(fund["holdings"]) ? fund["holdings"] : {};
+    for (const [corpId, rawCorp] of Object.entries(value["corporations"])) {
+      if (!isRecord(rawCorp)) throw new Error("Not a valid save file: invalid corporation record");
+      const shareholderRows = Array.isArray(rawCorp["shareholders"]) ? rawCorp["shareholders"] : [];
+      const namedShares = shareholderRows.reduce((sum, row) => sum + (isRecord(row) && Number.isFinite(row["shares"]) ? row["shares"] as number : 0), 0);
+      const fundShares = isRecord(holdings[corpId]) ? (holdings[corpId] as Record<string, number>)["shares"] : 0;
+      if (Math.abs(namedShares + fundShares + (rawCorp["publicFloat"] as number) - (rawCorp["totalShares"] as number)) > 1) {
+        throw new Error("Not a valid save file: index fund shares do not reconcile with corporate float");
+      }
+    }
+    for (const corpId of Object.keys(holdings)) if (!Object.hasOwn(value["corporations"] as object, corpId)) {
+      throw new Error("Not a valid save file: index fund holds an unknown corporation");
+    }
+    for (const tx of Array.isArray(indexFundBook["transactions"]) ? indexFundBook["transactions"] : []) {
+      if (isRecord(tx) && tx["corporationId"] !== undefined && !Object.hasOwn(value["corporations"] as object, String(tx["corporationId"]))) {
+        throw new Error("Not a valid save file: index fund transaction references an unknown corporation");
+      }
+    }
+  }
 
   const ukDevolution = value["ukDevolution"];
   if (ukDevolution !== undefined) {

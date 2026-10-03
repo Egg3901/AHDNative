@@ -77,6 +77,7 @@ import {
 import { corporationTurnPhase } from "../corporation/corporationTurn.js";
 import { corporateTradeSnapshotPhase } from "../trade/corporateTrade.js";
 import { recomputeSharePricesPhase } from "../market/recomputeSharePrices.js";
+import { indexFundTurnPhase } from "../indexFunds/turn.js";
 import {
   campaignSpendResetPhase,
   campaignTurnPhase,
@@ -683,5 +684,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // tail all mutate economy/budgets first) and so officers reconcile after
   // electionResolutionPhase settled this turn's composition.
   countryPoliticsPhase,
+  // AHDGame's indexFundCron runs after the normal simulation/price updates.
+  // This bounded USD Top25 port uses the same final turn values and actual
+  // issuer float/treasury custody; see indexFunds/turn.ts for source limits.
+  indexFundTurnPhase,
   newsMaintenancePhase,
 ];

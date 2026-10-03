@@ -12,8 +12,8 @@ export interface IndexFundRecord {
   unitSupply: number;
   reserveUnits: number;
   cashAnchor: number;
-  targetConstituents: string[];
-  holdings: Record<string, { shares: number; averageCostPerShare: number }>;
+  targetConstituents: Array<{ corporationId: string; targetWeight: number; marketCapAnchor: number; rank: number }>;
+  holdings: Record<string, { shares: number; averageCostPerShare: number; lastValueAnchor: number }>;
 }
 
 export interface IndexFundPosition {
@@ -32,6 +32,7 @@ export interface IndexFundRedemption {
   paidUnits: number;
   queuedUnits: number;
   queuedAmountAnchor: number;
+  queuedNavAnchor: number;
   createdTurn: number;
   status: "paid" | "partial" | "queued";
 }
@@ -40,7 +41,8 @@ export interface IndexFundTransaction {
   id: string;
   turn: number;
   fundSlug: string;
-  kind: "subscription" | "redemption";
+  kind: "subscription" | "redemption" | "redemptionPayout" | "floatPurchase" | "floatSale";
+  corporationId?: string;
   units: number;
   cashAnchor: number;
 }
