@@ -214,12 +214,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       }
     }
   }
-  if (isRecord(world["meta"]) && hasOwn(world["meta"], "startingYear")) {
-    return { ok: false, error: "The source 48-turn election clock cannot be continued by the schema 42 turn reader; keep this Native save." };
-  }
   const standingAds = isRecord(world["player"]) ? world["player"]["targetedAds"] : undefined;
   if (Array.isArray(standingAds) && standingAds.length > 0) {
     return { ok: false, error: "Standing targeted-ad exposure cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
+  if (isRecord(world["meta"]) && hasOwn(world["meta"], "startingYear")) {
+    return { ok: false, error: "The source 48-turn election clock cannot be continued by the schema 42 turn reader; keep this Native save." };
   }
   if (hasOwn(world, "pendingNationalizations")) {
     return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
