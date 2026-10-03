@@ -11,7 +11,7 @@ import { LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SE
  */
 export function assignUsSeatGeography(world: WorldState): void {
   const states = Object.values(world.regions ?? {})
-    .filter((r) => r.countryId === "US" && typeof r.houseSeats === "number")
+    .filter((r) => r.countryId === "US" && typeof r.houseSeats === "number" && r.houseSeats > 0)
     .sort((a, b) => a.id.localeCompare(b.id));
   if (states.length === 0) return;
 
