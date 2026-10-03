@@ -1,4 +1,6 @@
 export { advanceTurn } from "./engine.js";
+export { SOURCE_TURNS_PER_YEAR, sourceElectionClockForWorld } from "./elections/sourceElectionClock.js";
+export type { SourceElectionClock } from "./elections/sourceElectionClock.js";
 export { politicalMetricsForCountry } from "./politicalMetrics/registry.js";
 export type { PoliticalRegistryView, PoliticalCategoryView, PoliticalMetricView, PoliticalMetricRegionView } from "./politicalMetrics/registry.js";
 export type { AdvanceTurnOptions } from "./engine.js";
