@@ -84,9 +84,13 @@ regional lanes explicitly retain their source-declared 2019 fallback; all three
 presets use the logged 2020 legislature fallback. The generated budget rows
 preserve each country's `sourceFiscalYear`, including inherited rows. A source
 budget config has no unemployment field, so Native retains its documented 2019
-baseline for that metric. The pack advertises required records and stable
-creation/save identity; it does not certify every era-specific mechanic or
-earned election outcome.
+baseline for that metric. The six US regional TFP inputs use the source's
+authored 1999/2007/2023 state-metric rows and its documented 2019 metric-preset
+fallback. UK TFP inputs retain the source 2019 lane for these presets, matching
+its source regional-metric seeder. The Native-supported source rows and hashes
+are recorded in `packages/engine/src/metrics/tfpSourceEraFixtures.json`. The
+pack advertises required records and stable creation/save identity; it does
+not certify every era-specific mechanic or earned election outcome.
 
 1960 remains migration-only. Its old save label and calendar migration do not
 define an authorized source preset or make a new 1960 world selectable.

@@ -14,6 +14,7 @@ import {
 import { AUTHORED_TFP_LEAVES, type TfpLeaves } from "./tfpAuthoredLeaves.js";
 import { gameRepo, loadGameTree, overlayedLeaves, TFP_GAME_PIN } from "./tfpGameOracle.js";
 import tfpGameFixtures from "./tfpGameFixtures.json";
+import sourceEraTfp from "./tfpSourceEraFixtures.json";
 
 /**
  * Issue #40 / #106 — default-world TFP inputs from AHDGame seed formulas at
@@ -149,6 +150,38 @@ describe("#40/#106 default TFP seed at createWorld", () => {
       expect(expected, `${countryId} ${era} fixture`).toBeDefined();
       for (const region of countryRegions(world, countryId)) {
         expect(regionLeaves(world, region.id), `${era} ${region.id}`).toEqual(expected![region.id]);
+      }
+    }
+  });
+
+  it("seeds all six source TFP leaves from each 1999/2007/2023 US metric bundle", () => {
+    expect(sourceEraTfp.provenance.sourceCommit).toBe("c35bcd86cbdbb877e73a0e9a45b0726605bdbc7a");
+    expect(sourceEraTfp.eras.map(({ year, rowCount }) => [year, rowCount])).toEqual([
+      [1999, 51], [2007, 51], [2023, 51],
+    ]);
+    expect(sourceEraTfp.metricPresetResolution).toEqual({
+      requestedPresets: ["1999-default", "2007-default", "2023-default"],
+      selectedBundles: ["2019-default", "2019-default", "2019-default"],
+      reason: "getRegionMetricPresets selects the requested US metric bundle or its source 2019-default fallback.",
+    });
+    for (const era of sourceEraTfp.eras) {
+      const world = createWorld(opts("US", String(era.year), `tfp-source-era-${era.year}`));
+      const expected = Object.fromEntries(era.rows.map(({ stateId, metrics }) => [stateId, metrics]));
+      expect(Object.keys(expected).sort()).toEqual(countryRegions(world, "US").map(({ id }) => id).sort());
+      expect(tfpBasket(nationalTfp(world, "US")), `${era.year} national TFP`).not.toBe(1.2);
+      for (const region of countryRegions(world, "US")) {
+        expect(regionLeaves(world, region.id), `${era.year}/${region.id}`).toEqual(expected[region.id]);
+      }
+    }
+  });
+
+  it("uses the source-declared 2019 metric lane for non-US 1999/2007/2023 fallback packs", () => {
+    const source2019 = AUTHORED_TFP_LEAVES.UK?.["2019"];
+    expect(source2019).toBeDefined();
+    for (const era of ["1999", "2007", "2023"] as const) {
+      const world = createWorld(opts("UK", era, `tfp-source-2019-fallback-${era}`));
+      for (const region of countryRegions(world, "UK")) {
+        expect(regionLeaves(world, region.id), `${era}/${region.id}`).toEqual(source2019![region.id]);
       }
     }
   });

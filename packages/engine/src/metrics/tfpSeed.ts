@@ -20,8 +20,19 @@ import type { WorldState } from "../types.js";
 import { rngFromSeed, type WorldRng } from "../rng.js";
 import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { AUTHORED_TFP_LEAVES, type TfpLeaves } from "./tfpAuthoredLeaves.js";
+import sourceEraTfp from "./tfpSourceEraFixtures.json";
 
 export type { TfpLeaves };
+
+// Source regional metric seeders retain their 2019 base/metric lane where a
+// 1999/2007/2023 country metric bundle is absent. US is handled separately
+// because those presets have dedicated source state-metric rows.
+const SOURCE_2019_METRIC_FALLBACK_ERAS = new Set(["1999", "2007", "2023"]);
+const SOURCE_ERA_TFP_LEAVES: Record<string, Record<string, TfpLeaves>> =
+  Object.fromEntries(sourceEraTfp.eras.map((era) => [
+    String(era.year),
+    Object.fromEntries(era.rows.map((row) => [row.stateId, row.metrics])),
+  ]));
 
 type Archetype = "TECH" | "NEMA" | "RUST" | "SOUTH" | "PLAINS" | "MOUNTAIN";
 
@@ -319,7 +330,7 @@ export function usTfpLeavesFor(era: string, stateId: string, rng?: WorldRng): Tf
   if (era === "1979") return leaves1979(stateId);
   if (era === "1991") return rng ? leaves1991(rng, stateId) : null;
   if (era === "2019") return rng ? leaves2019(rng, stateId) : null;
-  return null;
+  return SOURCE_ERA_TFP_LEAVES[era]?.[stateId] ?? null;
 }
 
 /** Write the six Game TFP paths onto every region Game supplies for this era. */
@@ -337,7 +348,10 @@ export function seedTfpLeaves(world: WorldState): void {
     if (region.countryId === "US") {
       leaves = usJittered.get(region.id) ?? usTfpLeavesFor(era, region.id);
     } else {
-      leaves = AUTHORED_TFP_LEAVES[region.countryId]?.[era]?.[region.id] ?? null;
+      leaves = AUTHORED_TFP_LEAVES[region.countryId]?.[era]?.[region.id]
+        ?? (SOURCE_2019_METRIC_FALLBACK_ERAS.has(era)
+          ? AUTHORED_TFP_LEAVES[region.countryId]?.["2019"]?.[region.id] ?? null
+          : null);
     }
     if (!leaves) continue;
     writeLeaves(world, region.id, leaves);

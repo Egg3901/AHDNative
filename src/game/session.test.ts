@@ -117,6 +117,47 @@ describe("singleplayer session", () => {
     }
   });
 
+  it("continues a public US 1999/2007/2023 world through save, reload, and an ordinary turn", () => {
+    const stamp = "2026-10-03T06:00:00.000Z";
+    const tfpPaths = [
+      "economic.rdIntensity",
+      "education.workforceSkill",
+      "infrastructure.transportEfficiency",
+      "infrastructure.broadbandAccess",
+      "infrastructure.powerGridReliability",
+      "population.urbanizationRate",
+    ];
+    const starts = ["1999", "2007", "2023"].flatMap((era) => [
+      { era, countryId: "US", regionId: "CA" },
+      { era, countryId: "UK", regionId: "LON" },
+    ] as const);
+    for (const { era, countryId, regionId } of starts) {
+      const session = new GameSession();
+      session.create({ era, countryId, seed: `era-tfp-continuation-${era}-${countryId}`, playerName: "Matrix" });
+      const initialSave = session.serialize(stamp);
+      const initial = JSON.parse(initialSave) as {
+        world: { meta: { era: string; turn: number }; regionalMetrics: Record<string, Record<string, { value?: number }>> };
+      };
+      expect(initial.world.meta.era).toBe(era);
+      for (const path of tfpPaths) {
+        expect(initial.world.regionalMetrics[regionId]?.[path]?.value, `${era}/${countryId}/${regionId}/${path}`).toEqual(expect.any(Number));
+      }
+
+      const restored = new GameSession();
+      restored.load(initialSave);
+      expect(restored.serialize(stamp)).toBe(initialSave);
+      restored.advance();
+      const continued = JSON.parse(restored.serialize(stamp)) as {
+        world: { meta: { era: string; turn: number }; regionalMetrics: Record<string, Record<string, { value?: number }>> };
+      };
+      expect(continued.world.meta.turn).toBeGreaterThan(initial.world.meta.turn);
+      expect(continued.world.meta.era).toBe(era);
+      for (const path of tfpPaths) {
+        expect(Number.isFinite(continued.world.regionalMetrics[regionId]?.[path]?.value), `${era}/${countryId}/${regionId}/${path}`).toBe(true);
+      }
+    }
+  });
+
   it("executes a quoted home-to-foreign-currency trade through the public session", () => {
     const session = new GameSession();
     session.create({ ...options, era: "1979" });
