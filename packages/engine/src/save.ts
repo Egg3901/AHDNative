@@ -683,6 +683,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     (hasOwn(bill["overrideDisplaySnapshot"], "house") || hasOwn(bill["overrideDisplaySnapshot"], "senate")))) {
     return { ok: false, error: "Per-chamber veto override history cannot be continued by schema 42. Keep this Native save." };
   }
+  if (Array.isArray(billsWithChamberOverrideSnapshot) && billsWithChamberOverrideSnapshot.some((bill) =>
+    isRecord(bill) && hasOwn(bill, "budgetValidation"))) {
+    return { ok: false, error: "Federal budget validation history cannot be continued by schema 42. Keep this Native save." };
+  }
   const statehood = world["statehood"];
   if (statehood !== undefined && (!isRecord(statehood) ||
       Object.keys(statehood).some((key) => key !== "startingPreset"))) {
@@ -1418,6 +1422,22 @@ function assertCurrentWorldState(world: WorldState): void {
       const sourceShaped = isRecord(overrideSnapshot) && validChamber(overrideSnapshot["house"]) && validChamber(overrideSnapshot["senate"]) &&
         Object.keys(overrideSnapshot).every((key) => key === "house" || key === "senate");
       if (!legacy && !sourceShaped) throw new Error("Not a valid save file: invalid bill override display snapshot");
+    }
+    const budgetValidation = rawBill["budgetValidation"];
+    if (budgetValidation !== undefined) {
+      const validNonnegative = (value: unknown): value is number =>
+        typeof value === "number" && Number.isFinite(value) && value >= 0;
+      if (!isRecord(budgetValidation) ||
+          Object.keys(budgetValidation).some((key) => !["costAmount", "newTotalSpending", "newDebt", "warning", "validatedAtTurn"].includes(key)) ||
+          !validNonnegative(budgetValidation["costAmount"]) ||
+          !validNonnegative(budgetValidation["newTotalSpending"]) ||
+          (budgetValidation["newDebt"] !== undefined && !validNonnegative(budgetValidation["newDebt"])) ||
+          (budgetValidation["warning"] !== undefined && budgetValidation["warning"] !== "DEBT_CEILING_EXCEEDED" && budgetValidation["warning"] !== "HIGH_DEBT") ||
+          !Number.isSafeInteger(budgetValidation["validatedAtTurn"]) ||
+          (budgetValidation["validatedAtTurn"] as number) < 0 ||
+          (budgetValidation["validatedAtTurn"] as number) > (meta["turn"] as number)) {
+        throw new Error("Not a valid save file: invalid bill budget validation");
+      }
     }
     const provisions = rawBill["provisions"];
     if (!Array.isArray(provisions)) throw new Error("Not a valid save file: invalid bill provisions");

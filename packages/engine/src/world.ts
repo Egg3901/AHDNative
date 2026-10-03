@@ -211,7 +211,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // and source wall-clock party-control anchors.
 // v72: source NPP actor/office continuation (owned by the finance family).
 // v73: veto override conclusions retain the source's separate House and Senate
-// seat-weighted display snapshots. Older aggregate snapshots remain verbatim.
+// seat-weighted display snapshots, and source national-sign budget validation
+// results continue with their bills. Older aggregate snapshots and absent
+// validation remain verbatim/absent.
 export const SCHEMA_VERSION = 73;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */

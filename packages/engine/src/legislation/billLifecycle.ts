@@ -27,6 +27,7 @@ import { markTaxRatePhaseInStartedThisTurn, stepTaxRate, needsPhaseIn } from "..
 import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { regionalGdpAbsolute, applyStateTaxToRegionalRevenue } from "../budget/regionalBudget.js";
 import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
+import { validateFederalBudgetImpact } from "./budgetValidation.js";
 import { energyActionLimits } from "../actions/officeBonus.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { enactTradeTariff } from "../trade/tariffs.js";
@@ -283,21 +284,14 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
     bill.enactedLevel = selectedPolicyOption.index;
     bill.effectDirection = selectedPolicyOption.effectDirection;
   }
-  // Budget gate (W28): read the real W2 budget (world.budgets, no cast — this
-  // used to reach budgets through an `unknown` cast written before W2 landed
-  // as a real WorldState field; that indirection is gone). Warn-only —
-  // sovereign deficit spending is a deliberate lane, so validation never
-  // blocks enactment, same as mainline's validateFederalBudgetImpact
-  // (src/lib/budget/validation.ts:109-174) which only sets a warning field.
-  // When the debt ceiling IS exceeded, mainline actually fires
-  // triggerDebtCeilingCrisis (src/lib/budget/debt.ts:216-230, idempotent
-  // upsert) — this wave wires that into world.enactmentGates instead of
-  // leaving it a comment-only bill field.
-  const budget = world.budgets[bill.countryId];
-  if (budget) {
-    const projectedDebt = budget.debt.principal;
-    if (projectedDebt > budget.debt.ceiling) {
-      (bill as unknown as { budgetGateWarning?: string }).budgetGateWarning = "DEBT_CEILING_EXCEEDED";
+  // National sign validation is advisory in Game. Persist the derived fiscal
+  // projection, and arm the crisis only from its projected-debt warning. The
+  // source's zero-cost fast path deliberately emits neither HIGH_DEBT nor a
+  // crisis warning just because the current debt is already above its ceiling.
+  if (!bill.regionId && (bill.legislationTypeId || bill.provisions.length > 0)) {
+    const validation = validateFederalBudgetImpact(world, bill);
+    bill.budgetValidation = validation;
+    if (validation.warning === "DEBT_CEILING_EXCEEDED") {
       triggerDebtCeilingCrisis(world, bill.countryId, world.meta.turn);
     }
   }

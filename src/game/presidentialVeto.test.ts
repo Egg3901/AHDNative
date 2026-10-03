@@ -111,6 +111,57 @@ describe("US presidential veto action boundary", () => {
       .toMatchObject({ status: "signed", presidentAction: "signed" });
   });
 
+  it("uses Game's unknown-cost-class zero path before warnings, then continues the enacted law after reload", () => {
+    const creator = new GameSession(() => new Date(SAVED_AT));
+    creator.create({ era: "1953", countryId: "US", seed: "presidential-budget-validation", playerName: "President", mode: "hos", homeRegionId: "NY" });
+    const declared = addEnrolledBill(creator);
+    const save = JSON.parse(declared.serialize(SAVED_AT)) as {
+      world: {
+        meta: { turn: number };
+        bills: Array<Record<string, unknown>>;
+        budgets: Record<string, { debt: { principal: number; ceiling: number }; debtToGdpRatio?: number }>;
+      };
+    };
+    const bill = save.world.bills.find((candidate) => candidate["id"] === "presidential-veto-contract")!;
+    bill["legislationTypeId"] = "us.economy.workerSecurity.primary";
+    bill["effectDirection"] = 1;
+    bill["provisions"] = [{
+      type: "policy",
+      legislationTypeId: "us.economy.workerSecurity.primary",
+      policyOptionId: "l3",
+      effectDirection: 1,
+    }];
+    const budget = save.world.budgets.US!;
+    budget.debt.principal = budget.debt.ceiling + 1;
+    budget.debtToGdpRatio = 2;
+
+    const session = new GameSession(() => new Date(SAVED_AT));
+    session.load(JSON.stringify(save));
+    expect(session.act("signBill", { billId: "presidential-veto-contract" })).toMatchObject({ ok: true });
+    const signedSave = JSON.parse(session.serialize(SAVED_AT)) as {
+      world: {
+        bills: Array<Record<string, unknown>>;
+        enactmentGates: { debtCeilingCrisis: Record<string, { active: boolean }> };
+        policyLedger: Record<string, unknown>;
+      };
+    };
+    const signedBill = signedSave.world.bills.find((candidate) => candidate["id"] === "presidential-veto-contract")!;
+    // Independent Game f8fe57ad's getCostClass returns `none` for this exact
+    // dotted law id; resolveEraSpendingCost returns 0 even with a GDP fraction.
+    expect(signedBill["budgetValidation"]).toMatchObject({ costAmount: 0 });
+    expect(signedBill["budgetValidation"]).not.toHaveProperty("warning");
+    expect(signedSave.world.enactmentGates.debtCeilingCrisis.US?.active).not.toBe(true);
+    expect(signedSave.world.policyLedger["presidential-veto-contract"]).toBeDefined();
+
+    const resumed = new GameSession(() => new Date(SAVED_AT));
+    resumed.load(session.serialize(SAVED_AT));
+    resumed.advance();
+    const continued = JSON.parse(resumed.serialize(SAVED_AT)) as { world: { bills: Array<Record<string, unknown>>; policyLedger: Record<string, unknown> } };
+    expect(continued.world.bills.find((candidate) => candidate["id"] === "presidential-veto-contract")?.["budgetValidation"])
+      .toEqual(signedBill["budgetValidation"]);
+    expect(continued.world.policyLedger["presidential-veto-contract"]).toBeDefined();
+  });
+
   it("vetoes an enrolled bill through GameSession and preserves a clean override window across reload", () => {
     const creator = new GameSession(() => new Date(SAVED_AT));
     creator.create({ era: "1953", countryId: "US", seed: "veto-action-boundary", playerName: "President", mode: "hos", homeRegionId: "NY" });

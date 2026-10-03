@@ -32,6 +32,7 @@ import {
   resolveVetoOverrideTally,
   partyWhipEligibilityError,
   type WorldState,
+  type BillBudgetValidation,
 } from "@ahdclient/engine";
 import {
   ACTIVE_BILL_STATUSES,
@@ -64,6 +65,8 @@ export interface LegislationBillMeta {
   /** Only the modeled sitting US President can use source national sign/veto actions. */
   signAvailable?: boolean;
   vetoAvailable?: boolean;
+  /** Source fiscal projection recorded when a national bill is enacted. */
+  budgetValidation?: BillBudgetValidation;
 }
 
 export interface LegislationChamberGroup {
@@ -447,6 +450,7 @@ export function buildLegislationDetails(
       ...(bill.countryId === "US" && bill.status === "enrolled" && world.executives.US?.presidentId === "player"
         ? { signAvailable: true, vetoAvailable: true }
         : {}),
+      ...(bill.budgetValidation ? { budgetValidation: { ...bill.budgetValidation } } : {}),
     };
   };
 

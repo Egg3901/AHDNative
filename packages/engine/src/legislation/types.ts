@@ -26,6 +26,15 @@ export interface BillVoteRecord {
   votes: Record<string, "for" | "against" | "abstain">;
 }
 
+/** Source `Bill.budgetValidation` result, adapted to the deterministic turn clock. */
+export interface BillBudgetValidation {
+  costAmount: number;
+  newTotalSpending: number;
+  newDebt?: number;
+  warning?: "DEBT_CEILING_EXCEEDED" | "HIGH_DEBT";
+  validatedAtTurn: number;
+}
+
 /**
  * Core bill document. Mirrors mainline Bill fields needed by lifecycle:
  * sponsor, chamber routing, stage timers (turns), vote maps, cloture.
@@ -57,6 +66,8 @@ export interface Bill {
   proposalCostsRefunded?: boolean;
   /** Source presidential bill decision metadata for the veto-to-override transition. */
   presidentAction?: "signed" | "vetoed" | "override";
+  /** Source national fiscal projection recorded when an enacted bill is applied. Schema v73. */
+  budgetValidation?: BillBudgetValidation;
   vetoMessage?: string;
   vetoedByCharacterId?: string;
   vetoedAtTurn?: number;

@@ -93,6 +93,23 @@ it("refuses a source-shaped per-chamber override result that schema 42 cannot co
   });
 });
 
+it("refuses federal budget-validation history that schema 42 cannot continue", () => {
+  const world = loadHistoricalFresh();
+  const bill: Bill = {
+    id: "budget-validation-v42", title: "Budget validation history", summary: "Declared persistence boundary fixture.",
+    countryId: "US", category: "economy", provisions: [], originChamber: "house", currentChamber: "house",
+    status: "signed", sponsorId: null, sponsorName: "Fixture", sponsorPartyId: null,
+    votes: {}, votesFor: 0, votesAgainst: 0, votesAbstain: 0, proposedAtTurn: 0,
+    filibusterInvocations: [], updatedAtTurn: 0,
+    budgetValidation: { costAmount: 0, newTotalSpending: 100, validatedAtTurn: 0 },
+  };
+  world.bills.push(bill);
+  expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+    ok: false,
+    error: expect.stringContaining("Federal budget validation history"),
+  });
+});
+
 it("refuses SOE production independently of the regional metric guard", () => {
   // Start from the historical, otherwise-projectable envelope so newer
   // corporation tech state cannot mask the SOE consumer refusal.

@@ -84,7 +84,7 @@ export * from "./actions/polling.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
 export { proposalNpiCost, BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST } from "./legislation/proposalCosts.js";
 export { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "./legislation/freeze.js";
-export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
+export type { Bill, BillBudgetValidation, Committee, EnactedLaw } from "./legislation/types.js";
 export { resolveCurrentBillVote, resolveVetoOverrideTally } from "./legislation/billVoteLogic.js";
 export * from "./membership.js";
 export * from "./caucus.js";

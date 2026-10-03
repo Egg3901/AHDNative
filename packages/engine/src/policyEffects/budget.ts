@@ -76,6 +76,31 @@ function optionCost(catalog: CatalogEntry, optionId: string | undefined, gdp: nu
   return 0;
 }
 
+/**
+ * Price a selected source option using only cost metadata authored on the
+ * catalog row. An omitted source cost class means Game's `getCostClass`
+ * fallback (`none`), even if an older Native row still carries a display-time
+ * GDP fraction. This is used by the federal sign projection as well as the
+ * ordinary policy-budget rebuild.
+ */
+export function catalogPolicyOptionAnnualCost(
+  catalog: CatalogEntry,
+  optionId: string | undefined,
+  gdp: number,
+  population: number,
+  year?: number,
+  nationalGdpPerCapita?: number,
+): number {
+  if (!catalog.budgetCostClass || catalog.budgetCostClass === "none") return 0;
+  if (catalog.policyOptionCosts?.length) {
+    return optionCost(catalog, optionId, gdp, population, year, nationalGdpPerCapita);
+  }
+  if (catalog.budgetCostClass !== "gdpFraction") return 0;
+  const resolved = optionId ? resolveCatalogPolicyOption(catalog, optionId) : null;
+  if (!resolved) return 0;
+  return levelCost(catalog, resolved.index, gdp);
+}
+
 /** Game's regionalBudget consumer intentionally prices legacy regional rows
  * as option annualCostPerCapita × that region's population; it does not route
  * through the national era-class helper or GDP scale ramp. */
@@ -127,12 +152,20 @@ export function rebuildPolicyBudgets(world: WorldState): void {
       if (catalog.status !== "available" && !ledger) continue;
       const baselineLevel = catalog.baselineLevel ?? 0;
       const currentLevel = levelIndex(catalog, ledger);
-      const baseline = catalog.policyOptionCosts
-        ? optionCost(catalog, catalog.baselinePolicyOptionId, budget.gdp, budget.population, sourceYear)
-        : levelCost(catalog, baselineLevel, budget.gdp);
-      const current = catalog.policyOptionCosts
-        ? optionCost(catalog, ledgerOptionId(catalog, ledger), budget.gdp, budget.population, sourceYear)
-        : levelCost(catalog, currentLevel, budget.gdp);
+      const baseline = catalogPolicyOptionAnnualCost(
+        catalog,
+        catalog.policyOptionCosts ? catalog.baselinePolicyOptionId : `l${baselineLevel}`,
+        budget.gdp,
+        budget.population,
+        sourceYear,
+      );
+      const current = catalogPolicyOptionAnnualCost(
+        catalog,
+        catalog.policyOptionCosts ? ledgerOptionId(catalog, ledger) : `l${currentLevel}`,
+        budget.gdp,
+        budget.population,
+        sourceYear,
+      );
       const delta = current - baseline;
       if (delta === 0) continue;
       const category = BUDGET_CATEGORY_BY_LAW_CATEGORY[catalog.category] ?? "other";
