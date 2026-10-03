@@ -8,11 +8,39 @@ Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](
 
 Schema 64 persists source `seatsHeld` on actual multi-seat winners. PM, legislative and cabinet ballots and government party totals consume the current office's full weight. Absent legacy weights retain the source default of one; migration does not invent historic allocations. Non-positive or fractional weights fail save validation, and schema 42 export explicitly refuses weighted offices. `src/game/electionSeatWeights.test.ts` verifies public winner, action, query and save boundaries, including identical complete-world/RNG continuation after reload. Its recorded ballot and authority fixtures verify these boundaries, not a full career or browser journey. The current earned Irish career and combined full CI gate remain separate requirements.
 
-Schema 65 adds bill corporation targets, legislative acquisition provenance and persisted player nationalization notices. Public bill sponsorship posts the source 48-turn notice; ordinary corporate turns complete due legislative notices, retain governing-party context, and cancel vanished or already state-owned targets. Legacy absence stays absent. Schema 42 projection explicitly refuses notice state. Four focused public action/save/ordinary-turn tests pass, including complete-world/RNG equality after reloading a recorded near-deadline continuation. That fixture does not establish a full 48-turn career, full nationalization parity, or current cross-engine interchange. Automatic strategic/monopoly cure resolution, sector-wide bills, complete UI authoring and an actual immutable schema-64 reader refusal artifact remain separate gates.
+Schema 65 adds bill corporation targets, legislative acquisition provenance and persisted player nationalization notices. Public bill sponsorship posts the source 48-turn notice; ordinary corporate turns complete due legislative notices, retain governing-party context, and cancel vanished or already state-owned targets. Legacy absence stays absent. Schema 42 projection explicitly refuses notice state. Four focused public action/save/ordinary-turn tests pass, including complete-world/RNG equality after reloading a recorded near-deadline continuation. That fixture does not establish a full 48-turn career, full nationalization parity, or current cross-engine interchange. Automatic strategic/monopoly cure resolution, sector-wide bills and complete UI authoring remain separate gates.
 
-The unpublished schema 65 integration also contains source NPP strategy memory, physical capacity replacement, corporate cash records, headquarters votes and corporate currency relocation. Individual producer tests are recorded separately; combined continuation and actual published-reader refusal still require qualification before publication. This is partial work on #107 and #75.
+The unpublished schema 65 integration also contains source NPP strategy memory, physical capacity replacement, corporate cash records, headquarters votes and corporate currency relocation. Individual producer tests are recorded separately. The bounded combined public-session save check below qualifies its exact producer and refusal boundary; the full integration gate and original mechanics criteria remain open. This is partial work on #107 and #75.
 
 Schema 65 also contains source annual statehood admission, UK devolution and Northern Ireland conflict records, Commons vacancies and recall petition clocks, signatures, declarations and support samples. The local migration preserves their historical absence except for the statehood preset guard. Existing recorded public fixtures qualify their named boundaries; complete country journeys, combined validation and published-reader refusal remain open.
+
+## Combined schema 65 producer checkpoint, 2026-10-03
+
+Writer `350ba0643948b5418e0b4290c3612971995283bc` creates a fresh 1953 US/WY
+character through `GameSession` with the legal 28-point character allocation,
+joins the Republican party, campaigns and advances one untouched-calendar turn.
+Its raw `serialize` output is 14,782,172 bytes, schema 65 in both envelope and
+world metadata, SHA-256 `0cf553002c85e36c15fb25d2ab1d2b571162a7e3c9237ae99015733d678a6c95`.
+The new Eastern Layer 1 groups are present. Loading and serializing preserves
+the exact raw save. Direct and reloaded sessions then advance to turn two with
+identical complete saves, including RNG, SHA-256
+`c6d0e9e271e85551c723e6e0ac796e502b796f40e1dc59be65a040d5932269f9`.
+Malformed JSON is refused.
+
+All three immutable readers below receive those same unmodified producer bytes:
+
+| Reader | Source commit | Result |
+| --- | --- | --- |
+| Schema 64 feature branch, not accepted main or a shipped build | `c0b022019363b4c0f52e46ae6af6f250a56a6b3c` | Refuses `schema 65 > 64` |
+| Current accepted main, schema 54 | `572fbb3b8a4daaed6c2419a5ef8a3c74707146be` | Refuses `schema 65 > 54` |
+| Delivered TestFlight source, schema 54 | `52f4860db4d8f500d20f6cbbb1b6c43bc30dff0c` | Refuses `schema 65 > 54` |
+
+Each reader uses its own immutable engine, content and rules dependency graph.
+The producer has no rewritten envelope, clock, RNG or history. This establishes
+two ordinary public-session turns and the version barrier for those exact
+readers. It does not establish full careers, all new field families, bidirectional
+current AHDClient interchange, or the pending full integration gate. The
+delivered preview continues to use schema 54.
 
 ## Run
 
