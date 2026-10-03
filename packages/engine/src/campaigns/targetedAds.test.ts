@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { adExposure, campaignPrimaryScore, meanAdBonus, targetedAdBonuses, type CampaignCell, type TargetedAd } from "./targetedAds.js";
 
 describe("targeted ad source rules", () => {
+  /** Oracle: AHDGame 0538f4264354eeb837dc1b0b47639e74591fca17, src/lib/campaignTargeting/rules.ts.
+   * Source inputs: NY shares/turnout .35/60 progressive and .65/40 moderate;
+   * one .12 progressive flight bought at turn 10, candidate (-1,.2), evaluated at turn 16.
+   * Source targetedAdBonuses + meanAdBonus + campaignPrimaryScore return the exact values below.
+   */
   it("matches the immutable Game 0538 regional primary fixture", () => {
     const cells: CampaignCell[] = [
       {
