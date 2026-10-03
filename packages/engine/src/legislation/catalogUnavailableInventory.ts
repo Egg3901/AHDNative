@@ -1788,23 +1788,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "dd.economy.workerSecurity.primary",
-    "countryId": "DD",
-    "nativeScope": "national",
-    "sourceScope": "both",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "economy.workerSecurity"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "politicalMetrics",
-    "sourcePath": "src/lib/politicalLegislation/laws/ddLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "de_academic_reform",
     "countryId": "DE",
     "nativeScope": "national",
@@ -6467,40 +6450,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "ru.economy.stability.primary",
-    "countryId": "RU",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "economy.stability"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "plannedEconomy",
-    "sourcePath": "src/lib/politicalLegislation/laws/ruLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "uk.defense.security.primary",
-    "countryId": "UK",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "defense.security"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "military",
-    "sourcePath": "src/lib/politicalLegislation/laws/ukLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "us.centralBank.independence.primary",
     "countryId": "US",
     "nativeScope": "national",
@@ -6512,40 +6461,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "blockingSystem": "centralBank/governance",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
-  },
-  {
-    "id": "us.defense.armedForces.primary",
-    "countryId": "US",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "defense.armedForces"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "military/conflict",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "us.defense.diplomacy.primary",
-    "countryId": "US",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "defense.diplomacy"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "military/alliance",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
-    "sourceMatch": "matched"
   },
   {
     "id": "us.economy.mobility.primary",
@@ -6576,23 +6491,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "blockingSystem": "elections/electoralLaw",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
-  },
-  {
-    "id": "us.environment.conservation.primary",
-    "countryId": "US",
-    "nativeScope": "national",
-    "sourceScope": "both",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "environment.conservation"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "politicalMetrics/environment",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
-    "sourceMatch": "matched"
   },
   {
     "id": "us.subsidy.industry.primary",
