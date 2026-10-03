@@ -14,6 +14,9 @@ const PRIMARY_SAVE = join(EVIDENCE_DIR, "after-primary.json");
 const GOVERNOR_SAVE = join(EVIDENCE_DIR, "after-governor.json");
 const PRESIDENT_READY_SAVE = join(EVIDENCE_DIR, "president-ready.json");
 const PRESIDENT_ENDORSED_SAVE = join(EVIDENCE_DIR, "president-endorsed.json");
+const PRESIDENTIAL_CHECKPOINT_TURNS = 16;
+const PRESIDENTIAL_BATCH_COUNT = 6;
+const SOURCE_GOVERNOR_ENDORSEMENT_MULTIPLIER = 1.015;
 
 function recordMilestone(name: string, save: string, session: GameSession, office: string) {
   const digest = createHash("sha256").update(save).digest("hex");
@@ -174,36 +177,79 @@ describe.sequential("earned governor presidential endorsement journey", () => {
     expect(view.turn).toBe((JSON.parse(readySave) as { world: { meta: { turn: number } } }).world.meta.turn);
   }, 900_000);
 
-  it("stage 4: continues ordinary turns and proves the saved endorsement changes WY presidential votes only", () => {
-    const control = new GameSession();
-    let controlView = control.load(loadCheckpoint(PRESIDENT_READY_SAVE));
-    const treatment = new GameSession();
-    let treatmentView = treatment.load(loadCheckpoint(PRESIDENT_ENDORSED_SAVE));
-    const endTurn = (JSON.parse(loadCheckpoint(PRESIDENT_ENDORSED_SAVE)) as {
-      world: { elections: Array<{ id: string; endTurn: number }> };
-    }).world.elections.find((race) => race.id === PRESIDENT_RACE)!.endTurn;
-    while (treatmentView.turn <= endTurn) {
-      treatmentView = treatment.advance();
-      controlView = control.advance();
-    }
-    const treatmentPresidential = treatment.politics().elections.find((race) => race.id === PRESIDENT_RACE)?.presidential!;
-    const controlPresidential = control.politics().elections.find((race) => race.id === PRESIDENT_RACE)?.presidential!;
-    const treatmentWy = treatmentPresidential.states.find((state) => state.stateId === "WY")?.votes ?? [];
-    const controlWy = controlPresidential.states.find((state) => state.stateId === "WY")?.votes ?? [];
-    const endorsedCandidateId = (JSON.parse(loadCheckpoint(PRESIDENT_ENDORSED_SAVE)) as {
-      world: { elections: Array<{ id: string; governorEndorsements?: Array<{ stateId: string; candidateId: string; endorsedById: string; isActive: boolean }> }> };
-    }).world.elections.find((race) => race.id === PRESIDENT_RACE)?.governorEndorsements
-      ?.find((row) => row.stateId === "WY" && row.endorsedById === "player" && row.isActive)?.candidateId;
-    expect(endorsedCandidateId).toBeDefined();
-    expect(treatmentWy.find((row) => row.candidateId === endorsedCandidateId)?.votes ?? 0)
-      .toBeGreaterThan(controlWy.find((row) => row.candidateId === endorsedCandidateId)?.votes ?? 0);
-    expect(treatmentWy).not.toEqual(controlWy);
-    expect(treatmentPresidential.states.find((state) => state.stateId === "CA")?.votes)
-      .toEqual(controlPresidential.states.find((state) => state.stateId === "CA")?.votes);
-    expect(controlView.turn).toBe(treatmentView.turn);
-    const resolvedSave = treatment.serialize(STAMP);
-    const reload = new GameSession();
-    reload.load(resolvedSave);
-    recordMilestone("president-resolved", resolvedSave, reload, "Presidential general resolved; matched control isolates WY endorsement effect");
-  }, 900_000);
+  for (let batch = 0; batch < PRESIDENTIAL_BATCH_COUNT; batch++) {
+    const batchNumber = batch + 1;
+    const controlPath = batch === 0 ? PRESIDENT_READY_SAVE : join(EVIDENCE_DIR, `president-control-batch-${batch}.json`);
+    const treatmentPath = batch === 0 ? PRESIDENT_ENDORSED_SAVE : join(EVIDENCE_DIR, `president-treatment-batch-${batch}.json`);
+    const nextControlPath = join(EVIDENCE_DIR, `president-control-batch-${batchNumber}.json`);
+    const nextTreatmentPath = join(EVIDENCE_DIR, `president-treatment-batch-${batchNumber}.json`);
+    it(`stage 4 batch ${batchNumber}: advances the matched saved worlds by ordinary turns`, () => {
+      const controlSave = loadCheckpoint(controlPath);
+      const treatmentSave = loadCheckpoint(treatmentPath);
+      const control = new GameSession();
+      let controlView = control.load(controlSave);
+      const treatment = new GameSession();
+      let treatmentView = treatment.load(treatmentSave);
+      // A no-op load/save round trip must preserve the complete checkpoint,
+      // including historical events, actions, RNG and the endorsement ledger.
+      expect(control.serialize(STAMP)).toBe(controlSave);
+      expect(treatment.serialize(STAMP)).toBe(treatmentSave);
+      const controlBefore = JSON.parse(controlSave) as { world: { meta: { turn: number }; rng: unknown } };
+      const treatmentBefore = JSON.parse(treatmentSave) as {
+        world: {
+          meta: { turn: number }; rng: unknown;
+          elections: Array<{ id: string; endTurn: number }>;
+        };
+      };
+      expect(controlBefore.world.meta.turn).toBe(treatmentBefore.world.meta.turn);
+      expect(controlBefore.world.rng).toEqual(treatmentBefore.world.rng);
+      const sourceEndTurn = treatmentBefore.world.elections.find((race) => race.id === PRESIDENT_RACE)!.endTurn;
+      const nextTurn = Math.min(treatmentBefore.world.meta.turn + PRESIDENTIAL_CHECKPOINT_TURNS, sourceEndTurn + 1);
+      while (treatmentView.turn < nextTurn) {
+        treatmentView = treatment.advance();
+        controlView = control.advance();
+      }
+      expect(controlView.turn).toBe(nextTurn);
+      expect(treatmentView.turn).toBe(nextTurn);
+      if (batchNumber === PRESIDENTIAL_BATCH_COUNT) expect(nextTurn).toBe(sourceEndTurn + 1);
+      const nextControlSave = control.serialize(STAMP);
+      const nextTreatmentSave = treatment.serialize(STAMP);
+      const controlAfter = JSON.parse(nextControlSave) as { world: { rng: unknown } };
+      const treatmentAfter = JSON.parse(nextTreatmentSave) as { world: { rng: unknown } };
+      expect(controlAfter.world.rng).toEqual(treatmentAfter.world.rng);
+      writeFileSync(nextControlPath, nextControlSave);
+      writeFileSync(nextTreatmentPath, nextTreatmentSave);
+      if (batchNumber !== PRESIDENTIAL_BATCH_COUNT) return;
+
+      const treatmentPresidential = treatment.politics().elections.find((race) => race.id === PRESIDENT_RACE)?.presidential!;
+      const controlPresidential = control.politics().elections.find((race) => race.id === PRESIDENT_RACE)?.presidential!;
+      const treatmentWy = treatmentPresidential.states.find((state) => state.stateId === "WY")?.votes ?? [];
+      const controlWy = controlPresidential.states.find((state) => state.stateId === "WY")?.votes ?? [];
+      const endorsedCandidateId = (JSON.parse(treatmentSave) as {
+        world: { elections: Array<{ id: string; governorEndorsements?: Array<{ stateId: string; candidateId: string; endorsedById: string; isActive: boolean }> }> };
+      }).world.elections.find((race) => race.id === PRESIDENT_RACE)?.governorEndorsements
+        ?.find((row) => row.stateId === "WY" && row.endorsedById === "player" && row.isActive)?.candidateId;
+      expect(endorsedCandidateId).toBeDefined();
+      const treatmentCandidateVotes = treatmentWy.find((row) => row.candidateId === endorsedCandidateId)?.votes ?? 0;
+      const controlCandidateVotes = controlWy.find((row) => row.candidateId === endorsedCandidateId)?.votes ?? 0;
+      expect(treatmentCandidateVotes).toBeGreaterThan(controlCandidateVotes);
+      expect(treatmentWy).not.toEqual(controlWy);
+      expect(treatmentPresidential.states.find((state) => state.stateId === "CA")?.votes)
+        .toEqual(controlPresidential.states.find((state) => state.stateId === "CA")?.votes);
+      const treatmentOtherVotes = treatmentWy.reduce((sum, row) => sum + row.votes, 0) - treatmentCandidateVotes;
+      const controlOtherVotes = controlWy.reduce((sum, row) => sum + row.votes, 0) - controlCandidateVotes;
+      const oddsMultiplier = (treatmentCandidateVotes / treatmentOtherVotes) / (controlCandidateVotes / controlOtherVotes);
+      // Current AHDGame presidentialElectionEngine applies 1.015 only to the
+      // endorsed candidate's state. Turn-level integer rounding and aggregation
+      // can reduce the aggregate odds ratio, but it cannot exceed that source
+      // multiplier beyond a small rounding allowance.
+      expect(oddsMultiplier).toBeGreaterThan(1);
+      expect(oddsMultiplier).toBeLessThanOrEqual(SOURCE_GOVERNOR_ENDORSEMENT_MULTIPLIER + 0.005);
+      expect(treatmentPresidential.resolved).toBe(true);
+      const resolvedSave = nextTreatmentSave;
+      const reload = new GameSession();
+      reload.load(resolvedSave);
+      recordMilestone("president-resolved", resolvedSave, reload, "Presidential general reached by ordinary turns; matched control isolates the WY endorsement effect");
+    }, 900_000);
+  }
 });
