@@ -198,7 +198,10 @@ function sourceAutoAyeNppMembers(world: WorldState, vote: PmAppointmentVoteRecor
   if (!government || government.status !== "pending") return;
   for (const politician of world.politicians) {
     const qualifyingParties = vote.coalitionPartyIds ?? [vote.partyId];
-    if (politician.countryId !== vote.countryId || politician.chamberKey !== vote.chamberKey || !qualifyingParties.includes(politician.partyId)) continue;
+    // Game queries current ElectedOfficial rows here; former officeholders
+    // retained in Native's historical politician collection are not voters.
+    if (politician.retiredAt != null || politician.countryId !== vote.countryId
+      || politician.chamberKey !== vote.chamberKey || !qualifyingParties.includes(politician.partyId)) continue;
     if (!(politician.id in vote.votes)) vote.votes[politician.id] = "aye";
   }
 }

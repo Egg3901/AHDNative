@@ -83,6 +83,27 @@ describe("Irish PM appointment (#284 source formation prerequisite)", () => {
     expect(resumed.governments.IE).toMatchObject({ status: "formed", pmPoliticianId: "player" });
   });
 
+  it("does not auto-aye retired officeholders absent from Game's current ElectedOfficial query", () => {
+    const world = eligibleIrishChair();
+    const retired = world.politicians.find((politician) =>
+      politician.countryId === "IE" && politician.chamberKey === "dail" && politician.partyId === "IE_FF",
+    )!;
+    retired.retiredAt = world.meta.turn;
+    expect(executeAction(world, "player", "proposePmAppointment")).toMatchObject({ ok: true });
+    const vote = world.pmAppointmentVotes[0]!;
+    expect(executeAction(world, "player", "votePmAppointment", {
+      pmAppointmentVoteId: vote.id, pmVote: "aye",
+    })).toMatchObject({ ok: true });
+
+    const saved = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    saved.meta.turn = vote.closesTurn;
+    pmAppointmentPhase.run(saved, undefined as never);
+
+    const resolved = saved.pmAppointmentVotes[0]!;
+    expect(resolved.votes[retired.id]).toBeUndefined();
+    expect(resolved.votesFor).toBe(72);
+  });
+
   it("rejects an unseated voter and a ballot id from another country without changing vote state", () => {
     const world = eligibleIrishChair();
     executeAction(world, "player", "proposePmAppointment");
