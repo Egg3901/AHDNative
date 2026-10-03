@@ -10,6 +10,7 @@ import { realAccumulate } from "../elections/tallyAdapter.js";
 import { rngFromSeed } from "../rng.js";
 import { ensureCampaignsForElection } from "./lifecycle.js";
 import type { ElectionRecord } from "../elections/types.js";
+import { dateForTurn } from "../calendar.js";
 
 describe("current-source US annual Layer-1 substrate", () => {
   it("matches independently captured source vectors across starting eras and interpolation years", () => {
@@ -59,6 +60,7 @@ describe("current-source US annual Layer-1 substrate", () => {
   it("carries an ordinary source-year ad purchase through save/reload into the general tally", () => {
     const world = createWorld({ seed: "source-year-ad-save-tally", playerName: "Player", countryId: "US", era: "1953", homeRegionId: "NY" });
     world.meta.turn = 48;
+    world.meta.date = dateForTurn(48);
     world.player.actions = 5;
     world.player.funds = 500;
     const partyId = Object.values(world.parties).find((party) => party.countryId === "US")!.id;
