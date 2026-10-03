@@ -20,6 +20,7 @@ interface SourceEraExport {
   provenance: { sourceRepository: string; sourceCommit: string };
   eras: SourceEraOutput[];
   us2023StateContent: { playablePackOutput: { rows: StateSeed[] } };
+  jpRegionalContent: { presets: Array<{ year: number; rows: Array<Omit<StateSeed, "senateClasses" | "registration"> & { votingSystem: string }> }> };
   sourcePlayerPartyRosters: {
     presets: Array<{
       year: number;
@@ -42,6 +43,30 @@ function playerParties(year: number): PartySeed[] {
   const preset = SOURCE.sourcePlayerPartyRosters.presets.find((row) => row.year === year);
   if (!preset) throw new Error(`Missing source party roster for ${year}-default`);
   return preset.countries.flatMap((country) => country.rows);
+}
+
+function japanRegions(year: 1999 | 2007 | 2023): StateSeed[] {
+  const sourceRows = SOURCE.jpRegionalContent.presets.find((row) => row.year === year)?.rows;
+  if (!sourceRows || sourceRows.length !== 8) {
+    throw new Error(`Missing pinned AHDGame JP region output for ${year}-default`);
+  }
+  const existingById = new Map(
+    ROSTER_2019_STATES.filter((state) => state.countryId === "JP").map((state) => [state.id, state]),
+  );
+  return sourceRows.map((source) => {
+    const existing = existingById.get(source.id);
+    if (!existing) throw new Error(`Missing Native JP registration row for source region ${year}/${source.id}`);
+    return {
+      ...existing,
+      name: source.name,
+      countryId: source.countryId,
+      population: source.population,
+      gdp: source.gdp,
+      houseSeats: source.houseSeats,
+      senateSeats: source.senateSeats,
+      region: source.region,
+    };
+  });
 }
 
 function budgetsBySourceEconomy(pack: SeedPack, budgets: BudgetSeed[], year: 1999 | 2007 | 2023): void {
@@ -83,8 +108,8 @@ function buildEraPack(
       parties: "Source partySeedsForPreset filtered directly for this preset; US and UK use source-returned rows.",
       legislature: "Source getPresetSeats fallback is the 2020 historical seat roster for these presets.",
       states: year === 2023
-        ? "US uses source states2023 and source buildAllRegistrationSeeds default lane; UK and non-player regional lanes retain the 2019 Native bundle."
-        : "Source preset selector falls back to 2019-default for missing regional/state bundles; Native retains that exact lane and identifies it as fallback.",
+        ? "US uses source states2023 and source buildAllRegistrationSeeds default lane; Japan uses source jpRegions2023 geography/economy/seats with Native's explicitly retained 2019 registration estimates; UK and other non-player regional lanes retain their 2019 bundle."
+        : `Source preset selector falls back to 2019-default for missing regional/state bundles except Japan, whose country seeder selects its authored jpRegions${year} geography/economy/seats; Native retains its 2019 JP registration estimates and the 2019 fallback for remaining regional lanes.`,
       cycle: `Source preset starts in ${year}; Native meta.startingYear and 48-turn year clock use the same year anchor.`,
       demographics: year === 2023
         ? "US Layer-1 rows are generated from source stateCensusData2023; UK/non-US rows retain their declared 2019 fallback."
@@ -99,12 +124,18 @@ function buildEraPack(
   if (year === 2023) {
     const sourceStates = SOURCE.us2023StateContent.playablePackOutput.rows;
     pack.states = [
-      ...ROSTER_2019_STATES.filter((state) => state.countryId !== "US" && state.countryId !== "UK"),
+      ...ROSTER_2019_STATES.filter((state) => !["US", "UK", "JP"].includes(state.countryId)),
+      ...japanRegions(year),
       ...structuredClone(sourceStates),
       ...structuredClone(ukRegions2019),
     ];
   } else {
-    pack.states = [...ROSTER_2019_STATES, ...usStates2019, ...ukRegions2019];
+    pack.states = [
+      ...ROSTER_2019_STATES.filter((state) => state.countryId !== "JP"),
+      ...japanRegions(year),
+      ...usStates2019,
+      ...ukRegions2019,
+    ];
   }
   pack.corporationHeadquartersRegions = [...US_CORPORATION_HEADQUARTERS_REGIONS];
   budgetsBySourceEconomy(pack, budgets, year);

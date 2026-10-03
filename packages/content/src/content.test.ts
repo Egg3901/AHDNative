@@ -16,8 +16,11 @@ describe("validatePack", () => {
         demographicOutput: { stateCount: number; sha256: string; states: Record<string, unknown> };
         generatedDemographics: { rowCount: number; sha256: string; rows: Array<{ stateId: string; categoryWeights: Record<string, number>; groups: Record<string, unknown> }> };
       };
+      jpRegionalContent: {
+        presets: Array<{ year: number; rowCount: number; sha256: string; rows: Array<{ id: string; name: string; population: number; gdp: number; houseSeats: number; senateSeats: number; region: string }> }>;
+        registrationSource: string;
+      };
       sourcePlayerPartyRosters: { presets: Array<{ year: number; countries: Array<{ countryId: string; rows: Array<{ id: string }> }> }>; sha256: string };
-      eras: Array<{ year: number; initialExchangeRates: Record<string, number>; playerCountries: string[]; historicalSeatOutput: { rowCount: number; sha256: string; recordedFallbacks: Array<{ label: string; preset: string }> }; budgetOutput: { rowCount: number; sha256: string; rows: Array<{ countryId: string; fiscalYear: number; gdp: number; sourceFiscalYear?: number; economicFactors?: { lastUpdated?: string } }> } }>;
       eras: Array<{
         year: number;
         preset: string;
@@ -43,6 +46,20 @@ describe("validatePack", () => {
     expect(artifact.us2023StateContent.generatedDemographics.rowCount).toBe(51);
     expect(sha256(artifact.us2023StateContent.generatedDemographics.rows)).toBe(artifact.us2023StateContent.generatedDemographics.sha256);
     expect(artifact.us2023StateContent.generatedDemographics.rows.map((row) => row.stateId).sort()).toContain("DC");
+    expect(artifact.jpRegionalContent.registrationSource).toContain("2019 StateSeed registration estimates");
+    expect(artifact.jpRegionalContent.presets.map((entry) => entry.year)).toEqual([1999, 2007, 2023]);
+    for (const entry of artifact.jpRegionalContent.presets) {
+      expect(entry.rowCount).toBe(8);
+      expect(sha256(entry.rows)).toBe(entry.sha256);
+      const pack = [pack1999, pack2007, pack2023].find((candidate) => candidate.era.id === String(entry.year))!;
+      const source = new Map(entry.rows.map((row) => [row.id, row]));
+      const japan = pack.states!.filter((row) => row.countryId === "JP");
+      expect(japan).toHaveLength(8);
+      for (const row of japan) {
+        expect(row).toMatchObject(source.get(row.id));
+        expect(row.registration).toBeDefined();
+      }
+    }
     expect(artifact.eras.map((entry) => entry.year)).toEqual([1999, 2007, 2023]);
     const usBudgetGdp = new Map([[1999, 9_660_000_000_000], [2007, 14_450_000_000_000], [2023, 27_400_000_000_000]]);
     for (const entry of artifact.eras) {
