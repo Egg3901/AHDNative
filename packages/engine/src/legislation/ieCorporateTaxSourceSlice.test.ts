@@ -55,5 +55,24 @@ describe("IE statutory corporation tax source row", () => {
     advanceTurn(replaced);
     expect(replaced.budgets.IE?.revenue.domesticCorporateTax).toBe(world.budgets.IE?.revenue.domesticCorporateTax);
     expect(replaced.policyLedger).toEqual(world.policyLedger);
+
+    expect(executeAction(world, "player", "repealLaw", { catalogId: "ie_corporate_tax_rate" }).ok).toBe(true);
+    const repealBill = world.bills.at(-1)!;
+    expect(repealBill).toMatchObject({ status: "signed", repealsLawId: "ie_corporate_tax_rate" });
+    expect(world.policyLedger[repealBill.id]).toMatchObject({ isRepeal: true, legislationTypeId: "ie_corporate_tax_rate" });
+    expect(world.policyLedger[world.bills.find((bill) => bill.status === "signed" && bill.selectedRate === 15)!.id]?.repealedAtTurn)
+      .toBeDefined();
+    // Repeal returns the source slider to its statutory baseline by the same
+    // one-point phase-in, then the ordinary turn advances one more point.
+    expect(world.budgets.IE?.taxRates.domesticCorporateTax).toBe(14);
+    expect(world.budgets.IE?.taxRatePhaseIn?.domesticCorporateTax).toBe(12.5);
+    const repealed = deserializeSave(serializeSave(world, "2019-01-06T00:00:00.000Z"));
+    advanceTurn(world);
+    advanceTurn(repealed);
+    expect(repealed.budgets.IE?.taxRates.domesticCorporateTax).toBe(13);
+    expect(repealed.budgets.IE?.taxRates).toEqual(world.budgets.IE?.taxRates);
+    expect(repealed.policyLedger).toEqual(world.policyLedger);
+    expect(repealed.nationalMetrics.IE?.["economic.gdpGrowth"])
+      .toEqual(world.nationalMetrics.IE?.["economic.gdpGrowth"]);
   });
 });

@@ -4,6 +4,7 @@ import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { getLaw } from "./catalog.js";
+import { getCatalog as getSourceCatalog, lawTargets as sourceLawTargets } from "../politicalMetrics/sourceRuntime.mjs";
 
 const CASES = [
   {
@@ -58,6 +59,27 @@ const CASES = [
 ] as const;
 
 describe("RU/DD source-backed economy laws (#285)", () => {
+  it("matches the pinned Game DD non-neutral baseline and an enacted-level target", () => {
+    const sourceCatalog = getSourceCatalog("DD");
+    const sourceLaw = sourceCatalog.find((row) => row.id === "dd.economy.workerSecurity.primary");
+    expect(sourceLaw?.baselineLevel).toBe(3);
+    const baselineLevels = new Map(
+      sourceCatalog
+        .filter((row) => row.kind !== "tax" && typeof row.baselineLevel === "number")
+        .map((row) => [row.id, row.baselineLevel!]),
+    );
+    const baseline = sourceLawTargets("DD", baselineLevels)["economy.workerSecurity"];
+    const enactedLevels = new Map(baselineLevels);
+    enactedLevels.set("dd.economy.workerSecurity.primary", 4);
+    const enacted = sourceLawTargets("DD", enactedLevels)["economy.workerSecurity"];
+
+    // These are sourceRuntime outputs from Game 968's politicalLegislation
+    // dynamics, including every other active DD baseline law in the same map.
+    expect(baseline).toBe(45.5);
+    expect(enacted).toBe(58);
+    expect(enacted - baseline).toBe(12.5);
+  });
+
   for (const law of CASES) {
     it(`${law.countryId} can enact and continue the source-authored policy level through a save`, () => {
       const world = createWorld({

@@ -16,7 +16,7 @@ source bill-enactment delta in this range only adds analytics capture.
 | `us.environment.conservation.primary` | `US_LAWS`: `environment.conservation`, both scope, L1 baseline and GDP-cost ladder | Native policy ledger, environmental metric destination, and budget delta path consume the authored target and costs. |
 | `uk.defense.security.primary` | `UK_LAWS`: `defense.security`, L2 baseline and GDP-cost ladder | Source row only targets the scalar metric; Native budget and metric policy consumers handle it. |
 | `us.tax.tariffs` | `US_LAWS`: federal `tariffs`, 0–15%, 0.5-point rate step, zero baseline | Existing sponsor, import-value tariff revenue, budget surplus reconciliation, rate phase-in and save/reload continuation. The current turn books receipts at its in-force rate before advancing the next rate step. This is distinct from unmatched synthetic `us.tariff.primary`. |
-| `ie_corporate_tax_rate` | IE's statutory domestic-corporate tax: 11 authored rates (0–33%), source effect targets map through `ADAPTER_TIER1`, and the baseline rate is 12.5%. | Public IE HoS sponsor moves 12.5%→13.5% in the source one-point enactment step; the source/native domestic profit base is the same 75% of the authored 22%-of-GDP total corporate base, receipts are recomputed at the in-force rate, replacement at 15% replaces the first posture, and save/reload/ordinary turns preserve the rate and metric effect. This qualifies only this receipt line, not full IE budget parity. |
+| `ie_corporate_tax_rate` | IE's statutory domestic-corporate tax: 11 authored rates (0–33%), source effect targets map through `ADAPTER_TIER1`, and the baseline rate is 12.5%. | Public IE HoS sponsor moves 12.5%→13.5% in the source one-point enactment step; the source/native domestic profit base is the same 75% of the authored 22%-of-GDP total corporate base, receipts are recomputed at the in-force rate, replacement at 15% replaces the first posture, repeal ramps back toward 12.5%, and save/reload/ordinary turns preserve each state. This qualifies only this receipt line, not full IE budget parity. |
 | `de_government_ethics` | DE ethics seed: governance transparency, trust, and turnout targets; seven source policy options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
 | `ie_electoral_reform` | IE ethics/electoral seed: turnout, civic participation, public trust, and transparency targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
 | `ie_gender_equality` | IE equality seed: equality, mobility, civic participation, and cohesion targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
@@ -120,6 +120,35 @@ substrate work remains separate.
   the clean pinned Game source checkout at `96831835fb6b28983aa14fe66cb6eae9ecfde84c`.
   The source option ladder, target weights, descriptions, and level directions
   remain generator-derived. Focused generator/catalog tests passed 14/14.
+
+- The DE/IE decay consumer is independently replayed against pinned Game
+  `policyEffects.ts:calculateMetricTarget` and
+  `shared/constants/formulas.ts:applyPolicyDecay` using each exact source option
+  `*_opt_2`, its authored weighted target, baseline 50, national decay scope
+  0.21, turn 1, and year 2019. Source targets for the primary target are 51.0464
+  for DE ethics, IE equality, and IE ethics, and 50.6278 for IE electoral
+  reform; after one source decay step the Native public ordinary-turn values are
+  50.008, 50.008, 50.008, and 50.005 respectively. The independent source
+  vectors and command are retained under the dated private
+  `ahdnative-law285-metric-oracle` archive. This verifies the existing
+  `effectTargetsWeighted`/decay path, not unmodeled direct `metricEffects` tick
+  tables.
+- For DD worker security, the pinned Game 968 generated political runtime's
+  `lawTargets` uses the actual level-3 baseline and all other authored DD law
+  baselines: the `economy.workerSecurity` target is 45.5. Selecting level 4
+  produces 58, a source delta of 12.5. The focused source test checks these
+  values from that runtime separately from the public Native bill/save journey;
+  the metric-only DE/IE rows use the separate legacy `calculateMetricTarget`
+  decay consumer above.
+- The JP regional cost fixture uses the actual authored Hokkaido 2019 seed and
+  only charges while a matching active regional policy-ledger row exists. This
+  matches the source regional-budget cost basis (annual option cost times the
+  real region population); no row or a repeal tombstone contributes zero. Game's
+  JP-specific regional processor is separate from its UK-only generic regional
+  budget processor. Native has no player-selectable JP world or JP regions, so
+  this is consumer evidence, not a reachable JP public sponsor flow. The source
+  JP region/world writer and Native playability/region seeding remain
+  prerequisites before these rows can be released to players.
 
 This is a source review and executable slice, not full #285/#101 acceptance:
 the catalog still has unavailable rows listed above and the full package gate

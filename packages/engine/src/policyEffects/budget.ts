@@ -165,6 +165,9 @@ export function regionalPolicySpendingDelta(world: WorldState, regionId: string)
     if (catalog.countryId !== region.countryId || !catalog.policyOptionCosts || (catalog.allowedScope !== "regional" && catalog.allowedScope !== "both")) continue;
     const entries = Object.values(world.policyLedger).filter((entry) => entry.countryId === region.countryId && entry.legislationTypeId === catalog.id && entry.scope === "regional" && entry.regionId === regionId && entry.repealedAtTurn === undefined);
     const current = entries.sort((a, b) => a.enactedTurn - b.enactedTurn || a.id.localeCompare(b.id)).at(-1);
+    // The source regional consumer charges only actual active statePolicies
+    // rows. No row means no regional line; a repeal tombstone also removes it.
+    if (!current || current.isRepeal) continue;
     delta += regionalOptionCost(catalog, ledgerOptionId(catalog, current), population);
   }
   return delta;

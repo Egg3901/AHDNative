@@ -17,6 +17,7 @@ const CASES = [
       { metricId: "governance.participation", weight: 0.2 },
     ],
     sourceTargets: [51.046413989277035, 50.41856559571082, 50.20928279785541],
+    sourceFirstTurnMetric: 50.008,
   },
   {
     id: "ie_electoral_reform",
@@ -29,6 +30,7 @@ const CASES = [
       { metricId: "governance.openness", weight: 0.3 },
     ],
     sourceTargets: [50.62784839356622, 50.523206994638514, 50.41856559571082, 50.31392419678311],
+    sourceFirstTurnMetric: 50.005,
   },
   {
     id: "ie_gender_equality",
@@ -41,6 +43,7 @@ const CASES = [
       { metricId: "society.integration", weight: 0.3 },
     ],
     sourceTargets: [51.046413989277035, 50.41856559571082, 50.31392419678311, 50.31392419678311],
+    sourceFirstTurnMetric: 50.008,
   },
   {
     id: "ie_government_ethics",
@@ -52,6 +55,7 @@ const CASES = [
       { metricId: "society.civicLife", weight: 0.3 },
     ],
     sourceTargets: [51.046413989277035, 50.523206994638514, 50.31392419678311],
+    sourceFirstTurnMetric: 50.008,
   },
 ] as const;
 
@@ -116,6 +120,10 @@ describe("metric-only source law rows (#285)", () => {
         .toEqual(world.nationalMetrics[row.countryId]?.[row.target]);
       expect(world.nationalMetrics[row.countryId]?.[row.target]?.value).toBeDefined();
       expect(world.nationalMetrics[row.countryId]?.[row.target]?.value).not.toBe(before);
+      // Independent Game 968 calculateMetricTarget + applyPolicyDecay replay
+      // for these exact source option ids/weights/baseline/scope is retained
+      // in the private law285-metric-oracle artifact.
+      expect(world.nationalMetrics[row.countryId]?.[row.target]?.value).toBe(row.sourceFirstTurnMetric);
     });
   }
 });
