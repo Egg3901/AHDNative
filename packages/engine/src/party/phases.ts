@@ -12,6 +12,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { expirePartyMergerProposals } from "./mergerProposals.js";
+import { summarizePartyActivityTurn } from "./activity.js";
 import { energyActionLimits } from "../actions/officeBonus.js";
 import { projectPlayerPartyInfluence } from "./playerInfluence.js";
 import {
@@ -62,8 +63,16 @@ export const partyInfluenceTurnPhase: TurnPhase = {
 /** Expire committee merger ballots at the source 24-turn deadline. */
 export const partyMergerProposalExpiryPhase: TurnPhase = {
   name: "partyMergerProposalExpiry",
-  run(world) {
-    expirePartyMergerProposals(world);
+  run(world, _rng, context) {
+    expirePartyMergerProposals(world, context?.activityTimestampMs);
+  },
+};
+
+/** Source activityLogging runs after the preceding action window is complete. */
+export const partyActivitySummaryPhase: TurnPhase = {
+  name: "partyActivitySummary",
+  run(world, _rng, context) {
+    summarizePartyActivityTurn(world, world.meta.turn - 1, context?.activityTimestampMs);
   },
 };
 

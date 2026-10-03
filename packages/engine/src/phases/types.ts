@@ -6,6 +6,8 @@ export interface TurnContext {
   playerAtTurnStart: Readonly<WorldState["player"]>;
   /** Optional ephemeral observer for source-tally diagnosis; never persisted. */
   observeElectionTallyInput?: (snapshot: unknown) => void;
+  /** Public session clock used by the source activityLogging summary producer. */
+  activityTimestampMs?: number;
 }
 
 /**

@@ -170,6 +170,11 @@ export function gameChoices(): EraChoice[] {
 export class GameSession {
   private world?: WorldState;
   private notifications: NotificationItem[] = [];
+  private readonly clock: () => number;
+
+  constructor(options: { clock?: () => number } = {}) {
+    this.clock = options.clock ?? Date.now;
+  }
 
   create(options: NewGameOptions): GameView {
     if (!options || typeof options.playerName !== "string" || !options.playerName.trim() || options.playerName.trim().length > 80) {
@@ -241,7 +246,7 @@ export class GameSession {
     const before = snapshotNotifications(source);
     const actionBefore = snapshotActionFields(source);
     const candidate = structuredClone(this.requireWorld());
-    const result = executeAction(candidate, "player", actionId, params);
+    const result = executeAction(candidate, "player", actionId, params, { observedAtMs: this.clock() });
     if (!result.ok) return result;
     const world = candidate;
     const drafts: NotificationDraft[] = [];
@@ -329,7 +334,7 @@ export class GameSession {
     // cannot leave the active session partially advanced. Profile this copy cost.
     const before = snapshotNotifications(this.requireWorld());
     const candidate = structuredClone(this.requireWorld());
-    advanceTurn(candidate);
+    advanceTurn(candidate, { activityTimestampMs: this.clock() });
     const world = candidate;
     return this.commit(candidate, addNotifications(
       this.notifications, diffTurnSnapshots(before, snapshotNotifications(world), world.player.name)));

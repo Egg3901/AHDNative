@@ -1291,6 +1291,10 @@ export interface PlayerCharacter {
    * Source: src/lib/achievements/triggers.ts checkActionAchievements.
    */
   actionCounts: Record<string, number>;
+  /** Pending source action-log counts, keyed by the turn in which actions ran. */
+  partyActivityPendingByTurn?: Record<string, number>;
+  /** Source turn_summary equivalents, timed when the ordinary turn processes them. */
+  partyActivitySummaries?: Array<{ timestampMs: number; actionCount: number }>;
   /**
    * W35: international/personal wire daily quota tracking. Ports
    * src/app/api/characters/[id]/wire/route.ts DAILY_WIRE_CAP_ANCHORS window
@@ -1438,6 +1442,10 @@ export interface PartyMergerProposal {
   expiresTurn: number;
   resolvedTurn?: number;
   status: "open" | "passed" | "rejected";
+  /** Source resolution claim is retained so a partial failure is never replayed. */
+  resolutionClaimed?: boolean;
+  /** Source operator-facing recovery state after an effect failure. */
+  resolutionError?: string;
   proposingVotes: Array<{ voterId: string; vote: "yes" | "no"; turn: number }>;
   targetVotes: Array<{ voterId: string; vote: "yes" | "no"; turn: number }>;
 }

@@ -130,6 +130,8 @@ describe("PartyManagementPanel", () => {
       }],
     };
     render(<PartyManagementPanel management={management} busy={false} onAction={onAction} />);
+    expect(screen.getAllByRole("note", { name: "Merger warning: excess incoming NPPs are permanently deleted" })).toHaveLength(2);
+    expect(screen.getAllByText(/5 per active player, up to 25/).length).toBe(2);
     await user.selectOptions(screen.getByLabelText("Merger target party"), "US_REP");
     await user.click(screen.getByRole("button", { name: "Propose party merger" }));
     await user.click(screen.getByRole("button", { name: /Vote yes on Republican Party merger/ }));

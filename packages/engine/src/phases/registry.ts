@@ -16,6 +16,7 @@ import {
   emptyPartyCleanupPhase,
   partyMemberCountReconcilePhase,
   partyMergerProposalExpiryPhase,
+  partyActivitySummaryPhase,
   playerEndorsementPartySweepPhase,
 } from "../party/phases.js";
 
@@ -683,5 +684,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // tail all mutate economy/budgets first) and so officers reconcile after
   // electionResolutionPhase settled this turn's composition.
   countryPoliticsPhase,
+  partyActivitySummaryPhase,
   newsMaintenancePhase,
 ];

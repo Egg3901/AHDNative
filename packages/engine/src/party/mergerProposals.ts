@@ -3,6 +3,9 @@ import { calculateRecruitmentSlots } from "../npp/recruitment.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 import { isElectionCandidateActive } from "../elections/types.js";
 import { majorityThreshold } from "../government/constants.js";
+import { selectNationalMergeNppCull } from "../npp/mergeNationalCap.js";
+import { isPartyPlayerActive, partyNppCapacityForActiveMembers } from "./activity.js";
+import { archiveCampaign } from "../campaigns/lifecycle.js";
 
 export type PartyMergeVote = "yes" | "no";
 export type PartyMergeSide = "proposing" | "target";
@@ -77,7 +80,7 @@ export function proposePartyMerger(world: WorldState, proposerId: string, target
   return { ok: true, proposal };
 }
 
-export function castPartyMergerVote(world: WorldState, voterId: string, proposalId: string, vote: PartyMergeVote): { ok: true; proposal: PartyMergerProposal } | { ok: false; error: string } {
+export function castPartyMergerVote(world: WorldState, voterId: string, proposalId: string, vote: PartyMergeVote, observedAtMs?: number): { ok: true; proposal: PartyMergerProposal } | { ok: false; error: string } {
   const proposal = world.partyMergerProposals?.find((candidate) => candidate.id === proposalId);
   if (!proposal) return { ok: false, error: `Unknown merger proposal ${proposalId}.` };
   if (proposal.status !== "open") return { ok: false, error: "This merger proposal is no longer open." };
@@ -97,35 +100,53 @@ export function castPartyMergerVote(world: WorldState, voterId: string, proposal
   }
   const proposerOutcome = sideOutcome(eligibleVoterIds(world, proposal.proposerPartyId), proposal.proposingVotes, false);
   const targetOutcome = sideOutcome(eligibleVoterIds(world, proposal.targetPartyId), proposal.targetVotes, false);
-  if (proposerOutcome === "rejected" || targetOutcome === "rejected") {
-    proposal.status = "rejected";
-    proposal.resolvedTurn = world.meta.turn;
-  } else if (proposerOutcome === "approved" && targetOutcome === "approved") {
-    applyPartyMerge(world, proposal);
-    proposal.status = "passed";
-    proposal.resolvedTurn = world.meta.turn;
+  if (!proposal.resolutionClaimed && (proposerOutcome === "rejected" || targetOutcome === "rejected")) {
+    resolvePartyMergerProposal(world, proposal, "rejected", observedAtMs);
+  } else if (!proposal.resolutionClaimed && proposerOutcome === "approved" && targetOutcome === "approved") {
+    resolvePartyMergerProposal(world, proposal, "passed", observedAtMs);
   }
   return { ok: true, proposal };
 }
 
 /** Resolve abstentions as no at the source's 24-turn proposal expiry. */
-export function expirePartyMergerProposals(world: WorldState): number {
+export function expirePartyMergerProposals(world: WorldState, observedAtMs?: number): number {
   let expired = 0;
   for (const proposal of world.partyMergerProposals ?? []) {
     if (proposal.status !== "open" || world.meta.turn < proposal.expiresTurn) continue;
     const proposerOutcome = sideOutcome(eligibleVoterIds(world, proposal.proposerPartyId), proposal.proposingVotes, true);
     const targetOutcome = sideOutcome(eligibleVoterIds(world, proposal.targetPartyId), proposal.targetVotes, true);
-    if (proposerOutcome === "approved" && targetOutcome === "approved") {
-      applyPartyMerge(world, proposal);
-      proposal.status = "passed";
-    } else proposal.status = "rejected";
-    proposal.resolvedTurn = world.meta.turn;
+    if (proposal.resolutionClaimed) continue;
+    resolvePartyMergerProposal(
+      world,
+      proposal,
+      proposerOutcome === "approved" && targetOutcome === "approved" ? "passed" : "rejected",
+      observedAtMs,
+    );
     expired++;
   }
   return expired;
 }
 
-function applyPartyMerge(world: WorldState, proposal: PartyMergerProposal): void {
+function resolvePartyMergerProposal(
+  world: WorldState,
+  proposal: PartyMergerProposal,
+  outcome: "passed" | "rejected",
+  observedAtMs?: number,
+): void {
+  proposal.resolutionClaimed = true;
+  if (outcome === "passed") {
+    try {
+      applyPartyMerge(world, proposal, observedAtMs);
+    } catch (error) {
+      proposal.resolutionError = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
+  }
+  proposal.status = outcome;
+  proposal.resolvedTurn = world.meta.turn;
+}
+
+function applyPartyMerge(world: WorldState, proposal: PartyMergerProposal, observedAtMs?: number): void {
   const absorbed = world.parties[proposal.proposerPartyId];
   const survivor = world.parties[proposal.targetPartyId];
   if (!absorbed || !survivor || absorbed.mergedIntoPartyId || survivor.mergedIntoPartyId) {
@@ -201,6 +222,28 @@ function applyPartyMerge(world: WorldState, proposal: PartyMergerProposal): void
     politicians.sort((a, b) => b.politicalInfluence - a.politicalInfluence || b.favorability - a.favorability || a.id.localeCompare(b.id));
     for (const politician of politicians.slice(slots)) culled.add(politician.id);
   }
+  const activeMembers = world.player.countryId === countryId
+    && world.player.partyId === survivorId
+    && observedAtMs !== undefined
+    && isPartyPlayerActive(world, observedAtMs)
+    ? 1
+    : 0;
+  const survivingActive = world.politicians.filter((politician) =>
+    politician.countryId === countryId && politician.partyId === survivorId && !politician.retiredAt
+  );
+  const incomingAfterRegionalCull = incoming.filter((politician) =>
+    !politician.retiredAt && !culled.has(politician.id)
+  ).map((politician) => ({
+    id: politician.id,
+    politicalInfluence: politician.politicalInfluence,
+    favorability: politician.favorability,
+  }));
+  const nationalCull = selectNationalMergeNppCull({
+    survivingNpps: survivingActive.map((politician) => ({ id: politician.id })),
+    incomingNpps: incomingAfterRegionalCull,
+    maxNpps: partyNppCapacityForActiveMembers(activeMembers),
+  });
+  for (const id of nationalCull) culled.add(id);
   for (const politician of incoming) {
     if (culled.has(politician.id)) continue;
     politician.partyId = survivorId;
@@ -211,8 +254,8 @@ function applyPartyMerge(world: WorldState, proposal: PartyMergerProposal): void
       election.candidates = election.candidates.filter((candidate) => !culled.has(candidate.id));
       for (const id of culled) delete election.tally[id];
     }
-    for (const [key, campaign] of Object.entries(world.campaigns)) {
-      if (culled.has(campaign.candidateId)) delete world.campaigns[key];
+    for (const campaign of Object.values(world.campaigns)) {
+      if (culled.has(campaign.candidateId)) archiveCampaign(world, campaign.electionId, campaign.candidateId);
     }
   }
 

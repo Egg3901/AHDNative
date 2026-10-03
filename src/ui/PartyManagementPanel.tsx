@@ -15,6 +15,20 @@
 import { useState } from "react";
 import type { GameScreenProps } from "../game/types";
 import type { PartyManagementView } from "../game/partyManagement";
+
+function MergerNppWarning() {
+  return (
+    <aside role="note" aria-label="Merger warning: excess incoming NPPs are permanently deleted"
+      style={{ border: "1px solid var(--ahd-border)", borderRadius: "0.45rem", padding: "0.55rem", marginTop: "0.5rem", fontSize: "0.72rem" }}>
+      <p><strong>Merger warning: excess incoming NPPs are permanently deleted</strong></p>
+      <p>The target keeps all existing NPPs, even if already over either limit. Only incoming NPPs can be deleted.</p>
+      <p>Incoming active NPPs must fit remaining home-region slots: 2 below 30% organization, 3 from 30% to below 40%, 4 from 40% to below 50%, and 5 at 50% or more after half the absorbed party's organization is added.</p>
+      <p>They must also fit the combined party's national limit: 5 per active player, up to 25. An active player needs at least 2 qualifying actions in the last 14 days; members of both parties count after the merger.</p>
+      <p>Regional limits apply first. Incoming NPPs are retained by political influence, favorability, then stable ID. Retired NPPs transfer without using slots. Limits are checked when the merger takes effect.</p>
+      <p><strong>Culled NPP office and candidacy records are removed; their campaigns are archived. Holding office does not protect an incoming NPP.</strong></p>
+    </aside>
+  );
+}
 import { validatePartyDraft } from "../game/partyDraft";
 import { formatFinanceMoney } from "./FinancePanel";
 import { PartyMark } from "./PartyMark";
@@ -111,6 +125,7 @@ export function PartyManagementPanel({ management, busy, onAction }: PartyManage
           <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
             Both parties vote separately. Each needs yes votes from at least 60% of its filled committee and national leadership positions; proposals close after 24 turns.
           </p>
+          <MergerNppWarning />
           <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.55rem" }}>
             <label className="ahd-field" style={{ maxWidth: "22rem" }}>
               <span className="ahd-label">Merge your party into</span>
@@ -135,6 +150,7 @@ export function PartyManagementPanel({ management, busy, onAction }: PartyManage
                     Proposing side {proposal.proposingYes} yes / {proposal.proposingNo} no; target side {proposal.targetYes} yes / {proposal.targetNo} no.
                     {proposal.status === "open" ? ` Closes on turn ${proposal.expiresTurn}.` : ""}
                   </div>
+                  {proposal.status === "open" ? <MergerNppWarning /> : null}
                   {proposal.canVote ? (
                     <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.35rem" }}>
                       <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy} aria-label={`Vote yes on ${proposal.proposerPartyName} merger`}

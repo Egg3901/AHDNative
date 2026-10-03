@@ -960,6 +960,83 @@ function assertCurrentWorldState(world: WorldState): void {
   ) {
     throw new Error("Not a valid save file: invalid world state");
   }
+  const activityPending = player["partyActivityPendingByTurn"];
+  if (activityPending !== undefined && (
+    !isRecord(activityPending) ||
+    Object.entries(activityPending).some(([turn, count]) =>
+      !/^\d+$/.test(turn) || !Number.isSafeInteger(Number(turn)) ||
+      !Number.isSafeInteger(count) || (count as number) < 1
+    )
+  )) {
+    throw new Error("Not a valid save file: invalid pending party activity actions");
+  }
+  const activitySummaries = player["partyActivitySummaries"];
+  if (activitySummaries !== undefined && (
+    !Array.isArray(activitySummaries) ||
+    activitySummaries.some((summary) =>
+      !isRecord(summary) ||
+      Object.keys(summary).some((key) => !["timestampMs", "actionCount"].includes(key)) ||
+      !Number.isSafeInteger(summary["timestampMs"]) || (summary["timestampMs"] as number) < 0 ||
+      !Number.isSafeInteger(summary["actionCount"]) || (summary["actionCount"] as number) < 1
+    )
+  )) {
+    throw new Error("Not a valid save file: invalid party activity summaries");
+  }
+  const mergerProposals = value["partyMergerProposals"];
+  if (mergerProposals !== undefined) {
+    if (!Array.isArray(mergerProposals)) {
+      throw new Error("Not a valid save file: invalid party merger proposals");
+    }
+    const proposalIds = new Set<string>();
+    for (const raw of mergerProposals) {
+      if (!isRecord(raw)) throw new Error("Not a valid save file: invalid party merger proposal");
+      const proposal = raw;
+      const allowed = [
+        "id", "proposerPartyId", "targetPartyId", "countryId", "proposerId", "createdTurn",
+        "expiresTurn", "resolvedTurn", "status", "resolutionClaimed", "resolutionError",
+        "proposingVotes", "targetVotes",
+      ];
+      if (
+        Object.keys(proposal).some((key) => !allowed.includes(key)) ||
+        typeof proposal["id"] !== "string" || proposal["id"].length === 0 || proposalIds.has(proposal["id"]) ||
+        typeof proposal["proposerPartyId"] !== "string" || proposal["proposerPartyId"].length === 0 ||
+        typeof proposal["targetPartyId"] !== "string" || proposal["targetPartyId"].length === 0 ||
+        proposal["proposerPartyId"] === proposal["targetPartyId"] ||
+        typeof proposal["countryId"] !== "string" || proposal["countryId"].length === 0 ||
+        typeof proposal["proposerId"] !== "string" || proposal["proposerId"].length === 0 ||
+        !Number.isSafeInteger(proposal["createdTurn"]) || (proposal["createdTurn"] as number) < 0 ||
+        !Number.isSafeInteger(proposal["expiresTurn"]) || (proposal["expiresTurn"] as number) !== (proposal["createdTurn"] as number) + 24 ||
+        (proposal["resolvedTurn"] !== undefined && (!Number.isSafeInteger(proposal["resolvedTurn"]) || (proposal["resolvedTurn"] as number) < (proposal["createdTurn"] as number))) ||
+        !["open", "passed", "rejected"].includes(String(proposal["status"])) ||
+        (proposal["resolutionClaimed"] !== undefined && typeof proposal["resolutionClaimed"] !== "boolean") ||
+        (proposal["resolutionError"] !== undefined && (typeof proposal["resolutionError"] !== "string" || proposal["resolutionError"].length === 0))
+      ) {
+        throw new Error("Not a valid save file: invalid party merger proposal fields");
+      }
+      if ((proposal["status"] === "open") !== (proposal["resolvedTurn"] === undefined)) {
+        throw new Error("Not a valid save file: inconsistent party merger proposal resolution");
+      }
+      proposalIds.add(proposal["id"]);
+      for (const side of ["proposingVotes", "targetVotes"] as const) {
+        const votes = proposal[side];
+        if (!Array.isArray(votes)) throw new Error("Not a valid save file: invalid party merger votes");
+        const voterIds = new Set<string>();
+        for (const rawVote of votes) {
+          if (!isRecord(rawVote)) throw new Error("Not a valid save file: invalid party merger vote");
+          const vote = rawVote;
+          if (
+            Object.keys(vote).some((key) => !["voterId", "vote", "turn"].includes(key)) ||
+            typeof vote["voterId"] !== "string" || vote["voterId"].length === 0 || voterIds.has(vote["voterId"]) ||
+            !["yes", "no"].includes(String(vote["vote"])) ||
+            !Number.isSafeInteger(vote["turn"]) || (vote["turn"] as number) < (proposal["createdTurn"] as number) || (vote["turn"] as number) >= (proposal["expiresTurn"] as number)
+          ) {
+            throw new Error("Not a valid save file: invalid party merger vote fields");
+          }
+          voterIds.add(vote["voterId"]);
+        }
+      }
+    }
+  }
   const lastRelocatedTurn = player["lastRelocatedTurn"];
   if (lastRelocatedTurn !== undefined &&
       (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
@@ -3917,6 +3994,10 @@ export function deserializeSave(raw: string): WorldState {
     if (typeof statehood.startingPreset !== "string") statehood.startingPreset = inferredPreset;
     save.world.statehood = statehood as NonNullable<typeof save.world.statehood>;
   }
+  // v70: a current player gains no historic activity from prior saves. Keep
+  // both the pending action log and source-timestamped summaries truly absent
+  // until the corresponding public producers run.
+  if (save.schemaVersion < 70) save.world.meta.schemaVersion = 70;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

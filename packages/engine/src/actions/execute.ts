@@ -90,6 +90,7 @@ import { resignUkCommonsSeat, validateUkCommonsDefection, vacatePlayerCommonsSea
 import { declareUkCommonsRecall, signUkCommonsRecallPetition } from "../elections/ukCommonsRecall.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 import { castPartyMergerVote, proposePartyMerger } from "../party/mergerProposals.js";
+import { recordPartyActivityAction } from "../party/activity.js";
 
 export type ExecuteActionParams = {
   /** Player preference for automatic re-entry in the most recent state race. */
@@ -234,6 +235,11 @@ export type ExecuteActionParams = {
   influenceFundAmount?: number;
 };
 
+/** Optional source command timestamp from a deterministic public-session clock. */
+export interface ExecuteActionContext {
+  observedAtMs?: number;
+}
+
 export type ExecuteActionResult =
   | { ok: true; message: string; changes?: Partial<Record<"actions" | "funds" | "cash" | "infamy" | "politicalInfluence" | "nationalInfluence" | "favorability" | "donorBaseLevel", number>> }
   | { ok: false; error: string };
@@ -293,6 +299,7 @@ export function executeAction(
   actorId: string,
   actionId: string,
   params: ExecuteActionParams = {},
+  context: ExecuteActionContext = {},
 ): ExecuteActionResult {
   // Dispatchers validate before their first domain mutation. Accounting is
   // the only shared state charged before dispatch, so snapshot it once and
@@ -324,9 +331,12 @@ export function executeAction(
       }
     : undefined;
   try {
-    const result = executeActionWithModeBypass(world, actorId, actionId, params);
+    const result = executeActionWithModeBypass(world, actorId, actionId, params, context);
     if (!result.ok && actor && accounting) restoreActionAccounting(actor, accounting);
-    if (result.ok && actorId === "player") accrueCharacterActionXp(world, actionId);
+    if (result.ok && actorId === "player") {
+      accrueCharacterActionXp(world, actionId);
+      recordPartyActivityAction(world, actionId);
+    }
     if (result.ok && actor && accounting) {
       const changes: Extract<ExecuteActionResult, { ok: true }>["changes"] = {};
       for (const key of ["actions", "funds", "cash", "infamy", "politicalInfluence", "nationalInfluence", "favorability", "donorBaseLevel"] as const) {
@@ -385,6 +395,7 @@ function executeActionWithModeBypass(
   actorId: string,
   actionId: string,
   params: ExecuteActionParams,
+  context: ExecuteActionContext,
 ): ExecuteActionResult {
   const player = world.player as unknown as { mode: string; partyId: string | null; hosPartyId: string | null };
   const bypass =
@@ -393,11 +404,11 @@ function executeActionWithModeBypass(
     !player.partyId &&
     !!player.hosPartyId &&
     HOS_PARTY_BYPASS_ACTIONS.has(actionId);
-  if (!bypass) return executeActionInner(world, actorId, actionId, params);
+  if (!bypass) return executeActionInner(world, actorId, actionId, params, context);
   const original = player.partyId;
   player.partyId = player.hosPartyId;
   try {
-    return executeActionInner(world, actorId, actionId, params);
+    return executeActionInner(world, actorId, actionId, params, context);
   } finally {
     player.partyId = original;
   }
@@ -408,6 +419,7 @@ function executeActionInner(
   actorId: string,
   actionId: string,
   params: ExecuteActionParams = {},
+  context: ExecuteActionContext = {},
 ): ExecuteActionResult {
   const catalog = (ACTION_CATALOG as Record<string, typeof ACTION_CATALOG[ActionId]>)[actionId];
   if (!catalog) return { ok: false, error: `Unknown action: ${actionId}` };
@@ -463,13 +475,15 @@ function executeActionInner(
       : { ok: false, error: result.error };
   }
   if (actionId === "proposePartyMerger") {
+    if (found.kind !== "player") return { ok: false, error: "Only a player character can propose a party merger." };
     const result = proposePartyMerger(world, actorId, params.targetPartyId ?? "");
     return result.ok
       ? { ok: true, message: `Opened merger proposal ${result.proposal.id}.` }
       : { ok: false, error: result.error };
   }
   if (actionId === "votePartyMerger") {
-    const result = castPartyMergerVote(world, actorId, params.partyMergerProposalId ?? "", params.partyMergerVote ?? "no");
+    if (found.kind !== "player") return { ok: false, error: "Only a player character can vote on a party merger." };
+    const result = castPartyMergerVote(world, actorId, params.partyMergerProposalId ?? "", params.partyMergerVote ?? "no", context.observedAtMs);
     return result.ok
       ? { ok: true, message: `Recorded ${params.partyMergerVote} on merger proposal ${result.proposal.id} (${result.proposal.status}).` }
       : { ok: false, error: result.error };

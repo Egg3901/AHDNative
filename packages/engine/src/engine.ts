@@ -20,6 +20,8 @@ export interface AdvanceTurnOptions {
   ) => void;
   /** Optional ephemeral pure-tally input observer; absent in ordinary play. */
   observeElectionTallyInput?: (snapshot: unknown) => void;
+  /** Explicit source wall-clock seam; omitted pure turns do not invent activity time. */
+  activityTimestampMs?: number;
 }
 
 export function advanceTurn(
@@ -31,6 +33,9 @@ export function advanceTurn(
     playerAtTurnStart: structuredClone(world.player),
     ...(options.observeElectionTallyInput
       ? { observeElectionTallyInput: options.observeElectionTallyInput }
+      : {}),
+    ...(options.activityTimestampMs !== undefined
+      ? { activityTimestampMs: options.activityTimestampMs }
       : {}),
   };
   const phaseTimings = [];
