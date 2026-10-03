@@ -101,7 +101,11 @@ describe("campaign bootstrap from new-character creation (#447)", () => {
         for (const action of hosView.actions.filter((entry) => entry.category === "executive")) expect(action.fundCost).toBe(0);
         const ads = hosView.actions.find((action) => action.id === "targetedAds");
         expect(ads).toBeDefined();
-        if (ads?.available) expect(hosView.player.funds).toBeGreaterThanOrEqual(ads.fundCost);
+        if (ads?.available) {
+          expect(ads.fundCost).toBe(100);
+          if (ads.fundCost === undefined) throw new Error("Available standing ads require their source campaign cost.");
+          expect(hosView.player.funds).toBeGreaterThanOrEqual(ads.fundCost);
+        }
       }
     }
   });
