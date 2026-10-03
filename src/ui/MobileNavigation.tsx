@@ -572,8 +572,13 @@ export function GameDrawer({
             tightened to two truncated lines so the 320px first viewport keeps
             turn controls and primary destinations above the fold. */}
         <div className="ahd-drawer-identity">
-          <strong className="ahd-drawer-identity-name" title={playerName}>{playerName}</strong>
-          <span className="ahd-muted ahd-drawer-identity-meta" title={`${playerParty} · ${countryName}`}>{playerParty} · {countryName}</span>
+          <div className="ahd-drawer-identity-top">
+            <img src="ahd-logo-steel-blue.png" width={32} height={32} alt="" decoding="async" />
+            <div className="ahd-drawer-identity-person">
+              <strong className="ahd-drawer-identity-name" title={playerName}>{playerName}</strong>
+              <span className="ahd-muted ahd-drawer-identity-meta" title={`${playerParty} · ${countryName}`}>{playerParty} · {countryName}</span>
+            </div>
+          </div>
           <span className="ahd-muted ahd-drawer-identity-meta">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
           {/* Identity quick links mirror the reference profile card
               (ExperimentalMobileMenu.tsx:169-197: Profile / Notifications /

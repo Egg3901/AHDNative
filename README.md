@@ -18,7 +18,7 @@ Fundraise now consumes [Game-owned shared rules](docs/SHARED-RULES.md) through a
 
 ## Status
 
-Development preview 0.1.9 is the current source candidate. The latest published source prerelease is `preview/0.1.8-1`; the latest delivered internal build is iOS 0.1.9 build 1.20 (source `preview/0.1.9-installed-icon-opaque`), delivered privately through manual Codemagic to Internal Testers. Windows delivery is a private unsigned x64 owner-review build. These are not public store releases or a 1.0.0 claim, and owner feedback and physical-device validation remain open in [issue #124](https://github.com/Egg3901/AHDNative/issues/124). What holds today:
+Development preview 0.1.10 is the current source candidate. The latest published source prerelease is `preview/0.1.8-1`; the latest processed internal build is iOS 0.1.9 build 1.21, delivered privately through manual Codemagic to Internal Testers. Windows delivery is a private unsigned x64 owner-review build. These are not public store releases or a 1.0.0 claim, and owner feedback and physical-device validation remain open in [issue #124](https://github.com/Egg3901/AHDNative/issues/124). What holds today:
 
 - Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size.
 - Bottom navigation and a side drawer reach politics, national economy/budget/policy, home region, nations, portfolio and banking. Turn, save and exit controls live in the drawer. The compact footer opens full resource details. Full feature parity is still in progress.
@@ -90,6 +90,7 @@ The first private feedback preview is authorized after local behavioral tests an
 | [0.1.6 development preview](docs/RELEASE-0.1.6.md) | World and character creation, Head of State mode, route artwork and party identity |
 | [0.1.7 development preview](docs/RELEASE-0.1.7.md) | Earlier internal build (iOS 0.1.7 build 1.11): guided creation, Head of State, Native Ask, writable multiplayer surface, party identity |
 | [0.1.8 development preview](docs/RELEASE-0.1.8.md) | Published source prerelease `preview/0.1.8-1`: mobile-design batch (glass hierarchy, safe-area geometry, keyboard resize, dual-pane contract) |
+| [0.1.10 development preview](docs/RELEASE-0.1.10.md) | Globe title screen, main-menu Continue and compact game drawer; private delivery pending |
 | [Navigation and footer parity](docs/NAVIGATION-PARITY.md) | Destination inventory, resource controls and remaining feature gaps |
 | [UI reference](docs/UI-REFERENCE.md) | Actual MP/SP baseline, tokens, parity notes |
 | [Mechanics parity](docs/MECHANICS-PARITY.md) | Audit against AHDGame at pinned revisions |

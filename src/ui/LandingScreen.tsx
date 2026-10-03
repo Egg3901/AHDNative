@@ -56,6 +56,9 @@ export function LandingScreen({
   onAsk,
 }: LandingScreenProps) {
   const [confirmingNew, setConfirmingNew] = useState(false);
+  const latestSave = saves.reduce<SaveMetadata | null>((latest, saved) =>
+    !latest || Date.parse(saved.savedAt) > Date.parse(latest.savedAt) ? saved : latest,
+  null);
   const beginNew = () => {
     if (worldActive) {
       setConfirmingNew(true);
@@ -72,9 +75,8 @@ export function LandingScreen({
       <LandingGlobe reducedMotion={reducedMotion} />
       <div className="ahd-landing-intro">
         <img className="ahd-landing-logo" src="ahd-logo-steel-blue.png" alt="" width={96} height={96} decoding="async" />
-        <p className="ahd-eyebrow">Singleplayer · Offline</p>
-        <h1 className="ahd-h1 ahd-landing-title">A House Divided</h1>
-        <p className="ahd-muted ahd-landing-dek">Build your political career. Your world stays on this device.</p>
+        <p className="ahd-eyebrow">A political simulation</p>
+        <h1 className="ahd-h1 ahd-landing-title"><span>A House</span>{" "}<span>Divided</span></h1>
         {eras.length > 0 && (
           <ul className="ahd-era-chips" aria-label="Available eras">
             {eras.map(era => <li key={era.id}>{era.id}</li>)}
@@ -83,21 +85,28 @@ export function LandingScreen({
         {error && <p className="ahd-alert" role="alert">{error}</p>}
         {message && !error && <p className="ahd-notice" role="status">{message}</p>}
         {error && !eras.length && <button className="ahd-btn" onClick={onReload}>Reload app</button>}
-        <div className="ahd-landing-actions">
-          <button className="ahd-btn ahd-btn-primary ahd-landing-primary" disabled={busy || !eras.length} onClick={beginNew}>New game</button>
-          <button className="ahd-btn" disabled={busy} onClick={onEnterMultiplayerNative}>
-            Enter multiplayer
+        <nav className="ahd-landing-actions" aria-label="Main menu">
+          {worldActive ? (
+            <button className="ahd-btn ahd-btn-primary ahd-landing-primary ahd-menu-choice" disabled={busy} onClick={onReturn}>
+              <span>Return to game</span><span aria-hidden="true">↗</span>
+            </button>
+          ) : latestSave ? (
+            <button className="ahd-btn ahd-btn-primary ahd-landing-primary ahd-menu-choice" disabled={busy || !eras.length} onClick={() => onLoad(latestSave)} aria-label="Continue game" aria-describedby="latest-world-context">
+              <span>Continue game<small id="latest-world-context">{latestSave.playerName} · {latestSave.countryId} · Turn {latestSave.turn}</small></span><span aria-hidden="true">↗</span>
+            </button>
+          ) : null}
+          <button className={`ahd-btn ahd-menu-choice ${worldActive || latestSave ? "" : "ahd-btn-primary ahd-landing-primary"}`} disabled={busy || !eras.length} onClick={beginNew} aria-label="New game">
+            <span>New game<small>Singleplayer</small></span><span aria-hidden="true">＋</span>
           </button>
-          <button className="ahd-btn" disabled={busy} onClick={onAsk}>
-            Ask questions
+          <button className="ahd-btn ahd-menu-choice" disabled={busy} onClick={onEnterMultiplayerNative} aria-label="Enter multiplayer">
+            <span>Enter multiplayer<small>The online world</small></span><span aria-hidden="true">↗</span>
           </button>
-          <p className="ahd-muted" style={{ margin: 0, fontSize: "0.78rem" }}>Local games do not need an account.</p>
           <div className="ahd-landing-secondary">
+            <button className="ahd-btn" disabled={busy} onClick={onAsk}>Ask questions</button>
             <button className="ahd-btn" onClick={onHelp}>Help</button>
             <button className="ahd-btn" onClick={onSettings}>Settings</button>
           </div>
-          {worldActive && <button className="ahd-btn" disabled={busy} onClick={onReturn}>Return to game</button>}
-        </div>
+        </nav>
         {confirmingNew ? (
           <div className="ahd-card ahd-card-pad" role="dialog" aria-labelledby="start-another-world-title">
             <h2 id="start-another-world-title" className="ahd-h2">Start another world?</h2>
@@ -108,12 +117,13 @@ export function LandingScreen({
             </div>
           </div>
         ) : null}
-        <p className="ahd-muted ahd-landing-build" style={{ fontSize: '0.75rem' }} aria-label="Build version">{buildLabel}</p>
+        <p className="ahd-muted ahd-landing-local">Local games do not need an account.</p>
+        <p className="ahd-muted ahd-landing-build" aria-label="Build version">{buildLabel}</p>
       </div>
     </section>
     <section className="ahd-landing-saves" aria-label="Saved games">
-      <h2 className="ahd-h2">Saved games</h2>
-      {!saves.length && <p className="ahd-muted">Your saved worlds will appear here.</p>}
+      <div className="ahd-landing-saves-heading"><h2 className="ahd-h2">Saved games</h2><span className="ahd-muted">{saves.length ? `${saves.length} ${saves.length === 1 ? "world" : "worlds"}` : "A new chapter awaits"}</span></div>
+      {!saves.length && <p className="ahd-muted ahd-landing-empty">Your saved worlds will appear here.</p>}
       {saves.map(saved => {
         const isPending = pendingDelete?.slotId === saved.slotId;
         return <article className="ahd-card ahd-card-pad ahd-save-card" key={saved.slotId} style={{ marginTop: '.75rem' }}>
