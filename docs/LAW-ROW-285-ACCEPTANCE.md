@@ -15,7 +15,7 @@ source bill-enactment delta in this range only adds analytics capture.
 | `us.defense.armedForces.primary` | `US_LAWS`: `defense.armedForces`, L4 baseline and GDP-cost ladder | Source row only targets the scalar metric; it does not directly create units or mutate conflict state. Native budget and metric policy consumers handle its authored channels. |
 | `us.environment.conservation.primary` | `US_LAWS`: `environment.conservation`, both scope, L1 baseline and GDP-cost ladder | Native policy ledger, environmental metric destination, and budget delta path consume the authored target and costs. |
 | `uk.defense.security.primary` | `UK_LAWS`: `defense.security`, L2 baseline and GDP-cost ladder | Source row only targets the scalar metric; Native budget and metric policy consumers handle it. |
-| `us.tax.tariffs` | `US_LAWS`: federal `tariffs`, 0–15%, 0.5-point rate step, zero baseline | Existing sponsor, import-value tariff revenue, budget surplus reconciliation, rate phase-in and save/reload continuation. The current turn books receipts at its in-force rate before advancing the next rate step. This is distinct from unmatched synthetic `us.tariff.primary`. |
+| `us.tax.tariffs` | `US_LAWS`: federal `tariffs`, 0 to 15%, 0.5-point rate step, zero baseline | Existing sponsor, import-value tariff revenue, budget surplus reconciliation, rate phase-in and save/reload continuation. The current turn books receipts at its in-force rate before advancing the next rate step. This is distinct from unmatched synthetic `us.tariff.primary`. |
 | `ie_corporate_tax_rate` | IE's statutory domestic-corporate tax: 11 authored rates (0–33%), source effect targets map through `ADAPTER_TIER1`, and the baseline rate is 12.5%. | Public IE HoS sponsor moves 12.5%→13.5% in the source one-point enactment step; the source/native domestic profit base is the same 75% of the authored 22%-of-GDP total corporate base, receipts are recomputed at the in-force rate, replacement at 15% replaces the first posture, repeal ramps back toward 12.5%, and save/reload/ordinary turns preserve each state. This qualifies only this receipt line, not full IE budget parity. |
 | `de_government_ethics` | DE ethics seed: governance transparency, trust, and turnout targets; seven source policy options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
 | `ie_electoral_reform` | IE ethics/electoral seed: turnout, civic participation, public trust, and transparency targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
@@ -98,7 +98,7 @@ complete source tax implementation.
 For IE corporate tax, the narrower domestic-receipt vector is independently
 checked against the source's authored 75/25 corporate-base split, one-point
 `advanceTaxRatePhaseIn`, and `calculateFederalRevenue` at identical budget inputs
-(private source oracle under `/root/misc/archive/2026-10-03-ahdnative-law285-tax-oracle`).
+(independent source oracle retained with the review evidence).
 The unrelated IE extra receipt lines remain missing: Native's baseline total
 revenue is not claimed to match the source total, and issue #101's wider fiscal
 substrate work remains separate.
@@ -106,10 +106,13 @@ substrate work remains separate.
 ## Focused evidence
 
 - The first `sourceMetricExecutableSlice.test.ts` run was red: both RU/DD catalog rows
-  were unavailable and exposed only a dummy metric. After porting exact source
-  rows, the targeted source producer/save/turn tests pass 7/7, including regional scope.
+  were unavailable and exposed only a dummy metric. The subsequent seven-case
+  run included a regional assertion against the wrong metric destination. That
+  historical result does not qualify regional DD effects. The corrected test
+  observes `regionalPoliticalMetrics.values` and retained structural residuals.
 - Targeted `catalogUnavailableInventory.test.ts` and `policyLevel.test.ts`
-  passed with them; total was 17/17 across those three files.
+  passed with them. Their historical 17-case total includes the superseded
+  DD regional assertion above.
 - `usTariffExecutableSlice.test.ts` verifies phase-in, matched save/reload,
   import-value receipts and budget surplus reconciliation.
 - `LegislationDetailsPanel.test.tsx` passed 19/19, including level `l3` and an
@@ -140,6 +143,16 @@ substrate work remains separate.
   values from that runtime separately from the public Native bill/save journey;
   the metric-only DE/IE rows use the separate legacy `calculateMetricTarget`
   decay consumer above.
+- New-world DD boards now initialize the structural residual before a player
+  enacts a regional law. The actual BEO source value is 78 and the residual is
+  32.5. Independently executed Game catalog/dynamics helpers produce a
+  controlled level-3 regional supplement of 37.5, target 96.75 and one-step
+  value 78.375 when macro and engine terms are zero. This is a law-only vector;
+  the comparison with observed ordinary-turn macro and engine inputs remains
+  required. The focused seed/regional tests passed in a 20-of-22 run; two
+  rendered cases were then corrected to use the authored zero-NPI tariff cost
+  and the persisted IE selected rate. The corrected complete rendered run is
+  pending.
 - The JP regional cost fixture uses the actual authored Hokkaido 2019 seed and
   only charges while a matching active regional policy-ledger row exists. This
   matches the source regional-budget cost basis (annual option cost times the

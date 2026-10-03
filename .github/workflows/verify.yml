@@ -9,6 +9,18 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  law_player_flows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Qualify authored laws through real player controls and saved turns
+        run: npx vitest run --config vitest.law-player.config.ts
   engine_strict:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
