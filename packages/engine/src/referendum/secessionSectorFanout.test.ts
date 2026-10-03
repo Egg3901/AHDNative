@@ -41,16 +41,18 @@ describe("referendum secession sector fan-out", () => {
     // manufacturing assets, while the all-industry receipt sum above remains
     // the consolidated issuer invariant.
     const updatedManufacturingAssets = updatedIssuerAssets.filter((asset) => asset.sectorType === "manufacturing");
-    expect(updatedManufacturingAssets.map((asset) => asset.id).sort())
-      .toEqual(assets.filter((asset) => asset.corporationId === manufacturer.id).map((asset) => asset.id).sort());
-    const manufacturingReceipts = updatedManufacturingAssets.reduce((sum, asset) => sum + asset.revenue!, 0);
-    expect(manufacturingReceipts).toBeGreaterThan(0);
-    expect(walManufacturing.revenue! / manufacturingReceipts).toBeCloseTo(274_510 / 8_512_171, 9);
-    const founding = world.corporateCashLedger?.find((row) => row.corporationId === manufacturer.id && row.type === "corp_sector_founding");
-    expect(founding?.meta?.sectorType).toBe("energy");
-    expect(founding?.meta?.sectorId).toBe("corporate-sector:UK:energy:UK-manufacturing:SCO");
-    expect(updatedIssuerAssets.find((asset) => asset.id === founding?.meta?.sectorId))
-      .toMatchObject({ sectorType: "energy", stateId: "SCO", capitalStock: 0, realizedRevenue: 0 });
+    const openingManufacturingAssets = assets.filter((asset) => asset.corporationId === manufacturer.id);
+    expect(updatedManufacturingAssets.map((asset) => asset.id)).toEqual(expect.arrayContaining(openingManufacturingAssets.map((asset) => asset.id)));
+    expect(updatedManufacturingAssets.some((asset) => asset.stateId === "NWE" && !openingManufacturingAssets.some((opening) => opening.id === asset.id))).toBe(true);
+    const retainedManufacturingReceipts = updatedManufacturingAssets
+      .filter((asset) => openingManufacturingAssets.some((opening) => opening.id === asset.id))
+      .reduce((sum, asset) => sum + asset.revenue!, 0);
+    expect(retainedManufacturingReceipts).toBeGreaterThan(0);
+    expect(walManufacturing.revenue! / retainedManufacturingReceipts).toBeCloseTo(274_510 / 8_512_171, 9);
+    const newManufacturingAsset = updatedManufacturingAssets.find((asset) => !openingManufacturingAssets.some((opening) => opening.id === asset.id));
+    const founding = world.corporateCashLedger?.find((row) => row.corporationId === manufacturer.id && row.type === "corp_sector_founding" && row.meta?.sectorId === newManufacturingAsset?.id);
+    expect(founding?.meta?.sectorType).toBe("manufacturing");
+    expect(newManufacturingAsset).toMatchObject({ stateId: "NWE", capitalStock: 0, realizedRevenue: 0 });
     const restored = deserializeSave(serializeSave(world, "2026-10-01T00:00:00Z"));
     expect(Object.values(corporateSectorAssets(restored)).filter((asset) => asset.countryId === "UK" && asset.stateId === "WAL")).toHaveLength(regionalAssets.filter((asset) => asset.stateId === "WAL").length);
   });
@@ -203,8 +205,8 @@ describe("referendum secession sector fan-out", () => {
     const sourceParentAssetIds = sourceParentAssets.map((asset) => asset.id).sort();
     const sourceParentCorporateReceipts = sourceParentAssets.reduce((sum, asset) => sum + asset.revenue!, 0);
     const sourceParentUnowned = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "UK" && pool.regionId === "WAL").reduce((sum, pool) => sum + pool.revenue, 0);
-    const sourceUnownedBySector = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "UK").reduce<Record<string, number>>((bySector, pool) => {
-      bySector[pool.sectorType] = (bySector[pool.sectorType] ?? 0) + pool.revenue;
+    const sourceParentUnownedBySector = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "UK" && pool.regionId === "WAL").reduce<Record<string, number>>((bySector, pool) => {
+      bySector[pool.sectorType] = pool.revenue;
       return bySector;
     }, {});
     const sourceCorporateBySector = Object.fromEntries(Object.values(world.corporations).filter((corp) => corp.countryId === "UK").map((corp) => [corp.sectorType, corp.revenue]));
@@ -244,31 +246,40 @@ describe("referendum secession sector fan-out", () => {
     });
     expect(actualWelshCorporateReceipts).toBeCloseTo(sourceParentCorporateReceipts, 3);
     const actualWelshUnownedReceipts = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "WAL").reduce((sum, pool) => sum + pool.revenue, 0);
-    expect(Object.fromEntries(welsh.map((region) => [
+    const assignedWelshPoolByRegion = Object.fromEntries(welsh.map((region) => [
       region.id,
-      Object.values(world.unownedSectors).filter((pool) => pool.countryId === "WAL" && pool.regionId === region.id).map((pool) => pool.sectorType).sort(),
-    ]))).toEqual({
-      CDF: ["agriculture", "healthcare", "manufacturing"],
-      SWA: ["defense", "energy", "financial", "telecommunications"],
-      VAL: ["entertainment", "extraction", "media"],
-      MWA: ["logistics", "retail"],
-      NWW: ["automobiles", "construction"],
-      NEW: ["chemical_industries", "real_estate"],
+      Object.fromEntries(Object.values(world.unownedSectors)
+        .filter((pool) => pool.countryId === "WAL" && pool.regionId === region.id)
+        .map((pool) => [pool.sectorType, pool.revenue])),
+    ]));
+    // Independently replayed Game 611ad251's actual secede/apportion.ts
+    // partitionByGdp over the exact generated WAL parent receipts. See the
+    // private source oracle for the retained input and full per-row output.
+    expect(assignedWelshPoolByRegion).toEqual({
+      CDF: { manufacturing: 98_000, defense: 7_000, telecommunications: 5_355 },
+      SWA: { extraction: 73_500 },
+      VAL: { energy: 17_500, agriculture: 10_500, real_estate: 7_000, automobiles: 5_355 },
+      MWA: { financial: 8_750, media: 5_355, entertainment: 5_355 },
+      NWW: { construction: 14_000, retail: 8_750, healthcare: 5_355 },
+      NEW: { chemical_industries: 10_500, logistics: 8_750, technology: 5_355 },
     });
     expect(actualWelshUnownedReceipts).toBeCloseTo(sourceParentUnowned, 3);
     expect(regionalAssets.map((asset) => asset.id).sort()).toEqual(sourceParentAssetIds);
     expect(actualWelshCorporateReceipts).toBeGreaterThan(0);
-    // Independent source receipt vectors from Game's pinned
-    // computeUnownedSeedRevenue, evaluated across all 12 UK 1953 regions:
-    // WAL manufacturing=274510/8512171, extraction=205882/1331720.
+    // Independent source receipt vectors for corporate asset opening shares
+    // from Game's pinned computeUnownedSeedRevenue across UK 1953 regions.
+    // Unowned market pools use the separately generated exact local-currency
+    // seed rows, preserved by source GDP fan-out below.
     for (const [sectorType, [parentReceipt, nationalReceipt]] of Object.entries({
       manufacturing: [274_510, 8_512_171],
       extraction: [205_882, 1_331_720],
     }) as Array<[string, [number, number]]>) {
       const actual = regionalAssets.filter((asset) => asset.sectorType === sectorType).reduce((sum, asset) => sum + asset.revenue!, 0);
       expect(actual).toBeCloseTo(sourceCorporateBySector[sectorType]! * parentReceipt / nationalReceipt, 6);
+    }
+    for (const sectorType of CORPORATION_TYPES) {
       const unowned = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "WAL" && pool.sectorType === sectorType).reduce((sum, pool) => sum + pool.revenue, 0);
-      expect(unowned).toBeCloseTo(sourceUnownedBySector[sectorType]! * parentReceipt / nationalReceipt, 6);
+      expect(unowned).toBe(sourceParentUnownedBySector[sectorType]);
     }
     const ukPlusWalesCorporateRevenue = Object.values(world.corporateSectors!).filter((asset) =>
       world.corporations[asset.corporationId]?.countryId === "UK" &&

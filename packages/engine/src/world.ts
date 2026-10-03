@@ -37,7 +37,7 @@ import {
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import type { CentralBank } from "./centralBank/types.js";
 import { seedCorporations, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
-import { materializeSourceParentSectorRows } from "./corporation/sourceRegionalSectorSeed.js";
+import { materializeSourceParentSectorRows, seedSourceRegionalUnownedMarkets } from "./corporation/sourceRegionalSectorSeed.js";
 import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { seedNpcBanks } from "./banking/npcBanks.js";
 import { seedUnions } from "./unions/founding.js";
@@ -1092,12 +1092,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
   }
   const capitalGrowth: WorldState["capitalGrowth"] = {};
 
-  // ── Unowned sector pools (W14) ───────────────────────────────────
-  // One pool per founded corp, seeded at parity with the corp's own founding
-  // revenue (PROVISIONAL multiple — flagged for user review, same doctrine as
-  // centralBank/types.ts externalBroadMoney: AHDClient has no per-state
-  // corporate-sector market-size figure to seed the real headroom from, so
-  // the pool starts sized to the corp that already exists in its sector).
+  // ── Intermediate unowned sector pools ───────────────────────────
+  // Keep the historical country-level fallback for eras without a pinned
+  // regional source table. Supported eras replace these rows after world
+  // construction with source-backed regional receipts.
   const unownedSectors: WorldState["unownedSectors"] = {};
   for (const corp of Object.values(corporations)) {
     const key = `${corp.countryId}:${corp.sectorType}`;
@@ -1386,6 +1384,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // presentation data.
   world.countryPolitics = seedCountryPolitics(world);
   materializeSourceParentSectorRows(world);
+  seedSourceRegionalUnownedMarkets(world);
   if (options.foundingElections === true && stampFoundingMarker(world)) {
     runFoundingSweep(world, rng);
     world.meta.rng = rng.state();

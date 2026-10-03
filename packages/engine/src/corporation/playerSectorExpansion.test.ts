@@ -9,6 +9,7 @@ import { corporateSectorBasePrices, capacityPricePerUnitAnchor, SOURCE_DEFAULT_O
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { NEUTRAL_STAT } from "../stats/characterStats.js";
 import { sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { advanceTurn } from "../engine.js";
 
 describe("source player greenfield sector expansion", () => {
   it("founding abroad charges and routes the source sector FX spread", () => {
@@ -19,11 +20,9 @@ describe("source player greenfield sector expansion", () => {
       corporationName: "Atlantic Industries", tickerSymbol: "ATLN", sectorType: "manufacturing", startingCapital,
     }).ok).toBe(true);
     const corporation = Object.values(world.corporations).find((row) => row.tickerSymbol === "ATLN")!;
-    const host = Object.values(world.regions).find((region) => region.countryId === "UK" && !region.corporationHeadquartersOnly)!;
-    world.unownedSectors[`${host.countryId}:${host.id}:manufacturing`] = {
-      countryId: host.countryId, sectorType: "manufacturing", regionId: host.id, revenue: 50_000_000,
-    };
+    const host = world.regions.LON!;
     const pool = world.unownedSectors[`${host.countryId}:${host.id}:manufacturing`]!;
+    expect(pool.revenue).toBe(241_818);
     const poolBefore = pool.revenue;
     const headroom = sourceUnownedHeadroomUnits(world, pool);
     const beforeCash = corporation.liquidCapital;
@@ -63,9 +62,7 @@ describe("source player greenfield sector expansion", () => {
     });
     expect(found.ok).toBe(true);
     const corporation = Object.values(world.corporations).find((row) => row.tickerSymbol === "NSTR")!;
-    world.unownedSectors["US:VA:manufacturing"] = {
-      countryId: "US", sectorType: "manufacturing", regionId: "VA", revenue: 50_000_000,
-    };
+    expect(world.unownedSectors["US:VA:manufacturing"]?.revenue).toBe(755_899);
     const cashBefore = corporation.liquidCapital;
     const poolBefore = world.unownedSectors["US:VA:manufacturing"]!.revenue;
     const result = executeAction(world, "player", "expandCorporationSector", {
@@ -107,6 +104,11 @@ describe("source player greenfield sector expansion", () => {
     const reloaded = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     expect(reloaded.corporateSectors?.[assetId]).toEqual(asset);
     expect(reloaded.unownedSectors["US:VA:manufacturing"]).toEqual(world.unownedSectors["US:VA:manufacturing"]);
+    expect(reloaded.corporateCashLedger).toEqual(world.corporateCashLedger);
+    advanceTurn(world);
+    advanceTurn(reloaded);
+    expect(reloaded.unownedSectors["US:VA:manufacturing"]).toEqual(world.unownedSectors["US:VA:manufacturing"]);
+    expect(reloaded.corporateSectors?.[assetId]).toEqual(world.corporateSectors?.[assetId]);
     expect(reloaded.corporateCashLedger).toEqual(world.corporateCashLedger);
   });
 });

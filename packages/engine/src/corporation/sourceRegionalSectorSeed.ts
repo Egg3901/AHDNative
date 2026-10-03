@@ -1,5 +1,6 @@
 import type { WorldState } from "../types.js";
 import { calculateSectorWorkers, corporateSectorAssets, validateCorporateSectorAssets } from "./corporateSectorAssets.js";
+import { SOURCE_REGIONAL_UNOWNED_SEED } from "./sourceRegionalUnownedSeed.generated.js";
 
 type ParentShares = { SCO: number; WAL: number };
 
@@ -186,6 +187,36 @@ export function materializeSourceParentSectorRows(world: WorldState): void {
   }
 
   validateCorporateSectorAssets(world, assets);
+}
+
+/**
+ * Replace fresh-world national market placeholders with the pinned source
+ * regional seed rows. This is called only by createWorld, never by a turn or
+ * save migration: progressed pools are economic history and are not rebuilt.
+ * Countries absent from the pinned era table retain their existing seed until
+ * their source-era table is added.
+ */
+export function seedSourceRegionalUnownedMarkets(world: WorldState): void {
+  const sourceRows = SOURCE_REGIONAL_UNOWNED_SEED[world.meta.era];
+  if (!sourceRows) return;
+
+  const liveRows = sourceRows.filter(([countryId, regionId]) => {
+    const region = world.regions[regionId];
+    return region?.countryId === countryId && region.corporationHeadquartersOnly !== true;
+  });
+  if (liveRows.length === 0) return;
+
+  const sourceCountries = new Set(liveRows.map(([countryId]) => countryId));
+  const seeded: WorldState["unownedSectors"] = {};
+  for (const [key, pool] of Object.entries(world.unownedSectors)) {
+    if (!sourceCountries.has(pool.countryId)) seeded[key] = pool;
+  }
+  for (const [countryId, regionId, sectorType, revenue] of liveRows) {
+    const key = `${countryId}:${regionId}:${sectorType}`;
+    if (seeded[key]) throw new Error(`Duplicate source regional unowned-market seed: ${key}`);
+    seeded[key] = { countryId, regionId, sectorType, revenue };
+  }
+  world.unownedSectors = seeded;
 }
 
 /** Keep materialized regional portions proportional as their aggregate issuer grows. */
