@@ -23,6 +23,17 @@ export interface SourceCampaignUnit {
   campaignCells: CampaignCell[];
 }
 
+export interface SourceLayer1Overlays {
+  /** Current non-durable campaign/legislation lean adjustments. */
+  leanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>;
+  /** Current turnout campaign adjustments, composed into Layer-1 bucket rates. */
+  turnoutBucketDeltas?: Record<string, number>;
+  /** Durable source checkpoint position overrides, composed before cell derivation. */
+  durableLeanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>;
+  /** Durable source checkpoint turnout overrides, composed before cell derivation. */
+  durableTurnoutBucketDeltas?: Record<string, number>;
+}
+
 interface Layer1Region {
   marginals: Record<string, Record<string, number>>;
   positions: Record<string, Record<string, { economicLean: number; socialLean: number }>>;
@@ -85,7 +96,7 @@ export function remapArchetypeValuesToSourceUnits(values: Record<string, number>
 
 export function sourceCampaignUnits1953(
   stateId: string,
-  overlays: { leanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>; turnoutBucketDeltas?: Record<string, number> } = {},
+  overlays: SourceLayer1Overlays = {},
 ): SourceCampaignUnit[] | null {
   return sourceCampaignUnitsFromLayer1(stateId, LAYER1[stateId], overlays);
 }
@@ -94,7 +105,7 @@ export function sourceCampaignUnitsForYear(
   stateId: string,
   year: number,
   startingYear: number,
-  overlays: { leanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>; turnoutBucketDeltas?: Record<string, number> } = {},
+  overlays: SourceLayer1Overlays = {},
 ): SourceCampaignUnit[] | null {
   const substrate = sourceUsLayer1ForYear(stateId, year, startingYear);
   if (!substrate) return null;
@@ -104,16 +115,27 @@ export function sourceCampaignUnitsForYear(
 function sourceCampaignUnitsFromLayer1(
   stateId: string,
   input: Layer1Region | SourceCampaignLayer1Input | undefined,
-  overlays: { leanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>; turnoutBucketDeltas?: Record<string, number> },
+  overlays: SourceLayer1Overlays,
 ): SourceCampaignUnit[] | null {
   if (!input) return null;
+  const positions: SourceCampaignLayer1Input["positions"] = {};
+  for (const [dimension, buckets] of Object.entries(input.positions)) {
+    positions[dimension] = {};
+    for (const [bucket, position] of Object.entries(buckets)) {
+      const durable = overlays.durableLeanBucketDeltas?.[`${dimension}:${bucket}`];
+      positions[dimension]![bucket] = {
+        economicLean: Math.max(-5, Math.min(5, position.economicLean + (durable?.economicLean ?? 0))),
+        socialLean: Math.max(-5, Math.min(5, position.socialLean + (durable?.socialLean ?? 0))),
+      };
+    }
+  }
   const dims: GenericGranularDimInput[] = GRANULAR_DIMENSIONS.map((name) => ({
     name,
     marginals: input.marginals[name] ?? {},
-    positions: input.positions[name] ?? {},
+    positions: positions[name] ?? {},
     turnoutRates: Object.fromEntries(Object.entries(input.turnoutRates[name] ?? {}).map(([bucket, rate]) => [
       bucket,
-      rate + (overlays.turnoutBucketDeltas?.[`${name}:${bucket}`] ?? 0),
+      rate + (overlays.turnoutBucketDeltas?.[`${name}:${bucket}`] ?? 0) + (overlays.durableTurnoutBucketDeltas?.[`${name}:${bucket}`] ?? 0),
     ])),
   }));
   if (dims.some((dim) => Object.keys(dim.marginals).length === 0)) return null;
@@ -127,7 +149,6 @@ function sourceCampaignUnitsFromLayer1(
       conditionedOffsets: input.conditionedOffsets,
     },
   });
-  const positions = input.positions;
   const cells = derived;
   const byKey = new Map<string, {
     share: number; ep: number; sp: number; turnout: number;

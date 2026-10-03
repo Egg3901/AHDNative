@@ -97,7 +97,7 @@ import { pmAppointmentPhase } from "../government/pmAppointment.js";
 import { impeachmentLifecyclePhase } from "../impeachment/phases.js";
 import { presidentialSuccessionPhase } from "../executive/phases.js";
 import { cabinetTransitionPhase, cabinetNominationLifecyclePhase } from "../cabinet/phases.js";
-import { scotusTurnPhase, ukJrSurpriseTurnPhase } from "../judiciary/phases.js";
+import { scotusTurnPhase, ukJrSurpriseTurnPhase, eraCheckpointsPhase } from "../judiciary/phases.js";
 import {
   worldEventsMaintenancePhase,
   worldEventsSchedulerPhase,
@@ -351,6 +351,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   cabinetTransitionPhase,
   cabinetNominationLifecyclePhase,
   scotusTurnPhase,
+  eraCheckpointsPhase,
   ukJrSurpriseTurnPhase,
   // W10 markets note: recomputeSharePricesPhase used to be registered here.
   // #309 moved the entry to right after the W13 bond cluster below so the
