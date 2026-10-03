@@ -177,7 +177,7 @@ export function applyNppSourceStrategyRetools(world: WorldState): void {
       const distressed = corp.effectiveProfitMargin <= STRATEGY_SHIFT_MARGIN_TRIGGER;
       const requiredAdvantage = distressed ? STRATEGY_SHIFT_MIN_ADVANTAGE : STRATEGY_SHIFT_PROFIT_SEEK_ADVANTAGE;
       for (const strategyId of Object.keys(SECTOR_STRATEGIES[asset.sectorType] ?? {})) {
-        if (strategyId === currentStrategyId || !corporationHasStrategy(corp, strategyId, year)) continue;
+        if (strategyId === currentStrategyId || !corporationHasStrategy(corp, strategyId, year, asset.sectorType)) continue;
         const score = sourceStrategyPriceScore(getSectorStrategy(asset.sectorType, strategyId), priceRatioOf);
         if (score === null) continue;
         const advantage = score - currentScore;
@@ -217,8 +217,9 @@ export function corporationHasStrategy(
   corp: Pick<import("./types.js").Corporation, "sectorType" | "unlockedTechNodeIds" | "techDecadeLane">,
   strategyId: string,
   year: number,
+  strategySectorType: import("./types.js").CorporationType = corp.sectorType,
 ): boolean {
-  return isBaselineSourceStrategyAvailable(corp.sectorType, strategyId, year) ||
+  return isBaselineSourceStrategyAvailable(strategySectorType, strategyId, year, corp.sectorType) ||
     getUnlockedStrategyIds({ type: corp.sectorType, ...corp }).includes(strategyId);
 }
 
@@ -246,7 +247,7 @@ export function setCorporateSectorStrategy(
   if (target.minDecade && currentYear < Number(target.minDecade)) {
     return { ok: false, error: "This production method is not available in this era yet." };
   }
-  if (target.requiresTechUnlock && !corporationHasStrategy(corp, strategyId, currentYear)) {
+  if (target.requiresTechUnlock && !corporationHasStrategy(corp, strategyId, currentYear, asset.sectorType)) {
     return { ok: false, error: "Unlock this production method in the corporate technology tree first." };
   }
   const targetSupply = target.supply;
