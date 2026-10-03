@@ -13,11 +13,11 @@ import { FIRST_PROVISION_NPI_COST } from "../../packages/engine/src/legislation/
  * bounded data only, never a raw world reference.
  *
  * Engine contract (packages/engine/src/actions/execute.ts, sponsorBill):
- * catalogId is required. The only supported option params are taxRate (tax
+ * catalogId is required. Supported option params include policyOptionId for
+ * discrete-level laws and taxRate (tax
  * entries: snapped to the catalog taxPolicy step, clamped to min/max,
- * defaulting to baselineRate), sponsorCountryId, originChamber, billTitle
- * and billCategory. There is NO legal-level option: provisions always enact
- * at effectDirection 1. Catalog levels are therefore reference descriptions.
+ * defaulting to baselineRate), sponsorCountryId, originChamber, billTitle,
+ * billCategory and discrete-level policyOptionId values in lN form.
  */
 import {
   ACTION_CATALOG,
@@ -123,6 +123,7 @@ export interface LegislationProposalDetails {
   kind: string;
   category: string;
   allowedScope: string;
+  regions?: Array<{ id: string; name: string }>;
   baselineLevel?: number;
   levels?: LegislationLevelView[];
   taxPolicy?: LegislationTaxPolicyView;
@@ -185,7 +186,7 @@ export interface LegislationDetailsQuery {
   enactedLaws?: LegislationEnactedLawView[];
   selectedBill: LegislationBillDetails | null;
   selectedProposal: LegislationProposalDetails | null;
-  sponsorSupportsLevelChoice: false;
+  sponsorSupportsLevelChoice: boolean;
   sponsorSupportsTaxRateChoice: true;
   levelChoiceNote: string;
 }
@@ -195,9 +196,7 @@ export interface LegislationSelection {
   catalogId?: string | null;
 }
 
-export const LEVEL_CHOICE_NOTE =
-  "Legal options are shown as reference. Level selection is unavailable in this single-player version; " +
-  "sponsoring uses the default option.";
+export const LEVEL_CHOICE_NOTE = "Choose an authored level when sponsoring a law with discrete options.";
 
 /**
  * Snap a requested rate to the catalog tax ladder (step) and clamp to
@@ -215,8 +214,8 @@ export { snapTaxRate } from "./taxRate";
  */
 export function sponsorParamsForLegislation(
   catalogId: string,
-  opts: { taxRate?: number; originChamber?: string } = {},
-): { catalogId: string; taxRate?: number; originChamber?: string } {
+  opts: { taxRate?: number; originChamber?: string; policyOptionId?: string; regionId?: string } = {},
+): { catalogId: string; taxRate?: number; originChamber?: string; policyOptionId?: string; regionId?: string } {
   const entry = getLaw(catalogId);
   const chamber = opts.originChamber ? { originChamber: opts.originChamber } : {};
   if (entry?.kind === "tax" && entry.taxPolicy) {
@@ -235,9 +234,17 @@ export function sponsorParamsForLegislation(
         opts.taxRate,
       ),
       ...chamber,
+      ...(opts.regionId && entry.allowedScope !== "national" ? { regionId: opts.regionId } : {}),
     };
   }
-  return { catalogId, ...chamber };
+  return {
+    catalogId,
+    ...chamber,
+    ...(entry?.kind !== "tax" && entry?.levels && opts.policyOptionId
+      ? { policyOptionId: opts.policyOptionId }
+      : {}),
+    ...(opts.regionId && entry?.allowedScope !== "national" ? { regionId: opts.regionId } : {}),
+  };
 }
 
 export function buildLegislationDetails(
@@ -292,6 +299,11 @@ export function buildLegislationDetails(
       kind: entry.kind,
       category: entry.category,
       allowedScope: entry.allowedScope,
+      ...(entry.allowedScope !== "national"
+        ? { regions: Object.values(world.regions)
+            .filter((region) => region.countryId === countryId)
+            .map((region) => ({ id: region.id, name: region.name })) }
+        : {}),
       ...(entry.baselineLevel !== undefined ? { baselineLevel: entry.baselineLevel } : {}),
       ...(entry.levels
         ? {
@@ -519,7 +531,7 @@ export function buildLegislationDetails(
     enactedLaws,
     selectedBill,
     selectedProposal,
-    sponsorSupportsLevelChoice: false,
+    sponsorSupportsLevelChoice: proposals.some((entry) => Boolean(entry.levels?.length)),
     sponsorSupportsTaxRateChoice: true,
     levelChoiceNote: LEVEL_CHOICE_NOTE,
   };

@@ -116,4 +116,30 @@ describe("RU/DD source-backed economy laws (#285)", () => {
       expect(saved.bills.at(-1)?.status).toBe("signed");
     });
   }
+
+  it("keeps a both-scope DD level attached to the selected regional policy through a public turn and save", () => {
+    const world = createWorld({ seed: "laws-285-dd-regional", playerName: "Policy Chair", countryId: "DD", era: "1953", mode: "hos" });
+    world.nppAutonomyLevel = "off";
+    world.player.actions = 100;
+    world.player.nationalInfluence = 30;
+    const regionId = Object.values(world.regions).find((region) => region.countryId === "DD")!.id;
+    const result = executeAction(world, "player", "sponsorBill", {
+      catalogId: "dd.economy.workerSecurity.primary", policyOptionId: "l3", regionId,
+    });
+    expect(result.ok).toBe(true);
+    const bill = world.bills.at(-1)!;
+    expect(bill).toMatchObject({ countryId: "DD", regionId, status: "signed" });
+    expect(world.policyLedger[bill.id]).toMatchObject({
+      countryId: "DD", scope: "regional", regionId, sourcePolicyOptionId: "l3",
+    });
+
+    const resumed = deserializeSave(serializeSave(world, "1953-01-06T00:00:00.000Z"));
+    expect(resumed.policyLedger[bill.id]).toEqual(world.policyLedger[bill.id]);
+    advanceTurn(world);
+    advanceTurn(resumed);
+    expect(resumed.regionalMetrics[regionId]?.["economy.workerSecurity"])
+      .toEqual(world.regionalMetrics[regionId]?.["economy.workerSecurity"]);
+    expect(resumed.budgets.DD?.policySpendingByCategory)
+      .toEqual(world.budgets.DD?.policySpendingByCategory);
+  });
 });

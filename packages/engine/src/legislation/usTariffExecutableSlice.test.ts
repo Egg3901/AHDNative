@@ -3,6 +3,7 @@ import { executeAction } from "../actions/execute.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
+import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { getLaw } from "./catalog.js";
 
 describe("source US tariff law (#285)", () => {
@@ -31,6 +32,15 @@ describe("source US tariff law (#285)", () => {
     expect(saved.budgets.US?.taxRatePhaseIn?.tariffs).toBe(6);
     advanceTurn(world);
     advanceTurn(saved);
+    const budget = world.budgets.US!;
+    // Receipts are booked using the rate in force during the turn; the ramp
+    // advances after revenue refresh, so the persisted rate is one point ahead.
+    const bookedRates = { ...budget.taxRates, tariffs: budget.taxRates.tariffs - 1 };
+    const expectedRevenue = calculateBudgetRevenue(bookedRates, budget.taxBases, budget.revenue.other);
+    expect(budget.taxRates.tariffs).toBeGreaterThan(1);
+    expect(budget.revenue.tariffs).toBe(Math.round(budget.taxBases.importValue * bookedRates.tariffs / 100));
+    expect(budget.revenue).toEqual(expectedRevenue);
+    expect(budget.surplus).toBe(budget.revenue.total - budget.spending.total);
     expect(saved.budgets.US?.taxRates.tariffs).toBe(world.budgets.US?.taxRates.tariffs);
     expect(saved.budgets.US?.taxRatePhaseIn).toEqual(world.budgets.US?.taxRatePhaseIn);
     expect(saved.bills.at(-1)?.status).toBe("signed");
