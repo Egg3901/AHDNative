@@ -59,6 +59,10 @@ workflows:
       - name: Generate iOS project
         script: |
           set -eu
+          export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+          export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+          # Repair prelinked image certificates before Tauri installs device tools.
+          brew reinstall ca-certificates
           export APPLE_DEVELOPMENT_TEAM="$TAURI_APPLE_DEVELOPMENT_TEAM"
           npm run tauri -- ios init --ci --skip-targets-install
       - name: Install approved app icons into generated Xcode catalog

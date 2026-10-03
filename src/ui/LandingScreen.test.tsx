@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LandingScreen, type LandingScreenProps } from "./LandingScreen";
 import type { EraChoice } from "../game/types";
@@ -39,6 +39,20 @@ function props(overrides: Partial<LandingScreenProps> = {}): LandingScreenProps 
 }
 
 describe("LandingScreen", () => {
+  it("continues the most recently saved world from the main menu and waits while loading", async () => {
+    const user = userEvent.setup();
+    const latest: SaveMetadata = { ...SAVES[0], slotId: "slot-latest", playerName: "Grace", turn: 12, savedAt: "2026-09-03T12:00:00.000Z" };
+    const p = props({ saves: [SAVES[0], latest] });
+    const { rerender } = render(<LandingScreen {...p} />);
+    const menu = within(screen.getByRole("navigation", { name: "Main menu" }));
+    await user.click(menu.getByRole("button", { name: "Continue game" }));
+    expect(p.onLoad).toHaveBeenCalledExactlyOnceWith(latest);
+    rerender(<LandingScreen {...p} busy />);
+    expect(menu.getByRole("button", { name: "Continue game" })).toBeDisabled();
+    rerender(<LandingScreen {...p} eras={[]} />);
+    expect(menu.getByRole("button", { name: "Continue game" })).toBeDisabled();
+  });
+
   it("waits for local engine readiness before accepting a saved-game Continue tap", async () => {
     const user = userEvent.setup();
     const onLoad = vi.fn();

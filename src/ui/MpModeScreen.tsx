@@ -548,6 +548,9 @@ export function MpModeScreen({ host, onAsk, askContent, onExit, preferences, onP
     window.location.hash = next;
     requestAnimationFrame(() => {
       const target = document.getElementById(next);
+      // The player may have already entered a field before this paint. Keep
+      // their chosen focus, and ignore a destination they have since left.
+      if (!target || target.hidden || target.contains(document.activeElement)) return;
       target?.focus({ preventScroll: true });
       target?.scrollIntoView?.({ block: "start" });
     });

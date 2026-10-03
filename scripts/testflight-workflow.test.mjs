@@ -82,6 +82,19 @@ describe("ios-private-testflight workflow", () => {
     );
   });
 
+  it("repairs the Mac image certificate package before Tauri installs iOS tools", () => {
+    const init = WORKFLOW.indexOf("npm run tauri -- ios init");
+    const repair = WORKFLOW.indexOf("brew reinstall ca-certificates");
+    assert.ok(repair >= 0 && repair < init, "repair must precede iOS initialization");
+    for (const setting of [
+      "HOMEBREW_NO_AUTO_UPDATE=1",
+      "HOMEBREW_NO_INSTALL_CLEANUP=1",
+      "HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1",
+    ]) {
+      assert.ok(WORKFLOW.includes(setting), `bootstrap must set ${setting}`);
+    }
+  });
+
   it("references app-scoped encrypted signing inputs without embedding values", () => {
     assert.ok(
       WORKFLOW.includes("ahdnative-signing"),

@@ -7,8 +7,9 @@ import { PARTY_LEADERSHIP_TENURE_TURNS } from "../intraparty/leadershipTenure.js
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
 
 /** Real party-chair nomination and chamber appointment before career bills.
- * Only the existing chair ballot's closing calendar is shortened. Authority,
- * votes, appointment's 24-turn window and save continuation use public paths. */
+ * The existing chair ballot and 24-turn PM vote both keep their authored
+ * deadlines. The player receives 100 AP as a test resource fixture; authority,
+ * votes and save continuation use the public action and turn paths. */
 export function earnCareerGovernment(world: WorldState, catalogId: string): WorldState {
   const countryId = world.player.countryId;
   const partyId = world.player.partyId!;
@@ -23,8 +24,9 @@ export function earnCareerGovernment(world: WorldState, catalogId: string): Worl
   expect(chair).toBeDefined();
   expect(executeAction(world, "player", "contestPartyLeadership", { intrapartyElectionId: chair!.id }).ok).toBe(true);
   expect(executeAction(world, "player", "votePartyLeadership", { intrapartyElectionId: chair!.id, candidateId: "player" }).ok).toBe(true);
-  chair!.endTurn = world.meta.turn + 1;
-  advanceTurn(world);
+  // Let the source-authored chair ballot close on its real calendar. Do not
+  // edit the election's end turn to accelerate this prerequisite.
+  while (world.meta.turn <= chair!.endTurn) advanceTurn(world);
   expect(world.parties[partyId]!.chairId).toBe("player");
   expect(executeAction(world, "player", "proposePmAppointment")).toMatchObject({ ok: true });
   const vote = world.pmAppointmentVotes.at(-1)!;

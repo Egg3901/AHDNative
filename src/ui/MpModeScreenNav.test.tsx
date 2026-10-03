@@ -219,16 +219,32 @@ describe("MP footer shared-system parity", () => {
 });
 
 it("keeps the multiplayer shell and mail draft through an embedded Ask visit", async () => {
+  const navigationFrames: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    navigationFrames.push(callback);
+    return navigationFrames.length;
+  });
+  const finishNavigation = () => {
+    navigationFrames.splice(0).forEach((callback) => callback(performance.now()));
+  };
   const user = userEvent.setup();
   render(<MpModeScreen host={readyHost()} onExit={() => {}} askContent={<p>Ask conversation</p>} />);
   await screen.findByRole("heading", { name: "Ada" });
   await user.click(screen.getByRole("button", { name: "Menu" }));
   await user.click(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("button", { name: "Mail" }));
-  await user.type(screen.getByPlaceholderText("Subject"), "Keep this draft");
+  const subject = screen.getByPlaceholderText("Subject");
+  await user.type(subject, "K");
+  // A player can begin typing before the destination's next paint. Delayed
+  // navigation must leave focus in the compose field they have chosen.
+  finishNavigation();
+  await user.type(subject, "eep this draft", { skipClick: true });
+  expect(subject).toHaveValue("Keep this draft");
   await user.click(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Ask" }));
+  finishNavigation();
   expect(screen.getByText("Ask conversation")).toBeVisible();
   expect(screen.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Menu" }));
   await user.click(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("button", { name: "Mail" }));
+  finishNavigation();
   expect(screen.getByPlaceholderText("Subject")).toHaveValue("Keep this draft");
 });

@@ -18,6 +18,26 @@ for (const size of [
     const action = await page.getByRole('button', { name: 'New game', exact: true }).boundingBox();
     expect(action && action.y + action.height <= size.height).toBeTruthy();
     await page.screenshot({ path: `artifacts/smoke/landing-${size.name}.png`, fullPage: true });
+    if (size.width === 320) {
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+      const titleLines = await page.locator('.ahd-landing-title > span').evaluateAll(spans => spans.map(span => {
+        const range = document.createRange();
+        range.selectNodeContents(span);
+        return range.getClientRects().length;
+      }));
+      expect(titleLines, 'the game title keeps whole words at 200% text size').toEqual([1, 1]);
+      const multiplayerWordLines = await page.getByRole('button', { name: 'Enter multiplayer', exact: true }).evaluate(button => {
+        const text = button.querySelector('span')!.firstChild!;
+        const range = document.createRange();
+        range.setStart(text, 'Enter '.length);
+        range.setEnd(text, 'Enter multiplayer'.length);
+        return range.getClientRects().length;
+      });
+      expect(multiplayerWordLines, 'menu padding leaves room for whole action words').toBe(1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: 'artifacts/smoke/landing-320-large-text.png', fullPage: true });
+      await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+    }
     await page.getByRole('button', { name: 'New game', exact: true }).click();
     await expect(page.getByLabel('Your name')).toBeVisible();
     await expect(page.locator('.ahd-landing-globe canvas')).toHaveCount(0);

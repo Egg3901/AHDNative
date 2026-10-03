@@ -447,17 +447,19 @@ function executeActionInner(
   // These source commands are recorded in parliamentary state, not charged
   // through generic action points or action counters.
   if (actionId === "proposePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a head of government." };
+    const title = pmAppointmentExecutiveTitle(world.player.countryId) ?? "head of government";
+    if (found.kind !== "player") return { ok: false, error: `Only the player can nominate a ${title}.` };
     const result = proposePmAppointment(world);
     return result.ok
-      ? { ok: true, message: `Opened ${pmAppointmentExecutiveTitle(result.vote.countryId)} appointment vote ${result.vote.id}.` }
+      ? { ok: true, message: `Opened ${title} appointment vote ${result.vote.id}.` }
       : { ok: false, error: result.error };
   }
   if (actionId === "votePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a government appointment." };
+    const title = pmAppointmentExecutiveTitle(world.player.countryId) ?? "head of government";
+    if (found.kind !== "player") return { ok: false, error: `Only the player can vote on a ${title} appointment.` };
     const result = castPmAppointmentVote(world, params.pmAppointmentVoteId ?? "", params.pmVote ?? "aye");
     return result.ok
-      ? { ok: true, message: `Recorded ${params.pmVote} on ${pmAppointmentExecutiveTitle(result.vote.countryId)} appointment ${params.pmAppointmentVoteId}.` }
+      ? { ok: true, message: `Recorded ${params.pmVote} on ${title} appointment ${params.pmAppointmentVoteId}.` }
       : { ok: false, error: result.error };
   }
   if (actionId === "proposePartyMerger") {
