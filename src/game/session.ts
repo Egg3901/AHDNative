@@ -28,7 +28,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
+  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, quoteForexTrade, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   isCorpStateOwned, privateEnterprisePermittedInCountry,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -447,6 +447,10 @@ export class GameSession {
    * headroom rule the command enforces, so it can never disagree.
    */
   interbankQuote(lenderCorpId: string) { return quoteInterbankMax(this.requireWorld(), lenderCorpId); }
+
+  forexQuote(fromCurrency: string, toCurrency: string, amount: number) {
+    return quoteForexTrade(this.requireWorld(), fromCurrency, toCurrency, amount);
+  }
 
   setBankRates(corpId: string, depositOffset: number, lendingOffset: number) {
     const candidate = structuredClone(this.requireWorld());

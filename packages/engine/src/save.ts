@@ -3917,6 +3917,11 @@ export function deserializeSave(raw: string): WorldState {
     if (typeof statehood.startingPreset !== "string") statehood.startingPreset = inferredPreset;
     save.world.statehood = statehood as NonNullable<typeof save.world.statehood>;
   }
+  // v66: player FX execution stamps trade notional for the source size-fee
+  // lookback and keeps exact trade flow for breadth/pressure. Older saves
+  // have no reconstructable trade history: keep the field absent rather than
+  // inferring trades from balances or exchange-rate snapshots.
+  if (save.schemaVersion < 66) save.world.meta.schemaVersion = 66;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -4179,6 +4184,30 @@ export function deserializeSave(raw: string): WorldState {
   // no version renumber is needed.
   if (save.world.alignments !== undefined) {
     validateAlignmentRecords(save.world.alignments);
+  }
+  if (save.world.forexTradeHistory !== undefined) {
+    if (!Array.isArray(save.world.forexTradeHistory)) throw new Error("Not a valid save file: invalid forex trade history");
+    const seenForexTradeIds = new Set<string>();
+    for (const trade of save.world.forexTradeHistory) {
+      if (
+        !isRecord(trade) || typeof trade.id !== "string" || trade.id.length === 0 || seenForexTradeIds.has(trade.id) ||
+        !Number.isSafeInteger(trade.turn) || trade.turn < 0 || trade.turn > save.world.meta.turn ||
+        typeof trade.traderId !== "string" || trade.traderId.length === 0 ||
+        typeof trade.fromCurrency !== "string" || trade.fromCurrency.length === 0 ||
+        typeof trade.toCurrency !== "string" || trade.toCurrency.length === 0 || trade.fromCurrency === trade.toCurrency ||
+        !Number.isFinite(trade.amount) || trade.amount <= 0 ||
+        !Number.isFinite(trade.anchorAmount) || trade.anchorAmount <= 0 ||
+        !Number.isFinite(trade.spread) || trade.spread < 0 || trade.spread > trade.amount ||
+        trade.source !== "manual"
+      ) throw new Error("Not a valid save file: invalid forex trade history row");
+      seenForexTradeIds.add(trade.id);
+    }
+  }
+  for (const exchangeRate of Object.values(save.world.exchangeRates)) {
+    if (
+      exchangeRate.buyVolume24 !== undefined && (!Number.isFinite(exchangeRate.buyVolume24) || exchangeRate.buyVolume24 < 0) ||
+      exchangeRate.sellVolume24 !== undefined && (!Number.isFinite(exchangeRate.sellVolume24) || exchangeRate.sellVolume24 < 0)
+    ) throw new Error("Not a valid save file: invalid forex volume snapshot");
   }
   return save.world;
 }

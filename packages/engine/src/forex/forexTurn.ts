@@ -1,9 +1,11 @@
 /**
  * Forex turn phase — W4 port of src/lib/turn/forexTurn.ts processForexTurn.
  *
- * Solo is a pure in-memory phase: no DB, no volumes, no tradeHistory.
- * Reads: centralBanks primeRate, countries economy (inflation/growth), exchangeRates current.
- * Writes: exchangeRates updated rates + history.
+ * Solo is a pure in-memory phase: it derives the last source-sized FX trade
+ * window from persisted player trade witnesses instead of database tradeHistory.
+ * Reads: centralBanks primeRate, countries economy (inflation/growth), current
+ * exchangeRates and persisted FX trade history. Writes: updated rates/history
+ * and the gross traded-volume snapshot used by the next quote.
  *
  * Era awareness: initial peg from INITIAL_RATES_1953 (preset-keyed), Bretton
  * Woods peg regime for 1953 (managed peg vs float), rate evolution from
@@ -24,6 +26,7 @@ import {
 import { clampToRegimeBand, driftMultiplierForRegime, regimeForEra, shouldHoldPeg } from "./regime.js";
 import { computeRateUpdate } from "./rateCalculation.js";
 import type { ExchangeRate } from "./types.js";
+import { currencyVolumesForLookback } from "./trade.js";
 
 function finiteOr(v: unknown, fb: number): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fb;
@@ -33,6 +36,7 @@ export function forexTurnPhase(world: WorldState, rng: WorldRng): void {
   const era = world.meta.era ?? "1953";
   const regime = regimeForEra(era);
   const driftMult = driftMultiplierForRegime(regime);
+  const volumeByCurrency = currencyVolumesForLookback(world);
 
   for (const [countryId, ex] of Object.entries(world.exchangeRates ?? {})) {
     const country = world.countries[countryId];
@@ -41,6 +45,9 @@ export function forexTurnPhase(world: WorldState, rng: WorldRng): void {
 
     const baseRate = finiteOr((ex as ExchangeRate).baseRate, INITIAL_RATES_1953[countryId] ?? 1);
     let currentRate = finiteOr((ex as ExchangeRate).rate, baseRate);
+    const volumes = volumeByCurrency[(ex as ExchangeRate).currencyCode] ?? { buyVolume24: 0, sellVolume24: 0 };
+    (ex as ExchangeRate).buyVolume24 = finiteOr(volumes.buyVolume24, 0);
+    (ex as ExchangeRate).sellVolume24 = finiteOr(volumes.sellVolume24, 0);
 
     // Hard peg short-circuit: command-economy & 1953 Bretton Woods peg holds par
     // Do NOT drift — the rate is the parity. This mirrors mainline's
@@ -79,7 +86,7 @@ export function forexTurnPhase(world: WorldState, rng: WorldRng): void {
     // Deterministic noise in [-RATE_NOISE_MAX, +RATE_NOISE_MAX] via WorldRng
     const unit = rng.next() * 2 - 1; // rng.next() in [0,1)
     const noise = unit * RATE_NOISE_MAX;
-    const { rate: drifted, macroTarget } = computeRateUpdate(currentRate, baseRate, countryId, macro, noise, era, driftMult);
+    const { rate: drifted, macroTarget } = computeRateUpdate(currentRate, baseRate, countryId, macro, noise, era, driftMult, volumes);
     const clamped = clampToRegimeBand(drifted, baseRate, regime);
     (ex as ExchangeRate).rate = clamped;
     (ex as ExchangeRate).macroTarget = macroTarget;

@@ -90,6 +90,7 @@ import { resignUkCommonsSeat, validateUkCommonsDefection, vacatePlayerCommonsSea
 import { declareUkCommonsRecall, signUkCommonsRecallPetition } from "../elections/ukCommonsRecall.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 import { castPartyMergerVote, proposePartyMerger } from "../party/mergerProposals.js";
+import { executeForexTrade } from "../forex/trade.js";
 
 export type ExecuteActionParams = {
   /** Player preference for automatic re-entry in the most recent state race. */
@@ -100,6 +101,8 @@ export type ExecuteActionParams = {
   /** Source canvassing batch size, 1 through 50. */
   count?: number;
   amount?: number; // for convertCash
+  fromCurrency?: string;
+  toCurrency?: string;
   corporationName?: string;
   tickerSymbol?: string;
   sectorType?: CorporationType;
@@ -443,6 +446,17 @@ function executeActionInner(
   // Cooldown check
   const readyAt = actor.actionCooldowns[actionId] ?? 0;
   if (turn < readyAt) return { ok: false, error: `Action ${actionId} on cooldown until turn ${readyAt}` };
+
+  if (actionId === "exchangeCurrency") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can exchange personal currency" };
+    if (!params.fromCurrency || !params.toCurrency || params.amount === undefined) {
+      return { ok: false, error: "exchangeCurrency requires fromCurrency, toCurrency, and amount" };
+    }
+    const result = executeForexTrade(world, params.fromCurrency, params.toCurrency, params.amount);
+    return result.ok
+      ? { ok: true, message: `Exchanged ${result.quote.fromAmount} ${result.quote.fromCurrency} for ${result.quote.toAmount} ${result.quote.toCurrency} at a ${(result.quote.feeRate * 100).toFixed(2)}% fee.` }
+      : { ok: false, error: result.error };
+  }
 
   // These source commands are recorded in parliamentary state, not charged
   // through generic action points or action counters.
@@ -2728,6 +2742,9 @@ function executeActionInner(
 
 function validateRequiredActionParams(actionId: string, params: ExecuteActionParams): string | null {
   switch (actionId) {
+    case "exchangeCurrency":
+      return params.fromCurrency && params.toCurrency && params.amount !== undefined
+        ? null : "exchangeCurrency requires fromCurrency, toCurrency, and amount";
     case "foundCorporation":
       return params.corporationName && params.tickerSymbol && params.sectorType
         ? null : "foundCorporation requires corporationName, tickerSymbol, and sectorType";
