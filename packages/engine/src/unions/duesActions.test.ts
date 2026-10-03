@@ -5,6 +5,7 @@ import { averageAnnualWage, duesIncomePerTurn, maxDuesForWage, unionMembers } fr
 import { setUnionDuesAction } from "./duesActions.js";
 import { setUnionPoliticalContributionsAction } from "./contributionActions.js";
 import { unionsTurnPhase } from "./phases.js";
+import { FIRST_CHOICE_RNG } from "./testRng.js";
 
 describe("player union dues action", () => {
   it("requires the seated president and clamps dues to ten percent of represented wages", () => {
@@ -33,7 +34,7 @@ describe("player union dues action", () => {
     if (!configured.ok) throw new Error(configured.reason);
     const expectedIncome = duesIncomePerTurn(unionMembers(sectors), rate);
     const before = union.treasury;
-    unionsTurnPhase.run(world);
+    unionsTurnPhase.run(world, FIRST_CHOICE_RNG);
     expect(union.treasury).toBeCloseTo(before + expectedIncome, 2);
     expect(union.duesPerWorkerAnnual).toBe(rate);
   });

@@ -5,6 +5,7 @@ import { calculateSectorWorkers, corporateSectorAssets } from "../corporation/co
 import { GAME_DAYS_PER_YEAR } from "./services.js";
 import { unionMembers } from "./dues.js";
 import { unionsTurnPhase } from "./phases.js";
+import { FIRST_CHOICE_RNG } from "./testRng.js";
 import {
   adoptUnrepresentedSectors,
   annualWageForCountry,
@@ -147,7 +148,7 @@ describe("#320 deterministic sector-worker aggregation", () => {
     const union = empty.unions["US-manufacturing"]!;
     union.duesPerWorkerAnnual = 5;
     expect(unionMembers(representedSectorsForUnion(empty, union))).toBe(0);
-    const rng = { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! };
+    const rng = FIRST_CHOICE_RNG;
     const treasuryBefore = union.treasury;
     unionsTurnPhase.run(empty, rng);
     expect(union.treasury).toBe(treasuryBefore);
