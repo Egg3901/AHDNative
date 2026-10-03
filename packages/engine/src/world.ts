@@ -1425,7 +1425,14 @@ function seedSupport(
     for (const sourceRegion of entry.regions) {
       const id = sourceRegion.id;
       const countryId = entry.countryId;
-      regions[id] = { id, countryId, name: sourceRegion.name, houseSeats: sourceRegion.seats };
+      regions[id] = {
+        id,
+        countryId,
+        name: sourceRegion.name,
+        population: sourceRegion.population,
+        gdp: sourceRegion.gdp,
+        houseSeats: sourceRegion.seats,
+      };
       regionTurnouts[id] = { regionId: id, countryId, modifiers: {}, lastDecayAppliedTurn: 0 };
       const key = `${id}:${entry.party.id}`;
       partyRegions[key] = {
@@ -1631,7 +1638,7 @@ function worldSeedDate(startDate: string): string {
 }
 
 function seedDemographics(
-  pack: { era: { id: string } },
+  pack: { era: { id: string }; backgroundElections?: BackgroundElectionSeed[] },
   regions: WorldState["regions"],
   _startDate: string,
 ): {
@@ -1644,6 +1651,16 @@ function seedDemographics(
   const demographicCategories: WorldState["demographicCategories"] = {};
   for (const [cid, list] of Object.entries(CATEGORIES_BY_COUNTRY_1953)) {
     demographicCategories[cid] = list.map((c) => ({ ...c, groups: c.groups.map((g) => ({ ...g })) }));
+  }
+  const backgroundDemographics = new Map<string, BackgroundElectionSeed["regions"][number]>();
+  for (const election of pack.backgroundElections ?? []) {
+    demographicCategories[election.countryId] = [{
+      _id: election.demographicCategory.id,
+      name: election.demographicCategory.name,
+      defaultWeight: election.demographicCategory.defaultWeight,
+      groups: election.demographicCategory.groups.map((group) => ({ ...group })),
+    }];
+    for (const sourceRegion of election.regions) backgroundDemographics.set(sourceRegion.id, sourceRegion);
   }
 
   const stateDemographics: WorldState["stateDemographics"] = {};
@@ -1693,8 +1710,19 @@ function seedDemographics(
     const cid = region.countryId;
     const catsFor = (CATEGORIES_BY_COUNTRY_1953[cid] ?? []) as import("./demographics/categories.js").DemographicCategory[];
     let demo: import("./demographics/stateDemographics.js").StateDemographics | null = null;
+    const backgroundSeed = backgroundDemographics.get(rid);
     const seedMap = seedMapsByCountry[cid];
-    if (seedMap?.has(rid)) {
+    if (backgroundSeed) {
+      const groups: Record<string, import("./demographics/stateDemographics.js").StateDemographicGroup> = {};
+      for (const [groupId, group] of Object.entries(backgroundSeed.demographics.groups)) groups[groupId] = { ...group };
+      demo = {
+        _id: rid,
+        countryId: cid,
+        categoryWeights: { ...backgroundSeed.demographics.categoryWeights },
+        groups,
+        lastUpdated: nowIso,
+      };
+    } else if (seedMap?.has(rid)) {
       // Real Layer-1 seed for this (era, country, region), see seedMapsByCountry.
       const seed = seedMap.get(rid)!;
       const groups: Record<string, import("./demographics/stateDemographics.js").StateDemographicGroup> = {};

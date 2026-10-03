@@ -41,12 +41,35 @@ export interface BackgroundElectionSeed {
   /** Source tier: registered beta countries run in Cold War packs; latent union republics need NPP v1. */
   availability: "beta" | "npp-v1";
   party: PartySeed;
+  demographicCategory: {
+    id: string;
+    name: string;
+    defaultWeight: number;
+    groups: Array<{
+      id: string;
+      name: string;
+      defaultEconomicLean: number;
+      defaultSocialLean: number;
+      defaultTurnout: number;
+    }>;
+  };
   electionType: string;
   chamberKey: string;
   chamberName: string;
   cycleAnchor: "ddVolkskammer" | "ruRepublicSoviet";
   cyclePeriodHours: number;
-  regions: Array<{ id: string; name: string; seats: number; partyOrganization: number }>;
+  regions: Array<{
+    id: string;
+    name: string;
+    seats: number;
+    partyOrganization: number;
+    population: number;
+    gdp: number;
+    demographics: {
+      categoryWeights: Record<string, number>;
+      groups: Record<string, { population: number; economicLean: number; socialLean: number; turnout: number }>;
+    };
+  }>;
   /** Source historical office records are represented by weighted holders. */
   initialSeatAllocations?: Array<{ regionId: string; seats: number }>;
 }

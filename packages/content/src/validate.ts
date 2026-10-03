@@ -347,7 +347,7 @@ export function validatePack(pack: SeedPack): void {
     if (typeof row !== "object" || row === null || Array.isArray(row)) {
       throw new Error(`validatePack: backgroundElections[${index}] must be an object`);
     }
-    if (Object.keys(row).some((key) => !["countryId", "name", "availability", "party", "electionType", "chamberKey", "chamberName", "cycleAnchor", "cyclePeriodHours", "regions", "initialSeatAllocations"].includes(key))) {
+    if (Object.keys(row).some((key) => !["countryId", "name", "availability", "party", "demographicCategory", "electionType", "chamberKey", "chamberName", "cycleAnchor", "cyclePeriodHours", "regions", "initialSeatAllocations"].includes(key))) {
       throw new Error(`validatePack: backgroundElections[${index}] contains an unknown field`);
     }
     if (!row.countryId.trim() || !row.name.trim() || !row.chamberKey.trim() || !row.chamberName.trim()) {
@@ -386,6 +386,17 @@ export function validatePack(pack: SeedPack): void {
       throw new Error(`validatePack: duplicate background party id "${party.id}"`);
     }
     backgroundParties.add(party.id);
+    const category = row.demographicCategory;
+    if (!category || !category.id.trim() || !category.name.trim() || !isFiniteNumber(category.defaultWeight) || category.defaultWeight <= 0 || !Array.isArray(category.groups) || category.groups.length === 0) {
+      throw new Error(`validatePack: backgroundElections[${index}].demographicCategory is invalid`);
+    }
+    const categoryGroups = new Set<string>();
+    for (const group of category.groups) {
+      if (!group.id.trim() || !group.name.trim() || categoryGroups.has(group.id) || !isFiniteNumber(group.defaultEconomicLean) || !isFiniteNumber(group.defaultSocialLean) || !isFiniteNumber(group.defaultTurnout) || group.defaultTurnout < 0 || group.defaultTurnout > 100) {
+        throw new Error(`validatePack: backgroundElections[${index}].demographicCategory has an invalid voter group`);
+      }
+      categoryGroups.add(group.id);
+    }
     if (!Array.isArray(row.regions) || row.regions.length === 0) throw new Error(`validatePack: backgroundElections[${index}].regions must not be empty`);
     let totalSeats = 0;
     for (const sourceRegion of row.regions) {
@@ -398,6 +409,25 @@ export function validatePack(pack: SeedPack): void {
       if (!isFiniteNumber(sourceRegion.partyOrganization) || sourceRegion.partyOrganization < 0 || sourceRegion.partyOrganization > 100) {
         throw new Error(`validatePack: background region "${key}" partyOrganization must be in [0,100]`);
       }
+      for (const field of ["population", "gdp"] as const) {
+        if (!Number.isSafeInteger(sourceRegion[field]) || sourceRegion[field] <= 0) {
+          throw new Error(`validatePack: background region "${key}" ${field} must be a positive safe integer`);
+        }
+      }
+      const demographics = sourceRegion.demographics;
+      if (!demographics || typeof demographics.categoryWeights !== "object" || demographics.categoryWeights === null || Array.isArray(demographics.categoryWeights) || typeof demographics.groups !== "object" || demographics.groups === null || Array.isArray(demographics.groups)) {
+        throw new Error(`validatePack: background region "${key}" demographics are invalid`);
+      }
+      const categoryWeight = demographics.categoryWeights[category.id];
+      if (!isFiniteNumber(categoryWeight) || categoryWeight <= 0 || Object.keys(demographics.categoryWeights).some((categoryId) => categoryId !== category.id)) {
+        throw new Error(`validatePack: background region "${key}" category weights do not match its source category`);
+      }
+      const demoGroups = Object.entries(demographics.groups);
+      if (demoGroups.length !== categoryGroups.size || demoGroups.some(([groupId, group]) => !categoryGroups.has(groupId) || !group || !isFiniteNumber(group.population) || group.population <= 0 || !isFiniteNumber(group.economicLean) || !isFiniteNumber(group.socialLean) || !isFiniteNumber(group.turnout) || group.turnout < 0 || group.turnout > 100)) {
+        throw new Error(`validatePack: background region "${key}" voter groups do not match its source category`);
+      }
+      const voterShare = demoGroups.reduce((sum, [, group]) => sum + group.population, 0);
+      if (Math.abs(voterShare - 100) > 0.02) throw new Error(`validatePack: background region "${key}" demographic population must sum to 100`);
       totalSeats += sourceRegion.seats;
     }
     const allocations = row.initialSeatAllocations ?? [];
@@ -411,8 +441,8 @@ export function validatePack(pack: SeedPack): void {
       return sum + allocation.seats;
     }, 0);
     if (allocated > totalSeats) throw new Error(`validatePack: backgroundElections[${index}] allocations exceed chamber seats`);
-    if (allocations.length > 0 && (allocated !== totalSeats || allocations.length !== row.regions.length || row.regions.some((region) => allocations.find((allocation) => allocation.regionId === region.id)?.seats !== region.seats))) {
-      throw new Error(`validatePack: backgroundElections[${index}] historical allocations must fill every authored regional seat`);
+    if (allocations.length > 0 && (allocations.length !== row.regions.length || row.regions.some((region) => !allocations.some((allocation) => allocation.regionId === region.id)))) {
+      throw new Error(`validatePack: backgroundElections[${index}] historical allocations must describe every region`);
     }
   }
 }

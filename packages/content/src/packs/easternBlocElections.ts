@@ -1,8 +1,12 @@
 import type { BackgroundElectionSeed } from "../types.js";
+import {
+  SOURCE_EASTERN_LAYER1_DEMOGRAPHICS,
+  type SourceLayer1RegionDemographics,
+} from "./easternBlocLayer1.js";
 
-type CountryRows = Omit<BackgroundElectionSeed, "initialSeatAllocations" | "regions"> & {
+type CountryRows = Omit<BackgroundElectionSeed, "demographicCategory" | "initialSeatAllocations" | "regions"> & {
   initiallyOccupied: boolean;
-  regions: Array<Omit<BackgroundElectionSeed["regions"][number], "partyOrganization">>;
+  regions: Array<{ id: string; name: string; seats: number }>;
 };
 
 const party = (
@@ -100,12 +104,170 @@ const UNION_REPUBLICS: CountryRows[] = [
   },
 ];
 
-function materialize(rows: CountryRows[], organization: Record<string, number>): BackgroundElectionSeed[] {
+type SourceRegion = { seats: number; population: number; gdp: number };
+
+const SOURCE_REGIONS_1953: Record<string, SourceRegion> = {
+  PL_MAZ: { seats: 65, population: 3600000, gdp: 17000 },
+  PL_LOD: { seats: 54, population: 3000000, gdp: 14000 },
+  PL_MAL: { seats: 65, population: 3600000, gdp: 15000 },
+  PL_SLK: { seats: 70, population: 3900000, gdp: 26000 },
+  PL_DSL: { seats: 45, population: 2500000, gdp: 14000 },
+  PL_WLK: { seats: 67, population: 3700000, gdp: 15000 },
+  PL_POM: { seats: 51, population: 2800000, gdp: 12000 },
+  PL_EAS: { seats: 43, population: 2400000, gdp: 7000 },
+  CS_PRG: { seats: 15, population: 950000, gdp: 6000 },
+  CS_BOH: { seats: 75, population: 4650000, gdp: 26000 },
+  CS_MOR: { seats: 53, population: 3300000, gdp: 18000 },
+  CS_SVK: { seats: 57, population: 3500000, gdp: 15000 },
+  HU_BUD: { seats: 61, population: 1650000, gdp: 12000 },
+  HU_PES: { seats: 32, population: 850000, gdp: 3000 },
+  HU_TRW: { seats: 69, population: 1850000, gdp: 9000 },
+  HU_TRS: { seats: 35, population: 950000, gdp: 4000 },
+  HU_NOR: { seats: 46, population: 1250000, gdp: 7000 },
+  HU_ALF: { seats: 109, population: 2950000, gdp: 8000 },
+  RO_BUC: { seats: 29, population: 1300000, gdp: 7000 },
+  RO_MUN: { seats: 82, population: 3700000, gdp: 8000 },
+  RO_OLT: { seats: 42, population: 1900000, gdp: 4000 },
+  RO_TRA: { seats: 78, population: 3500000, gdp: 10000 },
+  RO_VST: { seats: 53, population: 2400000, gdp: 6000 },
+  RO_MOL: { seats: 71, population: 3200000, gdp: 4000 },
+  RO_DOB: { seats: 14, population: 600000, gdp: 1000 },
+  BG_SOF: { seats: 52, population: 950000, gdp: 8000 },
+  BG_NOR: { seats: 143, population: 2600000, gdp: 10000 },
+  BG_COA: { seats: 55, population: 1000000, gdp: 4000 },
+  BG_THR: { seats: 118, population: 2150000, gdp: 6000 },
+  BG_SW: { seats: 32, population: 600000, gdp: 2000 },
+  YU_SLO: { seats: 26, population: 1500000, gdp: 270000 },
+  YU_CRO: { seats: 63, population: 3900000, gdp: 450000 },
+  YU_BIH: { seats: 57, population: 2850000, gdp: 252000 },
+  YU_SRB: { seats: 79, population: 4450000, gdp: 468000 },
+  YU_VOJ: { seats: 28, population: 1700000, gdp: 198000 },
+  YU_KOS: { seats: 21, population: 800000, gdp: 36000 },
+  YU_MNE: { seats: 8, population: 400000, gdp: 36000 },
+  YU_MKD: { seats: 26, population: 1300000, gdp: 90000 },
+  UKR_KYI: { seats: 85, population: 8000000, gdp: 55000 },
+  UKR_WES: { seats: 90, population: 8500000, gdp: 32667 },
+  UKR_POD: { seats: 37, population: 3500000, gdp: 19000 },
+  UKR_DON: { seats: 64, population: 6000000, gdp: 65000 },
+  UKR_DNI: { seats: 106, population: 10000000, gdp: 85000 },
+  UKR_SOU: { seats: 53, population: 5000000, gdp: 35000 },
+  BLR_MIN: { seats: 89, population: 1900000, gdp: 16000 },
+  BLR_HOM: { seats: 66, population: 1400000, gdp: 8500 },
+  BLR_VIT: { seats: 61, population: 1300000, gdp: 8000 },
+  BLR_MOG: { seats: 56, population: 1200000, gdp: 7500 },
+  BLR_BRE: { seats: 51, population: 1100000, gdp: 5500 },
+  BLR_GRO: { seats: 37, population: 800000, gdp: 4500 },
+  BAL_LTU: { seats: 129, population: 1250000, gdp: 10667 },
+  BAL_LVA: { seats: 104, population: 1000000, gdp: 11500 },
+  BAL_EST: { seats: 67, population: 650000, gdp: 7000 },
+};
+
+const SOURCE_REGIONS_1979: Record<string, SourceRegion> = {
+  PL_MAZ: { seats: 63, population: 4900000, gdp: 480000 },
+  PL_LOD: { seats: 49, population: 3800000, gdp: 320000 },
+  PL_MAL: { seats: 63, population: 4900000, gdp: 380000 },
+  PL_SLK: { seats: 71, population: 5500000, gdp: 620000 },
+  PL_DSL: { seats: 48, population: 3700000, gdp: 340000 },
+  PL_WLK: { seats: 66, population: 5100000, gdp: 400000 },
+  PL_POM: { seats: 57, population: 4400000, gdp: 300000 },
+  PL_EAS: { seats: 43, population: 3200000, gdp: 160000 },
+  CS_PRG: { seats: 16, population: 1200000, gdp: 130000 },
+  CS_BOH: { seats: 68, population: 5200000, gdp: 290000 },
+  CS_MOR: { seats: 51, population: 3900000, gdp: 230000 },
+  CS_SVK: { seats: 65, population: 5000000, gdp: 250000 },
+  HU_BUD: { seats: 68, population: 2060000, gdp: 240000 },
+  HU_PES: { seats: 32, population: 970000, gdp: 55000 },
+  HU_TRW: { seats: 71, population: 2160000, gdp: 165000 },
+  HU_TRS: { seats: 35, population: 1060000, gdp: 70000 },
+  HU_NOR: { seats: 46, population: 1390000, gdp: 110000 },
+  HU_ALF: { seats: 100, population: 3060000, gdp: 160000 },
+  RO_BUC: { seats: 35, population: 2100000, gdp: 130000 },
+  RO_MUN: { seats: 78, population: 4700000, gdp: 150000 },
+  RO_OLT: { seats: 40, population: 2400000, gdp: 75000 },
+  RO_TRA: { seats: 77, population: 4600000, gdp: 190000 },
+  RO_VST: { seats: 50, population: 3000000, gdp: 120000 },
+  RO_MOL: { seats: 74, population: 4400000, gdp: 105000 },
+  RO_DOB: { seats: 15, population: 800000, gdp: 30000 },
+  BG_SOF: { seats: 58, population: 1300000, gdp: 90000 },
+  BG_NOR: { seats: 130, population: 2900000, gdp: 120000 },
+  BG_COA: { seats: 58, population: 1300000, gdp: 70000 },
+  BG_THR: { seats: 118, population: 2600000, gdp: 100000 },
+  BG_SW: { seats: 36, population: 800000, gdp: 20000 },
+  YU_SLO: { seats: 26, population: 1900000, gdp: 234000 },
+  YU_CRO: { seats: 63, population: 4600000, gdp: 362000 },
+  YU_BIH: { seats: 57, population: 4100000, gdp: 178000 },
+  YU_SRB: { seats: 79, population: 5700000, gdp: 341000 },
+  YU_VOJ: { seats: 28, population: 2000000, gdp: 149000 },
+  YU_KOS: { seats: 21, population: 1500000, gdp: 28000 },
+  YU_MNE: { seats: 8, population: 600000, gdp: 28000 },
+  YU_MKD: { seats: 26, population: 1900000, gdp: 100000 },
+  UKR_KYI: { seats: 92, population: 10500000, gdp: 185000 },
+  UKR_WES: { seats: 83, population: 9500000, gdp: 125000 },
+  UKR_POD: { seats: 31, population: 3600000, gdp: 50000 },
+  UKR_DON: { seats: 74, population: 8500000, gdp: 175000 },
+  UKR_DNI: { seats: 101, population: 11500000, gdp: 230000 },
+  UKR_SOU: { seats: 54, population: 6200000, gdp: 110000 },
+  BLR_MIN: { seats: 108, population: 2850000, gdp: 165000 },
+  BLR_HOM: { seats: 62, population: 1650000, gdp: 78000 },
+  BLR_VIT: { seats: 53, population: 1400000, gdp: 66000 },
+  BLR_MOG: { seats: 47, population: 1230000, gdp: 58000 },
+  BLR_BRE: { seats: 51, population: 1350000, gdp: 45000 },
+  BLR_GRO: { seats: 39, population: 1020000, gdp: 38000 },
+  BAL_LTU: { seats: 138, population: 3400000, gdp: 177000 },
+  BAL_LVA: { seats: 101, population: 2500000, gdp: 150000 },
+  BAL_EST: { seats: 61, population: 1500000, gdp: 93000 },
+};
+
+const CATEGORY_ID_BY_COUNTRY: Record<string, string> = {
+  PL: "pl_voterGroups", CS: "cs_voterGroups", HU: "hu_voterGroups", RO: "ro_voterGroups",
+  BG: "bg_voterGroups", YU: "yu_voterGroups", UKR: "ua_voterGroups", BLR: "blr_voterGroups", BAL: "bal_voterGroups",
+};
+const CATEGORY_NAME_BY_COUNTRY: Record<string, string> = {
+  PL: "Poland Voter Groups", CS: "Czechoslovakia Voter Groups", HU: "Hungary Voter Groups",
+  RO: "Romania Voter Groups", BG: "Bulgaria Voter Groups", YU: "Yugoslavia Voter Groups",
+  UKR: "Ukraine Voter Groups", BLR: "Belarus Voter Groups", BAL: "Baltics Voter Groups",
+};
+const EASTERN_BLOC_GROUPS = [
+  { id: "party_nomenklatura", name: "Party Nomenklatura", defaultEconomicLean: -3, defaultSocialLean: 2 },
+  { id: "industrial_worker", name: "Industrial Worker", defaultEconomicLean: -3, defaultSocialLean: 0 },
+  { id: "collective_farmer", name: "Collective Farmer", defaultEconomicLean: -2, defaultSocialLean: 2 },
+  { id: "intelligentsia", name: "Technical Intelligentsia", defaultEconomicLean: 0, defaultSocialLean: -2 },
+  { id: "religious_traditional", name: "Religious / Traditional", defaultEconomicLean: -1, defaultSocialLean: 3 },
+  { id: "youth", name: "Youth", defaultEconomicLean: -1, defaultSocialLean: -1 },
+].map((group) => ({ ...group, defaultTurnout: 94 }));
+
+function layer1ByRegion(era: "1953" | "1979"): Record<string, SourceLayer1RegionDemographics> {
+  return Object.fromEntries(
+    Object.entries(SOURCE_EASTERN_LAYER1_DEMOGRAPHICS)
+      .filter(([key]) => key.startsWith(`${era}:`))
+      .flatMap(([, regions]) => regions.map((region) => [region._id, region])),
+  );
+}
+
+function materialize(
+  rows: CountryRows[],
+  organization: Record<string, number>,
+  sourceRegions: Record<string, SourceRegion>,
+  sourceDemographics: Record<string, SourceLayer1RegionDemographics>,
+): BackgroundElectionSeed[] {
   return rows.map(({ initiallyOccupied, ...row }) => ({
     ...row,
+    demographicCategory: {
+      id: CATEGORY_ID_BY_COUNTRY[row.countryId]!,
+      name: CATEGORY_NAME_BY_COUNTRY[row.countryId]!,
+      defaultWeight: 100,
+      groups: EASTERN_BLOC_GROUPS,
+    },
     regions: row.regions.map((entry) => ({
       ...entry,
+      seats: sourceRegions[entry.id]!.seats,
+      population: sourceRegions[entry.id]!.population,
+      gdp: sourceRegions[entry.id]!.gdp,
       partyOrganization: organization[entry.id]!,
+      demographics: {
+        categoryWeights: sourceDemographics[entry.id]!.categoryWeights,
+        groups: sourceDemographics[entry.id]!.groups,
+      },
     })),
     ...(initiallyOccupied
       ? { initialSeatAllocations: row.regions.map(({ id, seats }) => ({ regionId: id, seats })) }
@@ -115,16 +277,18 @@ function materialize(rows: CountryRows[], organization: Record<string, number>):
 
 /**
  * Source: AHDGame immutable 093daeae41b152c61bb22ad352054ff8cd5cef2a,
- * `src/lib/constants/historicalSeats.ts` BLOC_CHAMBERS_1953/1979 and
- * `src/lib/countries/{pl,cs,hu,ro,bg,yu,ukr,blr,bal}/data/*Regions1953.ts`.
- * Both historical presets seat the six satellite rosters; an explicit
- * pre-iteration/founding reset leaves them vacant. Union republics are latent
- * and first poll on the RU-republic 1955/1980 anchor.
+ * `src/lib/constants/historicalSeats.ts` BLOC_CHAMBERS_* supplies initial
+ * weighted officeholders, while country-region data files supply
+ * `houseDistricts`, `population`, and `gdp` supplies current electoral-region
+ * capacity and regional economic inputs. These are intentionally separate:
+ * 1953 historical office totals are below chamber capacity. The source
+ * regional StatePartyOrg table supplies org/registration (equal values).
+ * Union republics are latent and first poll on the RU-republic 1955/1980 anchor.
  */
 export const EASTERN_BLOC_ELECTIONS_1953 = materialize([
   ...SATELLITE_1953,
   ...UNION_REPUBLICS,
-], ORG_1953);
+], ORG_1953, SOURCE_REGIONS_1953, layer1ByRegion("1953"));
 
 const SEATS_1979: Record<string, Record<string, number>> = {
   HU: { HU_BUD: 68, HU_PES: 32, HU_TRW: 71, HU_TRS: 35, HU_NOR: 46, HU_ALF: 100 },
@@ -148,7 +312,7 @@ export const EASTERN_BLOC_ELECTIONS_1979 = materialize([
     })),
     party:
       row.countryId === "HU"
-        ? party("HU_MSZMP", "HU", "Magyar Szocialista Munkáspárt", "MSZMP", -4, 2)
+        ? party("HU_MSZMP", "HU", "Magyar Szocialista Munkáspárt", "MSZMP", -3, 1)
         : row.countryId === "RO"
           ? party("RO_PCR", "RO", "Partidul Comunist Român", "PCR", -4, 3)
           : row.party,
@@ -158,4 +322,4 @@ export const EASTERN_BLOC_ELECTIONS_1979 = materialize([
     initiallyOccupied: false,
     regions: row.regions.map((entry) => ({ ...entry })),
   })),
-], ORG_1979);
+], ORG_1979, SOURCE_REGIONS_1979, layer1ByRegion("1979"));

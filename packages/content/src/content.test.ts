@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PACKS, pack1953 } from "./packs/index.js";
+import { PACKS, pack1953, pack1979 } from "./packs/index.js";
 import { validatePack } from "./validate.js";
 import type { SeedPack } from "./types.js";
 
@@ -51,13 +51,25 @@ describe("validatePack", () => {
 
   it("validates Eastern Bloc background source calendars and historical weighted allocations", () => {
     expect(() => validatePack(pack1953)).not.toThrow();
+    const hungarian1953 = pack1953.backgroundElections!.find((row) => row.countryId === "HU")!.party;
+    expect([hungarian1953.name, hungarian1953.abbreviation, hungarian1953.economicPosition, hungarian1953.socialPosition]).toEqual([
+      "Magyar Dolgozók Pártja", "MDP", -4, 2,
+    ]);
+    const hungarian1979 = pack1979.backgroundElections!.find((row) => row.countryId === "HU")!.party;
+    expect([hungarian1979.name, hungarian1979.abbreviation, hungarian1979.economicPosition, hungarian1979.socialPosition]).toEqual([
+      "Magyar Szocialista Munkáspárt", "MSZMP", -3, 1,
+    ]);
     const invalid = structuredClone(pack1953) as SeedPack;
-    invalid.backgroundElections![0]!.initialSeatAllocations![0]!.seats -= 1;
-    expect(() => validatePack(invalid)).toThrow(/historical allocations must fill/);
+    invalid.backgroundElections![0]!.initialSeatAllocations![0]!.seats = Number.MAX_SAFE_INTEGER;
+    expect(() => validatePack(invalid)).toThrow(/invalid initial seat allocation/);
 
     const selectable = structuredClone(pack1953) as SeedPack;
     selectable.countries.find((country) => country.id === "PL")!.playable = true;
     expect(() => validatePack(selectable)).toThrow(/selectable country/);
+
+    const missingSourceGroups = structuredClone(pack1953) as SeedPack;
+    missingSourceGroups.backgroundElections![0]!.regions[0]!.demographics.groups = {};
+    expect(() => validatePack(missingSourceGroups)).toThrow(/voter groups do not match/);
   });
 
   it("rejects invalid packVersion", () => {
