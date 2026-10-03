@@ -3,6 +3,13 @@ import { sourceUsLayer1ForYear, supportsSourceUsStartingYear } from "./sourceUsL
 import { sourceCampaignUnits1953, sourceCampaignUnitsForYear } from "./sourceCampaignElectorate.js";
 import { createWorld } from "../world.js";
 import { campaignCellsForRegion, hasSource1953DemographicShape, hasSourceYearDemographicShape } from "./targetedAds.js";
+import { executeAction } from "../actions/execute.js";
+import { quoteTargetedAds } from "../actions/campaignTargetedAd.js";
+import { deserializeSave, serializeSave } from "../save.js";
+import { realAccumulate } from "../elections/tallyAdapter.js";
+import { rngFromSeed } from "../rng.js";
+import { ensureCampaignsForElection } from "./lifecycle.js";
+import type { ElectionRecord } from "../elections/types.js";
 
 describe("current-source US annual Layer-1 substrate", () => {
   it("matches independently captured source vectors across starting eras and interpolation years", () => {
@@ -47,5 +54,43 @@ describe("current-source US annual Layer-1 substrate", () => {
     expect(hasSourceYearDemographicShape(world, "NY")).toBe(false);
     expect(hasSource1953DemographicShape(world, "NY")).toBe(true);
     expect(campaignCellsForRegion(world, "NY")).toEqual(sourceCampaignUnits1953("NY")!.flatMap((unit) => unit.campaignCells));
+  });
+
+  it("carries an ordinary source-year ad purchase through save/reload into the general tally", () => {
+    const world = createWorld({ seed: "source-year-ad-save-tally", playerName: "Player", countryId: "US", era: "1953", homeRegionId: "NY" });
+    world.meta.turn = 48;
+    world.player.actions = 5;
+    world.player.funds = 500;
+    const partyId = Object.values(world.parties).find((party) => party.countryId === "US")!.id;
+    const opponent = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === partyId)!;
+    world.player.partyId = partyId;
+    const race: ElectionRecord = {
+      id: "house:US:NY:source-year-ad-save-tally", electionType: "house", countryId: "US", state: "NY", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 0, endTurn: 90, totalSeats: 1, chamberKey: "house",
+      candidates: [
+        { id: "player", name: world.player.name, partyId, isNPP: false, incumbent: false },
+        { id: opponent.id, name: opponent.name, partyId, isNPP: true, incumbent: true },
+      ],
+      tally: {},
+    };
+    world.elections = [race];
+    ensureCampaignsForElection(world, race);
+    const quote = quoteTargetedAds(world, 3)!;
+    const bought = executeAction(world, "player", "campaignTargetedAd", {
+      electionId: race.id, regionId: "NY", demographicCategory: "race", demographicGroup: "white",
+      count: quote.count, expectedRevision: quote.revision, expectedTurn: quote.turn, expectedCost: quote.cost,
+    });
+    expect(bought.ok).toBe(true);
+
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    expect(loaded.meta.startingYear).toBe(1953);
+    expect(loaded.meta.turn).toBe(48);
+    expect(loaded.player.targetedAds).toEqual(world.player.targetedAds);
+    expect(campaignCellsForRegion(loaded, "NY")).toEqual(campaignCellsForRegion(world, "NY"));
+    const snapshots: import("../electionEngine/tally/types.js").VoteDistributionDiagnosticSnapshot[] = [];
+    expect(realAccumulate(loaded, rngFromSeed("source-year-ad-save-tally"), loaded.elections[0]!, undefined, (snapshot) => snapshots.push(snapshot))).toBe(true);
+    expect(snapshots[0]?.categories[0]?._id).toBe("granularCells");
+    const playerInput = snapshots[0]?.candidates.find((candidate) => candidate.candidateId === "player");
+    expect(Object.keys(playerInput?.targetedAdBonuses ?? {}).length).toBeGreaterThan(0);
   });
 });
