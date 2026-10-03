@@ -17,6 +17,7 @@ export default defineConfig({
       "packages/engine/src/intraparty/leadershipAcceptance.test.ts",
       "src/game/jpRegionalAllocation.test.ts",
       "src/game/partyManagement.test.ts",
+      "src/game/partyWhipClock.test.ts",
       "src/ui/CabinetOfficePanel.test.tsx",
       "src/ui/LegislaturePanel.test.tsx",
     ],

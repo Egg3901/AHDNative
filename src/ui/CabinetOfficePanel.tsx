@@ -35,6 +35,7 @@ function effectLabel(metric: string, modifier: number): string {
 }
 
 export function CabinetOfficePanel({ office, busy, notice, onIssue, onSetJPRegionalAllocation, selectedPositionId, onSelectPosition }: CabinetOfficePanelProps) {
+  const jpRegionalAllocation = office.jpRegionalAllocation;
   const positions = office.positions;
   const [localPositionId, setLocalPositionId] = useState(positions[0]?.id ?? "");
   const positionId = selectedPositionId ?? localPositionId;
@@ -42,8 +43,8 @@ export function CabinetOfficePanel({ office, busy, notice, onIssue, onSetJPRegio
   const [orderId, setOrderId] = useState<string | undefined>(undefined);
   const order = position?.orders.find((candidate) => candidate.id === orderId) ?? position?.orders[0];
   const [targetRegionId, setTargetRegionId] = useState(office.regions[0]?.id ?? "");
-  const [allocation, setAllocation] = useState<Record<string, number>>(() => office.jpRegionalAllocation?.percentages ?? {});
-  useEffect(() => setAllocation(office.jpRegionalAllocation?.percentages ?? {}), [office.jpRegionalAllocation]);
+  const [allocation, setAllocation] = useState<Record<string, number>>(() => jpRegionalAllocation?.percentages ?? {});
+  useEffect(() => setAllocation(jpRegionalAllocation?.percentages ?? {}), [jpRegionalAllocation]);
 
   const needsTarget = order?.targetsRegion === true && order.available && !order.alreadyActive;
   const canSubmit = !busy
@@ -83,11 +84,11 @@ export function CabinetOfficePanel({ office, busy, notice, onIssue, onSetJPRegio
         </div>
       ) : null}
 
-      {office.jpRegionalAllocation && onSetJPRegionalAllocation ? (
+      {jpRegionalAllocation && onSetJPRegionalAllocation ? (
         <section className="ahd-card ahd-card-pad" aria-label="Japan regional grant allocation">
           <h2 className="ahd-h2">Regional grant allocation</h2>
           <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
-            Assign the national local-allocation grant across prefectures. Shares must total 100%; the source permits one update per turn.
+            Assign the national local-allocation grant across prefectures. Shares must total 100%. Allocations may be updated once per turn.
           </p>
           {office.regions.map((region) => (
             <label className="ahd-field" key={region.id} style={{ maxWidth: "24rem", marginTop: "0.45rem" }}>
@@ -100,18 +101,18 @@ export function CabinetOfficePanel({ office, busy, notice, onIssue, onSetJPRegio
                 max={100}
                 step={0.1}
                 value={allocation[region.id] ?? 0}
-                disabled={busy || !office.jpRegionalAllocation.canEdit || office.jpRegionalAllocation.lastChangedTurn === office.turn}
+                disabled={busy || !jpRegionalAllocation.canEdit || jpRegionalAllocation.lastChangedTurn === office.turn}
                 onChange={(event) => setAllocation((current) => ({ ...current, [region.id]: Number(event.target.value) }))}
               />
             </label>
           ))}
           <p className="ahd-help" role="note">Total: {Object.values(allocation).reduce((sum, value) => sum + value, 0).toFixed(1)}%</p>
-          {!office.jpRegionalAllocation.canEdit ? <p className="ahd-help" role="note">Only the Internal Affairs Minister can change allocations.</p> : null}
-          {office.jpRegionalAllocation.lastChangedTurn === office.turn ? <p className="ahd-help" role="note">Allocations have already been updated this turn.</p> : null}
+          {!jpRegionalAllocation.canEdit ? <p className="ahd-help" role="note">Only the Internal Affairs Minister can change allocations.</p> : null}
+          {jpRegionalAllocation.lastChangedTurn === office.turn ? <p className="ahd-help" role="note">Allocations have already been updated this turn.</p> : null}
           <button
             type="button"
             className="ahd-btn ahd-btn-primary ahd-btn-sm"
-            disabled={busy || !office.jpRegionalAllocation.canEdit || office.jpRegionalAllocation.lastChangedTurn === office.turn || Math.abs(Object.values(allocation).reduce((sum, value) => sum + value, 0) - 100) > 0.1}
+            disabled={busy || !jpRegionalAllocation.canEdit || jpRegionalAllocation.lastChangedTurn === office.turn || Math.abs(Object.values(allocation).reduce((sum, value) => sum + value, 0) - 100) > 0.1}
             onClick={() => onSetJPRegionalAllocation({ allocationPercents: allocation })}
           >
             Save regional allocations

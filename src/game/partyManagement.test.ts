@@ -1,5 +1,6 @@
 import { GameSession } from "./session";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
@@ -18,7 +19,7 @@ import {
 } from "./partyManagement";
 
 const FRESH = { era: "1953", countryId: "US", seed: "native-party-mgmt-v1", playerName: "Alex" } as const;
-const ELECTED_FIXTURE = new URL("../../fixtures/career-elected-1953-US.save.json.gz", import.meta.url);
+const ELECTED_FIXTURE = join(process.cwd(), "fixtures", "career-elected-1953-US.save.json.gz");
 
 function electedWorld(): WorldState {
   return deserializeSave(gunzipSync(readFileSync(ELECTED_FIXTURE)).toString("utf8"));

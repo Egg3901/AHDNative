@@ -237,7 +237,7 @@ describe("validatePack", () => {
   });
 
   it("ports authored 1953 China economy regions without treating them as political states", () => {
-    const regions = pack1953.economyRegions ?? [];
+    const regions = (pack1953.economyRegions ?? []).filter((region) => region.countryId === "CN");
     expect(pack1953.countries.find((country) => country.id === "CN")?.playable).toBe(false);
     expect(regions.map((region) => region.id)).toEqual(["DB", "HB", "HD", "HZ", "HN", "XN", "XB"]);
     expect(regions.reduce((sum, region) => sum + region.population, 0)).toBe(585_000_000);

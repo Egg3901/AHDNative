@@ -1054,7 +1054,7 @@ function assertCurrentWorldState(world: WorldState): void {
     }
     const shares = Object.values(jpAllocation["allocationPercents"]);
     if (shares.length === 0 || shares.some((share) => typeof share !== "number" || !Number.isFinite(share) || share < 0 || share > 100) ||
-      Math.abs(shares.reduce((sum, share) => sum + (share as number), 0) - 100) > 0.1) {
+      Math.abs(shares.reduce<number>((sum, share) => sum + (share as number), 0) - 100) > 0.1) {
       throw new Error("Not a valid save file: invalid Japan regional allocation shares");
     }
   }
