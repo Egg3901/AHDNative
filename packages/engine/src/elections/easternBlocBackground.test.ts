@@ -97,7 +97,7 @@ describe("source Eastern Bloc background election systems", () => {
     world.meta.turn = race.endTurn - 1;
     advanceTurn(world);
 
-    expect(race.status).toBe("resolved");
+    expect(race.status, JSON.stringify({ turn: world.meta.turn, startTurn: race.startTurn, primaryEndTurn: race.primaryEndTurn, endTurn: race.endTurn, status: race.status, tally: race.tally, candidates: race.candidates, flags: world.featureFlags })).toBe("resolved");
     expect(race.tally).not.toEqual({});
     expect(race.winners?.length).toBeGreaterThan(0);
     const holder = world.politicians.find((politician) => race.winners?.includes(politician.id));
