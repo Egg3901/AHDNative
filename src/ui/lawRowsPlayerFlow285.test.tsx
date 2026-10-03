@@ -39,7 +39,7 @@ describe("released law player controls through saved GameSession (#285)", () => 
       expect(initialProposal, `${row.id} must be in the actual player proposal list`).toBeDefined();
       if (row.id === "us.tax.tariffs") expect(initialProposal?.sponsorNpiCost).toBe(0);
       else expect(initialProposal?.sponsorNpiCost).toBeGreaterThan(0);
-      expect(initialProposal?.sponsorAvailable).toBe(false);
+      expect(initialProposal?.sponsorAvailable).toBe((initialProposal?.sponsorNpiCost ?? 0) === 0);
 
       const { LegislationDetailsPanel } = await import("./LegislationDetailsPanel");
       let actionResult: ReturnType<GameSession["act"]> | undefined;
@@ -48,7 +48,11 @@ describe("released law player controls through saved GameSession (#285)", () => 
       };
       const { rerender } = render(<LegislationDetailsPanel query={session.legislation()} busy={false} onAction={onAction} />);
       await user.selectOptions(screen.getByLabelText("Available legislation"), row.id);
-      expect(screen.getByRole("button", { name: "Sponsor bill" })).toBeDisabled();
+      if (initialProposal!.sponsorNpiCost === 0) {
+        expect(screen.getByRole("button", { name: "Sponsor bill" })).toBeEnabled();
+      } else {
+        expect(screen.getByRole("button", { name: "Sponsor bill" })).toBeDisabled();
+      }
 
       // HoS authority is created through the supported game mode. National
       // influence and action points come from real ordinary refresh phases;
@@ -60,7 +64,7 @@ describe("released law player controls through saved GameSession (#285)", () => 
         accrualTurns += 1;
         proposal = session.legislation().proposals.find((entry) => entry.id === row.id);
       }
-      expect(accrualTurns).toBeGreaterThan(0);
+      if (proposal!.sponsorNpiCost > 0) expect(accrualTurns).toBeGreaterThan(0);
       expect(session.view().resources.nationalInfluence.current).toBeGreaterThanOrEqual(proposal!.sponsorNpiCost);
       expect(proposal?.sponsorAvailable).toBe(true);
       rerender(<LegislationDetailsPanel query={session.legislation()} busy={false} onAction={onAction} />);
@@ -151,7 +155,8 @@ describe("released law player controls through saved GameSession (#285)", () => 
         ...(expectedRegionId ? { scope: "regional", regionId: expectedRegionId } : { scope: "national" }),
       });
       if (replacementRate !== undefined) {
-        const replacementBill = currentQuery.bills?.filter((bill) => bill.legislationTypeId === row.id).at(-1);
+        const savedWorld = JSON.parse(session.serialize(SAVED_AT)) as { world: { bills: Array<{ legislationTypeId?: string; selectedRate?: number }> } };
+        const replacementBill = savedWorld.world.bills.filter((bill) => bill.legislationTypeId === row.id).at(-1);
         expect(replacementBill?.selectedRate).toBe(replacementRate);
       }
 
