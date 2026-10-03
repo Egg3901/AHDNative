@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { GameSession } from "../game/session";
 import type { ExecuteActionParams } from "@ahdclient/engine";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
 import preRosterProvenance from "../../fixtures/pre-roster-country-provenance.json";
@@ -44,7 +45,7 @@ describe("released law player controls through saved GameSession (#285)", () => 
         // These complete schema65 fixtures were produced by the immutable
         // public pre-roster GameSession route; existing games still resume.
         const provenance = preRosterProvenance.fixtures.find((fixture) => fixture.options.countryId === row.countryId)!;
-        const compressed = readFileSync(new URL(`../../fixtures/${provenance.fixture}`, import.meta.url));
+        const compressed = readFileSync(join(process.cwd(), "fixtures", provenance.fixture));
         expect(createHash("sha256").update(compressed).digest("hex")).toBe(provenance.gzipSha256);
         const raw = gunzipSync(compressed).toString("utf8");
         expect(createHash("sha256").update(raw).digest("hex")).toBe(provenance.sha256);
