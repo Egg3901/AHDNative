@@ -1422,7 +1422,14 @@ function seedSupport(
     for (const sourceRegion of entry.regions) {
       const id = sourceRegion.id;
       const countryId = entry.countryId;
-      regions[id] = { id, countryId, name: sourceRegion.name, houseSeats: sourceRegion.seats };
+      regions[id] = {
+        id,
+        countryId,
+        name: sourceRegion.name,
+        population: sourceRegion.population,
+        gdp: sourceRegion.gdp,
+        houseSeats: sourceRegion.seats,
+      };
       regionTurnouts[id] = { regionId: id, countryId, modifiers: {}, lastDecayAppliedTurn: 0 };
       const key = `${id}:${entry.party.id}`;
       partyRegions[key] = {

@@ -46,7 +46,7 @@ export interface BackgroundElectionSeed {
   chamberName: string;
   cycleAnchor: "ddVolkskammer" | "ruRepublicSoviet";
   cyclePeriodHours: number;
-  regions: Array<{ id: string; name: string; seats: number; partyOrganization: number }>;
+  regions: Array<{ id: string; name: string; seats: number; partyOrganization: number; population: number; gdp: number }>;
   /** Source historical office records are represented by weighted holders. */
   initialSeatAllocations?: Array<{ regionId: string; seats: number }>;
 }

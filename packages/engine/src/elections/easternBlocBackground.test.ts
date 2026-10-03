@@ -8,8 +8,12 @@ import { electionSeriesForWorld } from "./orchestration.js";
 const SATELLITES = ["PL", "CS", "HU", "RO", "BG", "YU"];
 const REPUBLICS = ["UKR", "BLR", "BAL"];
 const SOURCE_SEATS: Record<string, Record<string, number>> = {
-  "1953": { PL: 425, CS: 200, HU: 298, RO: 358, BG: 384, YU: 298, UKR: 435, BLR: 360, BAL: 300 },
+  "1953": { PL: 460, CS: 200, HU: 352, RO: 369, BG: 400, YU: 308, UKR: 435, BLR: 360, BAL: 300 },
   "1979": { PL: 460, CS: 200, HU: 352, RO: 369, BG: 400, YU: 308, UKR: 435, BLR: 360, BAL: 300 },
+};
+const SOURCE_HISTORICAL_SEATS: Record<string, Record<string, number>> = {
+  "1953": { PL: 425, CS: 200, HU: 298, RO: 358, BG: 384, YU: 298 },
+  "1979": { PL: 460, CS: 200, HU: 352, RO: 369, BG: 400, YU: 308 },
 };
 
 describe("source Eastern Bloc background election systems", () => {
@@ -28,7 +32,8 @@ describe("source Eastern Bloc background election systems", () => {
       expect(chamber.seats, `${era}:${countryId} source seat count`).toBe(SOURCE_SEATS[era]![countryId]);
     }
     expect(() => createWorld({ seed: `unavailable-${era}`, playerName: "Player", countryId: "PL", era })).toThrow(/not playable|Unknown country/);
-    expect(world.regions.PL_MAZ?.houseSeats).toBe(era === "1953" ? 60 : 63);
+    expect(world.regions.PL_MAZ?.houseSeats).toBe(era === "1953" ? 65 : 63);
+    expect(world.regions.PL_MAZ?.population).toBe(era === "1953" ? 3_600_000 : 4_900_000);
     expect(world.regions.UKR_KYI?.houseSeats).toBe(85);
     expect(world.politicians.some((politician) => [...SATELLITES, ...REPUBLICS].includes(politician.countryId))).toBe(false);
 
@@ -37,8 +42,8 @@ describe("source Eastern Bloc background election systems", () => {
     expect(historical.politicians.find((politician) => politician.electedState === "PL_MAZ")?.seatsHeld).toBe(era === "1953" ? 60 : 63);
     for (const countryId of SATELLITES) {
       const chamber = historical.legislatures[countryId]!.chambers[0]!;
-      expect(chamber.composition.seatsByParty[historical.politicians.find((politician) => politician.countryId === countryId)!.partyId]).toBe(SOURCE_SEATS[era]![countryId]);
-      expect(chamber.composition.vacancies).toBe(0);
+      expect(chamber.composition.seatsByParty[historical.politicians.find((politician) => politician.countryId === countryId)!.partyId]).toBe(SOURCE_HISTORICAL_SEATS[era]![countryId]);
+      expect(chamber.composition.vacancies).toBe(SOURCE_SEATS[era]![countryId]! - SOURCE_HISTORICAL_SEATS[era]![countryId]!);
     }
   });
 

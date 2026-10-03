@@ -398,6 +398,11 @@ export function validatePack(pack: SeedPack): void {
       if (!isFiniteNumber(sourceRegion.partyOrganization) || sourceRegion.partyOrganization < 0 || sourceRegion.partyOrganization > 100) {
         throw new Error(`validatePack: background region "${key}" partyOrganization must be in [0,100]`);
       }
+      for (const field of ["population", "gdp"] as const) {
+        if (!Number.isSafeInteger(sourceRegion[field]) || sourceRegion[field] <= 0) {
+          throw new Error(`validatePack: background region "${key}" ${field} must be a positive safe integer`);
+        }
+      }
       totalSeats += sourceRegion.seats;
     }
     const allocations = row.initialSeatAllocations ?? [];
@@ -411,8 +416,8 @@ export function validatePack(pack: SeedPack): void {
       return sum + allocation.seats;
     }, 0);
     if (allocated > totalSeats) throw new Error(`validatePack: backgroundElections[${index}] allocations exceed chamber seats`);
-    if (allocations.length > 0 && (allocated !== totalSeats || allocations.length !== row.regions.length || row.regions.some((region) => allocations.find((allocation) => allocation.regionId === region.id)?.seats !== region.seats))) {
-      throw new Error(`validatePack: backgroundElections[${index}] historical allocations must fill every authored regional seat`);
+    if (allocations.length > 0 && (allocations.length !== row.regions.length || row.regions.some((region) => !allocations.some((allocation) => allocation.regionId === region.id)))) {
+      throw new Error(`validatePack: backgroundElections[${index}] historical allocations must describe every region`);
     }
   }
 }
