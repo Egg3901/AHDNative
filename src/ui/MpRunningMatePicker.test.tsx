@@ -27,7 +27,7 @@ describe("Native MP running-mate action", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: "Choose a running mate" }), option.id);
     await user.click(screen.getByRole("button", { name: "Save running mate" }));
     expect(onSave).toHaveBeenCalledWith("68a000000000000000000001", option.id);
-    expect(screen.getByText(/another eligible player/)).toBeInTheDocument();
+    expect(screen.getByText(/eligible player from your country/)).toBeInTheDocument();
   });
 
   it("shows the source-selected mate and clears it through the null source action", async () => {
