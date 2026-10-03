@@ -148,6 +148,16 @@ function buildEraPack(
   pack.corporationHeadquartersRegions = US_CORPORATION_HEADQUARTERS_REGIONS.filter(
     (location) => !pack.states?.some((region) => region.id === location.id),
   );
+  // This vacant Native aggregate is sized from the authored regional Senate
+  // rows, separately from the source fallback federal House/Senate roster.
+  // The 1999 source physical table has NY61 rather than the modern NY63.
+  const stateSenate = pack.legislatures?.find((row) => row.countryId === "US")
+    ?.chambers.find((row) => row.key === "stateSenate");
+  if (stateSenate && Object.keys(stateSenate.composition.seatsByParty).length === 0) {
+    stateSenate.seats = pack.states.filter((state) => state.countryId === "US")
+      .reduce((total, state) => total + state.senateSeats, 0);
+    stateSenate.composition.vacancies = stateSenate.seats;
+  }
   budgetsBySourceEconomy(pack, budgets, year);
   return pack;
 }
