@@ -58,6 +58,7 @@ jobs:
       - run: npm run test:smoke
         env:
           SMOKE_PRODUCTION: "1"
+          DEBUG: "pw:browser"
       - name: Retain failed synthetic browser evidence
         if: failure()
         uses: actions/upload-artifact@v4
