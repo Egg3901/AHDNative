@@ -758,7 +758,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
   for (const p of pack.parties ?? []) {
     parties[p.id] = {
       ...p,
-      treasury: TREASURY_BY_PARTY[p.id] ?? DEFAULT_TREASURY,
+      ...(p.sourceSequentialId !== undefined ? { sourceSequentialId: p.sourceSequentialId } : {}),
+      treasury: p.treasury ?? TREASURY_BY_PARTY[p.id] ?? DEFAULT_TREASURY,
       politicalStrength: 0,
       organization: 0,
       tier: isMajor1953(p.id) ? "major" : "minor",
@@ -908,6 +909,15 @@ export function createWorld(options: NewWorldOptions): WorldState {
 
   const { regions, electoratePools, regionTurnouts, partyRegions, partyPressures, candidateSupports } =
     seedSupport(pack, parties, politicians);
+  for (const sourceRegion of pack.sourceNppBackground?.regions ?? []) {
+    regions[sourceRegion.id] = {
+      id: sourceRegion.id,
+      countryId: pack.sourceNppBackground!.countryId,
+      name: sourceRegion.name,
+      population: sourceRegion.population,
+      sourceGdp: { amount: sourceRegion.gdp, currencyCode: sourceRegion.gdpCurrencyCode, unit: "millions" },
+    };
+  }
   // Mainline's 1953 state collection contains Alaska and Hawaii as territories
   // with real 1950 population/GSP, but they are absent from the House map until
   // the statehood turn phase stamps admittedYear. Keep the source geography in
@@ -1875,8 +1885,17 @@ function seedBudgets(
   // so every country's fiscal term has a balance (prevents undefined fiscal path).
   // These adopt neutral tax rates/bases that yield a near-balanced budget.
   const authored = new Set(Object.keys(budgets));
-  // Need full country list - derive from regions' countryIds plus pack.budgets countries
-  const allCountryIds = new Set<string>([...Object.values(regions).map((r) => r.countryId), ...authored]);
+  // Background NPP geography can introduce regions for an economy country
+  // without an authored national budget in this pack. Do not turn those raw
+  // regional GDP values into the generic placeholder federal budget; an
+  // absent source budget remains absent until its actual producer is ported.
+  const sourceNppBackgroundCountry = pack.sourceNppBackground?.countryId;
+  const allCountryIds = new Set<string>([
+    ...Object.values(regions)
+      .map((r) => r.countryId)
+      .filter((countryId) => countryId !== sourceNppBackgroundCountry || authored.has(countryId)),
+    ...authored,
+  ]);
   // Also include any country not represented via regions yet (fallback: use pack countries)
   // We cannot import pack countries here without the full pack - regions covers playable set.
   for (const cid of allCountryIds) {
@@ -1935,6 +1954,7 @@ function seedBudgets(
   // Regional budgets: generic per-region entry seeded from national grant pool
   // plus own-revenue share. Uses REGIONAL_OWN_REVENUE_GDP_SHARE pattern (regionalBudget.ts).
   for (const [rid, region] of Object.entries(regions)) {
+    if (region.countryId === pack.sourceNppBackground?.countryId) continue;
     const countryBudget = budgets[region.countryId];
     if (!countryBudget) continue;
     const pop = region.population ?? 0;

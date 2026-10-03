@@ -1394,6 +1394,8 @@ export interface Party {
   economicPosition: number;
   /** Social libertarian (-5) to authoritarian (+5). */
   socialPosition: number;
+  /** Source political-party sequential order for background-country NPP tie breaks. */
+  sourceSequentialId?: number;
   /**
    * Treasury in local currency units. Seeded from
    * src/lib/seeds/reference/politicalParties.ts and per-country
@@ -1735,6 +1737,10 @@ export interface Region {
   censusRegion?: string;
   /** Nominal GSP in millions USD (estimated 1953). Only for US states. */
   gdp?: number;
+  /** Exact source GDP amount for background NPP geography when not USD-denominated. */
+  sourceGdp?: { amount: number; currencyCode: string; unit: "millions" };
+  /** Source regional governor's canonical NPP actor id. */
+  governorNppId?: string;
   /** Voting-eligible population (derived from demographics). */
   votingEligiblePopulation?: number;
   /** Working-age population (derived from demographics). */
@@ -1882,9 +1888,9 @@ export interface PoliticianPersonality {
   stubbornness: number;
 }
 
-/** First-class source NPP identity held by a newly seeded issuer; no personal balance is synthesized. */
+/** First-class source NPP identity; the same record can be a source officeholder and issuer CEO. */
 export interface CorporateNppActor {
-  /** Stable source-NPP identity, deliberately separate from Native politicians. */
+  /** Stable source-NPP identity, also referenced by any source office record. */
   id: string;
   countryId: string;
   homeRegionId: string;
@@ -1894,6 +1900,8 @@ export interface CorporateNppActor {
   retiredAtTurn: number | null;
   /** Source createNPP fallback when the seeded country has no eligible free NPP. */
   generatedForFounding?: true;
+  /** Source-seeded office held by this same NPP identity. */
+  currentOffice?: { type: "governor"; regionId: string };
 }
 
 export interface NppRelationship {

@@ -1352,11 +1352,21 @@ function assertCurrentWorldState(world: WorldState): void {
   }
   const parties = value["parties"];
   if (isRecord(parties)) {
+    const backgroundPartyOrder = new Set<string>();
     for (const [partyId, partyValue] of Object.entries(parties)) {
       if (!isRecord(partyValue)) continue;
       const timestamp = partyValue["nppControlCreatedAt"];
       if (timestamp !== undefined && !isCanonicalIsoTimestamp(timestamp)) {
         throw new Error(`Not a valid save file: invalid party NPP control timestamp for ${partyId}`);
+      }
+      const sourceSequentialId = partyValue["sourceSequentialId"];
+      if (sourceSequentialId !== undefined) {
+        if (!Number.isSafeInteger(sourceSequentialId) || (sourceSequentialId as number) < 1 || typeof partyValue["countryId"] !== "string") {
+          throw new Error(`Not a valid save file: invalid source party order for ${partyId}`);
+        }
+        const orderKey = `${partyValue["countryId"]}:${sourceSequentialId}`;
+        if (backgroundPartyOrder.has(orderKey)) throw new Error(`Not a valid save file: duplicate source party order for ${partyValue["countryId"]}`);
+        backgroundPartyOrder.add(orderKey);
       }
     }
   }
@@ -4626,14 +4636,23 @@ export function deserializeSave(raw: string): WorldState {
     if (!isRecord(actors)) throw new Error("Not a valid save file: invalid corporate NPP actor map");
     const referenced = new Set<string>();
     for (const [id, rawActor] of Object.entries(actors)) {
-      if (!isRecord(rawActor) || Object.keys(rawActor).some((key) => !["id", "countryId", "homeRegionId", "partyId", "politicalInfluence", "sequentialId", "retiredAtTurn", "generatedForFounding"].includes(key)) ||
+      const sourceOffice = isRecord(rawActor) ? rawActor["currentOffice"] : undefined;
+      const invalidOffice = sourceOffice !== undefined && (
+        !isRecord(sourceOffice) ||
+        Object.keys(sourceOffice).some((key) => key !== "type" && key !== "regionId") ||
+        sourceOffice["type"] !== "governor" || typeof sourceOffice["regionId"] !== "string" ||
+        !isRecord(rawActor) || sourceOffice["regionId"] !== rawActor["homeRegionId"] ||
+        save.world.regions[sourceOffice["regionId"]]?.countryId !== rawActor["countryId"] ||
+        save.world.regions[sourceOffice["regionId"]]?.governorNppId !== rawActor["id"]
+      );
+      if (!isRecord(rawActor) || Object.keys(rawActor).some((key) => !["id", "countryId", "homeRegionId", "partyId", "politicalInfluence", "sequentialId", "retiredAtTurn", "generatedForFounding", "currentOffice"].includes(key)) ||
           rawActor["id"] !== id || typeof rawActor["countryId"] !== "string" || !save.world.countries[rawActor["countryId"]] ||
           typeof rawActor["homeRegionId"] !== "string" || save.world.regions[rawActor["homeRegionId"]]?.countryId !== rawActor["countryId"] ||
           typeof rawActor["partyId"] !== "string" || (rawActor["partyId"] !== "independent" && save.world.parties[rawActor["partyId"]]?.countryId !== rawActor["countryId"]) ||
           typeof rawActor["politicalInfluence"] !== "number" || !Number.isFinite(rawActor["politicalInfluence"]) || rawActor["politicalInfluence"] < 0 || rawActor["politicalInfluence"] > 100 ||
           typeof rawActor["sequentialId"] !== "number" || !Number.isSafeInteger(rawActor["sequentialId"]) || rawActor["sequentialId"] < 1 ||
           (rawActor["retiredAtTurn"] !== null && (typeof rawActor["retiredAtTurn"] !== "number" || !Number.isSafeInteger(rawActor["retiredAtTurn"]) || rawActor["retiredAtTurn"] < 0)) ||
-          (rawActor["generatedForFounding"] !== undefined && rawActor["generatedForFounding"] !== true)) {
+          (rawActor["generatedForFounding"] !== undefined && rawActor["generatedForFounding"] !== true) || invalidOffice) {
         throw new Error(`Not a valid save file: invalid corporate NPP actor ${id}`);
       }
       referenced.add(id);
@@ -4641,6 +4660,23 @@ export function deserializeSave(raw: string): WorldState {
     for (const corporation of Object.values(save.world.corporations)) {
       if (corporation.ceoType === "npp" && corporation.ceoId && !referenced.has(corporation.ceoId)) {
         throw new Error(`Not a valid save file: corporate NPP CEO ${corporation.ceoId} is not recorded`);
+      }
+    }
+  }
+  for (const [regionId, region] of Object.entries(save.world.regions)) {
+    const sourceGdp = (region as unknown as Record<string, unknown>)?.["sourceGdp"];
+    if (sourceGdp === undefined) continue;
+    if (!isRecord(sourceGdp) || Object.keys(sourceGdp).some((key) => !["amount", "currencyCode", "unit"].includes(key)) ||
+        typeof sourceGdp["amount"] !== "number" || !Number.isFinite(sourceGdp["amount"]) || sourceGdp["amount"] <= 0 ||
+        typeof sourceGdp["currencyCode"] !== "string" || !/^[A-Z]{3}$/.test(sourceGdp["currencyCode"]) ||
+        sourceGdp["unit"] !== "millions") {
+      throw new Error(`Not a valid save file: invalid source GDP denomination for ${regionId}`);
+    }
+    const governorNppId = (region as unknown as Record<string, unknown>)["governorNppId"];
+    if (governorNppId !== undefined) {
+      const actor = typeof governorNppId === "string" ? save.world.corporateNppActors?.[governorNppId] : undefined;
+      if (!actor || actor.currentOffice?.type !== "governor" || actor.currentOffice.regionId !== regionId || actor.countryId !== region.countryId) {
+        throw new Error(`Not a valid save file: invalid source governor link for ${regionId}`);
       }
     }
   }

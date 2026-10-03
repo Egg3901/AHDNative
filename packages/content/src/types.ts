@@ -35,6 +35,23 @@ export interface SeedPack {
    * not make a country selectable or create a macro-economy country by themselves.
    */
   backgroundElections?: BackgroundElectionSeed[];
+  /** Source-seeded non-playable NPP offices and their political geography. */
+  sourceNppBackground?: SourceNppBackgroundSeed;
+}
+
+export interface SourceNppBackgroundSeed {
+  countryId: string;
+  /** Source party order for the active preset; values follow the selected source roster order. */
+  parties: Array<PartySeed & { sourceSequentialId: number }>;
+  regions: Array<{
+    id: string;
+    name: string;
+    population: number;
+    /** Source GDP as authored, in millions of the listed currency. */
+    gdp: number;
+    gdpCurrencyCode: string;
+    governorPartyId: string;
+  }>;
 }
 
 export interface EraPackSourceProvenance {
@@ -202,6 +219,10 @@ export interface PartySeed {
    * party and the party step badge.
    */
   regimeStatus?: "ruling" | "approved" | "banned";
+  /** Source political-party sequential ID when a background country roster is authored. */
+  sourceSequentialId?: number;
+  /** Source party-local treasury when authored; absent preserves Native's neutral default. */
+  treasury?: number;
 }
 
 /** Legislature seed — one per country per era. */

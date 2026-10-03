@@ -4,6 +4,7 @@ import { pack1979 } from "./1979.js";
 import { pack1991 } from "./1991.js";
 import { pack2019 } from "./2019.js";
 import { pack1999, pack2007, pack2023 } from "./sourceEraPacks.js";
+import { nigeriaSourceNppBackground } from "./nigeriaSourceNpp.js";
 export { US_STATE_DEMOGRAPHICS_1953 } from "./usStateDemographics1953.js";
 export { UK_DEMOGRAPHICS_1953 } from "./ukDemographics1953.js";
 export { RU_DEMOGRAPHICS_1953 } from "./ruDemographics1953.js";
@@ -31,7 +32,13 @@ export { pack1999, pack2007, pack2023 } from "./sourceEraPacks.js";
  * date anchor for it so old saves migrate and advance correctly — but no
  * new world can be created in it, because no pack exists for it.
  */
-export const PACKS: SeedPack[] = [pack1953, pack1979, pack1991, pack1999, pack2007, pack2019, pack2023];
+const BASE_PACKS: SeedPack[] = [pack1953, pack1979, pack1991, pack1999, pack2007, pack2019, pack2023];
+for (const pack of BASE_PACKS) {
+  const sourceNppBackground = nigeriaSourceNppBackground(pack.era.id);
+  pack.parties = [...(pack.parties ?? []), ...sourceNppBackground.parties];
+  pack.sourceNppBackground = sourceNppBackground;
+}
+export const PACKS: SeedPack[] = BASE_PACKS;
 
 // Sorted by startDate ascending for era ladder use
 export const PACKS_BY_DATE: SeedPack[] = [...PACKS].sort((a, b) =>

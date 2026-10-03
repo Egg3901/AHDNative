@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
+import { getPackByEra } from "@ahdclient/content";
 import { deserializeSave, serializeSave } from "../save.js";
 import { getRateForCountry } from "../forex/conversion.js";
 import { getEraNominalScale } from "../commodity/constants.js";
@@ -36,6 +37,36 @@ describe("source NPP company bootstrap", () => {
     expect(actor).toMatchObject({ countryId: "US", homeRegionId: "DC", partyId: "independent", politicalInfluence: 0, sequentialId: 1, retiredAtTurn: null, generatedForFounding: true });
     expect(world.politicians.some((person) => person.id === actor.id)).toBe(false);
     expect(Object.keys(actor)).not.toContain("politicianId");
+  });
+
+  it("seeds source Nigeria regions, parties, governors, and CEOs from each authored era roster", () => {
+    for (const era of ["1953", "1979", "1991", "1999", "2007", "2019", "2023"]) {
+      const world = createWorld({ seed: `source-ng-npp-${era}`, playerName: "Tester", countryId: "US", homeRegionId: "DC", era });
+      if (getPackByEra(era)?.budgets?.some((budget) => budget.countryId === "NG")) {
+        expect(world.budgets.NG).toBeDefined();
+      } else {
+        expect(world.budgets.NG).toBeUndefined();
+      }
+      expect(Object.values(world.regionalBudgets).some((budget) => budget.countryId === "NG")).toBe(false);
+      const actors = Object.values(world.corporateNppActors ?? {}).filter((actor) => actor.countryId === "NG");
+      expect(actors.filter((actor) => actor.currentOffice?.type === "governor")).toHaveLength(6);
+      for (const actor of actors.filter((row) => row.currentOffice?.type === "governor")) {
+        expect(world.regions[actor.homeRegionId]).toMatchObject({ countryId: "NG", population: expect.any(Number), governorNppId: actor.id, sourceGdp: { amount: expect.any(Number), currencyCode: era === "1953" ? "USD" : "NGN", unit: "millions" } });
+        expect(world.parties[actor.partyId]?.countryId === "NG" || actor.partyId === "independent").toBe(true);
+      }
+      const ngCorporations = Object.values(world.corporations).filter((corporation) => corporation.countryId === "NG" && corporation.ceoType === "npp");
+      expect(ngCorporations.length).toBeGreaterThan(0);
+      expect(ngCorporations.every((corporation) => Boolean(world.corporateNppActors?.[corporation.ceoId ?? ""]))).toBe(true);
+      if (era === "2023") {
+        const raw = serializeSave(world, "2026-10-03T12:00:00.000Z");
+        const restored = deserializeSave(raw);
+        expect(restored.regions.NORTH_WEST?.governorNppId).toBe(world.regions.NORTH_WEST?.governorNppId);
+        expect(restored.corporateNppActors).toEqual(world.corporateNppActors);
+        const malformed = JSON.parse(raw) as { world: { regions: Record<string, { governorNppId?: string }> } };
+        malformed.world.regions.NORTH_WEST!.governorNppId = "missing:npp";
+        expect(() => deserializeSave(JSON.stringify(malformed))).toThrow(/invalid source governor link/);
+      }
+    }
   });
 
   it("creates a named NPP-led HQ issuer, spends its local startup pool, and preserves the writer on reload", () => {

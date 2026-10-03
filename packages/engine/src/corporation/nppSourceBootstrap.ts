@@ -1,4 +1,5 @@
 import type { Corporation, CorporationType } from "./types.js";
+import { getPackByEra } from "@ahdclient/content";
 import { CORPORATION_TYPES } from "./types.js";
 import type { CorporateNppActor, WorldState } from "../types.js";
 import { DEFAULT_SHARE_PRICE, CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION } from "../market/constants.js";
@@ -71,8 +72,11 @@ export function sourceNppSpawnPlan(world: Pick<WorldState, "meta" | "countries" 
 export function chooseFoundingActor(world: WorldState, countryId: string, hqRegionId: string): CorporateNppActor {
   const activeParties = Object.values(world.parties)
     .filter((party) => party.countryId === countryId && party.mergedIntoPartyId == null)
-    .map((party) => party.id)
-    .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
+    .sort((a, b) =>
+      (a.sourceSequentialId ?? Number.POSITIVE_INFINITY) - (b.sourceSequentialId ?? Number.POSITIVE_INFINITY) ||
+      Number(a.id) - Number(b.id) || a.id.localeCompare(b.id),
+    )
+    .map((party) => party.id);
   const affiliations = [...activeParties, "independent"];
   const ownedCounts = new Map<string, number>();
   for (const corporation of Object.values(world.corporations)) {
@@ -129,9 +133,45 @@ function sourceStartingCapital(world: WorldState, countryId: string): { amountLo
 /** Source DEFAULT_SECTOR_STARTING_REVENUE (₳ anchor) from AHDGame corporations constants. */
 const SOURCE_NPP_STARTING_REVENUE_FLOOR = 1_000_000;
 
+/** Seed the source Nigeria governor NPPs before they can be selected as corporation CEOs. */
+export function seedSourceNppGovernorActors(world: WorldState): void {
+  const background = getPackByEra(world.meta.era)?.sourceNppBackground;
+  if (!background) return;
+  const actors = structuredClone(world.corporateNppActors ?? {});
+  let nextSequentialId = Math.max(0, ...Object.values(actors).map((actor) => actor.sequentialId)) + 1;
+  for (const region of background.regions) {
+    const id = `npp:${background.countryId}:governor:${region.id}`;
+    const worldRegion = world.regions[region.id];
+    if (!worldRegion || worldRegion.countryId !== background.countryId) {
+      throw new Error(`Missing source governor region ${background.countryId}/${region.id}`);
+    }
+    const existing = actors[id];
+    if (existing) {
+      if (existing.countryId !== background.countryId || existing.homeRegionId !== region.id || existing.partyId !== region.governorPartyId ||
+          existing.currentOffice?.type !== "governor" || existing.currentOffice.regionId !== region.id) {
+        throw new Error(`Conflicting source governor NPP identity ${id}`);
+      }
+    } else {
+      actors[id] = {
+        id,
+        countryId: background.countryId,
+        homeRegionId: region.id,
+        partyId: region.governorPartyId,
+        politicalInfluence: 10,
+        sequentialId: nextSequentialId++,
+        retiredAtTurn: null,
+        currentOffice: { type: "governor", regionId: region.id },
+      };
+    }
+    world.regions[region.id] = { ...worldRegion, governorNppId: id };
+  }
+  world.corporateNppActors = actors;
+}
+
 /** Replace fresh GDP-only placeholders with Game's source-plan HQ companies. Never called on load. */
 export function seedSourceNppCorporations(world: WorldState): void {
-  if (world.corporateNppActors !== undefined || world.corporateCashLedger?.some((row) => row.type === "corp_starting_grant")) return;
+  if (world.corporateCashLedger?.some((row) => row.type === "corp_starting_grant")) return;
+  seedSourceNppGovernorActors(world);
   const plan = sourceNppSpawnPlan(world);
   if (plan.length === 0) return;
   const assets = structuredClone(world.corporateSectors ?? seedCorporateSectorAssets(world));
