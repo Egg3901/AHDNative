@@ -49,6 +49,17 @@ describe("validatePack", () => {
     expect(() => validatePack(unknownField)).toThrow(/unknown field/i);
   });
 
+  it("validates Eastern Bloc background source calendars and historical weighted allocations", () => {
+    expect(() => validatePack(pack1953)).not.toThrow();
+    const invalid = structuredClone(pack1953) as SeedPack;
+    invalid.backgroundElections![0]!.initialSeatAllocations![0]!.seats -= 1;
+    expect(() => validatePack(invalid)).toThrow(/historical allocations must fill/);
+
+    const selectable = structuredClone(pack1953) as SeedPack;
+    selectable.countries.find((country) => country.id === "PL")!.playable = true;
+    expect(() => validatePack(selectable)).toThrow(/selectable country/);
+  });
+
   it("rejects invalid packVersion", () => {
     const bad = structuredClone(PACKS[0]!) as SeedPack;
     (bad as unknown as Record<string, unknown>)["packVersion"] = 0;

@@ -27,6 +27,28 @@ export interface SeedPack {
   legislatures?: LegislatureSeed[];
   sectors?: SectorSeed[];
   budgets?: BudgetSeed[];
+  /**
+   * Source-authored political content for non-player systems. These rows may
+   * share an era pack with a separate non-playable economy CountrySeed, but do
+   * not make a country selectable or create a macro-economy country by themselves.
+   */
+  backgroundElections?: BackgroundElectionSeed[];
+}
+
+export interface BackgroundElectionSeed {
+  countryId: string;
+  name: string;
+  /** Source tier: registered beta countries run in Cold War packs; latent union republics need NPP v1. */
+  availability: "beta" | "npp-v1";
+  party: PartySeed;
+  electionType: string;
+  chamberKey: string;
+  chamberName: string;
+  cycleAnchor: "ddVolkskammer" | "ruRepublicSoviet";
+  cyclePeriodHours: number;
+  regions: Array<{ id: string; name: string; seats: number; partyOrganization: number }>;
+  /** Source historical office records are represented by weighted holders. */
+  initialSeatAllocations?: Array<{ regionId: string; seats: number }>;
 }
 
 /** Minimal authored residence geography for CEO HQ rules, outside state elections. */

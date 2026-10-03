@@ -4,8 +4,9 @@ import { assignSourceHomeStates } from "./elections/sourceHomeState.js";
 import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
+import type { BackgroundElectionSeed } from "@ahdclient/content";
 import { eraToPreset } from "./electionEngine/resolution/constants.js";
-import { createPoliticiansForWorld } from "./politician.js";
+import { createPoliticiansForWorld, generatePolitician } from "./politician.js";
 import { CATEGORIES_BY_COUNTRY_1953 } from "./demographics/categories.js";
 import { US_STATE_DEMOGRAPHICS_1953, type StateDemographicsSeed } from "./demographics/usStateDemographics1953.js";
 import { UK_DEMOGRAPHICS_1953 } from "./demographics/ukDemographics1953.js";
@@ -770,6 +771,45 @@ export function createWorld(options: NewWorldOptions): WorldState {
     };
   }
 
+  // Background election systems stay outside the playable-country roster.
+  // Their political rows feed the same election and office machinery without
+  // creating selectable nations or macroeconomic country records.
+  for (const entry of pack.backgroundElections ?? []) {
+    parties[entry.party.id] = {
+      ...entry.party,
+      treasury: DEFAULT_TREASURY,
+      politicalStrength: 0,
+      organization: 0,
+      tier: "major",
+      psCapEarnedRegions: [],
+      memberCount: 0,
+      isDefault: true,
+      chairId: null,
+      viceChairId: null,
+      treasurerId: null,
+      committeeIds: [],
+    };
+    const seats = entry.regions.reduce((sum, region) => sum + region.seats, 0);
+    const initialAllocations = initialization === "historical" ? entry.initialSeatAllocations ?? [] : [];
+    const occupied = initialAllocations.reduce((sum, row) => sum + row.seats, 0);
+    legislatures[entry.countryId] = {
+      countryId: entry.countryId,
+      name: entry.name,
+      bicameral: false,
+      chambers: [{
+        key: entry.chamberKey,
+        name: entry.chamberName,
+        shortName: entry.chamberName,
+        seats,
+        elected: true,
+        composition: {
+          seatsByParty: occupied > 0 ? { [entry.party.id]: occupied } : {},
+          vacancies: seats - occupied,
+        },
+      }],
+    };
+  }
+
   if (initialization === "historical") {
     const ukCommonsComposition = projectUkHistoricalCommonsComposition(pack);
     const ukCommons = legislatures.UK?.chambers.find((chamber) => chamber.key === "commons");
@@ -792,6 +832,26 @@ export function createWorld(options: NewWorldOptions): WorldState {
     playableCountryIds: playableIds,
     era: pack.era.id,
   });
+
+  // Mainline persists multi-seat elected officials as weighted holders.
+  // Materialize one deterministic NPP holder per authored occupied region,
+  // retaining its real seatsHeld count rather than inventing individual MPs.
+  for (const entry of initialization === "historical" ? pack.backgroundElections ?? [] : []) {
+    for (const allocation of entry.initialSeatAllocations ?? []) {
+      const incumbent = generatePolitician(rng, {
+        id: `NPP-${entry.countryId}-${allocation.regionId}`,
+        countryId: entry.countryId,
+        partyId: entry.party.id,
+        chamberKey: entry.chamberKey,
+        era: pack.era.id,
+        partyEconomic: entry.party.economicPosition,
+        partySocial: entry.party.socialPosition,
+      });
+      incumbent.electedState = allocation.regionId;
+      incumbent.seatsHeld = allocation.seats;
+      politicians.push(incumbent);
+    }
+  }
 
   // Reconcile memberCount from politicians (NPC-only; PORT-STUB mainline also counts NPPs).
   for (const pol of politicians) {
@@ -1343,7 +1403,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
  * Fallback: eras without a states table (e.g. 1960) retain 3 opaque per country as in W19.
  */
 function seedSupport(
-  pack: { countries: Array<{ id: string; playable: boolean }>; states?: Array<{ id: string; name: string; countryId: string; population: number; gdp: number; houseSeats: number; senateSeats: number; region: string; senateClasses: [1 | 2 | 3, 1 | 2 | 3]; registration: { parties: Array<{ abbr: string; org: number; reg: number }>; independent: number; unregistered: number; unaffiliatedOrg: number } }> },
+  pack: { countries: Array<{ id: string; playable: boolean }>; states?: Array<{ id: string; name: string; countryId: string; population: number; gdp: number; houseSeats: number; senateSeats: number; region: string; senateClasses: [1 | 2 | 3, 1 | 2 | 3]; registration: { parties: Array<{ abbr: string; org: number; reg: number }>; independent: number; unregistered: number; unaffiliatedOrg: number } }>; backgroundElections?: BackgroundElectionSeed[] },
   parties: WorldState["parties"],
   politicians: WorldState["politicians"],
 ): {
@@ -1360,6 +1420,25 @@ function seedSupport(
   const regionTurnouts: WorldState["regionTurnouts"] = {};
   const partyRegions: WorldState["partyRegions"] = {};
   const partyPressures: WorldState["partyPressures"] = {};
+
+  for (const entry of pack.backgroundElections ?? []) {
+    for (const sourceRegion of entry.regions) {
+      const id = sourceRegion.id;
+      const countryId = entry.countryId;
+      regions[id] = { id, countryId, name: sourceRegion.name, houseSeats: sourceRegion.seats };
+      regionTurnouts[id] = { regionId: id, countryId, modifiers: {}, lastDecayAppliedTurn: 0 };
+      const key = `${id}:${entry.party.id}`;
+      partyRegions[key] = {
+        regionId: id,
+        partyId: entry.party.id,
+        countryId,
+        organization: sourceRegion.partyOrganization,
+        // The source eastern-bloc seeder stamps registration equal to org.
+        registration: sourceRegion.partyOrganization,
+      };
+      partyPressures[`${entry.party.id}:${id}`] = { partyId: entry.party.id, regionId: id, countryId, value: 0 };
+    }
+  }
 
   const regionIdsByCountry = new Map<string, string[]>();
 
