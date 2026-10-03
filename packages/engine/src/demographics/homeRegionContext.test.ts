@@ -95,9 +95,9 @@ describe("listCreationHomeRegions (world-free creation context)", () => {
     expect(sourceAk).toBeDefined();
     expect(sourceContext.find((row) => row.id === "AK")?.seeded).toBe(true);
     expect(sourceContext.find((row) => row.id === "NY")?.electorateLean)
-      .toEqual(electorateLeanForGroups(US_CATEGORY_1953, sourceNewYork.categoryWeights, sourceNewYork.groups));
+      .toEqual(electorateLeanForGroups([US_CATEGORY_1953], sourceNewYork.categoryWeights, sourceNewYork.groups));
     expect(fallback1999.find((row) => row.id === "NY")?.electorateLean)
-      .toEqual(electorateLeanForGroups(US_CATEGORY_1953, fallbackNewYork.categoryWeights, fallbackNewYork.groups));
+      .toEqual(electorateLeanForGroups([US_CATEGORY_1953], fallbackNewYork.categoryWeights, fallbackNewYork.groups));
     expect(fallback2007.find((row) => row.id === "NY")?.electorateLean)
       .toEqual(fallback1999.find((row) => row.id === "NY")?.electorateLean);
   });

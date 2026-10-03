@@ -109,6 +109,10 @@ describe("era coverage: selection (#118)", () => {
     const sourceAk = US_STATE_DEMOGRAPHICS_2023.find((row) => row.stateId === "AK")!;
     const baselineCa = US_STATE_DEMOGRAPHICS_2019.find((row) => row.stateId === "CA")!;
     expect(source2023.stateDemographics.AK).toMatchObject({ categoryWeights: sourceAk.categoryWeights, groups: sourceAk.groups });
+    // DC is a source-authored federal voting geography with census inputs,
+    // but no House or state-senate seats. It is not the HQ-only fallback row.
+    expect(source2023.regions.DC).toMatchObject({ population: 678972, houseSeats: 0, senateSeats: 0 });
+    expect(source2023.regions.DC?.corporationHeadquartersOnly).toBeUndefined();
     expect(source2023.stateDemographics.DC).toBeDefined();
     expect(fallback1999.stateDemographics.CA).toMatchObject({ categoryWeights: baselineCa.categoryWeights, groups: baselineCa.groups });
     expect(fallback2007.stateDemographics.CA).toMatchObject({ categoryWeights: baselineCa.categoryWeights, groups: baselineCa.groups });

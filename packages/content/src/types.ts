@@ -160,6 +160,8 @@ export interface StateSeed {
   senateSeats: number;
   /** Census region. */
   region: string;
+  /** Source State.votingSystem. Seed fidelity only: Native Region/election consumers do not yet port this axis. */
+  votingSystem?: "fptp" | "rcv";
   /** Senate class pair from SENATE_CLASSES_BY_STATE. */
   senateClasses: [1 | 2 | 3, 1 | 2 | 3];
   /** Support/election transforms consume this bundle. */

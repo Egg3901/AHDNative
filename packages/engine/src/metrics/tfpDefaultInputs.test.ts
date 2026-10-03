@@ -239,6 +239,10 @@ describe("#40/#106 default TFP seed at createWorld", () => {
 
   it("refuses historical v42 export of a fresh world whose TFP inputs the old turn engine drops", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // Isolate the TFP projection contract from the independently-tested
+    // schema-69 source clock refusal. Authentic v42 saves predate the durable
+    // startingYear anchor and preserve its genuine absence on load.
+    delete world.meta.startingYear;
     const projected = projectSaveToV42(serializeSave(world, "2026-09-10T00:00:00.000Z"));
     expect(projected).toMatchObject({ ok: false, error: expect.stringContaining("Regional metric records") });
   });
