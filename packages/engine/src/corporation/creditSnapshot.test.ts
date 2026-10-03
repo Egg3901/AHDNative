@@ -5,7 +5,6 @@ import { advanceTurn } from "../engine.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { calculateSourceCorporateCreditScore } from "../bonds/corporateCredit.js";
-import { DAYS_PER_TURN } from "../calendar.js";
 import { TURNS_PER_YEAR } from "../economy/macroConstants.js";
 import { TURNS_PER_DAY } from "./constants.js";
 import { refreshNativeCorporateCreditSnapshots } from "./creditSnapshot.js";
@@ -29,7 +28,7 @@ describe("source issuer credit snapshots", () => {
     // Source sectorDailyProfitAnchor reads GBP issuer-denominated revenue,
     // despite the sector's foreign countryId, then source bondTurn applies
     // dailyProfit / TURNS_PER_DAY * TURNS_PER_YEAR for sector NPV.
-    const sourceDailyProfitAnchor = asset.realizedRevenue / DAYS_PER_TURN / gbpRate * 0.4;
+    const sourceDailyProfitAnchor = asset.realizedRevenue * TURNS_PER_DAY / gbpRate * 0.4;
     const sourceSectorNpv = sourceDailyProfitAnchor / TURNS_PER_DAY * TURNS_PER_YEAR / 0.15;
     const liquidCapitalAnchor = issuer.liquidCapital / gbpRate;
     const expected = calculateSourceCorporateCreditScore({

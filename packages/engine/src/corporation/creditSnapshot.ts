@@ -1,5 +1,4 @@
 import type { WorldState } from "../types.js";
-import { DAYS_PER_TURN } from "../calendar.js";
 import { TURNS_PER_YEAR } from "../economy/macroConstants.js";
 import { calculateSourceCorporateCreditScore } from "../bonds/corporateCredit.js";
 import { TURNS_PER_DAY } from "./constants.js";
@@ -26,7 +25,11 @@ export function refreshNativeCorporateCreditSnapshots(world: WorldState): void {
     let constructionInProgressAnchor = 0;
     for (const asset of issuerAssets) {
       const sourceRevenueLocal = asset.realizedRevenue ?? asset.revenue ?? 0;
-      const dailyRevenueAnchor = sourceRevenueLocal / DAYS_PER_TURN / issuerRate;
+      // Native's turn is a seven-day event, but its monetary revenue already
+      // represents the complete Native turn. Convert that turn amount to the
+      // Game daily basis (24 source turns/day); Game then divides back by 24
+      // when it computes one source-turn income for annualization.
+      const dailyRevenueAnchor = sourceRevenueLocal * TURNS_PER_DAY / issuerRate;
       const margin = asset.effectiveProfitMargin ?? asset.profitMargin ?? corp.effectiveProfitMargin ?? corp.profitMargin ?? 35;
       const dailyProfitAnchor = dailyRevenueAnchor * margin / 100;
       const yearly = dailyProfitAnchor * TURNS_PER_YEAR / TURNS_PER_DAY;
