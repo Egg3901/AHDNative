@@ -352,9 +352,11 @@ export const CATALOG_IE: CatalogEntry[] = [
     description: "Sets pay-gap reporting thresholds and gender quotas",
     category: "social",
     allowedScope: "national",
+    baselineLevel: 3,
+    optionEffectDirections: [1,1,1,0,-1,-1,-1],
+    levels: [{"name":"Comprehensive Equality Act","description":"_Acht Cothromaíochta Cuimsitheach_ — Mandatory 50% gender quotas across all sectors; comprehensive pay-equity audit and enforcement."},{"name":"Pay Gap Enforcement Act","description":"Lower pay-gap reporting threshold to 50 employees; enforcement fines; mandatory remedial plans."},{"name":"Quota Expansion Act","description":"Extend gender quotas to private boards; 40% quotas for political party candidates."},{"name":"Statutory Pay Gap Reporting Act","description":"Maintain current >250 employee threshold; voluntary remedial action."},{"name":"Light-Touch Reporting Act","description":"Raise pay-gap threshold to >500 employees; voluntary-only enforcement."},{"name":"Pay Gap Reporting Repeal Act","description":"Repeal mandatory pay-gap reporting; rely on free-market signalling and existing equality legislation."},{"name":"Traditional Family Values Act","description":"Repeal gender-equality quotas entirely; remove state mandates on gender-balance in public bodies."}],
     targets: [{"metricId":"society.womensOpportunity","weight":1},{"metricId":"society.socialMobility","weight":0.4},{"metricId":"society.civicLife","weight":0.3},{"metricId":"society.integration","weight":0.3}],
-    status: "unavailable",
-    blockingSystem: "legislation/effectDescriptor",
+    status: "available",
   },
   {
     // source: ieLegislationTypes.ts ie_drug_policy
@@ -638,9 +640,11 @@ export const CATALOG_IE: CatalogEntry[] = [
     description: "Sets SIPO scope, lobbying register enforcement, and post-employment cooling-off",
     category: "governance",
     allowedScope: "national",
+    baselineLevel: 3,
+    optionEffectDirections: [1,1,1,0,-1,-1,-1],
+    levels: [{"name":"Comprehensive Anti-Corruption Act","description":"_Acht Frith-Éillithe Cuimsitheach_ — Permanent anti-corruption inspectorate; lifetime post-employment ban for Ministers; full beneficial-ownership disclosure."},{"name":"SIPO Empowerment Act","description":"Triple SIPO budget; binding lobbying register enforcement; 3-year ministerial post-employment cooling-off."},{"name":"Lobbying Reform Act","description":"Strengthen Lobbying Register; expand SIPO investigation powers; mandatory ethical training for Oireachtas members."},{"name":"Statutory Standards in Public Office Act","description":"Maintain current SIPO framework with annual cooling-off and lobbying register."},{"name":"Light-Touch Ethics Act","description":"Reduce SIPO mandate; voluntary lobbying disclosure; 6-month cooling-off only."},{"name":"Deregulated Lobbying Act","description":"Repeal Lobbying Register; rely on free-press scrutiny; minimal SIPO mandate."},{"name":"Ethics Repeal Act","description":"Wind down SIPO; rely on criminal-law sanctions for outright corruption only."}],
     targets: [{"metricId":"governance.openness","weight":1},{"metricId":"governance.integrity","weight":0.5},{"metricId":"society.civicLife","weight":0.3}],
-    status: "unavailable",
-    blockingSystem: "legislation/effectDescriptor",
+    status: "available",
   },
   {
     // source: ieLegislationTypes.ts ie_electoral_reform
@@ -651,9 +655,11 @@ export const CATALOG_IE: CatalogEntry[] = [
     description: "Sets the framework for An Coimisiún Toghcháin remit and Seanad structure",
     category: "governance",
     allowedScope: "national",
+    baselineLevel: 3,
+    optionEffectDirections: [1,1,1,0,-1,-1,-1],
+    levels: [{"name":"Direct Democracy Expansion Act","description":"_Acht Forleathnaithe na Daonlathais Dhírigh_ — Citizens' Assembly recommendations directly to referendum; ranked-choice all chambers."},{"name":"Universal Seanad Election Act","description":"Open Seanad election to all citizens (replacing vocational panels); mandatory civic education curriculum."},{"name":"Electoral Commission Empowerment Act","description":"Strengthen An Coimisiún Toghcháin powers; statutory mis/disinformation oversight; postal-voting universalisation."},{"name":"Statutory Electoral Commission Act","description":"Maintain current An Coimisiún Toghcháin remit and Seanad vocational-panel structure."},{"name":"Seanad Reduction Act","description":"Reduce Seanad to advisory chamber only; cut Taoiseach's-nominees from 11 to 5."},{"name":"Seanad Abolition Act","description":"Constitutional referendum to abolish Seanad; unicameral Dáil only."},{"name":"First-Past-the-Post Reform Act","description":"Constitutional referendum to replace PR-STV with FPTP; abolish Seanad simultaneously."}],
     targets: [{"metricId":"governance.participation","weight":0.6},{"metricId":"society.civicLife","weight":0.5},{"metricId":"governance.integrity","weight":0.4},{"metricId":"governance.openness","weight":0.3}],
-    status: "unavailable",
-    blockingSystem: "legislation/effectDescriptor",
+    status: "available",
   },
   {
     // source: ieLegislationTypes.ts ie_immigration_asylum

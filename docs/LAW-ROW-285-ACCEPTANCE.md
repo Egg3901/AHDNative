@@ -1,6 +1,6 @@
 # Law rows reviewed for #285
 
-Reference pin: AHDGame `6f8b083beffbc79b8c9974b80d93dbd19d6d56a` (the
+Reference pin: AHDGame `6f8b083beffbc79b8c9974b80d93dbd19d6d56a6` (the
 country law files and generic policy project/effect files below are byte
 identical to source pin `96831835fb6b28983aa14fe66cb6eae9ecfde84c`). The current
 source bill-enactment delta in this range only adds analytics capture.
@@ -16,6 +16,10 @@ source bill-enactment delta in this range only adds analytics capture.
 | `us.environment.conservation.primary` | `US_LAWS`: `environment.conservation`, both scope, L1 baseline and GDP-cost ladder | Native policy ledger, environmental metric destination, and budget delta path consume the authored target and costs. |
 | `uk.defense.security.primary` | `UK_LAWS`: `defense.security`, L2 baseline and GDP-cost ladder | Source row only targets the scalar metric; Native budget and metric policy consumers handle it. |
 | `us.tax.tariffs` | `US_LAWS`: federal `tariffs`, 0–15%, 0.5-point rate step, zero baseline | Existing sponsor, import-value tariff revenue, budget surplus reconciliation, rate phase-in and save/reload continuation. The current turn books receipts at its in-force rate before advancing the next rate step. This is distinct from unmatched synthetic `us.tariff.primary`. |
+| `de_government_ethics` | DE ethics seed: governance transparency, trust, and turnout targets; seven source policy options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
+| `ie_electoral_reform` | IE ethics/electoral seed: turnout, civic participation, public trust, and transparency targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
+| `ie_gender_equality` | IE equality seed: equality, mobility, civic participation, and cohesion targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
+| `ie_government_ethics` | IE ethics seed: transparency, trust, and civic participation targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
 
 Focused tests use real `createWorld`, `executeAction`, `advanceTurn`,
 `serializeSave`, and `deserializeSave` seams. They use source HOS creation as
@@ -39,9 +43,9 @@ The remaining Native hand-authored stubs are:
 | `us.electoral.law.primary` | No exact law ID exists in the pinned Game catalog. | Keep blocked as `elections/electoralLaw`; election-law actions are not a source bill row. |
 | `us.centralBank.independence.primary` | No exact law ID exists in the pinned Game catalog. | Keep blocked as `centralBank/governance`; central-bank appointment/governance is not a source bill row. |
 
-The unavailable inventory retains 248 rows: 26 tax rows, 209 rows with at
-least one named unsupported political-metric target, 7 rows whose metrics are
-mapped but whose effect descriptor is not ported, one matched income-cost
+The unavailable inventory retains 239 matched rows plus 5 source-unmatched IDs (244 total): 26 tax rows, 209 rows with at
+least one named unsupported political-metric target, 3 JP rows whose metrics are
+mapped but whose per-capita fiscal-cost consumer is not ported, one matched income-cost
 law (`us.economy.mobility.primary`), and 5 source-unmatched IDs. Each matched
 row records its exact source path, scope, prerequisites, authored targets and blocker in
 `catalogUnavailableInventory.ts`. Tax rows with regional scope stay blocked
@@ -64,11 +68,10 @@ sales-tax budget leg).
   actual same-country region passed through the sponsor action callback.
 - `legislationDetails.test.ts` passed 16/16, including actual-region projection
   and national/regional action parameters.
-- The generator CLI could not run in this sandbox because its `tsx` IPC socket
-  and Node child-process Git revision probe return `EPERM`. The generated
-  unavailable inventory was mechanically filtered to match the generator's
-  `STUBBED_CATALOG` output, and the inventory parity test verifies every
-  remaining unavailable catalog entry exactly once.
+- The four DE/IE metric-only rows were emitted by `generateCatalogs.ts` from
+  the clean pinned Game source checkout at `96831835fb6b28983aa14fe66cb6eae9ecfde84c`.
+  The source option ladder, target weights, descriptions, and level directions
+  remain generator-derived. Focused generator/catalog tests passed 14/14.
 
 This is a source review and executable slice, not full #285/#101 acceptance:
 the catalog still has unavailable rows listed above and the full package gate

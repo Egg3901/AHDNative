@@ -668,9 +668,11 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Lobbyregister, Karenzzeit, Verhaltensregeln für Abgeordnete, Abgeordnetengesetz transparency, Parteiengesetz disclosure, and Antikorruptionsbeauftragte authority.",
     category: "governance",
     allowedScope: "national",
+    baselineLevel: 3,
+    optionEffectDirections: [1,1,1,0,-1,-1,-1],
+    levels: [{"name":"Universal Transparency Act","description":"(Universal-Transparenzgesetz) — Constitutional Antikorruptionsklausel, public real-time disclosure of all parliamentary contacts, criminal penalties for Karenzzeit violations"},{"name":"Anti-Lobbying Strengthening Act","description":"(Antilobby-Stärkungs-Gesetz) — Five-year Karenzzeit, mandatory legislative-footprint disclosure, sharply expanded Antikorruptionsbeauftragte authority"},{"name":"Ethics Reform Strengthening Act","description":"(Ethik-Reform-Stärkungs-Gesetz) — Tighten Lobbyregister disclosure, extend Karenzzeit to three years, broaden Verhaltensregeln scope"},{"name":"Federal Government Ethics Act","description":"(Bundes-Ethik-und-Lobbyregistergesetz) — Statutory Lobbyregister, statutory Karenzzeit, Abgeordnetengesetz transparency framework"},{"name":"Ethics Reform Reduction Act","description":"(Ethik-Reform-Reduktions-Gesetz) — Narrow Lobbyregister scope to large lobbying firms, shorten Karenzzeit to 12 months"},{"name":"Lobby Liberalization Act","description":"(Lobby-Liberalisierungs-Gesetz) — Roll back the Lobbyregister, eliminate Karenzzeit entirely, dissolve the Antikorruptionsbeauftragte"},{"name":"Ethics Framework Repeal Act","description":"(Ethik-Rahmengesetz-Aufhebung) — Repeal the Lobbyregister-Gesetz entirely, end mandatory disclosure, return ethics governance to party self-regulation"}],
     targets: [{"metricId":"governance.openness","weight":1},{"metricId":"governance.integrity","weight":0.4},{"metricId":"governance.participation","weight":0.2}],
-    status: "unavailable",
-    blockingSystem: "legislation/effectDescriptor",
+    status: "available",
   },
   {
     // source: seed

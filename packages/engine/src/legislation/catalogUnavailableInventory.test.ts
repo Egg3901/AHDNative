@@ -38,11 +38,11 @@ const UNMATCHED_SOURCE_VECTOR = [
 
 describe("unavailable law source inventory", () => {
   it("matches the pinned source vector independently of the Native catalog", () => {
-    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(248);
+    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(244);
     expect(Object.fromEntries(["JP", "DE", "IE", "CN", "BR", "US", "UK", "RU", "DD"].map((countryId) => [
       countryId,
       UNAVAILABLE_LAW_INVENTORY.filter((row) => row.countryId === countryId).length,
-    ]))).toEqual({ JP: 62, DE: 53, IE: 57, CN: 57, BR: 13, US: 6, UK: 0, RU: 0, DD: 0 });
+    ]))).toEqual({ JP: 62, DE: 52, IE: 54, CN: 57, BR: 13, US: 6, UK: 0, RU: 0, DD: 0 });
     for (const id of ["de_trade_tax", "cn_provincial_resource_tax", "jp_resident_tax", "jp_fixed_asset_tax"]) {
       expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === id), id).toMatchObject({
         nativeScope: "regional",
