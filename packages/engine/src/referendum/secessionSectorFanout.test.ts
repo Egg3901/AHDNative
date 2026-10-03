@@ -29,12 +29,28 @@ describe("referendum secession sector fan-out", () => {
     }
     const manufacturer = world.corporations["UK-manufacturing"]!;
     const walManufacturing = assets.find((asset) => asset.corporationId === manufacturer.id && asset.stateId === "WAL")!;
-    const walReceiptShare = walManufacturing.revenue! / manufacturer.revenue;
+    // The source receipt share defines opening physical stock. Actual later
+    // sales are computed per plant and need not preserve that opening ratio.
+    expect(walManufacturing.revenue! / manufacturer.revenue).toBeCloseTo(274_510 / 8_512_171, 9);
     corporationTurnPhase.run(world);
     const updatedManufacturer = world.corporations["UK-manufacturing"]!;
     const updatedIssuerAssets = Object.values(world.corporateSectors!).filter((asset) => asset.corporationId === updatedManufacturer.id);
     expect(updatedIssuerAssets.reduce((sum, asset) => sum + asset.revenue!, 0)).toBeCloseTo(updatedManufacturer.revenue, 6);
-    expect(walManufacturing.revenue! / updatedManufacturer.revenue).toBeCloseTo(walReceiptShare, 9);
+    // Autonomous greenfield entry may add another industry to the issuer.
+    // Compare the source opening manufacturing shares within those same
+    // manufacturing assets, while the all-industry receipt sum above remains
+    // the consolidated issuer invariant.
+    const updatedManufacturingAssets = updatedIssuerAssets.filter((asset) => asset.sectorType === "manufacturing");
+    expect(updatedManufacturingAssets.map((asset) => asset.id).sort())
+      .toEqual(assets.filter((asset) => asset.corporationId === manufacturer.id).map((asset) => asset.id).sort());
+    const manufacturingReceipts = updatedManufacturingAssets.reduce((sum, asset) => sum + asset.revenue!, 0);
+    expect(manufacturingReceipts).toBeGreaterThan(0);
+    expect(walManufacturing.revenue! / manufacturingReceipts).toBeCloseTo(274_510 / 8_512_171, 9);
+    const founding = world.corporateCashLedger?.find((row) => row.corporationId === manufacturer.id && row.type === "corp_sector_founding");
+    expect(founding?.meta?.sectorType).toBe("energy");
+    expect(founding?.meta?.sectorId).toBe("corporate-sector:UK:energy:UK-manufacturing:SCO");
+    expect(updatedIssuerAssets.find((asset) => asset.id === founding?.meta?.sectorId))
+      .toMatchObject({ sectorType: "energy", stateId: "SCO", capitalStock: 0, realizedRevenue: 0 });
     const restored = deserializeSave(serializeSave(world, "2026-10-01T00:00:00Z"));
     expect(Object.values(corporateSectorAssets(restored)).filter((asset) => asset.countryId === "UK" && asset.stateId === "WAL")).toHaveLength(regionalAssets.filter((asset) => asset.stateId === "WAL").length);
   });

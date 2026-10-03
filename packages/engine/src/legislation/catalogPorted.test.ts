@@ -5,7 +5,7 @@ import { getCatalog, getAllLawIds, CATALOG } from "./catalog.js";
 // legislation catalogs (generated, see catalogPorted*.ts headers).
 describe("ported legislation catalogs (JP/DE/IE/CN/BR)", () => {
   it("every roster country has a catalog and ids are unique across the whole catalog", () => {
-    const expected: Record<string, number> = { JP: 63, DE: 60, IE: 58, CN: 62, BR: 14 };
+    const expected: Record<string, number> = { JP: 63, DE: 60, IE: 59, CN: 62, BR: 14 };
     for (const [cid, n] of Object.entries(expected)) {
       expect(getCatalog(cid).length, cid).toBe(n);
     }
@@ -40,6 +40,9 @@ describe("ported legislation catalogs (JP/DE/IE/CN/BR)", () => {
         "de_customs_tariff_rate",
         "br_income_tax_rate",
         "ie_vat_rate",
+        // The source living-conflict Irish ratification action creates a
+        // contestable peace bill consumed by the bilateral settlement phase.
+        "ie_northern_ireland_peace",
         "cn_value_added_tax",
         "cn_enterprise_income_tax",
         "cn_individual_income_tax",
