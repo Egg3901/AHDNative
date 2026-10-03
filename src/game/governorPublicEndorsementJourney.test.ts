@@ -48,8 +48,11 @@ function presidentialEndTurn(save: string): number {
 }
 
 function activeWyGovernorEndorsementCandidate(save: string): string {
-  const race = save.match(/"id":"president:US:-:c1"[^{}]*?"governorEndorsements":\[\{([^{}]*)\}/)?.[1];
-  const candidate = race?.match(/"stateId":"WY"[^{}]*?"candidateId":"([^"]+)"[^{}]*?"endorsedById":"player"[^{}]*?"isActive":true/)?.[1];
+  // The race's candidate array contains nested objects before its endorsement
+  // ledger, so find the ledger key directly and inspect only its small row.
+  const ledgerStart = save.indexOf('"governorEndorsements":[');
+  const ledger = ledgerStart >= 0 ? save.slice(ledgerStart, ledgerStart + 2_000) : "";
+  const candidate = ledger.match(/"stateId":"WY","candidateId":"([^"]+)","endorsedById":"player"[^{}]*?"isActive":true/)?.[1];
   if (!candidate) throw new Error("Saved presidential race is missing the player's active WY governor endorsement.");
   return candidate;
 }
