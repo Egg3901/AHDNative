@@ -115,6 +115,23 @@ export const pack1953: SeedPack = {
       baselineStateGrants: 1_500_000_000,
       economicFactors: { gdpGrowth: 3.0, wageGrowth: 2.5, inflationRate: 0.5, tradeGrowth: 2.0 },
     },
+    {
+      // Source NATIONAL_BUDGET_SEED_CONFIGS_1953 JP row. Japan is simulated
+      // in this pack even though character creation remains unavailable.
+      countryId: "JP",
+      fiscalYear: 1953,
+      population: 86_600_000,
+      gdp: 25_800_000_000,
+      currencyCode: "JPY",
+      taxBaseRatios: { taxableIncome: 0.25, corporateProfits: 0.08, wagesAndSalaries: 0.38, importValue: 0.12, taxableSales: 0.35 },
+      taxRates: { incomeTax: 45, domesticCorporateTax: 41, foreignCorporateTax: 45, payrollTax: 6, tariffs: 0, salesTax: 0 },
+      otherRevenue: 556_000_000,
+      debt: { principal: 4_170_000_000, interestRate: 0.06, ceiling: 6_940_000_000 },
+      creditRating: "BB",
+      baselineSpendingByCategory: { social: 556_000_000, healthcare: 500_000_000, education: 972_000_000, defense: 250_000_000, infrastructure: 1_670_000_000, other: 1_670_000_000 },
+      baselineStateGrants: 1_110_000_000,
+      economicFactors: { gdpGrowth: 9, wageGrowth: 10, inflationRate: 6.5, tradeGrowth: 20 },
+    },
   ],
   states: [...usStates1953, ...ukRegions1953, ...ruRegions1953, ...ddRegions1953],
   economyRegions: [...cnRegions1953, ...JP_BUDGET_REGIONS_1953],
