@@ -67,12 +67,14 @@ export function jpRegionalBudgetDefaults(era: string): {
 
 /**
  * Build the source background country's initial fiscal rows from its immutable
- * eight-region pack and its authored policy options. This does not create
- * electoral Region entities, cabinet membership, or an allocation choice.
+ * eight-region fiscal pack and its authored policy options. When an era has
+ * separate fiscal and political records, the fiscal table is authoritative
+ * here; the political copy feeds elections. This does not seed cabinet
+ * membership or an allocation choice.
  */
 export function createJPRegionalBudgetRows(era: string): Record<string, RegionalBudget> {
   const pack = getPackByEra(era);
-  const sourceRegions = [...(pack?.states ?? []), ...(pack?.economyRegions ?? [])]
+  const sourceRegions = (pack?.economyRegions ?? pack?.states ?? [])
     .filter((candidate) => candidate.countryId === "JP");
   if (sourceRegions.length === 0) return {};
   if (sourceRegions.length !== JP_REGION_COUNT || new Set(sourceRegions.map((row) => row.id)).size !== JP_REGION_COUNT) {
@@ -137,7 +139,10 @@ export function createJPRegionalBudgetRows(era: string): Record<string, Regional
  */
 export function processJPRegionalBudget(world: import("../types.js").WorldState, regionId: string): boolean {
   const pack = getPackByEra(world.meta.era);
-  const sourceRegions = [...(pack?.states ?? []), ...(pack?.economyRegions ?? [])]
+  // Source fiscal calculations use the dedicated economy-region table when
+  // one exists. Cold-era packs also carry political State rows for elections;
+  // concatenating both tables would double-count JP's national population.
+  const sourceRegions = (pack?.economyRegions ?? pack?.states ?? [])
     .filter((candidate) => candidate.countryId === "JP");
   const region = sourceRegions.find((candidate) => candidate.id === regionId);
   const row = world.regionalBudgets[regionId];

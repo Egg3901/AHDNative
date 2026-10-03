@@ -835,15 +835,27 @@ export function createWorld(options: NewWorldOptions): WorldState {
     }
   }
 
-  // Populate politicians for elected chambers of playable countries.
+  // Populate politicians for playable countries and source-authored background political systems.
   // Uses the same world rng, in deterministic order, so identical options
   // give identical casts. Capture rng state AFTER generation so save/load
   // resumes the sequence correctly.
   const playableIds = new Set(pack.countries.filter((c) => c.playable).map((c) => c.id));
+  // AHDGame seeds JP political regions, parties, legislatures and elections in
+  // every supported preset even while JP character selection is disabled.
+  // Keep that background producer distinct from the public playable roster.
+  const seededPoliticalIds = new Set(playableIds);
+  if (
+    pack.countries.some((country) => country.id === "JP") &&
+    pack.states?.some((state) => state.countryId === "JP") &&
+    pack.parties?.some((party) => party.countryId === "JP") &&
+    pack.legislatures?.some((legislature) => legislature.countryId === "JP")
+  ) {
+    seededPoliticalIds.add("JP");
+  }
   const politicians = createPoliticiansForWorld(rng, {
     legislatures,
     parties,
-    playableCountryIds: playableIds,
+    playableCountryIds: seededPoliticalIds,
     era: pack.era.id,
   });
 
@@ -899,7 +911,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   }
 
   const { regions, electoratePools, regionTurnouts, partyRegions, partyPressures, candidateSupports } =
-    seedSupport(pack, parties, politicians);
+    seedSupport(pack, parties, politicians, seededPoliticalIds);
   // Mainline's 1953 state collection contains Alaska and Hawaii as territories
   // with real 1950 population/GSP, but they are absent from the House map until
   // the statehood turn phase stamps admittedYear. Keep the source geography in
@@ -1423,6 +1435,7 @@ function seedSupport(
   pack: { countries: Array<{ id: string; playable: boolean }>; states?: Array<{ id: string; name: string; countryId: string; population: number; gdp: number; houseSeats: number; senateSeats: number; region: string; senateClasses: [1 | 2 | 3, 1 | 2 | 3]; registration: { parties: Array<{ abbr: string; org: number; reg: number }>; independent: number; unregistered: number; unaffiliatedOrg: number } }>; backgroundElections?: BackgroundElectionSeed[] },
   parties: WorldState["parties"],
   politicians: WorldState["politicians"],
+  seededPoliticalIds: Set<string>,
 ): {
   regions: WorldState["regions"];
   partyRegions: WorldState["partyRegions"];
@@ -1431,7 +1444,7 @@ function seedSupport(
   partyPressures: WorldState["partyPressures"];
   candidateSupports: WorldState["candidateSupports"];
 } {
-  const playable = pack.countries.filter((c) => c.playable).map((c) => c.id);
+  const playable = [...seededPoliticalIds];
   const regions: WorldState["regions"] = {};
   const electoratePools: WorldState["electoratePools"] = {};
   const regionTurnouts: WorldState["regionTurnouts"] = {};
@@ -1714,7 +1727,9 @@ function seedDemographics(
     UK: ukMap,
     RU: ruMap,
     DD: ddMap,
-    JP: toMap(pick({ "1991": JP_DEMOGRAPHICS_1991, "1999": JP_DEMOGRAPHICS_2019, "2007": JP_DEMOGRAPHICS_2019, "2019": JP_DEMOGRAPHICS_2019, "2023": JP_DEMOGRAPHICS_2019 })),
+    // Source seedJP demographics use the baseline 2019 Layer-1 table for
+    // every preset except the explicitly adjusted 1991 table.
+    JP: toMap(pick({ "1953": JP_DEMOGRAPHICS_2019, "1979": JP_DEMOGRAPHICS_2019, "1991": JP_DEMOGRAPHICS_1991, "1999": JP_DEMOGRAPHICS_2019, "2007": JP_DEMOGRAPHICS_2019, "2019": JP_DEMOGRAPHICS_2019, "2023": JP_DEMOGRAPHICS_2019 })),
     DE: toMap(pick({ "1991": DE_DEMOGRAPHICS_1991, "1999": DE_DEMOGRAPHICS_2019, "2007": DE_DEMOGRAPHICS_2019, "2019": DE_DEMOGRAPHICS_2019, "2023": DE_DEMOGRAPHICS_2019 })),
     CN: toMap(pick({ "1991": CN_DEMOGRAPHICS_1991, "1999": CN_DEMOGRAPHICS_2019, "2007": CN_DEMOGRAPHICS_2019, "2019": CN_DEMOGRAPHICS_2019, "2023": CN_DEMOGRAPHICS_2019 })),
     BR: toMap(pick({ "1991": BR_DEMOGRAPHICS_1991 })),

@@ -41,18 +41,19 @@ describe("Japan regional budget source formula", () => {
     });
   });
 
-  it("seeds source JP fiscal rows without manufacturing electoral regions", () => {
+  it("seeds fiscal rows alongside source JP election geography while keeping player selection closed", () => {
     for (const era of ["1953", "1979", "1991", "2019", "1999", "2007", "2023"] as const) {
       const world = createWorld({ seed: `jp-budget-${era}`, playerName: "Tester", countryId: "US", era });
       const pack = getPackByEra(era)!;
-      const sourceIds = [...(pack.states ?? []), ...(pack.economyRegions ?? [])]
+      const sourceIds = [...new Set([...(pack.states ?? []), ...(pack.economyRegions ?? [])]
         .filter((region) => region.countryId === "JP")
-        .map((region) => region.id)
-        .sort();
+        .map((region) => region.id))].sort();
       const jpBudgets = Object.values(world.regionalBudgets).filter((row) => row.countryId === "JP");
       expect(jpBudgets, `${era} JP source budget rows`).toHaveLength(8);
       expect(jpBudgets.map((row) => row.regionId).sort(), `${era} exact source geography`).toEqual(sourceIds);
-      expect(Object.values(world.regions).some((region) => region.countryId === "JP"), `${era} electoral JP regions`).toBe(false);
+      const jpRegions = Object.values(world.regions).filter((region) => region.countryId === "JP");
+      expect(jpRegions, `${era} source-seeded JP regions`).toHaveLength(8);
+      expect(world.legislatures.JP?.chambers.some((chamber) => chamber.key === "shugiin"), `${era} JP chamber seed`).toBe(true);
       expect(world.budgets.JP, `${era} national JP budget`).toBeDefined();
       if (era === "1953") {
         expect(world.budgets.JP).toMatchObject({ fiscalYear: 1953, population: 86_600_000, gdp: 25_800_000_000, currencyCode: "JPY" });
@@ -167,7 +168,10 @@ describe("Japan regional budget source formula", () => {
   it("uses persisted current JP populations and preserves the source regional property base", () => {
     const world = createWorld({ seed: "jp-budget-current-base", playerName: "Tester", countryId: "US", era: "2019" });
     for (const row of Object.values(world.regionalBudgets)) {
-      if (row.countryId === "JP") row.jpPopulation = 1_000_000;
+      if (row.countryId === "JP") {
+        row.jpPopulation = 1_000_000;
+        world.regions[row.regionId]!.population = 1_000_000;
+      }
     }
     const hokkaido = world.regionalBudgets.HOK!;
     hokkaido.jpPropertyValuePerCapita = 12_000_000;
@@ -188,6 +192,21 @@ describe("Japan regional budget source formula", () => {
       jpPropertyValuePerCapita: 12_000_000,
       jpPropertyValueBaseline: 9_000_000,
     });
+  });
+
+  it("uses only the fiscal region table when cold-era packs also seed political JP states", () => {
+    const world = createWorld({ seed: "jp-budget-cold-era-population", playerName: "Tester", countryId: "US", era: "1953" });
+    for (const region of Object.values(world.regions)) {
+      if (region.countryId === "JP") region.population = 1_000_000;
+    }
+
+    processJPRegionalBudget(world, "HOK");
+
+    // Eight source regions at one million residents allocate an equal grant
+    // of ¥128bn. Counting both political States and the separate fiscal table
+    // would incorrectly double the national population and grant.
+    expect(world.regionalBudgets.HOK?.jpPopulation).toBe(1_000_000);
+    expect(world.regionalBudgets.HOK?.revenue.grant).toBe(128_000_000_000);
   });
 
   it("rebuilds only immutable missing JP budget rows on a legacy turn", () => {

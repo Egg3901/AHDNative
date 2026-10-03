@@ -75,7 +75,8 @@ export const BUDGETS_1979: BudgetSeed[] = [
     economicFactors: { gdpGrowth: 2.5, wageGrowth: 3.5, inflationRate: 0.5, tradeGrowth: 3 },
   },
   {
-    // taxRates: incomeTax: jp_income_tax_rate option[5] = 25; domesticCorporateTax: jp_domestic_corporation_tax option[5] = 23; foreignCorporateTax: jp_foreign_corporation_tax option[3] = 19; payrollTax: jp_social_insurance option[5] = 15; tariffs: jp_customs_tariff option[0] = 0; salesTax: jp_consumption_tax option[5] = 10
+    // Japan's 1979 consumption-tax proposal was withdrawn; the tax was not
+    // introduced until 1989. Keep the budget aligned with source basePolicies1979.
     countryId: "JP",
     fiscalYear: 1979,
     sourceFiscalYear: 1979,
@@ -83,7 +84,7 @@ export const BUDGETS_1979: BudgetSeed[] = [
     gdp: 230_000_000_000_000,
     currencyCode: "JPY",
     taxBaseRatios: {"taxableIncome":0.28,"corporateProfits":0.09,"wagesAndSalaries":0.4,"importValue":0.12,"taxableSales":0.38},
-    taxRates: {"incomeTax":25,"domesticCorporateTax":23,"foreignCorporateTax":19,"payrollTax":15,"tariffs":0,"salesTax":10},
+    taxRates: {"incomeTax":25,"domesticCorporateTax":23,"foreignCorporateTax":19,"payrollTax":15,"tariffs":0,"salesTax":0},
     otherRevenue: 4_000_000_000_000,
     debt: { principal: 70_000_000_000_000, interestRate: 0.08, ceiling: 85_000_000_000_000 },
     creditRating: "AA",

@@ -4,7 +4,7 @@ import { ukRegions1953 } from "./ukRegions1953.js";
 import { ruRegions1953 } from "./ruRegions1953.js";
 import { ddRegions1953 } from "./ddRegions1953.js";
 import { cnRegions1953 } from "./cnRegions1953.js";
-import { JP_BUDGET_REGIONS_1953 } from "./jpBudgetRegionsColdWar.js";
+import { JP_BUDGET_REGIONS_1953, JP_LEGISLATURES_COLD_WAR, JP_PARTIES_1953, JP_STATES_1953 } from "./jpBudgetRegionsColdWar.js";
 import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 import { EASTERN_BLOC_ELECTIONS_1953 } from "./easternBlocElections.js";
 
@@ -133,7 +133,7 @@ export const pack1953: SeedPack = {
       economicFactors: { gdpGrowth: 9, wageGrowth: 10, inflationRate: 6.5, tradeGrowth: 20 },
     },
   ],
-  states: [...usStates1953, ...ukRegions1953, ...ruRegions1953, ...ddRegions1953],
+  states: [...usStates1953, ...ukRegions1953, ...ruRegions1953, ...ddRegions1953, ...JP_STATES_1953],
   economyRegions: [...cnRegions1953, ...JP_BUDGET_REGIONS_1953],
   corporationHeadquartersRegions: [...US_CORPORATION_HEADQUARTERS_REGIONS],
   countries: [
@@ -301,6 +301,7 @@ export const pack1953: SeedPack = {
     },
   ],
   parties: [
+    ...JP_PARTIES_1953,
     { id: "US_DEM", name: "Democratic Party", countryId: "US", abbreviation: "DEM", color: "#3B82F6", economicPosition: -2, socialPosition: -2 },
     { id: "US_REP", name: "Republican Party", countryId: "US", abbreviation: "REP", color: "#EF4444", economicPosition: 2, socialPosition: 2 },
     { id: "UK_LAB", name: "Labour Party", countryId: "UK", abbreviation: "LAB", color: "#E4003B", economicPosition: -2, socialPosition: -3 },
@@ -320,6 +321,7 @@ export const pack1953: SeedPack = {
     { id: "CN_CNDCA", name: "China National Democratic Construction Association", countryId: "CN", abbreviation: "CNDCA", color: "#1E90FF", economicPosition: 1, socialPosition: 0, regimeStatus: "approved" },
   ],
   legislatures: [
+    JP_LEGISLATURES_COLD_WAR[0]!,
     {
       countryId: "US",
       name: "Congress",

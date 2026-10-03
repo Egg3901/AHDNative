@@ -189,3 +189,20 @@ export const SUBNATIONAL_CHAMBER_PER_REGION: Record<string, { electionType: stri
  * class 1 = ceil, class 2 = floor.
  */
 export const JP_SANGIIN_SEATS: Record<string, number> = { HOK: 7, TOH: 20, KAN: 80, CHU: 44, KNS: 44, CGK: 14, SHI: 8, KYU: 31 };
+
+/** Sangiin seats per region in the 1983-1998 source system used by 1991. */
+export const JP_SANGIIN_SEATS_1991: Record<string, number> = {
+  HOK: 8,
+  TOH: 22,
+  KAN: 78,
+  CHU: 44,
+  KNS: 46,
+  CGK: 16,
+  SHI: 10,
+  KYU: 28,
+};
+
+/** The source uses the historical 252-seat map only for the 1991 preset. */
+export function jpSangiinSeatsForEra(era: string): Record<string, number> {
+  return era === "1991" ? JP_SANGIIN_SEATS_1991 : JP_SANGIIN_SEATS;
+}

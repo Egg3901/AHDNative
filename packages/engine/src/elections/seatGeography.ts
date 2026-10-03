@@ -1,5 +1,5 @@
 import type { WorldState } from "../types.js";
-import { LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS } from "../government/constants.js";
+import { LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, jpSangiinSeatsForEra } from "../government/constants.js";
 
 /**
  * Deterministically assign US seat geography (state + senate class) to seated
@@ -55,6 +55,7 @@ export function assignUsSeatGeography(world: WorldState): void {
  */
 export function assignRegionalSeatGeography(world: WorldState): void {
   const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id);
+  const jpSangiinSeats = jpSangiinSeatsForEra(world.meta.era);
   const regionsOf = (cid: string) => Object.values(world.regions ?? {}).filter((r) => r.countryId === cid).sort(byId);
   const fill = (cid: string, chamberKey: string, seatsOf: (r: { id: string; houseSeats?: number; senateSeats?: number }) => number, classes?: (r: { id: string }, k: number) => 1 | 2 | 3 | undefined) => {
     const regions = regionsOf(cid);
@@ -76,6 +77,7 @@ export function assignRegionalSeatGeography(world: WorldState): void {
   for (const [cid, spec] of Object.entries(SUBNATIONAL_CHAMBER_PER_REGION)) fill(cid, spec.chamberKey, (r) => r.senateSeats ?? 0);
   // BR Senado: per-region seats = region.senateSeats (mainline ensureBRSenateElections).
   fill("BR", "senate", (r) => r.senateSeats ?? 0);
-  // JP Sangiin: per-region seats from JP_SANGIIN_SEATS, first ceil(n/2) in class 1, rest class 2.
-  fill("JP", "sangiin", (r) => JP_SANGIIN_SEATS[r.id] ?? 0, (r, k) => (k < Math.ceil((JP_SANGIIN_SEATS[r.id] ?? 0) / 2) ? 1 : 2));
+  // JP Sangiin uses the source per-era regional seat totals, split across two
+  // classes with class 1 receiving the odd seat.
+  fill("JP", "sangiin", (r) => jpSangiinSeats[r.id] ?? 0, (r, k) => (k < Math.ceil((jpSangiinSeats[r.id] ?? 0) / 2) ? 1 : 2));
 }

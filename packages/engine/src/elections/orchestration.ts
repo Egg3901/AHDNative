@@ -39,7 +39,7 @@ import {
   GOVERNOR_COUNTRIES,
   LOWER_CHAMBER_PER_REGION,
   SUBNATIONAL_CHAMBER_PER_REGION,
-  JP_SANGIIN_SEATS,
+  jpSangiinSeatsForEra,
   UK_DEVOLVED_GOVERNOR_REGIONS,
 } from "../government/constants.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
@@ -227,6 +227,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
     );
   };
   const regions = world.regions ?? {};
+  const jpSangiinSeats = jpSangiinSeatsForEra(world.meta.era);
   const cycleContext = cycleContextForWorld(world);
   const cycleAnchors = getCycleAnchors(cycleContext);
   const ukInstitutionState =
@@ -357,7 +358,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
     }
     if (r.countryId === "JP") {
       const sangiin = leg.chambers.find((c) => c.key === "sangiin");
-      const n = JP_SANGIIN_SEATS[r.id];
+      const n = jpSangiinSeats[r.id];
       if (sangiin && sangiin.elected && n) {
         specs.push({
           electionType: "sangiin",
