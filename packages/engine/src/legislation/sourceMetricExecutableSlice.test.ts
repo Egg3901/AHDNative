@@ -123,6 +123,7 @@ describe("RU/DD source-backed economy laws (#285)", () => {
     world.player.actions = 100;
     world.player.nationalInfluence = 30;
     const regionId = Object.values(world.regions).find((region) => region.countryId === "DD")!.id;
+    const metricBefore = world.regionalMetrics[regionId]?.["economy.workerSecurity"]?.value;
     const result = executeAction(world, "player", "sponsorBill", {
       catalogId: "dd.economy.workerSecurity.primary", policyOptionId: "l3", regionId,
     });
@@ -139,6 +140,8 @@ describe("RU/DD source-backed economy laws (#285)", () => {
     advanceTurn(resumed);
     expect(resumed.regionalMetrics[regionId]?.["economy.workerSecurity"])
       .toEqual(world.regionalMetrics[regionId]?.["economy.workerSecurity"]);
+    expect(world.regionalMetrics[regionId]?.["economy.workerSecurity"]?.value).toBeDefined();
+    expect(world.regionalMetrics[regionId]?.["economy.workerSecurity"]?.value).not.toBe(metricBefore);
     expect(resumed.budgets.DD?.policySpendingByCategory)
       .toEqual(world.budgets.DD?.policySpendingByCategory);
   });

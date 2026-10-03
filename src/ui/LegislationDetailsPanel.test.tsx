@@ -239,7 +239,7 @@ describe("LegislationDetailsPanel", () => {
     });
   });
 
-  it("lets the player select an authored law level without changing sponsor authority or scope", async () => {
+  it("lets the player select an authored law level and regional scope under the existing sponsor gate", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     const LegislationDetailsPanel = await renderPanel();
