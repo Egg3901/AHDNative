@@ -17,7 +17,16 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import type { SectorBuildOrder } from "./corporateSectorAssets.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { CORPORATE_PLANT_MARKET_STABILIZER, corporatePlantInputRates, rebuildCorporatePlantInputDemand } from "./plantDemand.js";
-import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantPolicyCredit, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
+import {
+  assembleSourcePlantPnl,
+  sourceCrisisMarginPenalty,
+  sourceDominanceComplianceRate,
+  sourceLegacyAnchorPolicyCharge,
+  sourcePlantFinancialLeg,
+  sourcePlantPolicyCredit,
+  sourcePlantsUpkeep,
+  sourceSectorLaborCost,
+} from "./physicalPlantCosts.js";
 
 const PRICE_REALIZATION_EXPONENT = 0.5;
 const PRICE_REALIZATION_MIN = 0.7;
@@ -222,6 +231,19 @@ export function runCorporatePlantProductionTurn(
     const demandFactor = demandThrottleFactor(plannedUnits, priorSoldUnits, asset.producedUnits);
     const outputFactor = labourOutputFactor * demandFactor;
     const producedUnits = productionCapacity * outputFactor * outputUnitsFactor;
+    if (asset.mothballed === true) {
+      // Source mothballing takes a plant off both the output and input sides
+      // of the market. Keep physical depreciation/build delivery above, but
+      // do not create an offer or carry stale utilization into reinvestment.
+      asset.capitalStock = capital.capitalStock;
+      asset.capacityBookAnchor = capital.capacityBookAnchor;
+      asset.producedUnits = 0;
+      asset.soldUnits = 0;
+      asset.soldFraction = 0;
+      asset.realizedRevenue = 0;
+      asset.soldByCommodity = {};
+      continue;
+    }
     const seller: PlantSeller = {
       asset,
       productionCapacity,
@@ -366,6 +388,7 @@ export function runCorporatePlantProductionTurn(
     // Current-turn labor/subsidy/retool margin modifiers are applied once by
     // corporationTurn after this physical settlement.
     const baseMargin = asset.profitMargin ?? corporation.profitMargin;
+    const neutralMarginBasis = 1 - baseMargin / 100;
     const priorMargin = softCapEffectiveMargin(baseMargin);
     const produced = asset.producedUnits ?? 0;
     const year = Number(world.meta.date.slice(0, 4));
@@ -424,10 +447,21 @@ export function runCorporatePlantProductionTurn(
     if (asset.otherOpexPerUnitAnchor === undefined && produced > 0) {
       const requestedCredit = realizedRevenue * (policyMarginPp / 100);
       asset.otherOpexPerUnitAnchor = (realizedRevenue * (1 - totalEffectiveMargin / 100) + requestedCredit - inputCost - labour - financialLegs) / produced;
+      // New residuals are solved at the policy-neutral basis. Do not backfill
+      // this provenance on older anchors: absent history must not be guessed.
+      asset.otherOpexAnchorMarginBasis = neutralMarginBasis;
     }
-    const rawOtherOpex = Number.isFinite(asset.otherOpexPerUnitAnchor)
+    const legacyPolicyCharge = sourceLegacyAnchorPolicyCharge({
+      revenue: realizedRevenue,
+      neutralBasis: neutralMarginBasis,
+      anchorMarginBasis: Number.isFinite(asset.otherOpexPerUnitAnchor)
+        ? asset.otherOpexAnchorMarginBasis
+        : undefined,
+    });
+    const rawOtherOpex = (Number.isFinite(asset.otherOpexPerUnitAnchor)
       ? asset.otherOpexPerUnitAnchor! * produced
-      : realizedRevenue * (1 - totalEffectiveMargin / 100) - inputCost - labour - financialLegs;
+      : realizedRevenue * (1 - totalEffectiveMargin / 100) - inputCost - labour - financialLegs)
+      + legacyPolicyCharge;
     const requestedPolicyCredit = realizedRevenue * (policyMarginPp / 100);
     const pnl = assembleSourcePlantPnl({
       revenue: realizedRevenue, inputs: inputCost, labour, upkeep: upkeep.cost,
@@ -548,6 +582,7 @@ export function corporatePlantsRealizationRatio(world: WorldState, corporationId
   let nominal = 0;
   for (const asset of Object.values(corporateSectorAssets(world))) {
     if (asset.corporationId !== corporationId) continue;
+    if (asset.mothballed === true) continue;
     const selected = asset.strategyId !== undefined && asset.strategyId !== "standard";
     const strategy = selected || asset.transitionFromStrategyId
       ? effectiveSectorStrategyRates(asset, world.meta.turn)
@@ -578,6 +613,7 @@ export function sourceCorpDailyGrossRevenueLocal(world: WorldState, corporationI
   let foundAsset = false;
   for (const asset of Object.values(corporateSectorAssets(world))) {
     if (asset.corporationId !== corporationId) continue;
+    if (asset.mothballed === true) continue;
     foundAsset = true;
     const selected = asset.strategyId !== undefined && asset.strategyId !== "standard";
     const strategy = selected || asset.transitionFromStrategyId

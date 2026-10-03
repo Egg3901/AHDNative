@@ -233,7 +233,7 @@ export function rebuildCorporatePlantInputDemand(world: WorldState): void {
 
   for (const asset of Object.values(corporateSectorAssets(world))) {
     const corporation = world.corporations[asset.corporationId];
-    if (!corporation || corporation.suspended === true) continue;
+    if (!corporation || corporation.suspended === true || asset.mothballed === true) continue;
     const hasSelectedStrategy = asset.strategyId !== undefined && asset.strategyId !== "standard";
     const hasStrategyOverride = hasSelectedStrategy || asset.transitionFromStrategyId !== undefined;
     const effective = hasStrategyOverride ? effectiveSectorStrategyRates(asset, world.meta.turn) : undefined;

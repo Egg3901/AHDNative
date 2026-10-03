@@ -101,6 +101,12 @@ export interface CorporateSectorAsset {
   };
   /** Held residual operating cost per output unit, calibrated at first output. */
   otherOpexPerUnitAnchor?: number;
+  /**
+   * Policy-neutral cost basis when the residual anchor was calibrated. Older
+   * anchors without this provenance remain unadjusted; zero is not inferred.
+   * Source: Game CorporateSector.otherOpexAnchorMarginBasis.
+   */
+  otherOpexAnchorMarginBasis?: number;
   /** Source idle-upkeep price basis, stamped on first physical P&L turn. */
   plantsUpkeepMarginBasisAnchor?: number;
   /** Operating margin derived from this asset's recorded physical costs. */
@@ -156,6 +162,8 @@ export interface CorporateSectorAsset {
   owner: CorporateSectorOwner;
   /** Source CorporateSector.mothballed; absent means the asset is live. */
   mothballed?: boolean;
+  /** Consecutive NPP-managed loss-making turns used by source cost mothballing. */
+  pnlLossTurns?: number;
 }
 
 /**
@@ -315,13 +323,16 @@ export function validateCorporateSectorAssets(
     if (asset.mothballed !== undefined && typeof asset.mothballed !== "boolean") {
       throw new Error(`Corporate sector ${asset.id} has invalid mothballed state`);
     }
+    if (asset.pnlLossTurns !== undefined && (!Number.isSafeInteger(asset.pnlLossTurns) || asset.pnlLossTurns < 0)) {
+      throw new Error(`Corporate sector ${asset.id} has invalid loss-turn count`);
+    }
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
   }
 }
 
-/** Schema-60 source P&L fields are either wholly absent or fully finite. */
+/** Persisted source P&L and anchor values are either absent or finite. */
 export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
   if (asset.plantsPnl !== undefined) {
     const pnl = asset.plantsPnl;
@@ -343,6 +354,7 @@ export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
   for (const [field, value] of [
     ["profitMargin", asset.profitMargin],
     ["otherOpexPerUnitAnchor", asset.otherOpexPerUnitAnchor],
+    ["otherOpexAnchorMarginBasis", asset.otherOpexAnchorMarginBasis],
     ["plantsUpkeepMarginBasisAnchor", asset.plantsUpkeepMarginBasisAnchor],
     ["effectiveProfitMargin", asset.effectiveProfitMargin],
   ] as const) {

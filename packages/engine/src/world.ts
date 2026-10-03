@@ -186,8 +186,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v63: source primary National Corporation identity and cross-sector routing.
 // v64: allocated seatsHeld weights must survive winner, ballot and government
 // continuation; older readers count one vote per office and must refuse them.
-// v65: legislative notice, source NPP strategy/replacement/cash and corporate
-// relocation/FX state needs its new consumers. The published64 reader refuses it.
+// v65: legislative notice, source NPP strategy, plant P&L anchor provenance,
+// physical replacement, cash writes and corporate relocation/FX state need
+// their new consumers. The schema-64 feature reader must refuse this state.
 // v65: annual source statehood-admission continuation and admittedYear region
 // stamps, source UK devolution institutions/Northern Ireland conflict state,
 // and UK Commons recall petition clocks/signatures/declarations/support samples.

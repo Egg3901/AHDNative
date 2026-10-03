@@ -44,6 +44,11 @@ const NPP_GROWTH_DEPLOY_FRACTION = 0.5;
 const NPP_GROWTH_MIN_SHORTAGE = 0.85;
 const NPP_GROWTH_MIN_UTILIZATION = 0.85;
 const NPP_GROWTH_MAX_STEP_OF_RUN = 0.5;
+// AHDGame turn/npp/nppCorporationTuning.ts at 24d8a1b.
+const SOURCE_GLUT_MOTHBALL_FILL_THRESHOLD = 0.25;
+const SOURCE_GLUT_MOTHBALL_PRICE_RATIO = 0.65;
+const SOURCE_GLUT_RESTART_PRICE_RATIO = 0.9;
+const SOURCE_COST_MOTHBALL_LOSS_TURNS = 12;
 const EXTRACTION_OUTPUT_SCALE: Partial<Record<(typeof EXTRACTABLE_RESOURCES)[number], number>> = {
   rare_earth: 2.5, natural_gas: 2, iron: 1.8, timber: 1.6, oil: 1.4,
 };
@@ -174,6 +179,48 @@ function sourceDominanceBuildMultiplier(sharePct: number, threshold: number): nu
   const share = Math.max(0, Math.min(100, sharePct));
   if (share <= threshold) return 1;
   return 1 + 2 * ((share - threshold) / (100 - threshold)) ** 2;
+}
+
+/** Source reversible glut mothball state transition; cost-loss fallback needs source loss-duration state. */
+export function applySourceGlutMothballing(world: WorldState): void {
+  const assets = Object.values(corporateSectorAssets(world)).sort((a, b) => a.id.localeCompare(b.id));
+  const byCorp = new Map<string, CorporateSectorAsset[]>();
+  for (const asset of assets) {
+    const rows = byCorp.get(asset.corporationId) ?? [];
+    rows.push(asset);
+    byCorp.set(asset.corporationId, rows);
+  }
+  for (const [corpId, rows] of byCorp) {
+    const corp = world.corporations[corpId];
+    if (!corp || corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
+    if (!sourceCorporateStrategyStaggerEligible(corpId, world.meta.turn)) continue;
+    for (const asset of rows) {
+      if (asset.mothballed === true || asset.plantsPnl?.turn !== world.meta.turn) continue;
+      const prior = asset.pnlLossTurns ?? 0;
+      const next = asset.plantsPnl.profit < 0 ? prior + 1 : 0;
+      if (next !== prior) asset.pnlLossTurns = next;
+    }
+    const priceRatio = (asset: CorporateSectorAsset): number => sourceSectorShortageScores(world, asset.sectorType).mean;
+    const restart = rows.find((asset) => asset.mothballed === true && priceRatio(asset) >= SOURCE_GLUT_RESTART_PRICE_RATIO);
+    if (restart) {
+      restart.mothballed = false;
+      restart.pnlLossTurns = 0;
+      continue;
+    }
+    const candidates = rows.filter((asset) => asset.mothballed !== true && asset.sectorType !== "extraction"
+      && asset.soldFraction !== undefined && asset.soldFraction < SOURCE_GLUT_MOTHBALL_FILL_THRESHOLD
+      && priceRatio(asset) <= SOURCE_GLUT_MOTHBALL_PRICE_RATIO);
+    candidates.sort((a, b) => (a.soldFraction ?? 1) - (b.soldFraction ?? 1) || a.id.localeCompare(b.id));
+    if (candidates[0]) {
+      candidates[0].mothballed = true;
+      continue;
+    }
+    const lossCandidates = rows.filter((asset) => asset.mothballed !== true && asset.sectorType !== "extraction"
+      && asset.plantsPnl?.turn === world.meta.turn && asset.plantsPnl.profit < 0
+      && (asset.pnlLossTurns ?? 0) >= SOURCE_COST_MOTHBALL_LOSS_TURNS);
+    lossCandidates.sort((a, b) => (b.pnlLossTurns ?? 0) - (a.pnlLossTurns ?? 0) || a.id.localeCompare(b.id));
+    if (lossCandidates[0]) lossCandidates[0].mothballed = true;
+  }
 }
 
 /** Source NPP greenfield entry: source candidate → located newborn asset → pool draw and cash witness. */
@@ -444,6 +491,7 @@ export function sourceExtractionHeadroomByRegion(world: WorldState): Map<string,
 
 /** Source NPP incumbent replacement and discretionary growth capacity legs. */
 export function applyNppCapacityReplacement(world: WorldState): void {
+  applySourceGlutMothballing(world);
   const year = Number(world.meta.date.slice(0, 4));
   const extractionHeadroom = sourceExtractionHeadroomByRegion(world);
   const basePrices = corporateSectorBasePrices(world);
@@ -469,6 +517,7 @@ export function applyNppCapacityReplacement(world: WorldState): void {
   for (const asset of assets) {
     const corp = world.corporations[asset.corporationId];
     if (!corp || corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
+    if (asset.mothballed === true) continue;
     const capitalStock = asset.capitalStock ?? 0;
     const produced = asset.producedUnits ?? 0;
     const sold = asset.soldUnits ?? 0;
