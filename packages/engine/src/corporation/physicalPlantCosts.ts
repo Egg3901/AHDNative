@@ -74,6 +74,29 @@ export function sourcePlantPolicyCredit(revenue: number, baseMarginPct: number, 
   return revenue * (softCapEffectiveMargin(baseMarginPct + modifierPp) - softCapEffectiveMargin(baseMarginPct)) / 100;
 }
 
+/**
+ * Source `legacyAnchorPolicyCharge`: old residual anchors include the policy
+ * stack that `policyCredit` now applies separately. Charge that calibration-
+ * time amount back once. Missing basis is historical absence, not a value to
+ * reconstruct from current modifiers, so it safely contributes zero.
+ */
+export function sourceLegacyAnchorPolicyCharge(input: {
+  revenue: number;
+  neutralBasis: number;
+  anchorMarginBasis?: number | null;
+}): number {
+  if (
+    !Number.isFinite(input.revenue) ||
+    !Number.isFinite(input.neutralBasis) ||
+    typeof input.anchorMarginBasis !== "number" ||
+    !Number.isFinite(input.anchorMarginBasis)
+  ) {
+    return 0;
+  }
+  const stack = input.neutralBasis - input.anchorMarginBasis;
+  return Math.abs(stack) < 1e-9 ? 0 : input.revenue * stack;
+}
+
 /** Game sectorCosts dominance compliance line, based on source revenue shares. */
 export function sourceDominanceComplianceRate(input: {
   localSharePct: number;

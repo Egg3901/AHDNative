@@ -389,6 +389,7 @@ describe("plants-tier corporate production", () => {
     expect(settled.plantsPnl?.inputs).toBeGreaterThan(0);
     expect(settled.plantsPnl?.labour).toBeCloseTo(sourceLabor, 8);
     expect(settled.plantsPnl?.upkeep).toBe(0); // source 240-turn ramp starts at zero
+    expect(settled.otherOpexAnchorMarginBasis).toBe(0.8);
     expect(settled.plantsPnl?.profit).toBeCloseTo(
       settled.plantsPnl!.revenue - settled.plantsPnl!.totalCost,
       8,
@@ -407,6 +408,63 @@ describe("plants-tier corporate production", () => {
     expect(resumed.corporateSectors?.[id]?.plantsPnl).toEqual(world.corporateSectors?.[id]?.plantsPnl);
     expect(resumed.corporateSectors?.[id]?.effectiveProfitMargin).toBe(world.corporateSectors?.[id]?.effectiveProfitMargin);
     expect(resumed.corporateSectors?.[id]?.plantsPnl?.turn).toBe(resumed.meta.turn);
+  });
+
+  it("charges back a legacy calibration-time policy stack through public turn and saved continuation", () => {
+    const world = createWorld({
+      era: "1953", countryId: "US", seed: "legacy-opex-anchor-policy", playerName: "Alex",
+    });
+    const corpId = "US-manufacturing";
+    world.corporations[corpId]!.profitMargin = 35;
+    world.corporations[corpId]!.effectiveProfitMargin = 35;
+    world.corporations[corpId]!.unlockedTechNodeIds = [];
+    world.corporations = { [corpId]: world.corporations[corpId]! };
+    const id = `corporate-sector:US:manufacturing:${corpId}`;
+    const asset = {
+      id, corporationId: corpId, countryId: "US", stateId: null,
+      sectorType: "manufacturing" as const, capitalStock: 1_000, capacityBookAnchor: 50_000,
+      // Source legacy anchor calibrated at 60.35% cost basis, under +25.35pp
+      // of policy; the policy-neutral basis for the 35% base margin is 65%.
+      otherOpexPerUnitAnchor: 0,
+      otherOpexAnchorMarginBasis: 0.3965,
+      workers: 1, representingUnionId: null, forSale: null, owner: "corporation" as const,
+    };
+    world.corporateSectors = { [id]: asset };
+
+    const resumed = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    advanceTurn(world);
+    advanceTurn(resumed);
+
+    const settled = world.corporateSectors![id]!;
+    const replayed = resumed.corporateSectors![id]!;
+    expect(settled.plantsPnl!.revenue).toBeGreaterThan(0);
+    expect(settled.plantsPnl!.otherOpexUncapped).toBeCloseTo(
+      settled.plantsPnl!.revenue * (0.65 - 0.3965),
+      6,
+    );
+    expect(settled.otherOpexAnchorMarginBasis).toBe(0.3965);
+    expect(replayed).toEqual(settled);
+
+    const continued = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    const direct = structuredClone(continued);
+    advanceTurn(continued);
+    advanceTurn(direct);
+    expect(continued.corporateSectors![id]).toEqual(direct.corporateSectors![id]);
+
+    // Legacy Native anchors with no recorded basis are not guessed from live
+    // policy. Save/reload preserves the absence and the turn charges no stack.
+    const missingBasis = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    delete missingBasis.corporateSectors![id]!.otherOpexAnchorMarginBasis;
+    const missingBasisReload = deserializeSave(serializeSave(missingBasis, "2026-10-03T00:00:00.000Z"));
+    advanceTurn(missingBasisReload);
+    expect(missingBasisReload.corporateSectors![id]!.otherOpexAnchorMarginBasis).toBeUndefined();
+    expect(missingBasisReload.corporateSectors![id]!.plantsPnl!.otherOpexUncapped).toBe(0);
+
+    const malformedBasis = structuredClone(world);
+    malformedBasis.corporateSectors![id]!.otherOpexAnchorMarginBasis = Number.NaN;
+    expect(() => deserializeSave(serializeSave(malformedBasis, "2026-10-03T00:00:00.000Z"))).toThrow(
+      /invalid otherOpexAnchorMarginBasis/,
+    );
   });
 
   it("bounds calibrated demand at 1.5x supply in post-calibration units", () => {

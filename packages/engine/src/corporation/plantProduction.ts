@@ -17,7 +17,16 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import type { SectorBuildOrder } from "./corporateSectorAssets.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { CORPORATE_PLANT_MARKET_STABILIZER, corporatePlantInputRates, rebuildCorporatePlantInputDemand } from "./plantDemand.js";
-import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantPolicyCredit, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
+import {
+  assembleSourcePlantPnl,
+  sourceCrisisMarginPenalty,
+  sourceDominanceComplianceRate,
+  sourceLegacyAnchorPolicyCharge,
+  sourcePlantFinancialLeg,
+  sourcePlantPolicyCredit,
+  sourcePlantsUpkeep,
+  sourceSectorLaborCost,
+} from "./physicalPlantCosts.js";
 
 const PRICE_REALIZATION_EXPONENT = 0.5;
 const PRICE_REALIZATION_MIN = 0.7;
@@ -379,6 +388,7 @@ export function runCorporatePlantProductionTurn(
     // Current-turn labor/subsidy/retool margin modifiers are applied once by
     // corporationTurn after this physical settlement.
     const baseMargin = asset.profitMargin ?? corporation.profitMargin;
+    const neutralMarginBasis = 1 - baseMargin / 100;
     const priorMargin = softCapEffectiveMargin(baseMargin);
     const produced = asset.producedUnits ?? 0;
     const year = Number(world.meta.date.slice(0, 4));
@@ -437,10 +447,21 @@ export function runCorporatePlantProductionTurn(
     if (asset.otherOpexPerUnitAnchor === undefined && produced > 0) {
       const requestedCredit = realizedRevenue * (policyMarginPp / 100);
       asset.otherOpexPerUnitAnchor = (realizedRevenue * (1 - totalEffectiveMargin / 100) + requestedCredit - inputCost - labour - financialLegs) / produced;
+      // New residuals are solved at the policy-neutral basis. Do not backfill
+      // this provenance on older anchors: absent history must not be guessed.
+      asset.otherOpexAnchorMarginBasis = neutralMarginBasis;
     }
-    const rawOtherOpex = Number.isFinite(asset.otherOpexPerUnitAnchor)
+    const legacyPolicyCharge = sourceLegacyAnchorPolicyCharge({
+      revenue: realizedRevenue,
+      neutralBasis: neutralMarginBasis,
+      anchorMarginBasis: Number.isFinite(asset.otherOpexPerUnitAnchor)
+        ? asset.otherOpexAnchorMarginBasis
+        : undefined,
+    });
+    const rawOtherOpex = (Number.isFinite(asset.otherOpexPerUnitAnchor)
       ? asset.otherOpexPerUnitAnchor! * produced
-      : realizedRevenue * (1 - totalEffectiveMargin / 100) - inputCost - labour - financialLegs;
+      : realizedRevenue * (1 - totalEffectiveMargin / 100) - inputCost - labour - financialLegs)
+      + legacyPolicyCharge;
     const requestedPolicyCredit = realizedRevenue * (policyMarginPp / 100);
     const pnl = assembleSourcePlantPnl({
       revenue: realizedRevenue, inputs: inputCost, labour, upkeep: upkeep.cost,

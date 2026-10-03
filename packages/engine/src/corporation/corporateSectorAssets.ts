@@ -101,6 +101,12 @@ export interface CorporateSectorAsset {
   };
   /** Held residual operating cost per output unit, calibrated at first output. */
   otherOpexPerUnitAnchor?: number;
+  /**
+   * Policy-neutral cost basis when the residual anchor was calibrated. Older
+   * anchors without this provenance remain unadjusted; zero is not inferred.
+   * Source: Game CorporateSector.otherOpexAnchorMarginBasis.
+   */
+  otherOpexAnchorMarginBasis?: number;
   /** Source idle-upkeep price basis, stamped on first physical P&L turn. */
   plantsUpkeepMarginBasisAnchor?: number;
   /** Operating margin derived from this asset's recorded physical costs. */
@@ -326,7 +332,7 @@ export function validateCorporateSectorAssets(
   }
 }
 
-/** Schema-60 source P&L fields are either wholly absent or fully finite. */
+/** Persisted source P&L and anchor values are either absent or finite. */
 export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
   if (asset.plantsPnl !== undefined) {
     const pnl = asset.plantsPnl;
@@ -348,6 +354,7 @@ export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
   for (const [field, value] of [
     ["profitMargin", asset.profitMargin],
     ["otherOpexPerUnitAnchor", asset.otherOpexPerUnitAnchor],
+    ["otherOpexAnchorMarginBasis", asset.otherOpexAnchorMarginBasis],
     ["plantsUpkeepMarginBasisAnchor", asset.plantsUpkeepMarginBasisAnchor],
     ["effectiveProfitMargin", asset.effectiveProfitMargin],
   ] as const) {
