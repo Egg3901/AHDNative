@@ -82,5 +82,3 @@ describe("source Eastern Bloc background election systems", () => {
     expect(resumed.elections.filter((election) => SATELLITES.includes(election.countryId))).toEqual(rows);
   });
 });
-
-});
