@@ -77,6 +77,7 @@ describe("RU/DD source-backed economy laws (#285)", () => {
     // dynamics, including every other active DD baseline law in the same map.
     expect(baseline).toBe(45.5);
     expect(enacted).toBe(58);
+    if (baseline === undefined || enacted === undefined) throw new Error("Missing source worker-security target");
     expect(enacted - baseline).toBe(12.5);
   });
 

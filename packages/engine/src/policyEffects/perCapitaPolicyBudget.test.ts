@@ -48,7 +48,9 @@ describe("source per-capita policy cost consumers", () => {
     expect(regionalPolicySpendingDelta(resumed, region!.id)).toBeCloseTo(expected, 0);
     expect(resumed.policyLedger["fixture-jp-regional"]).toEqual(world.policyLedger["fixture-jp-regional"]);
 
-    resumed.policyLedger["fixture-jp-regional"].repealedAtTurn = resumed.meta.turn;
+    const activePolicy = resumed.policyLedger["fixture-jp-regional"];
+    if (!activePolicy) throw new Error("The saved regional policy is missing");
+    activePolicy.repealedAtTurn = resumed.meta.turn;
     expect(regionalPolicySpendingDelta(resumed, region!.id)).toBe(0);
     resumed.policyLedger["fixture-jp-regional-replacement"] = {
       id: "fixture-jp-regional-replacement", legislationTypeId: "jp_regional_governance",

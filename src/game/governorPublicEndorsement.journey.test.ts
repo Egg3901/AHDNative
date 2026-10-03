@@ -244,7 +244,6 @@ describe.sequential("earned governor presidential endorsement journey", () => {
       let nextControlSave = control.serialize(STAMP);
       const controlAfterMeta = savedWorldMeta(nextControlSave);
       writeFileSync(nextControlPath, nextControlSave);
-      nextControlSave = "";
       let nextTreatmentSave = treatment.serialize(STAMP);
       const treatmentAfterMeta = savedWorldMeta(nextTreatmentSave);
       expect(controlAfterMeta.rng).toEqual(treatmentAfterMeta.rng);
@@ -277,6 +276,7 @@ describe.sequential("earned governor presidential endorsement journey", () => {
       const controlState = JSON.parse(nextControlSave) as {
         world: { meta: { startingYear?: number }; baselineDemographics: Record<string, { layer1PositionOverrides?: Record<string, Record<string, { economicLean?: number }>> }> };
       };
+      nextControlSave = "";
       expect(treatmentState.world.meta.startingYear).toBe(1953);
       expect(controlState.world.meta.startingYear).toBe(1953);
       // Public GameSession turns 192 and 193 resolve source calendar turns 193 and 194.
