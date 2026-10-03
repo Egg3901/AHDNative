@@ -151,15 +151,9 @@ describe("schema 42 projection of public save envelopes", () => {
       expect(projected.error, field).toContain("CEO governance or compensation state");
     }
 
-    const playerWorld = createWorld({
-      seed: "v42-ceo-refusal",
-      playerName: "Validator",
-      countryId: "US",
-      era: "1953",
-      homeRegionId: "DC",
-    });
-    // This controlled CEO fixture isolates its refusal from the source clock.
-    delete playerWorld.meta.startingYear;
+    // The retained pre-control Native writer isolates the public CEO actions
+    // from unrelated incompatibilities now present in every fresh world.
+    const playerWorld = deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
     playerWorld.regionalMetrics = {};
     expect(executeAction(playerWorld, "player", "buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     expect(executeAction(playerWorld, "player", "voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);

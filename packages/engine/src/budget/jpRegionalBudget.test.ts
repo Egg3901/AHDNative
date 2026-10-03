@@ -203,17 +203,24 @@ describe("Japan regional budget source formula", () => {
     expect(world.jpRegionalBudgetAllocation).toBeUndefined();
   });
 
-  it("refuses lossy v42 export of schema70 Japan budget rows", () => {
+  it("refuses lossy v42 export of schema70 Japan budget rows", async () => {
     const world = createWorld({ seed: "jp-budget-v42", playerName: "Tester", countryId: "US", era: "2019" });
     const contents = serializeSave(world, "2026-10-03T00:00:00.000Z");
     expect(projectSaveToV42(contents)).toMatchObject({
       ok: false, error: expect.stringContaining("source 48-turn election clock"),
     });
-    // A recorded legacy-clock document isolates the independent JP refusal;
-    // no state is dropped from the complete modern save or its turn reader.
-    const legacyClockDocument = JSON.parse(contents);
-    delete legacyClockDocument.world.meta.startingYear;
-    const result = projectSaveToV42(JSON.stringify(legacyClockDocument));
+    // Add the recorded rows to an authentic migrated v42 world. This isolates
+    // the JP refusal without dropping other state from the modern save.
+    const { readFileSync } = await import("node:fs");
+    const { gunzipSync } = await import("node:zlib");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const fixture = join(dirname(fileURLToPath(import.meta.url)), "../../../../fixtures/v42-1953-US.save.json.gz");
+    const legacy = deserializeSave(gunzipSync(readFileSync(fixture)).toString("utf8"));
+    for (const [regionId, row] of Object.entries(world.regionalBudgets)) {
+      if (row.countryId === "JP") legacy.regionalBudgets[regionId] = row;
+    }
+    const result = projectSaveToV42(serializeSave(legacy, "2026-10-03T00:00:00.000Z"));
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Japan regional budget state") });
   });
 
