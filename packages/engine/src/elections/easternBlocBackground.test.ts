@@ -34,7 +34,7 @@ describe("source Eastern Bloc background election systems", () => {
     expect(() => createWorld({ seed: `unavailable-${era}`, playerName: "Player", countryId: "PL", era })).toThrow(/not playable|Unknown country/);
     expect(world.regions.PL_MAZ?.houseSeats).toBe(era === "1953" ? 65 : 63);
     expect(world.regions.PL_MAZ?.population).toBe(era === "1953" ? 3_600_000 : 4_900_000);
-    expect(world.regions.UKR_KYI?.houseSeats).toBe(85);
+    expect(world.regions.UKR_KYI?.houseSeats).toBe(era === "1953" ? 85 : 92);
     expect(world.politicians.some((politician) => [...SATELLITES, ...REPUBLICS].includes(politician.countryId))).toBe(false);
 
     const historical = createWorld({ seed: `eastern-historical-${era}`, playerName: "Player", countryId: "US", era, initialization: "historical" });
