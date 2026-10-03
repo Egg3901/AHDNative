@@ -4081,6 +4081,11 @@ export function deserializeSave(raw: string): WorldState {
   // purchase turn, state and exposure history cannot be reconstructed from
   // the old flat category/group map.
   if (save.schemaVersion < 69) save.world.meta.schemaVersion = 69;
+  // v70: Japan's Internal Affairs allocation is absent until the minister
+  // changes it. There is no truthful historical allocation to backfill, so
+  // legacy saves retain an absent field and the source budget phase applies
+  // its even-split default. This migration consumes no RNG.
+  if (save.schemaVersion < 70) save.world.meta.schemaVersion = 70;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

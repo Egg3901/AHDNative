@@ -4,5 +4,7 @@ export * from "./spending.js";
 export * from "./fiscalYear.js";
 export * from "./fiscalBaseGrowth.js";
 export * from "./regionalBudget.js";
+export * from "./jpRegionalBudget.js";
+export * from "./jpAllocation.js";
 export * from "./subsidyBudget.js";
 export * from "./invariants.js";

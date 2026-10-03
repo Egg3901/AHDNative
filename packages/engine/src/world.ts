@@ -203,7 +203,7 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v68: regional cost-of-living coexistence baseline is now persisted and
 // consumed by union local mandates; readers without that lifecycle must refuse.
 // v69: standing targeted-ad exposure and its source election-year anchor.
-export const SCHEMA_VERSION = 69;
+export const SCHEMA_VERSION = 70;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
