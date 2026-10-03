@@ -8,11 +8,15 @@ describe("source regional unowned-market seed", () => {
   it("seeds exact source local receipts by live region without national duplicates", () => {
     const world = createWorld({ era: "1953", countryId: "UK", homeRegionId: "LON", playerName: "Tester", seed: "source-market-seed" });
 
+    // Game's source NPP HQ seed consumes a minimum ₳1m manufacturing receipt,
+    // even though LON's initial regional pool is only ₳241,818. The source
+    // writeback clamps the resulting market pool at zero; checking the
+    // post-bootstrap value here protects that real creation/debit lifecycle.
     expect(world.unownedSectors["UK:LON:manufacturing"]).toEqual({
       countryId: "UK",
       regionId: "LON",
       sectorType: "manufacturing",
-      revenue: 241_818,
+      revenue: 0,
     });
     expect(world.unownedSectors["UK:SCO:manufacturing"]?.revenue).toBe(250_000);
     expect(world.unownedSectors["UK:WAL:manufacturing"]?.revenue).toBe(98_000);
@@ -43,6 +47,8 @@ describe("source regional unowned-market seed", () => {
     const ukIssuerAssets = Object.values(world.corporateSectors ?? {}).filter((asset) => ukIssuers.some((corp) => corp.id === asset.corporationId));
     expect(ukIssuerAssets).toHaveLength(17);
     expect(ukIssuerAssets.every((asset) => asset.countryId === "UK" && asset.stateId === "LON")).toBe(true);
+    expect(ukIssuerAssets.find((asset) => asset.sectorType === "manufacturing")!.revenue)
+      .toBeGreaterThan(241_818);
     expect(Object.values(world.corporateSectors ?? {}).some((asset) => asset.countryId === "UK" && (asset.stateId === "SCO" || asset.stateId === "WAL"))).toBe(false);
   });
 
