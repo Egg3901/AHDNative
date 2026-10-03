@@ -157,7 +157,7 @@ function vacate(world: WorldState, rec: ElectionRecord): void {
     id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
-    headline: `The ${rec.countryId} presidency stays vacant: the election resolved with no votes cast`,
+    headline: `The ${rec.countryId} presidency stays vacant: the election resolved with no eligible electoral votes`,
     category: "Election",
     countryId: rec.countryId,
     electionId: rec.id,

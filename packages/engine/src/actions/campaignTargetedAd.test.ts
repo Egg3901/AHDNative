@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { advanceTurn } from "../engine.js";
 import { rngFromSeed } from "../rng.js";
 import { realAccumulate } from "../elections/tallyAdapter.js";
-import { createWorld } from "../world.js";
+import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { campaignKey } from "../campaigns/lifecycle.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { executeAction } from "./execute.js";
@@ -259,7 +259,7 @@ describe("campaignTargetedAd", () => {
     delete envelope.world.player.targetedAdsRevision;
 
     const migrated = deserializeSave(JSON.stringify(envelope));
-    expect(migrated.meta.schemaVersion).toBe(69);
+    expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(migrated.campaigns[campaignKey(race.id, "player")]!.targetedAdModifiers).toEqual({ "voterGroups:young_renters": 0.12 });
     expect(migrated.player.targetedAds).toBeUndefined();
     expect(migrated.player.targetedAdsRevision).toBeUndefined();

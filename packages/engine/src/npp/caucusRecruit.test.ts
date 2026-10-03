@@ -9,6 +9,7 @@ import {
   listCaucusNppRecruitOptions,
 } from "./caucusRecruit.js";
 import type { Politician, WorldState } from "../types.js";
+import { projectHistoricalConsumer } from "../testing/historicalProjection.js";
 
 const SAVED_AT = "2026-09-14T00:00:00.000Z";
 const OPTIONS = { era: "1953", countryId: "US", seed: "npp-caucus-recruit-v1", playerName: "Ada" } as const;
@@ -117,7 +118,8 @@ describe("recruitCaucusNpp through the public action", () => {
     const { world, caucusId, target } = chairedCaucus();
     setRelationship(world, target, 80);
     expect(executeAction(world, "player", "recruitCaucusNpp", { caucusId, targetId: target.id }).ok).toBe(true);
-    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT)).ok).toBe(false);
+    const projected = projectHistoricalConsumer(world, ["caucuses"]);
     expect(projected.ok).toBe(false);
     expect(projected.ok ? "" : projected.error).toMatch(/cannot be projected to schema 42/);
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceTurn, createWorld, deserializeSave, projectSaveToV42, serializeSave, sourceElectionClockForWorld } from "../index.js";
+import { advanceTurn, createWorld, deserializeSave, projectSaveToV42, serializeSave, sourceElectionClockForWorld, SCHEMA_VERSION } from "../index.js";
 
 describe("source election clock", () => {
   it("keeps the selected pack year through public turn and save/reload checkpoints", () => {
@@ -32,7 +32,7 @@ describe("source election clock", () => {
     parsed.schemaVersion = 68;
     parsed.world.meta.schemaVersion = 68;
     const loaded = deserializeSave(JSON.stringify(parsed));
-    expect(loaded.meta.schemaVersion).toBe(69);
+    expect(loaded.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(loaded.meta.startingYear).toBeUndefined();
     expect(sourceElectionClockForWorld(loaded)).toBeNull();
   });
