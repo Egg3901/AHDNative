@@ -3,6 +3,7 @@ import { CATALOG_DE } from "./catalogPortedDE.js";
 import { CATALOG_IE } from "./catalogPortedIE.js";
 import { CATALOG_CN } from "./catalogPortedCN.js";
 import { CATALOG_BR } from "./catalogPortedBR.js";
+import { CATALOG_US_FISCAL } from "./catalogPortedUSFiscal.js";
 /**
  * Bill catalog ported from mainline src/lib/politicalLegislation/catalog + laws.
  * Effect targets that exist in solo: economy fields (gdp, growthRate,
@@ -587,7 +588,7 @@ const STUBBED: CatalogEntry[] = STUBBED_IDS.map((s) => ({
 // W61 M2: generated per-country catalogs (see catalogPorted*.ts headers).
 const PORTED: CatalogEntry[] = [...CATALOG_JP, ...CATALOG_DE, ...CATALOG_IE, ...CATALOG_CN, ...CATALOG_BR];
 const AVAILABLE_ALL: CatalogEntry[] = [...AVAILABLE, ...RU_DD_ECONOMY, ...SOURCE_METRIC_LAWS, ...PORTED.filter((e) => e.status === "available")];
-const STUBBED_ALL: CatalogEntry[] = [...STUBBED, ...PORTED.filter((e) => e.status !== "available")];
+const STUBBED_ALL: CatalogEntry[] = [...STUBBED, ...CATALOG_US_FISCAL, ...PORTED.filter((e) => e.status !== "available")];
 
 const ALL: CatalogEntry[] = [...AVAILABLE_ALL, ...STUBBED_ALL];
 

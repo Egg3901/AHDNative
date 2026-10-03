@@ -18,6 +18,7 @@ export default defineConfig({
       "packages/engine/src/save.v42Projection.test.ts",
       "packages/engine/src/policyEffects/perCapitaPolicyBudget.test.ts",
       "packages/engine/src/legislation/sourceMetricExecutableSlice.test.ts",
+      "packages/engine/src/legislation/sourceUSFiscalCatalog.test.ts",
       "src/game/presidentialVeto.test.ts",
     ],
     testTimeout: 180_000,
