@@ -1,6 +1,6 @@
 import type { WorldRng } from "../rng.js";
 import type { Politician, WorldState } from "../types.js";
-import type { ElectionCandidate, ElectionRecord } from "./types.js";
+import { isElectionCandidateActive, type ElectionCandidate, type ElectionRecord } from "./types.js";
 import {
   planNextElectionForType,
   planNextHouseElection,
@@ -28,6 +28,7 @@ import {
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
 import { closeUkCommonsVacancies } from "./ukCommonsVacancies.js";
+import { survivingElectionPartyId } from "./survivingParty.js";
 import { processPresidentialPrimaryWave } from "./primaryStaggerPhase.js";
 import {
   recordPrimarySnapshots,
@@ -635,7 +636,7 @@ function fillGovernorCandidates(
   rng: WorldRng,
   rec: ElectionRecord,
 ): void {
-  const seen = new Set(rec.candidates.map((c) => c.id));
+  const seen = new Set(rec.candidates.filter(isElectionCandidateActive).map((c) => c.id));
   const gov = rec.state ? world.governors[rec.state] : undefined;
   if (gov?.governorId && !seen.has(gov.governorId)) {
     const id = gov.governorId;
@@ -661,7 +662,7 @@ function fillGovernorCandidates(
       (p.tier === "major" || p.id === incumbentPartyId),
   );
   for (const party of majorParties.sort((a, b) => a.id.localeCompare(b.id))) {
-    if (rec.candidates.some((c) => c.partyId === party.id)) continue;
+    if (rec.candidates.some((c) => isElectionCandidateActive(c) && c.partyId === party.id)) continue;
     const ch = makeChallenger(world, rng, rec, party.id, 0);
     world.politicians.push(ch);
     rec.candidates.push({
@@ -688,7 +689,7 @@ function fillPresidentialCandidates(
   rng: WorldRng,
   rec: ElectionRecord,
 ): void {
-  const seen = new Set(rec.candidates.map((c) => c.id));
+  const seen = new Set(rec.candidates.filter(isElectionCandidateActive).map((c) => c.id));
   const exec = world.executives[rec.countryId];
 
   if (exec?.presidentId && !seen.has(exec.presidentId)) {
@@ -715,7 +716,7 @@ function fillPresidentialCandidates(
       (p.tier === "major" || p.id === incumbentPartyId),
   );
   for (const party of majorParties.sort((a, b) => a.id.localeCompare(b.id))) {
-    if (rec.candidates.some((c) => c.partyId === party.id)) continue;
+    if (rec.candidates.some((c) => isElectionCandidateActive(c) && c.partyId === party.id)) continue;
     const ch = makeChallenger(world, rng, rec, party.id, 0);
     world.politicians.push(ch);
     const vp = makeChallenger(world, rng, rec, party.id, 1);
@@ -746,7 +747,7 @@ function fillUachtaranCandidates(
   rng: WorldRng,
   rec: ElectionRecord,
 ): void {
-  const seen = new Set(rec.candidates.map((c) => c.id));
+  const seen = new Set(rec.candidates.filter(isElectionCandidateActive).map((c) => c.id));
   const exec = world.executives[rec.countryId];
   if (exec?.presidentId && !seen.has(exec.presidentId)) {
     const id = exec.presidentId;
@@ -770,7 +771,7 @@ function fillUachtaranCandidates(
       (p.tier === "major" || p.id === incumbentPartyId),
   );
   for (const party of majorParties.sort((a, b) => a.id.localeCompare(b.id))) {
-    if (rec.candidates.some((c) => c.partyId === party.id)) continue;
+    if (rec.candidates.some((c) => isElectionCandidateActive(c) && c.partyId === party.id)) continue;
     const ch = makeChallenger(world, rng, rec, party.id, 0);
     world.politicians.push(ch);
     rec.candidates.push({
@@ -788,12 +789,12 @@ function applyUachtaranResolution(
   world: WorldState,
   rec: ElectionRecord,
 ): void {
-  const candidates: CandidateInput[] = rec.candidates.map((c) => ({
+  const candidates: CandidateInput[] = rec.candidates.filter(isElectionCandidateActive).map((c) => ({
     _id: c.id,
     electionId: rec.id,
     ...(c.id === "player" ? { characterId: "player" } : {}),
     characterName: c.name,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: c.isNPP,
   }));
   const input: GeneralResolutionInput = {
@@ -822,6 +823,7 @@ function applyUachtaranResolution(
   if (!winnerId) {
     let best = -1;
     for (const c of rec.candidates) {
+      if (!isElectionCandidateActive(c)) continue;
       const v = rec.tally[c.id] ?? 0;
       if (v > best) {
         best = v;
@@ -830,13 +832,13 @@ function applyUachtaranResolution(
     }
   }
   const winner = winnerId
-    ? rec.candidates.find((c) => c.id === winnerId)
+    ? rec.candidates.find((c) => isElectionCandidateActive(c) && c.id === winnerId)
     : undefined;
   if (winner) {
     world.executives[rec.countryId] = {
       countryId: rec.countryId,
       presidentId: winner.id,
-      presidentParty: winner.partyId,
+      presidentParty: survivingElectionPartyId(world, winner.partyId) ?? winner.partyId,
       termStartTurn: world.meta.turn,
       vicePresidentId: null,
       vicePresidentParty: null,
@@ -869,7 +871,7 @@ export function fillCandidates(
     return;
   }
   const holders = seatHolders(world, rec);
-  const seen = new Set(rec.candidates.map((c) => c.id));
+  const seen = new Set(rec.candidates.filter(isElectionCandidateActive).map((c) => c.id));
   for (const h of holders) {
     if (!seen.has(h.id)) {
       rec.candidates.push({
@@ -891,7 +893,7 @@ export function fillCandidates(
   // contested seat (mainline pads slates; short slates caused phantom
   // vacancies, cf the multiseat slate-size artifact).
   for (const party of majorParties.sort((a, b) => a.id.localeCompare(b.id))) {
-    let have = rec.candidates.filter((c) => c.partyId === party.id).length;
+    let have = rec.candidates.filter((c) => isElectionCandidateActive(c) && c.partyId === party.id).length;
     while (have < rec.totalSeats) {
       const ch = makeChallenger(world, rng, rec, party.id, have);
       world.politicians.push(ch);
@@ -977,12 +979,12 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
   // Source: src/lib/elections/canonicalCycle.ts governor case,
   //         src/lib/turn/byElections.ts special_governor -> officeType governor,
   //         src/lib/governorOffice/queries.ts per-state holder.
-  const candidates: CandidateInput[] = rec.candidates.map((c) => ({
+  const candidates: CandidateInput[] = rec.candidates.filter(isElectionCandidateActive).map((c) => ({
     _id: c.id,
     electionId: rec.id,
     ...(c.id === "player" ? { characterId: "player" } : {}),
     characterName: c.name,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: c.isNPP,
   }));
   const input: GeneralResolutionInput = {
@@ -1014,6 +1016,7 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
   if (!winnerId) {
     let best = -1;
     for (const c of rec.candidates) {
+      if (!isElectionCandidateActive(c)) continue;
       const v = rec.tally[c.id] ?? 0;
       if (v > best) {
         best = v;
@@ -1022,12 +1025,12 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
     }
   }
   if (!winnerId) return;
-  const winner = rec.candidates.find((c) => c.id === winnerId);
+  const winner = rec.candidates.find((c) => isElectionCandidateActive(c) && c.id === winnerId);
   if (!winner || !rec.state) return;
   const gov = world.governors[rec.state];
   if (!gov) return;
   gov.governorId = winnerId;
-  gov.governorParty = winner.partyId;
+  gov.governorParty = survivingElectionPartyId(world, winner.partyId) ?? winner.partyId;
   gov.governorName = winner.name;
   gov.termStartTurn = world.meta.turn;
   // Reset office AP on new term (fresh mandate) - capped.
@@ -1045,10 +1048,10 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
     id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
-    headline: `${label} election resolved: ${winner.name} (${winner.partyId}) wins`,
+    headline: `${label} election resolved: ${winner.name} (${survivingElectionPartyId(world, winner.partyId) ?? winner.partyId}) wins`,
     category: "Election",
     countryId: rec.countryId,
-    partyId: winner.partyId,
+    partyId: survivingElectionPartyId(world, winner.partyId) ?? winner.partyId,
     electionId: rec.id,
   });
 }
@@ -1069,12 +1072,12 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     applyUachtaranResolution(world, rec);
     return;
   }
-  const candidates: CandidateInput[] = rec.candidates.map((c) => ({
+  const candidates: CandidateInput[] = rec.candidates.filter(isElectionCandidateActive).map((c) => ({
     _id: c.id,
     electionId: rec.id,
     ...(c.id === "player" ? { characterId: "player" } : {}),
     characterName: c.name,
-    party: c.partyId,
+    party: survivingElectionPartyId(world, c.partyId) ?? c.partyId,
     isNPP: c.isNPP,
   }));
   const input: GeneralResolutionInput = {
@@ -1124,6 +1127,8 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     if (id === "player") continue;
     const pol = world.politicians.find((p) => p.id === id);
     if (pol) {
+      const candidate = rec.candidates.find((row) => isElectionCandidateActive(row) && row.id === id);
+      if (candidate) pol.partyId = survivingElectionPartyId(world, candidate.partyId) ?? candidate.partyId;
       pol.chamberKey = rec.chamberKey;
       if (result.isMultiSeat) pol.seatsHeld = winnerSeats.get(id)!;
       else delete pol.seatsHeld;
@@ -1136,7 +1141,7 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     seat != null &&
     seat.countryId === rec.countryId &&
     seat.chamberKey === rec.chamberKey &&
-    rec.candidates.some((c) => c.id === "player");
+    rec.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c));
   if (playerWon) {
     world.player.legislativeSeat = {
       chamberKey: rec.chamberKey,
@@ -1190,12 +1195,12 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   const label = rec.state
     ? `${rec.state} ${rec.electionType}`
     : `${rec.countryId} ${rec.electionType}`;
-  const topWinner = rec.candidates.find((c) => winnerIds.has(c.id));
+  const topWinner = rec.candidates.find((c) => isElectionCandidateActive(c) && winnerIds.has(c.id));
   world.news.push({
     id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
-    headline: rec.candidates.some((c) => c.id === "player")
+    headline: rec.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c))
       ? playerWon
         ? `Election won: you take the ${label} seat`
         : `Election lost: the ${label} race goes against you`
@@ -1308,7 +1313,7 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
     if (rec.status === "upcoming" && turn >= rec.startTurn) {
       rec.status = "active";
     }
-    if (rec.status === "active" && rec.candidates.length === 0) {
+    if (rec.status === "active" && !rec.candidates.some(isElectionCandidateActive)) {
       fillCandidates(world, rng, rec);
     }
   }
@@ -1342,8 +1347,11 @@ interface AutoReelectionTarget {
 }
 
 function playerContestedElection(rec: ElectionRecord): boolean {
-  if (rec.candidates.some((candidate) => candidate.id === "player"))
-    return true;
+  // A resolved source candidacy remains a re-entry anchor even if the player
+  // withdrew before the race finished. AHDGame's autoReelectionEntry reads
+  // every candidate row for resolved elections; withdrawal only prevents a
+  // duplicate entry in that same election, not the next cycle.
+  if (rec.candidates.some((candidate) => candidate.id === "player")) return true;
   return Object.values(rec.primaryResults?.byParty ?? {}).some((entries) =>
     entries.some((entry) => entry.candidateId === "player"),
   );
@@ -1409,7 +1417,7 @@ export function runAutoReelectionEntry(world: WorldState): void {
     )
       continue;
     if (world.meta.turn > rec.primaryEndTurn) continue;
-    if (rec.candidates.some((c) => c.id === "player")) continue;
+    if (rec.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c))) continue;
     declareCandidacy(world, rec.id);
   }
 }

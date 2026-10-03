@@ -28,6 +28,7 @@ export interface PartyManagementPanelProps {
 export function PartyManagementPanel({ management, busy, onAction }: PartyManagementPanelProps) {
   const [name, setName] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
+  const [targetPartyId, setTargetPartyId] = useState("");
   const founding = management.founding;
   const trimmedName = name.trim();
   const trimmedAbbr = abbreviation.trim();
@@ -103,6 +104,51 @@ export function PartyManagementPanel({ management, busy, onAction }: PartyManage
           </ul>
         )}
       </div>
+
+      {management.merger ? (
+        <div className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Committee merger proposals</h2>
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
+            Both parties vote separately. Each needs yes votes from at least 60% of its filled committee and national leadership positions; proposals close after 24 turns.
+          </p>
+          <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.55rem" }}>
+            <label className="ahd-field" style={{ maxWidth: "22rem" }}>
+              <span className="ahd-label">Merge your party into</span>
+              <select className="ahd-input" aria-label="Merger target party" value={targetPartyId}
+                onChange={(event) => setTargetPartyId(event.target.value)} disabled={busy || !management.merger.available}>
+                <option value="">Choose a party</option>
+                {management.merger.targets.map((party) => <option key={party.id} value={party.id}>{party.name} ({party.abbreviation})</option>)}
+              </select>
+            </label>
+            <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" disabled={busy || !management.merger.available || !targetPartyId}
+              aria-label="Propose party merger" onClick={() => onAction("proposePartyMerger", { targetPartyId })}>
+              Propose merger
+            </button>
+            {!management.merger.available ? <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{management.merger.disabledReason}</span> : null}
+          </div>
+          {management.merger.proposals.length === 0 ? <div className="ahd-empty" style={{ marginTop: "0.5rem" }}>No merger proposals in this country.</div> : (
+            <ul aria-label="Party merger proposals" style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {management.merger.proposals.map((proposal) => (
+                <li key={proposal.id} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.45rem", fontSize: "0.8rem" }}>
+                  <div><strong>{proposal.proposerPartyName}</strong> → {proposal.targetPartyName} · {proposal.status}</div>
+                  <div className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                    Proposing side {proposal.proposingYes} yes / {proposal.proposingNo} no; target side {proposal.targetYes} yes / {proposal.targetNo} no.
+                    {proposal.status === "open" ? ` Closes on turn ${proposal.expiresTurn}.` : ""}
+                  </div>
+                  {proposal.canVote ? (
+                    <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.35rem" }}>
+                      <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy} aria-label={`Vote yes on ${proposal.proposerPartyName} merger`}
+                        onClick={() => onAction("votePartyMerger", { partyMergerProposalId: proposal.id, partyMergerVote: "yes" })}>Vote yes</button>
+                      <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy} aria-label={`Vote no on ${proposal.proposerPartyName} merger`}
+                        onClick={() => onAction("votePartyMerger", { partyMergerProposalId: proposal.id, partyMergerVote: "no" })}>Vote no</button>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Charters ({management.charters.length})</h2>

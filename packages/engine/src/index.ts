@@ -145,6 +145,15 @@ export * from "./elections/ukCommonsRecall.js";
 export { resolvePrimaries, requiresPrimaryResolution } from "./elections/primaryResolution.js";
 export { applyPresidentialResolution } from "./elections/presidentialResolution.js";
 export { isFoundingActive, detectFoundingComplete, runFoundingSweep, stampFoundingMarker, MAX_FOUNDING_RACES } from "./elections/founding.js";
+export { isElectionCandidateActive } from "./elections/types.js";
+export { survivingElectionPartyId } from "./elections/survivingParty.js";
+export {
+  castPartyMergerVote,
+  expirePartyMergerProposals,
+  proposePartyMerger,
+  PARTY_MERGE_COOLDOWN_TURNS,
+  PARTY_MERGE_VOTE_WINDOW_TURNS,
+} from "./party/mergerProposals.js";
 export type { ElectionRecord, ElectionCandidate, ElectionStatus, PrimaryResults, PrimaryResultEntry } from "./elections/types.js";
 // W24b real Electoral College (#69): the read-only display adapter shares the
 // SAME per-state winner-take-all allocation, live EV apportionment, and

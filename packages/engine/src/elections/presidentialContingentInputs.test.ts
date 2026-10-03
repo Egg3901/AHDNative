@@ -25,6 +25,20 @@ function baseRecord(overrides: Partial<ElectionRecord> = {}): ElectionRecord {
 }
 
 describe("source contingent ballot input projection", () => {
+  it("projects presidential candidates through the current surviving party", () => {
+    const world = createWorld(OPTS);
+    world.parties.US_OLD = { ...world.parties.US_REP!, id: "US_OLD", name: "Old Republican party", mergedIntoPartyId: "US_REP" };
+    const rec = baseRecord({
+      candidates: [{ id: "former-chair", name: "Former Chair", partyId: "US_OLD", isNPP: false, incumbent: false }],
+      tally: { "former-chair": 10 },
+    });
+
+    const inputs = buildContingentInputs(world, rec);
+    expect(inputs.candidates).toEqual([
+      expect.objectContaining({ _id: "former-chair", party: "US_REP" }),
+    ]);
+  });
+
   it("passes weighted elected House holders and the player's known House state into the source delegation loader", () => {
     const world = createWorld(OPTS);
     const houseHolder = world.politicians.find((p) => p.chamberKey === "house")!;

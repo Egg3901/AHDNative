@@ -105,6 +105,8 @@ export interface WorldState {
   news: NewsItem[];
   /** Parties seeded from mainline party seeds. Keyed by party id. */
   parties: Record<string, Party>;
+  /** Party merger committee proposals. Optional until the first merger proposal exists (schema 65 family). */
+  partyMergerProposals?: PartyMergerProposal[];
   /** Legislatures seeded from mainline country configs. Keyed by country id. */
   legislatures: Record<string, Legislature>;
   /** Politicians holding legislature seats. Populated at world creation. */
@@ -1340,6 +1342,8 @@ export interface Party {
   countryId: string;
   abbreviation: string;
   color: string;
+  /** Source party merger successor; stale election records resolve through this chain. */
+  mergedIntoPartyId?: string | null;
   /**
    * Party-authored logo URL (reference PoliticalParty.logoUrl, chair-uploaded
    * custom art). Seeded from the content pack; every authored pack carries
@@ -1422,6 +1426,20 @@ export interface Party {
   customElectionDurationTurns?: number;
   leadershipElectionMethod?: "party" | "influence" | "committee";
   coalitionId?: string | null;
+}
+
+export interface PartyMergerProposal {
+  id: string;
+  proposerPartyId: string;
+  targetPartyId: string;
+  countryId: string;
+  proposerId: string;
+  createdTurn: number;
+  expiresTurn: number;
+  resolvedTurn?: number;
+  status: "open" | "passed" | "rejected";
+  proposingVotes: Array<{ voterId: string; vote: "yes" | "no"; turn: number }>;
+  targetVotes: Array<{ voterId: string; vote: "yes" | "no"; turn: number }>;
 }
 
 /**

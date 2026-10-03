@@ -11,6 +11,7 @@
 
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
+import { expirePartyMergerProposals } from "./mergerProposals.js";
 import { energyActionLimits } from "../actions/officeBonus.js";
 import { projectPlayerPartyInfluence } from "./playerInfluence.js";
 import {
@@ -55,6 +56,14 @@ export const partyInfluenceTurnPhase: TurnPhase = {
       pol.partyInfluence = 0;
       pol.bonusActions = 0;
     }
+  },
+};
+
+/** Expire committee merger ballots at the source 24-turn deadline. */
+export const partyMergerProposalExpiryPhase: TurnPhase = {
+  name: "partyMergerProposalExpiry",
+  run(world) {
+    expirePartyMergerProposals(world);
   },
 };
 

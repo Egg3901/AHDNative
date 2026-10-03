@@ -70,6 +70,30 @@ describe("projectPartyFounding", () => {
   });
 });
 
+describe("party committee merger projection", () => {
+  it("shows source proposal authority, target choices, saved vote counts and the player's ballot", () => {
+    const world = createWorld({ ...FRESH });
+    expect(executeAction(world, "player", "joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    world.parties.US_DEM!.chairId = "player";
+    const before = projectPartyManagement(world).merger!;
+    expect(before.available).toBe(true);
+    expect(before.targets.some((party) => party.id === "US_REP")).toBe(true);
+
+    const opened = executeAction(world, "player", "proposePartyMerger", { targetPartyId: "US_REP" });
+    expect(opened.ok).toBe(true);
+    const after = projectPartyManagement(world).merger!;
+    expect(after.proposals).toEqual([expect.objectContaining({
+      proposerPartyName: world.parties.US_DEM!.name,
+      targetPartyName: world.parties.US_REP!.name,
+      status: "open",
+      playerSide: "proposing",
+      canVote: true,
+      proposingYes: 0,
+      targetYes: 0,
+    })]);
+  });
+});
+
 describe("foundParty through the public action", () => {
   it("founds, auto-joins and records a ratified charter on a genuinely funded save", () => {
     const world = readyWorld();

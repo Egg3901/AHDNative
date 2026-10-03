@@ -27,7 +27,7 @@ import { projectPolitics, projectPoliticalMetrics, projectPartyMembership } from
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
+  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, isElectionCandidateActive, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, pmAppointmentExecutiveTitle, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   isCorpStateOwned, privateEnterprisePermittedInCountry,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
@@ -769,7 +769,7 @@ function snapshotNotifications(world: WorldState): TurnSnapshot {
         id: election.id,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
         status: election.status,
-        playerCandidate: election.candidates.some((candidate) => candidate.id === "player"),
+        playerCandidate: election.candidates.some((candidate) => candidate.id === "player" && isElectionCandidateActive(candidate)),
         playerWon: election.winners?.includes("player") ?? false,
         winnerNames: (election.winners ?? []).map((id) =>
           election.candidates.find((candidate) => candidate.id === id)?.name
@@ -1131,13 +1131,13 @@ function projectPolling(world: WorldState): PollingView {
 /** Display hints mirror the pinned engine; executeAction remains authoritative. */
 function projectElections(world: WorldState): ElectionView[] {
   const player = world.player;
-  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player"));
+  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c)));
   return world.elections.filter((e) => e.countryId === player.countryId)
     .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id)
       || Number(a.status === "resolved") - Number(b.status === "resolved")
       || (a.status === "resolved" ? b.endTurn - a.endTurn : a.primaryEndTurn - b.primaryEndTurn))
     .map((election) => {
-      const playerCandidate = election.candidates.some((c) => c.id === "player");
+      const playerCandidate = election.candidates.some((c) => c.id === "player" && isElectionCandidateActive(c));
       const id = playerCandidate ? "withdrawCandidacy" : "declareCandidacy";
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
@@ -1160,6 +1160,7 @@ function projectElections(world: WorldState): ElectionView[] {
       const hasVotes = tallyEntries.some(([, votes]) => votes > 0);
       const countedVotes = hasVotes ? tallyEntries.reduce((sum, [, votes]) => sum + votes, 0) : null;
       const ranked = [...election.candidates]
+        .filter((candidate) => election.status === "resolved" || isElectionCandidateActive(candidate))
         .map((candidate) => ({ name: candidate.name, votes: election.tally[candidate.id] ?? 0 }))
         .sort((a, b) => b.votes - a.votes);
       const leader = countedVotes != null ? ranked[0] : undefined;
@@ -1176,7 +1177,7 @@ function projectElections(world: WorldState): ElectionView[] {
         status: election.status, date: dateAt(election.endTurn), filingDate: dateAt(election.primaryEndTurn),
         electionType: election.electionType,
         phase: racePhase(world, election),
-        playerCandidate, candidateNames: election.candidates.map((c) => c.name),
+        playerCandidate, candidateNames: (election.status === "resolved" ? election.candidates : election.candidates.filter(isElectionCandidateActive)).map((c) => c.name),
         winnerNames: (election.winners ?? []).map((id) => election.candidates.find((c) => c.id === id)?.name ?? world.politicians.find((p) => p.id === id)?.name ?? id),
         countedVotes,
         leaderName: leader?.name ?? null,

@@ -1,6 +1,6 @@
 import type { WorldRng } from "../rng.js";
 import type { Politician, WorldState } from "../types.js";
-import type { ElectionRecord } from "./types.js";
+import { isElectionCandidateActive, type ElectionRecord } from "./types.js";
 import { accumulateVoteTurn } from "../electionEngine/tally/accumulateVoteTurn.js";
 import { initElectionVoteTally } from "../electionEngine/tally/initElectionVoteTally.js";
 import type {
@@ -178,6 +178,7 @@ function buildPresidentialLocalVoteMultipliers(
   const districtLean = PRESIDENTIAL_UNIT_LEAN[unitId] !== undefined;
   const legacyLeanEnabled = appliesExplicitPresidentialLean(presidentialRulesetVersionFor(rec));
   for (const candidate of rec.candidates) {
+    if (!isElectionCandidateActive(candidate)) continue;
     const multipliers: number[] = [];
     if (legacyLeanEnabled && unitLean !== 0) {
       const party = world.parties[candidate.partyId];
@@ -317,7 +318,7 @@ function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInpu
   // campaigns (isCampaignEligible.ts gates which races get one) correctly
   // yield an empty map, same as mainline where no Campaign doc exists.
   const fundsByParty = aggregateFundsByParty(
-    rec.candidates.map((cand) => {
+    rec.candidates.filter(isElectionCandidateActive).map((cand) => {
       const campaign = world.campaigns[campaignKey(rec.id, cand.id)];
       return {
         party: cand.partyId,
@@ -495,7 +496,8 @@ function runAccumulateCore(
 
   const now = worldNow(world);
   const player = world.player;
-  const candidates: TallyCandidateInput[] = rec.candidates.map((c) => {
+  const activeCandidates = rec.candidates.filter(isElectionCandidateActive);
+  const candidates: TallyCandidateInput[] = activeCandidates.map((c) => {
     const support = world.candidateSupports?.[c.id]?.support;
     const targetedAdBonuses = campaignTargetedAdBonuses(world, rec.id, c.id);
     return {
@@ -524,7 +526,7 @@ function runAccumulateCore(
   }
 
   const categories = world.demographicCategories?.[rec.countryId] ?? [];
-  const characters = rec.candidates.some((c) => c.id === "player")
+  const characters = activeCandidates.some((c) => c.id === "player")
     ? [
         {
           _id: "player",
@@ -539,7 +541,7 @@ function runAccumulateCore(
         },
       ]
     : [];
-  const npps = rec.candidates.flatMap((candidate) => {
+  const npps = activeCandidates.flatMap((candidate) => {
     if (!candidate.isNPP) return [];
     const politician = index
       ? index.politicians.get(candidate.id)

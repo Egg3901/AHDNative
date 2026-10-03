@@ -13,6 +13,7 @@
  */
 import {
   getResourceContractAuthority,
+  isElectionCandidateActive,
   isNationalExtractionIssuer,
   isStateExtractionIssuer,
   resolveExtractionContractIssuer,
@@ -535,8 +536,8 @@ function projectElection(world: WorldState, election: WorldState["elections"][nu
     totalSeats: election.totalSeats,
     chamberKey: election.chamberKey,
     chamberName: chamberName(world, election.countryId, election.chamberKey),
-    candidateCount: election.candidates.length,
-    previewNames: election.candidates.slice(0, 3).map((candidate) => candidate.name),
+    candidateCount: election.status === "resolved" ? election.candidates.length : election.candidates.filter(isElectionCandidateActive).length,
+    previewNames: (election.status === "resolved" ? election.candidates : election.candidates.filter(isElectionCandidateActive)).slice(0, 3).map((candidate) => candidate.name),
     winnerNames: (election.winners ?? []).map((winnerId) => politicianName(world, winnerId)),
   };
 }

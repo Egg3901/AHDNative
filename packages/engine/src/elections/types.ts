@@ -30,6 +30,11 @@ export interface ElectionCandidate {
   campaignSuspended?: boolean | undefined;
 }
 
+/** Legacy candidate rows without an explicit status are still active. */
+export function isElectionCandidateActive(candidate: Pick<ElectionCandidate, "status">): boolean {
+  return candidate.status !== "withdrawn";
+}
+
 export type ElectionStatus = "upcoming" | "active" | "resolved" | "cancelled";
 
 export interface PrimaryResultEntry {

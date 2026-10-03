@@ -133,15 +133,17 @@ describe("resolvePrimaries", () => {
 
     const result = rec.primaryResults?.byParty.DEM ?? [];
     expect(result.filter((entry) => entry.won)).toHaveLength(3);
-    expect(rec.candidates).toHaveLength(3);
+    expect(rec.candidates.filter((candidate) => candidate.status !== "withdrawn")).toHaveLength(3);
+    expect(rec.candidates.filter((candidate) => candidate.status === "withdrawn")).toHaveLength(2);
   });
 
-  it("persists the nominee snapshot, removes and archives the loser, and resets primary tally state", () => {
+  it("persists the nominee snapshot and withdrawn loser rows, archives the loser, and resets primary tally state", () => {
     const { world, rec, npc } = fixture();
 
     resolvePrimaries(world);
 
-    expect(rec.candidates.map((candidate) => candidate.id)).toEqual(["player"]);
+    expect(rec.candidates.find((candidate) => candidate.id === "player")).toMatchObject({ status: "active" });
+    expect(rec.candidates.find((candidate) => candidate.id === npc.id)).toMatchObject({ status: "withdrawn" });
     expect(rec.primaryResults?.byParty.DEM?.map((entry) => [entry.candidateId, entry.won])).toEqual([
       ["player", true],
       [npc.id, false],
@@ -161,7 +163,7 @@ describe("resolvePrimaries", () => {
     resolvePrimaries(world);
 
     expect(rec.primaryResults?.byParty.DEM?.[0]?.candidateId).toBe("player");
-    expect(rec.candidates.map((candidate) => candidate.id)).toEqual(["player"]);
+    expect(rec.candidates.filter((candidate) => candidate.status !== "withdrawn").map((candidate) => candidate.id)).toEqual(["player"]);
   });
 
   it("keeps source candidate order when primary ballots tie despite different score standings", () => {
@@ -200,7 +202,9 @@ describe("resolvePrimaries", () => {
     expect(rec.primaryResults?.byParty.DEM?.some((entry) => entry.candidateId === "withdrawn")).toBe(false);
     expect(rec.primaryResults?.byParty.DEM?.find((entry) => entry.candidateId === npc.id)?.won).toBe(true);
     expect(rec.primaryResults?.byParty.DEM?.find((entry) => entry.candidateId === "player")?.won).toBe(false);
-    expect(rec.candidates.map((candidate) => candidate.id)).toEqual([npc.id]);
+    expect(rec.candidates.find((candidate) => candidate.id === npc.id)).toMatchObject({ status: "active" });
+    expect(rec.candidates.find((candidate) => candidate.id === "player")).toMatchObject({ status: "withdrawn" });
+    expect(rec.candidates.find((candidate) => candidate.id === "withdrawn")).toMatchObject({ status: "withdrawn" });
   });
 
   it("survives save/reload and is retained when the next general tally starts", () => {

@@ -54,6 +54,8 @@ export type ActionId =
   | "investInfluence"
   | "joinParty"
   | "leaveParty"
+  | "proposePartyMerger"
+  | "votePartyMerger"
   | "foundParty"
   | "createCaucus"
   | "joinCaucus"
@@ -389,6 +391,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["party/membership"],
+    status: "available",
+  },
+  proposePartyMerger: {
+    id: "proposePartyMerger",
+    name: "Propose Party Merger",
+    description: "Submit a merger proposal to your party committee and the target party committee. Requires party chair, vice-chair, or national committee authority; each committee votes separately.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["party/committee", "party/merger"],
+    status: "available",
+  },
+  votePartyMerger: {
+    id: "votePartyMerger",
+    name: "Vote on Party Merger",
+    description: "Cast or change your national committee vote on a pending merger proposal for either party whose committee you serve.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["party/committee", "party/merger"],
     status: "available",
   },
   foundParty: {

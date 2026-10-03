@@ -89,6 +89,7 @@ import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeace
 import { resignUkCommonsSeat, validateUkCommonsDefection, vacatePlayerCommonsSeat } from "../elections/ukCommonsVacancies.js";
 import { declareUkCommonsRecall, signUkCommonsRecallPetition } from "../elections/ukCommonsRecall.js";
 import { recomputeComposition } from "../elections/orchestration.js";
+import { castPartyMergerVote, proposePartyMerger } from "../party/mergerProposals.js";
 
 export type ExecuteActionParams = {
   /** Player preference for automatic re-entry in the most recent state race. */
@@ -105,6 +106,9 @@ export type ExecuteActionParams = {
   secondarySectorType?: CorporationType;
   startingCapital?: number;
   partyId?: string;
+  targetPartyId?: string;
+  partyMergerProposalId?: string;
+  partyMergerVote?: "yes" | "no";
   caucusId?: string;
   caucusName?: string;
   caucusTaxRate?: number;
@@ -454,6 +458,18 @@ function executeActionInner(
     const result = castPmAppointmentVote(world, params.pmAppointmentVoteId ?? "", params.pmVote ?? "aye");
     return result.ok
       ? { ok: true, message: `Recorded ${params.pmVote} on ${pmAppointmentExecutiveTitle(result.vote.countryId)} appointment ${params.pmAppointmentVoteId}.` }
+      : { ok: false, error: result.error };
+  }
+  if (actionId === "proposePartyMerger") {
+    const result = proposePartyMerger(world, actorId, params.targetPartyId ?? "");
+    return result.ok
+      ? { ok: true, message: `Opened merger proposal ${result.proposal.id}.` }
+      : { ok: false, error: result.error };
+  }
+  if (actionId === "votePartyMerger") {
+    const result = castPartyMergerVote(world, actorId, params.partyMergerProposalId ?? "", params.partyMergerVote ?? "no");
+    return result.ok
+      ? { ok: true, message: `Recorded ${params.partyMergerVote} on merger proposal ${result.proposal.id} (${result.proposal.status}).` }
       : { ok: false, error: result.error };
   }
   // A pending parliamentary government freezes bill proposals before any
@@ -2766,6 +2782,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         : "referendumGroundGame requires referendumId and presetId";
     case "joinParty":
       return params.partyId ? null : "joinParty requires partyId";
+    case "proposePartyMerger":
+      return params.targetPartyId ? null : "proposePartyMerger requires targetPartyId";
+    case "votePartyMerger":
+      return params.partyMergerProposalId && (params.partyMergerVote === "yes" || params.partyMergerVote === "no")
+        ? null
+        : "votePartyMerger requires partyMergerProposalId and a yes|no vote";
     case "foundParty":
       return params.foundPartyName && params.foundPartyAbbr
         ? null

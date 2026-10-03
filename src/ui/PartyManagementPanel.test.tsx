@@ -106,4 +106,36 @@ describe("PartyManagementPanel", () => {
     expect(screen.getAllByText("Not enough funds. Founding needs 100000 funds available.").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Found party" }).hasAttribute("disabled")).toBe(true);
   });
+
+  it("proposes and casts votes on the two-sided merger ballot from the public party panel", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const management = makeManagement();
+    management.merger = {
+      available: true,
+      disabledReason: null,
+      targets: [{ id: "US_REP", name: "Republican Party", abbreviation: "REP" }],
+      proposals: [{
+        id: "party-merge:US_REP:4:1",
+        proposerPartyName: "Republican Party",
+        targetPartyName: "Democratic Party",
+        status: "open",
+        expiresTurn: 28,
+        playerSide: "target",
+        canVote: true,
+        proposingYes: 2,
+        proposingNo: 0,
+        targetYes: 0,
+        targetNo: 1,
+      }],
+    };
+    render(<PartyManagementPanel management={management} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByLabelText("Merger target party"), "US_REP");
+    await user.click(screen.getByRole("button", { name: "Propose party merger" }));
+    await user.click(screen.getByRole("button", { name: /Vote yes on Republican Party merger/ }));
+    expect(onAction).toHaveBeenNthCalledWith(1, "proposePartyMerger", { targetPartyId: "US_REP" });
+    expect(onAction).toHaveBeenNthCalledWith(2, "votePartyMerger", {
+      partyMergerProposalId: "party-merge:US_REP:4:1", partyMergerVote: "yes",
+    });
+  });
 });
