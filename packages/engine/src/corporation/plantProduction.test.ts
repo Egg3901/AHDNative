@@ -11,6 +11,25 @@ import { rebuildCorporatePlantInputDemand } from "./plantDemand.js";
 import { sourceCrisisMarginPenalty, sourcePlantFinancialLeg, sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 describe("plants-tier corporate production", () => {
+  it("takes a persisted mothballed plant off both output and corporate-input demand", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plants-mothball-cold", playerName: "Alex" });
+    world.corporations = { "US-manufacturing": world.corporations["US-manufacturing"]! };
+    const id = "corporate-sector:US:manufacturing:US-manufacturing";
+    world.corporateSectors = { [id]: {
+      id, corporationId: "US-manufacturing", countryId: "US", stateId: null,
+      sectorType: "manufacturing", capitalStock: 10_000, producedUnits: 10_000,
+      mothballed: true, workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+    } };
+    world.plantMarketDemand = { external: {}, corporateInputs: { steel: 42 } };
+    const supplyBefore = world.commodityPrices.steel!.globalSupply;
+    rebuildCorporatePlantInputDemand(world);
+    expect(world.plantMarketDemand.corporateInputs).toEqual({});
+    corporatePlantProductionPhase.run(world, rngFromState(world.meta.rng));
+    const asset = world.corporateSectors[id]!;
+    expect(asset).toMatchObject({ producedUnits: 0, soldUnits: 0, soldFraction: 0, realizedRevenue: 0 });
+    expect(world.commodityPrices.steel!.globalSupply).toBe(supplyBefore);
+  });
+
   it("builds source local and national dominance shares from actual host-currency receipts", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "source-market-shares", playerName: "Alex" });
     const [va, md, ca] = ["VA", "MD", "CA"];

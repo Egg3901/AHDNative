@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceFrontierHasPositiveLocalUse, sourceFrontierMarketIsUncovered, sourceFrontierPacingOpportunity, SOURCE_FRONTIER_ENTRY_SUPPLY, sourceLogisticsSupportedSectorCount, sourceNppCapacityBuildCostAnchor, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, applyNppSourceFounding, applySourceGlutMothballing, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceFrontierHasPositiveLocalUse, sourceFrontierMarketIsUncovered, sourceFrontierPacingOpportunity, SOURCE_FRONTIER_ENTRY_SUPPLY, sourceLogisticsSupportedSectorCount, sourceNppCapacityBuildCostAnchor, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { getRateForCountry } from "../forex/conversion.js";
@@ -10,6 +10,69 @@ import { corporateSectorAssets, type CorporateSectorAsset } from "./corporateSec
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 describe("source NPP capacity replacement", () => {
+  it("ports source glut mothball/restart thresholds and changes one live sector per eligible turn", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-mothball", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    world.meta.turn = 8; // Native's deterministic issuer ID has the source fallback cohort hash 0.
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice * 0.6;
+    const worst: CorporateSectorAsset = {
+      id: "mothball-worst", corporationId: corp.id, countryId: "US", stateId: null,
+      sectorType: "manufacturing", capitalStock: 1_000, producedUnits: 1_000, soldUnits: 100, soldFraction: 0.1,
+      workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+    };
+    const alsoLow: CorporateSectorAsset = { ...worst, id: "mothball-also-low", soldFraction: 0.2 };
+    const cold: CorporateSectorAsset = { ...worst, id: "mothball-cold", mothballed: true };
+    world.corporateSectors = { worst, alsoLow, cold };
+    applySourceGlutMothballing(world);
+    expect(worst.mothballed).toBe(true);
+    expect(alsoLow.mothballed).toBeUndefined();
+    expect(cold.mothballed).toBe(true);
+
+    world.meta.turn += 8;
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice * 0.95;
+    applySourceGlutMothballing(world);
+    expect(cold.mothballed).toBe(false); // Restart is preferred to another glut shed.
+    expect(alsoLow.mothballed).toBeUndefined();
+  });
+
+  it("does not apply source mothball transitions to extraction, SOEs, or off-slot turns", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-mothball-guards", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    world.meta.turn = 1;
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice * 0.6;
+    const asset: CorporateSectorAsset = {
+      id: "extractor", corporationId: corp.id, countryId: "US", stateId: null,
+      sectorType: "extraction", producedUnits: 1_000, soldFraction: 0.01,
+      workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+    };
+    world.corporateSectors = { asset };
+    applySourceGlutMothballing(world);
+    expect(asset.mothballed).toBeUndefined();
+    world.meta.turn = 8;
+    corp.countryOwnerId = "US";
+    applySourceGlutMothballing(world);
+    expect(asset.mothballed).toBeUndefined();
+  });
+
+  it("uses the source 12-turn persistent cost-loss counter when fill and market price do not qualify", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-cost-mothball", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    world.meta.turn = 8;
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice * 0.95;
+    const asset: CorporateSectorAsset = {
+      id: "long-running-loss", corporationId: corp.id, countryId: "US", stateId: null,
+      sectorType: "manufacturing", producedUnits: 1_000, soldFraction: 0.95, pnlLossTurns: 11,
+      plantsPnl: { turn: world.meta.turn, revenue: 10, inputs: 10, otherOpex: 1, policyCredit: 0, growth: 0, operatingCost: 11, totalCost: 11, profit: -1 },
+      workers: 1, representingUnionId: null, forSale: null, owner: "corporation",
+    };
+    world.corporateSectors = { asset };
+    applySourceGlutMothballing(world);
+    expect(asset).toMatchObject({ mothballed: true, pnlLossTurns: 12 });
+  });
+
   it("matches the source frontier predicate and uses only observed local demand", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-frontier-use", playerName: "Alex" });
     world.corporateSectors = {};

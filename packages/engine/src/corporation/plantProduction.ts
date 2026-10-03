@@ -222,6 +222,19 @@ export function runCorporatePlantProductionTurn(
     const demandFactor = demandThrottleFactor(plannedUnits, priorSoldUnits, asset.producedUnits);
     const outputFactor = labourOutputFactor * demandFactor;
     const producedUnits = productionCapacity * outputFactor * outputUnitsFactor;
+    if (asset.mothballed === true) {
+      // Source mothballing takes a plant off both the output and input sides
+      // of the market. Keep physical depreciation/build delivery above, but
+      // do not create an offer or carry stale utilization into reinvestment.
+      asset.capitalStock = capital.capitalStock;
+      asset.capacityBookAnchor = capital.capacityBookAnchor;
+      asset.producedUnits = 0;
+      asset.soldUnits = 0;
+      asset.soldFraction = 0;
+      asset.realizedRevenue = 0;
+      asset.soldByCommodity = {};
+      continue;
+    }
     const seller: PlantSeller = {
       asset,
       productionCapacity,
@@ -548,6 +561,7 @@ export function corporatePlantsRealizationRatio(world: WorldState, corporationId
   let nominal = 0;
   for (const asset of Object.values(corporateSectorAssets(world))) {
     if (asset.corporationId !== corporationId) continue;
+    if (asset.mothballed === true) continue;
     const selected = asset.strategyId !== undefined && asset.strategyId !== "standard";
     const strategy = selected || asset.transitionFromStrategyId
       ? effectiveSectorStrategyRates(asset, world.meta.turn)
@@ -578,6 +592,7 @@ export function sourceCorpDailyGrossRevenueLocal(world: WorldState, corporationI
   let foundAsset = false;
   for (const asset of Object.values(corporateSectorAssets(world))) {
     if (asset.corporationId !== corporationId) continue;
+    if (asset.mothballed === true) continue;
     foundAsset = true;
     const selected = asset.strategyId !== undefined && asset.strategyId !== "standard";
     const strategy = selected || asset.transitionFromStrategyId

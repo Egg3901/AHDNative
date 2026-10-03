@@ -156,6 +156,8 @@ export interface CorporateSectorAsset {
   owner: CorporateSectorOwner;
   /** Source CorporateSector.mothballed; absent means the asset is live. */
   mothballed?: boolean;
+  /** Consecutive NPP-managed loss-making turns used by source cost mothballing. */
+  pnlLossTurns?: number;
 }
 
 /**
@@ -314,6 +316,9 @@ export function validateCorporateSectorAssets(
     validateSectorPlantPnl(asset);
     if (asset.mothballed !== undefined && typeof asset.mothballed !== "boolean") {
       throw new Error(`Corporate sector ${asset.id} has invalid mothballed state`);
+    }
+    if (asset.pnlLossTurns !== undefined && (!Number.isSafeInteger(asset.pnlLossTurns) || asset.pnlLossTurns < 0)) {
+      throw new Error(`Corporate sector ${asset.id} has invalid loss-turn count`);
     }
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
