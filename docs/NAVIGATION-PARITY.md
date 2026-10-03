@@ -434,7 +434,9 @@ null-region empty state).
 Still open after this slice: RegionViewerCard-adjacent office
 holder links, and the no-destination rows (Executive, SCOTUS, US Political
 Operations, charters surface, unions, Hall of Fame, crises, conflicts,
-international orgs, forex, trade, IMF). The Regions directory detail
+international orgs, trade, IMF). Currency Exchange now has a real offline
+World > Economy route with quote and trade controls backed by the saved
+singleplayer session; it does not expose live server-only quote state. The Regions directory detail
 residual is closed by section 15 (re-derived 2026-09-18: the directory is
 player-country scoped, so its ids resolve). The RouteMatrix510
 politicians-return residual noted under section 10 now passes (verified

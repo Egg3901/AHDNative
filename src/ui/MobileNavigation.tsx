@@ -3,7 +3,7 @@ import { formatGameDate } from "../game/gameDate";
 
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
-  | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
+  | "profile" | "portfolio" | "banking" | "forex" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
   | "stateOwnership"
   | "economy" | "budget" | "policy" | "metrics" | "commandEconomy" | "nations" | "worldDirectory" | "worldMap" | "hallOfFame" | "state" | "government"
@@ -152,6 +152,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
           { id: "markets", label: "Stock market" },
           { id: "sectors", label: "Sectors" },
           { id: "bonds", label: "Bonds" },
+          { id: "forex", label: "Currency exchange" },
           { id: "banking", label: "Banking" },
         ],
       },
