@@ -27,13 +27,16 @@ describe("current-source US annual Layer-1 substrate", () => {
     const alternateClock = sourceUsLayer1ForYear("NY", 1985, 1979)!;
     expect(alternateClock.marginals.race).toEqual(checkpoint.marginals.race);
     expect(alternateClock.turnoutRates.race!.black).toBe(52.5);
+    const customStartYear = sourceUsLayer1ForYear("NY", 1985, 2020)!;
+    expect(customStartYear).toEqual(alternateClock);
     const modernEra = sourceUsLayer1ForYear("NY", 2025, 2019)!;
     expect(modernEra.marginals.race).toEqual({ white: 51.5, black: 15, hispanic: 20.5, asian: 9.5, other: 3.5000000000000004 });
     expect(modernEra.positions.race!.white).toEqual({ economicLean: -1.5, socialLean: -1.5 });
-    expect(sourceUsLayer1ForYear("NY", 1985, 2020)).toBeNull();
+    expect(sourceUsLayer1ForYear("NY", 2035, 1953)).toEqual(sourceUsLayer1ForYear("NY", 2027, 1953));
+    expect(supportsSourceUsStartingYear(2020)).toBe(true);
+    expect(supportsSourceUsStartingYear(999)).toBe(false);
     expect(sourceUsLayer1ForYear("not-a-state", 1985, 1953)).toBeNull();
     expect(supportsSourceUsStartingYear(2019)).toBe(true);
-    expect(supportsSourceUsStartingYear(2020)).toBe(false);
   });
 
   it("retains the discrete legacy path and derives anchored source-year units", () => {

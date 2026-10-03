@@ -10,8 +10,11 @@ export interface SourceYearSubstrate {
 
 type SourceAnchor = Omit<SourceYearSubstrate, "turnoutRates" | "conditionedOffsets">;
 type SourceYearCorpus = {
-  provenance: { worldStartYears: number[]; sourceAnchorYears: number[]; sourceCalendarYears: [number, number] };
-  anchors: Record<string, Record<string, Record<string, SourceAnchor>>>;
+  provenance: { sourceAnchorYears: number[]; sourceCalendarYears: [number, number] };
+  anchors: {
+    checkpointStartYear1953: Record<string, Record<string, SourceAnchor>>;
+    noCheckpoint: Record<string, Record<string, SourceAnchor>>;
+  };
   turnout: {
     noCheckpoint: Record<string, Record<string, Record<string, number>>>;
     startingYear1953: Record<string, Record<string, Record<string, Record<string, number>>>>;
@@ -22,7 +25,7 @@ type SourceYearCorpus = {
 const CORPUS = US_SOURCE_YEAR_ELECTORATE as unknown as SourceYearCorpus;
 
 export function supportsSourceUsStartingYear(startingYear: number): boolean {
-  return CORPUS.provenance.worldStartYears.includes(startingYear);
+  return Number.isSafeInteger(startingYear) && startingYear >= 1000 && startingYear <= 9999;
 }
 
 function resolveBounds(year: number): { low: number; high: number; fraction: number } | null {
@@ -70,7 +73,8 @@ export function sourceUsLayer1ForYear(stateId: string, year: number, startingYea
   if (!supportsSourceUsStartingYear(startingYear)) return null;
   const bounds = resolveBounds(year);
   if (!bounds) return null;
-  const stateAnchors = CORPUS.anchors[String(startingYear)]?.[stateId];
+  const anchorSet = startingYear === 1953 ? CORPUS.anchors.checkpointStartYear1953 : CORPUS.anchors.noCheckpoint;
+  const stateAnchors = anchorSet[stateId];
   const low = stateAnchors?.[String(bounds.low)];
   const high = stateAnchors?.[String(bounds.high)];
   if (!low) return null;
