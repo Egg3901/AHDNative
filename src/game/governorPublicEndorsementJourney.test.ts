@@ -18,7 +18,9 @@ const PRESIDENT_ENDORSED_SAVE = join(EVIDENCE_DIR, "president-endorsed.json");
 function recordMilestone(name: string, save: string, session: GameSession, office: string) {
   const digest = createHash("sha256").update(save).digest("hex");
   const evidence = { name, sha256: digest, turn: session.view().turn, office };
-  writeFileSync(join(EVIDENCE_DIR, `${name}.json`), JSON.stringify(evidence, null, 2));
+  const milestoneDir = join(EVIDENCE_DIR, "milestones");
+  mkdirSync(milestoneDir, { recursive: true });
+  writeFileSync(join(milestoneDir, `${name}.json`), JSON.stringify(evidence, null, 2));
   console.log(`PUBLIC_MILESTONE ${JSON.stringify(evidence)}`);
 }
 
@@ -169,7 +171,7 @@ describe.sequential("earned governor presidential endorsement journey", () => {
     expect(treatmentActions).toContainEqual(expect.objectContaining({ actionId: "withdrawGovernorEndorsement", stateId: "WY", candidateId: endorsement!.candidateId, available: true }));
     writeFileSync(PRESIDENT_ENDORSED_SAVE, endorsedSave);
     recordMilestone("president-endorsed", endorsedSave, treatment, "US-WY governor; persisted endorsement for source presidential candidate");
-    expect(view.turn).toBe(new GameSession().load(loadCheckpoint(PRESIDENT_READY_SAVE)).turn);
+    expect(view.turn).toBe((JSON.parse(readySave) as { world: { meta: { turn: number } } }).world.meta.turn);
   }, 900_000);
 
   it("stage 4: continues ordinary turns and proves the saved endorsement changes WY presidential votes only", () => {
