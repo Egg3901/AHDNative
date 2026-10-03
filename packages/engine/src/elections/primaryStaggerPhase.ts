@@ -16,7 +16,7 @@ import {
 } from "./data/usPrimaryCalendar.js";
 import { electoralVotesByState } from "./presidentialElectoralCollege.js";
 import { campaignKey } from "../campaigns/lifecycle.js";
-import { targetedAdBonusByGroup } from "../campaigns/targetedAds.js";
+import { policyPosition, targetedAdBonusByGroup } from "../campaigns/targetedAds.js";
 import type { ElectionRecord } from "./types.js";
 
 const STRETCHED_OFFSETS = [40, 32, 24, 16, 8, 0] as const;
@@ -132,7 +132,7 @@ function primaryCandidatesForState(world: WorldState, race: ElectionRecord, stat
         const standing = targetedAdBonusByGroup(
           world,
           stateId,
-          policies,
+          policyPosition(policies),
           world.player.targetedAds,
           world.meta.turn,
         );
