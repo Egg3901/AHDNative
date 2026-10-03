@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
+import { advanceTurn } from "../engine.js";
 import { electionSeriesForWorld } from "./orchestration.js";
 
 describe("source JP background election producer", () => {
@@ -10,6 +11,7 @@ describe("source JP background election producer", () => {
       const regions = Object.values(world.regions).filter((region) => region.countryId === "JP");
       expect(world.countries.JP?.playable).toBe(false);
       expect(regions.map((region) => region.id).sort()).toEqual(["CGK", "CHU", "HOK", "KAN", "KNS", "KYU", "SHI", "TOH"]);
+      expect(Object.keys(world.stateDemographics).filter((regionId) => world.stateDemographics[regionId]?.countryId === "JP")).toHaveLength(8);
       const series = electionSeriesForWorld(world).filter((row) => row.countryId === "JP");
       expect(series.filter((row) => row.electionType === "shugiin")).toHaveLength(8);
       expect(series.filter((row) => row.electionType === "sangiin")).toHaveLength(16);
@@ -22,4 +24,18 @@ describe("source JP background election producer", () => {
       expect(() => createWorld({ seed: `jp-background-${era}`, playerName: "Tester", countryId: "JP", era })).toThrow(/not playable/);
     },
   );
+
+  it("runs JP schedules through the ordinary turn phase while keeping character selection disabled", () => {
+    const world = createWorld({ seed: "jp-background-ordinary-turn", playerName: "Tester", countryId: "US", era: "2019" });
+    const report = advanceTurn(world);
+    const jpElections = world.elections.filter((election) => election.countryId === "JP");
+
+    expect(report.turn).toBe(world.meta.turn);
+    expect(world.meta.turn).toBe(1);
+    expect(jpElections.length).toBeGreaterThan(0);
+    expect(jpElections.some((election) => election.electionType === "shugiin")).toBe(true);
+    expect(jpElections.some((election) => election.electionType === "sangiin")).toBe(true);
+    expect(jpElections.some((election) => election.electionType === "regionalCouncil")).toBe(true);
+    expect(world.countries.JP?.playable).toBe(false);
+  });
 });
