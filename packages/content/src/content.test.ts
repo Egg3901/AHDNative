@@ -2,8 +2,37 @@ import { describe, expect, it } from "vitest";
 import { PACKS, pack1953, pack1979 } from "./packs/index.js";
 import { validatePack } from "./validate.js";
 import type { SeedPack } from "./types.js";
+import US_SOURCE_YEAR_ELECTORATE from "./packs/usSourceYearElectorate.json";
 
 describe("validatePack", () => {
+  it("validates the exported US electorate anchors for unshipped reference years", () => {
+    const artifact = US_SOURCE_YEAR_ELECTORATE as unknown as {
+      provenance: { sourceRepository: string; sourceCommit: string; sourceAnchorYears: number[]; worldStartYears: number[] };
+      anchors: Record<string, Record<string, Record<string, {
+        marginals: Record<string, Record<string, number>>;
+        positions: Record<string, unknown>;
+      }>>>;
+    };
+    expect(artifact.provenance).toMatchObject({
+      sourceRepository: "Egg3901/AHDGame",
+      sourceCommit: "6f8b083beffbc79b8c9974b80d93dbd19d6d56a6",
+    });
+    expect(artifact.provenance.sourceAnchorYears).toEqual([1953, 1979, 1991, 1999, 2007, 2019, 2023, 2027]);
+    expect(artifact.provenance.worldStartYears).toEqual([1953, 1979, 1991, 2019]);
+    expect(Object.keys(artifact.anchors.noCheckpoint ?? {})).toHaveLength(51);
+    for (const year of [1999, 2007, 2023]) {
+      for (const state of Object.values(artifact.anchors.noCheckpoint ?? {})) {
+        const anchor = state[String(year)];
+        expect(anchor, `source electorate ${year}`).toBeDefined();
+        for (const [dimension, buckets] of Object.entries(anchor!.marginals)) {
+          const total = Object.values(buckets).reduce((sum, value) => sum + value, 0);
+          expect(total, `${year}/${dimension}`).toBeCloseTo(100, 8);
+        }
+        expect(Object.keys(anchor!.positions).length).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("accepts every shipped pack", () => {
     for (const pack of PACKS) {
       expect(() => validatePack(pack)).not.toThrow();

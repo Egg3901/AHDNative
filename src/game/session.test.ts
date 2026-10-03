@@ -50,6 +50,17 @@ function sessionWithConstrainedCentralBankPool(): GameSession {
 }
 
 describe("singleplayer session", () => {
+  it("blocks source-unavailable new-character choices but keeps worldsim spectator creation distinct", () => {
+    const player = new GameSession();
+    expect(() => player.create({ ...options, era: "1991", countryId: "IE", mode: "career" }))
+      .toThrow(/playable country/);
+    const spectator = new GameSession();
+    spectator.create({ ...options, era: "1991", countryId: "IE", mode: "worldsim" });
+    const saved = JSON.parse(spectator.serialize("2026-10-03T06:00:00.000Z"));
+    expect(saved.world.player.mode).toBe("worldsim");
+    expect(saved.world.player.countryId).toBe("IE");
+  });
+
   it("executes a quoted home-to-foreign-currency trade through the public session", () => {
     const session = new GameSession();
     session.create({ ...options, era: "1979" });

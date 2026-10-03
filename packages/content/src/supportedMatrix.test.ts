@@ -4,6 +4,7 @@ import {
   assertSupportedMatrixMatchesPacks,
   assertSupportedSelection,
   isPlayableCountry,
+  isNewCharacterSelection,
   isSupportedEra,
   SUPPORTED_MATRIX,
   UNAVAILABLE_ERAS,
@@ -28,17 +29,20 @@ describe("supported era/country matrix (#118)", () => {
   });
 
   it("records the 1991/2019 playable deltas against the pinned authority explicitly", () => {
-    // AHDGame@96831835 POST_COLD_WAR_PLAYER manifest is US/UK only. Source
-    // countryAccess and the 2019 character-creation route also permit DE;
-    // Native's scoped DE entry is recorded as a remaining #118 matrix delta.
+    // Current source player access is established at `tierFor` and written by
+    // `seedCountryGameStates`; character creation enforces that resulting gate.
     const row1991 = SUPPORTED_MATRIX.find((r) => r.era === "1991")!;
     expect(row1991.authorityPreset).toBe("1991-default");
-    expect([...row1991.authorityPlayer].sort()).toEqual(["UK", "US"]);
+    expect([...row1991.authorityPlayer].sort()).toEqual(["JP", "UK", "US"]);
     expect([...row1991.playableDelta].sort()).toEqual(["BR", "CN", "IE"]);
+    expect(row1991.newCharacterCountries).toEqual(["UK", "US"]);
+    expect([...row1991.authorityPlayerUnavailableInNative].sort()).toEqual(["JP"]);
     const row2019 = SUPPORTED_MATRIX.find((r) => r.era === "2019")!;
     expect(row2019.authorityPreset).toBe("2019-default");
-    expect([...row2019.authorityPlayer].sort()).toEqual(["UK", "US"]);
+    expect([...row2019.authorityPlayer].sort()).toEqual(["JP", "UK", "US"]);
     expect([...row2019.playableDelta].sort()).toEqual(["CN", "DE", "IE"]);
+    expect(row2019.newCharacterCountries).toEqual(["UK", "US"]);
+    expect([...row2019.authorityPlayerUnavailableInNative].sort()).toEqual(["JP"]);
     // Cold War eras match the authority exactly: no silent widening.
     for (const era of ["1953", "1979"]) {
       expect(SUPPORTED_MATRIX.find((r) => r.era === era)!.playableDelta).toEqual([]);
@@ -74,6 +78,19 @@ describe("supported era/country matrix (#118)", () => {
     expect(isPlayableCountry("1999", "US")).toBe(false);
   });
 
+  it("separates source-ready new-character options from internal pack fixtures", () => {
+    for (const [era, id] of [["1953", "US"], ["1953", "DD"], ["1979", "RU"], ["1991", "UK"], ["2019", "US"]]) {
+      expect(isNewCharacterSelection(era!, id!)).toBe(true);
+    }
+    for (const [era, id] of [["1991", "JP"], ["1991", "IE"], ["1991", "BR"], ["1991", "CN"], ["2019", "JP"], ["2019", "DE"], ["2019", "IE"], ["2019", "CN"]]) {
+      expect(isNewCharacterSelection(era!, id!)).toBe(false);
+    }
+    // Engine packs keep internal fixture reachability; public new-character
+    // access is checked separately at GameSession/client creation.
+    expect(isPlayableCountry("1991", "IE")).toBe(true);
+    expect(isPlayableCountry("2019", "DE")).toBe(true);
+  });
+
   it("assertSupportedSelection accepts every supported combo and rejects the rest", () => {
     let accepted = 0;
     for (const pack of PACKS) {
@@ -82,7 +99,7 @@ describe("supported era/country matrix (#118)", () => {
         accepted++;
       }
     }
-    // 4 + 4 + 5 + 5 supported era/country combinations.
+    // Raw engine packs retain 18 authored combinations for internal use.
     expect(accepted).toBe(18);
     // Unavailable eras.
     for (const era of ["1960", "1999", "2007", "2023", "1800"]) {

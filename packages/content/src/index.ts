@@ -14,6 +14,7 @@ export {
   REQUIRED_SYSTEMS,
   assertSupportedMatrixMatchesPacks,
   assertSupportedSelection,
+  isNewCharacterSelection,
   isPlayableCountry,
   isSupportedEra,
 } from "./supportedMatrix.js";
