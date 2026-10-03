@@ -8,6 +8,46 @@ export const UK_COMMONS_BY_ELECTION_GENERAL_TURNS = 24;
 export const UK_COMMONS_BY_ELECTION_RETRY_COOLDOWN_TURNS = 48;
 export const UK_COMMONS_BY_ELECTION_TOTAL_TURNS = UK_COMMONS_BY_ELECTION_FILING_TURNS + UK_COMMONS_BY_ELECTION_GENERAL_TURNS;
 
+export type CommonsByElectionGate =
+  | { kind: "spawn" }
+  | { kind: "special_live" }
+  | { kind: "general_fills"; endTurn: number | null }
+  | { kind: "cooldown"; retryTurn: number };
+
+/** Game commonsByElectionGate: the watcher and player projection share one decision. */
+export function commonsByElectionGate(input: {
+  liveRaces: ReadonlyArray<{ electionType: string; endTurn?: number }>;
+  lastSpecialEndTurn: number | undefined;
+  currentTurn: number;
+}): CommonsByElectionGate {
+  const { liveRaces, lastSpecialEndTurn, currentTurn } = input;
+  if (liveRaces.some((race) => race.electionType === "special_commons")) return { kind: "special_live" };
+  const filling = liveRaces.filter((race) => typeof race.endTurn !== "number" || race.endTurn <= currentTurn + UK_COMMONS_BY_ELECTION_TOTAL_TURNS);
+  if (filling.length > 0) {
+    const ends = filling.flatMap((race) => typeof race.endTurn === "number" ? [race.endTurn] : []);
+    return { kind: "general_fills", endTurn: ends.length > 0 ? Math.min(...ends) : null };
+  }
+  if (lastSpecialEndTurn !== undefined && lastSpecialEndTurn > currentTurn - UK_COMMONS_BY_ELECTION_RETRY_COOLDOWN_TURNS) {
+    return { kind: "cooldown", retryTurn: lastSpecialEndTurn + UK_COMMONS_BY_ELECTION_RETRY_COOLDOWN_TURNS };
+  }
+  return { kind: "spawn" };
+}
+
+/** Native's national snap record also covers every regional Commons delegation. */
+export function ukCommonsByElectionGate(world: WorldState, regionId: string): CommonsByElectionGate {
+  const races = world.elections.filter((race) => race.countryId === "UK"
+    && (race.state === regionId || (race.electionType === "snap_commons" && race.state === undefined))
+    && ["commons", "snap_commons", "special_commons"].includes(race.electionType));
+  const finishedEnds = races.filter((race) => race.electionType === "special_commons"
+    && race.status !== "active" && race.status !== "upcoming")
+    .flatMap((race) => typeof race.endTurn === "number" ? [race.endTurn] : []);
+  return commonsByElectionGate({
+    liveRaces: races.filter((race) => race.status === "active" || race.status === "upcoming"),
+    lastSpecialEndTurn: finishedEnds.length > 0 ? Math.max(...finishedEnds) : undefined,
+    currentTurn: world.meta.turn,
+  });
+}
+
 export type UkCommonsVacancyStatus = "open" | "scheduled" | "filled" | "subsumed";
 
 export interface UkCommonsVacancy {
@@ -159,26 +199,7 @@ export function scheduleUkCommonsByElections(world: WorldState): void {
     openByRegion.set(vacancy.regionId, rows);
   }
   for (const [regionId, rows] of [...openByRegion.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    const existingSpecial = world.elections.find((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === regionId && (election.status === "active" || election.status === "upcoming"));
-    if (existingSpecial) {
-      let addedSeats = 0;
-      for (const vacancy of rows) {
-        if (existingSpecial.vacancyIds?.includes(vacancy.id)) continue;
-        existingSpecial.vacancyIds = [...(existingSpecial.vacancyIds ?? []), vacancy.id];
-        addedSeats += Math.max(1, vacancy.seats ?? 1);
-        vacancy.status = "scheduled";
-        vacancy.electionId = existingSpecial.id;
-      }
-      existingSpecial.totalSeats += addedSeats;
-      existingSpecial.byElectionCarve = Math.min(1, existingSpecial.totalSeats / (seatsByRegion[regionId] ?? existingSpecial.totalSeats));
-      continue;
-    }
-    const fillsFirst = world.elections.some((election) => election.countryId === "UK" && (election.state === regionId || (election.electionType === "snap_commons" && election.state === undefined)) && ["commons", "snap_commons"].includes(election.electionType) && (election.status === "active" || election.status === "upcoming") && election.endTurn <= world.meta.turn + UK_COMMONS_BY_ELECTION_TOTAL_TURNS + 1);
-    if (fillsFirst) {
-      continue;
-    }
-    const lastSpecial = world.elections.filter((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === regionId && election.status === "resolved").reduce((max, election) => Math.max(max, election.resolvedTurn ?? -1), -1);
-    if (lastSpecial >= 0 && lastSpecial > world.meta.turn - UK_COMMONS_BY_ELECTION_RETRY_COOLDOWN_TURNS) continue;
+    if (ukCommonsByElectionGate(world, regionId).kind !== "spawn") continue;
     const regionSeats = seatsByRegion[regionId] ?? 0;
     if (regionSeats < 1) continue;
     const vacancyIds = rows.map((vacancy) => vacancy.id).sort();

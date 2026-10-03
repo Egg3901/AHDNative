@@ -3,11 +3,12 @@ import { usStates1953 } from "./usStates1953.js";
 import { ukRegions1953 } from "./ukRegions1953.js";
 import { ruRegions1953 } from "./ruRegions1953.js";
 import { ddRegions1953 } from "./ddRegions1953.js";
+import { cnRegions1953 } from "./cnRegions1953.js";
 import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 
 /**
  * Generated from mainline AHDGame  -  DO NOT HAND-EDIT.
- * Source files: src/lib/seeds/reference/budgets.ts (NATIONAL_BUDGET_SEED_CONFIGS_1953 + makeEasternBlocBudget1953), src/lib/seeds/reference/gdpDenomination.ts (GDP_DENOMINATION_1953), src/lib/constants/currencies.ts (INITIAL_RATES_1953), src/lib/constants/countries.ts (COUNTRY_CONFIGS names + ERA_COUNTRY_CONFIG_OVERRIDES for 1953-default), src/lib/world/worldEntityManifest.ts (COLD_WAR_PLAYER), src/lib/seeds/[country]/[country]MetricPresets1953.ts and ddStateMetrics1953.ts (unemployment where authored), src/lib/seeds/reference/stateMetrics1953.ts (UNEMP_1953 comment for US), src/lib/seeds/reference/politicalParties.ts (US parties), src/lib/seeds/uk/ukParties.ts (UK parties, filtered via validForPresets), src/lib/seeds/ru/ruParties.ts (RU CPSU), src/lib/seeds/dd/ddParties.ts (DD National Front), src/lib/constants/historicalSeats.ts (US_HOUSE_1953 / US_SENATE_1953 / SU_SUPREME_SOVIET_1953 / DD_VOLKSKAMMER_1953)
+ * Source files: src/lib/seeds/reference/budgets.ts (NATIONAL_BUDGET_SEED_CONFIGS_1953 + makeEasternBlocBudget1953), src/lib/seeds/reference/gdpDenomination.ts (GDP_DENOMINATION_1953), src/lib/constants/currencies.ts (INITIAL_RATES_1953), src/lib/constants/countries.ts (COUNTRY_CONFIGS names + ERA_COUNTRY_CONFIG_OVERRIDES for 1953-default), src/lib/world/worldEntityManifest.ts (COLD_WAR_PLAYER), src/lib/seeds/[country]/[country]MetricPresets1953.ts and ddStateMetrics1953.ts (unemployment where authored), src/lib/seeds/reference/stateMetrics1953.ts (UNEMP_1953 comment for US), src/lib/seeds/reference/politicalParties.ts (US parties), src/lib/seeds/uk/ukParties.ts (UK parties, filtered via validForPresets), src/lib/seeds/ru/ruParties.ts (RU CPSU), src/lib/seeds/dd/ddParties.ts (DD National Front), src/lib/constants/historicalSeats.ts (US_HOUSE_1953 / US_SENATE_1953 / SU_SUPREME_SOVIET_1953 / DD_VOLKSKAMMER_1953), and immutable AHDGame 24d8a1b China data files (`cnRegions1953.ts`, `cnParties.ts`, `cnMetricPresets1953.ts`)
  * Generated: 2026-09-01
  * See packages/content/scripts/generatePacks.ts for conversion notes.
  */
@@ -19,7 +20,7 @@ import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.j
  *  - unemploymentRate: where NATIONAL_1953 carries economic.unemploymentRate (FR/IT/ES/SE/TR/GR/AT/FI/CN and DD baseline 0.5), used directly.
  *    Otherwise: US 2.9 via stateMetrics1953.ts UNEMP_1953/BLS; UK 1.8 historical; DE 8.4 Statistisches Bundesamt;
  *    JP 2.0 historical; IE/BR/NG via matchingFriction proxy; RU and eastern-bloc satellites at planned 0.5 (DD proxy, YU 1.0 self-management).
- * Playable: worldEntityManifest.ts COLD_WAR_PLAYER = US/UK/RU/DD for 1953-default; rest economy-preview/hidden.
+ * Playable: worldEntityManifest.ts COLD_WAR_PLAYER = US/UK/RU/DD for 1953-default; CN remains economy-preview.
  * Ids: kept as mainline CountryId values (uppercase, e.g. US not us) for cross-repo alignment.
  *
  * Parties:
@@ -27,6 +28,7 @@ import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.j
  *  - UK: uk/ukParties.ts filtered to validForPresets includes "1953-default"  -  LAB, CON, SNP, PC, SF, LIB (6). LD/GRN/RUK/DUP/UUP gated to 1979+/2019+ via validForPresets.
  *  - RU: ru/ruParties.ts  -  CPSU alone, -4/2, regimeStatus ruling.
  *  - DD: dd/ddParties.ts  -  SED (-4/2 ruling) plus approved bloc CDU (-3/3), LDPD (-2/0), NDPD (-3/3), DBD (-3/1), all validForPresets 1953-default.
+ *  - CN: cnParties.ts CCP (-3/2 ruling), CDL (-1/0 approved), CNDCA (1/0 approved); party-state roster, not playable-party eligibility.
  *  Party ids are namespaced as <COUNTRY>_<ABBR> (e.g. US_DEM, UK_LAB, RU_CPSU, DD_SED) to keep the Record<partyId, number> namespace collision-free.
  *
  * Legislatures:
@@ -112,6 +114,7 @@ export const pack1953: SeedPack = {
     },
   ],
   states: [...usStates1953, ...ukRegions1953, ...ruRegions1953, ...ddRegions1953],
+  economyRegions: [...cnRegions1953],
   corporationHeadquartersRegions: [...US_CORPORATION_HEADQUARTERS_REGIONS],
   countries: [
     {
@@ -292,6 +295,9 @@ export const pack1953: SeedPack = {
     { id: "DD_LDPD", name: "Liberal-Demokratische Partei Deutschlands", countryId: "DD", abbreviation: "LDPD", color: "#D6A300", economicPosition: -2, socialPosition: 0, regimeStatus: "approved" },
     { id: "DD_NDPD", name: "National-Demokratische Partei Deutschlands", countryId: "DD", abbreviation: "NDPD", color: "#6E4B8B", economicPosition: -3, socialPosition: 3, regimeStatus: "approved" },
     { id: "DD_DBD", name: "Demokratische Bauernpartei Deutschlands", countryId: "DD", abbreviation: "DBD", color: "#2E7D32", economicPosition: -3, socialPosition: 1, regimeStatus: "approved" },
+    { id: "CN_CCP", name: "Chinese Communist Party", countryId: "CN", abbreviation: "CCP", color: "#DE2910", economicPosition: -3, socialPosition: 2, regimeStatus: "ruling" },
+    { id: "CN_CDL", name: "China Democratic League", countryId: "CN", abbreviation: "CDL", color: "#FFD700", economicPosition: -1, socialPosition: 0, regimeStatus: "approved" },
+    { id: "CN_CNDCA", name: "China National Democratic Construction Association", countryId: "CN", abbreviation: "CNDCA", color: "#1E90FF", economicPosition: 1, socialPosition: 0, regimeStatus: "approved" },
   ],
   legislatures: [
     {

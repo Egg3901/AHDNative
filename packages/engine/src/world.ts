@@ -382,9 +382,23 @@ export function listRegions(
 ): Array<{ id: string; name: string }> {
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
-  return (pack.states ?? [])
+  const politicalRegions = (pack.states ?? [])
     .filter((state) => state.countryId === countryId)
-    .map((state) => ({ id: state.id, name: state.name }))
+    .map((state) => ({ id: state.id, name: state.name }));
+  const economyRegions = (pack.economyRegions ?? [])
+    .filter((region) => region.countryId === countryId)
+    .map((region) => ({ id: region.id, name: region.name }));
+  return [...politicalRegions, ...economyRegions]
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/** Source-authored regional data for economy-preview countries; never election units. */
+export function listCountryEconomyRegions(era: string, countryId: string) {
+  const pack = getPackByEra(era);
+  if (!pack) throw new Error(`Unknown era: ${era}`);
+  return (pack.economyRegions ?? [])
+    .filter((region) => region.countryId === countryId)
+    .map((region) => ({ ...region, metrics: { ...region.metrics } }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 

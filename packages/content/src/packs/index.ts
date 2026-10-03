@@ -11,6 +11,7 @@ export type { StateDemographicsSeed } from "./usStateDemographics1953.js";
 export { ukRegions1953 } from "./ukRegions1953.js";
 export { ruRegions1953 } from "./ruRegions1953.js";
 export { ddRegions1953 } from "./ddRegions1953.js";
+export { cnRegions1953 } from "./cnRegions1953.js";
 
 export { pack1953 } from "./1953.js";
 export { pack1979 } from "./1979.js";

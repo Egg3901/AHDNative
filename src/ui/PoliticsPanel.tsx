@@ -19,7 +19,7 @@ import { PoliticalMetricsBoard } from "./PoliticalMetricsBoard";
 import { useEffect, useMemo, useState } from "react";
 import type { GameScreenProps } from "../game/types";
 import type {
-  PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
+  PoliticsCommonsVacancyView, PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
   PoliticsPoliticianView, PoliticsPresidentialView, PoliticsPrimaryView, PoliticsProjectionView,
   PoliticsRaceStageView, PoliticsReferendumView, PoliticsView, PoliticalMetricsView,
 } from "../game/politics";
@@ -57,6 +57,19 @@ const STAGE_STATE_LABELS: Record<PoliticsRaceStageView["state"], string> = {
   current: "Current",
   done: "Done",
 };
+
+const COMMONS_VACANCY_REASONS: Record<string, string> = {
+  death: "Death", retirement: "Retirement", defection: "Defection",
+  resignation: "Resignation", recall: "Recall", removal: "Removal",
+};
+
+function commonsVacancySchedulingText(gate: PoliticsCommonsVacancyView["scheduling"]): string {
+  if (gate?.kind === "special_live") return "Another by-election is running in this region. This vacancy waits until it closes.";
+  if (gate?.kind === "general_fills") return `The coming general election covers this vacancy.${gate.endTurn !== null ? ` Voting closes turn ${gate.endTurn}.` : ""}`;
+  if (gate?.kind === "cooldown") return `Waiting after an earlier by-election. Earliest retry turn ${gate.retryTurn}.`;
+  if (gate?.kind === "spawn") return "A by-election can be scheduled on the next turn.";
+  return "No by-election scheduled yet.";
+}
 
 const score = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 const ROSTER_PAGE_SIZE = 12;
@@ -954,6 +967,13 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
     if (busy || !election.candidacy.available) return;
     onAction(election.candidacy.id, { electionId: election.id });
   };
+  const openVacancyRace = (id: string) => {
+    if (busy || !politics.elections.some((race) => race.id === id)) return;
+    setStatus("all");
+    setMineOnly(false);
+    setDecidedOnly(false);
+    setSelectedId(id);
+  };
 
   // Hub framing (#377): hero band plus stat strip above the unchanged race
   // lists. Composition follows the reference `ElectionsHero` (image band,
@@ -964,6 +984,32 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
 
   return (
     <div className="ahd-stack">
+      {politics.countryId === "UK" && politics.commonsVacancies !== undefined ? (
+        <section className="ahd-card ahd-card-pad" aria-label="Commons vacancies">
+          <h2 className="ahd-h2">Commons vacancies</h2>
+          {politics.commonsVacancies.length === 0 ? <p className="ahd-muted">No open Commons vacancies.</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "0.5rem" }}>
+              {politics.commonsVacancies.map((vacancy) => {
+                const race = politics.elections.find((election) => election.id === vacancy.electionId);
+                return (
+                  <li key={vacancy.id} className="ahd-card ahd-card-pad">
+                    <strong>{vacancy.regionName} · {vacancy.seats} {vacancy.seats === 1 ? "seat" : "seats"}</strong>
+                    <p className="ahd-muted">{COMMONS_VACANCY_REASONS[vacancy.reason] ?? vacancy.reason} on turn {vacancy.vacatedTurn}{vacancy.formerHolderName ? ` · formerly ${vacancy.formerHolderName}` : ""}</p>
+                    {race ? (
+                      <>
+                        <p className="ahd-muted">{race.status === "active" || race.status === "upcoming"
+                          ? `By-election running.${race.primaryEndTurn != null && clock.turn < race.primaryEndTurn ? ` Entries close turn ${race.primaryEndTurn}.` : ""}${race.endTurn != null ? ` Voting closes turn ${race.endTurn}.` : ""}`
+                          : race.status === "cancelled" ? "By-election cancelled." : `By-election ${race.status}.`}</p>
+                        <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => openVacancyRace(race.id)}>Go to the by-election</button>
+                      </>
+                    ) : <p className="ahd-muted">{commonsVacancySchedulingText(vacancy.scheduling)}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      ) : null}
       {politics.countryId === "UK" ? (
         <section className="ahd-card ahd-card-pad" aria-label="Commons recall petitions">
           <h2 className="ahd-h2">Commons recalls</h2>
@@ -1070,7 +1116,7 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
                 <optgroup key={phase} label={RACE_PHASE_LABELS[phase]}>
                   {group.map((e) => (
                     <option key={e.id} value={e.id}>
-                      {e.title} [{e.status}]{e.playerCandidate ? " [filed]" : ""}
+                      {e.title}{e.isByElection ? " [By-election]" : ""} [{e.status}]{e.playerCandidate ? " [filed]" : ""}
                     </option>
                   ))}
                 </optgroup>
@@ -1085,6 +1131,7 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
             <strong style={{ fontSize: "0.9rem" }}>{selected.title}</strong>
             <span className="ahd-pill">{RACE_PHASE_LABELS[selected.phase]}</span>
+            {selected.isByElection ? <span className="ahd-pill">By-election</span> : null}
             {selected.playerCandidate ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Filed</span> : null}
           </div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>

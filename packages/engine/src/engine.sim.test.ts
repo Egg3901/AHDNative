@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { advanceTurn } from "./engine.js";
 import { deserializeSave, serializeSave } from "./save.js";
-import { createWorld, listCountries, listEras, listParties, listPlayableCountries, listRegions, SCHEMA_VERSION } from "./world.js";
+import { createWorld, listCountryEconomyRegions, listCountries, listEras, listParties, listPlayableCountries, listRegions, SCHEMA_VERSION } from "./world.js";
 import { rngFromSeed, rngFromState } from "./rng.js";
 import { dateForTurn, eraForDate } from "./calendar.js";
 import { PACKS } from "@ahdclient/content";
@@ -348,6 +348,15 @@ describe("seed packs integration", () => {
         expect(new Set(regions.map((region) => region.id)).size).toBe(regions.length);
       }
     }
+  });
+
+  it("exposes source-authored economy regions for preview CN without making CN a selectable 1953 country", () => {
+    expect(listPlayableCountries("1953").map((country) => country.id)).not.toContain("CN");
+    expect(listCountries("1953").find((country) => country.id === "CN")?.playable).toBe(false);
+    expect(listRegions("1953", "CN").map((region) => region.id)).toEqual(["DB", "HB", "HD", "HN", "HZ", "XB", "XN"]);
+    expect(listCountryEconomyRegions("1953", "CN").map((region) => region.population).reduce((sum, value) => sum + value, 0)).toBe(585_000_000);
+    expect(listCountryEconomyRegions("1953", "CN").find((region) => region.id === "HD")?.metrics["population.urbanizationRate"]).toBe(14);
+    expect(listParties("1953", "CN").map((party) => party.id)).toEqual(["CN_CCP", "CN_CDL", "CN_CNDCA"]);
   });
 
   it("createWorld succeeds for every era and playable country and is deterministic", () => {

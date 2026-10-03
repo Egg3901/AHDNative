@@ -113,7 +113,7 @@ export function validatePack(pack: SeedPack): void {
   }
 
   // optional extension tables: if present, must be arrays
-  for (const key of ["states", "parties", "sectors", "legislatures", "budgets", "corporationHeadquartersRegions"] as const) {
+  for (const key of ["states", "economyRegions", "parties", "sectors", "legislatures", "budgets", "corporationHeadquartersRegions"] as const) {
     const v = (pack as unknown as Record<string, unknown>)[key];
     if (v !== undefined && !Array.isArray(v)) {
       throw new Error(`validatePack: ${key} must be an array if present`);
@@ -308,6 +308,35 @@ export function validatePack(pack: SeedPack): void {
         const v = taxRates[k];
         if (!isFiniteNumber(v) || (v as number) < 0 || (v as number) > 100) throw new Error(`validatePack: budgets[${i}].taxRates.${k} must be in [0,100] for country "${countryId}", got ${String(v)}`);
       }
+    }
+  }
+
+  const economyRegionIds = new Set<string>();
+  const stateRegionIds = new Set((pack.states ?? []).map((row) => `${row.countryId}:${row.id}`));
+  for (const [index, row] of (pack.economyRegions ?? []).entries()) {
+    if (typeof row !== "object" || row === null || Array.isArray(row)) throw new Error(`validatePack: economyRegions[${index}] must be an object`);
+    if (typeof row.countryId !== "string" || !row.countryId.trim() || typeof row.id !== "string" || typeof row.name !== "string") {
+      throw new Error(`validatePack: economyRegions[${index}] requires non-empty countryId, id, and name`);
+    }
+    const key = `${row.countryId}:${row.id}`;
+    const country = pack.countries.find((candidate) => candidate.id === row.countryId);
+    if (!country) throw new Error(`validatePack: economyRegions[${index}] references unknown country "${row.countryId}"`);
+    if (country.playable) throw new Error(`validatePack: economyRegions[${index}] belongs to playable country "${row.countryId}"; use political states`);
+    if (!row.id.trim() || !row.name.trim()) throw new Error(`validatePack: economyRegions[${index}] requires non-empty id and name`);
+    if (Object.keys(row).some((field) => !["id", "countryId", "name", "population", "gdp", "houseSeats", "senateSeats", "metrics"].includes(field))) {
+      throw new Error(`validatePack: economyRegions[${index}] contains an unknown field`);
+    }
+    if (economyRegionIds.has(key) || stateRegionIds.has(key)) throw new Error(`validatePack: duplicate region id "${key}" across regional tables`);
+    economyRegionIds.add(key);
+    for (const field of ["population", "gdp"] as const) {
+      if (!isFiniteNumber(row[field]) || row[field] <= 0) throw new Error(`validatePack: economyRegions[${index}].${field} must be finite and > 0`);
+    }
+    for (const field of ["houseSeats", "senateSeats"] as const) {
+      if (!isFiniteNumber(row[field]) || !Number.isInteger(row[field]) || row[field] < 0) throw new Error(`validatePack: economyRegions[${index}].${field} must be a non-negative integer`);
+    }
+    if (typeof row.metrics !== "object" || row.metrics === null || Array.isArray(row.metrics)) throw new Error(`validatePack: economyRegions[${index}].metrics must be a metric map`);
+    for (const [path, value] of Object.entries(row.metrics)) {
+      if (!path.trim() || !isFiniteNumber(value)) throw new Error(`validatePack: economyRegions[${index}].metrics contains an invalid path or value`);
     }
   }
 }
