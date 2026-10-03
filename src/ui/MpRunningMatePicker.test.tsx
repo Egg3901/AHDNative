@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MpRunningMatePicker } from "./MpRunningMatePicker";
 
@@ -39,7 +39,7 @@ describe("Native MP running-mate action", () => {
     expect(screen.getByText(/eligible player from your country/)).toBeInTheDocument();
   });
 
-  it("searches server-eligible players and filters those results by source party", async () => {
+  it("searches names only and filters results by the source party key", async () => {
     const user = userEvent.setup();
     render(<MpRunningMatePicker electionId="US-president" options={[option, secondOption]} currentRunningMateCharacterId={null} currentRunningMateName={null} busy={false} onLoad={vi.fn()} onSave={vi.fn()} />);
 
@@ -50,8 +50,9 @@ describe("Native MP running-mate action", () => {
     expect(choice).toHaveValue("");
     expect(within(choice).getAllByRole("option").map((item) => item.textContent)).toEqual([
       "Choose an eligible player",
-      "Cal Okafor · Green · UT",
     ]);
+    expect(screen.getAllByRole("status").some((status) => status.textContent?.includes("No players match that search yet"))).toBe(true);
+
     const search = screen.getByRole("searchbox", { name: "Search eligible players" });
     await user.clear(search);
     await user.type(search, "cal okafor");
@@ -59,12 +60,33 @@ describe("Native MP running-mate action", () => {
       "Choose an eligible player",
       "Cal Okafor · Green · UT",
     ]);
+  });
 
-    await user.selectOptions(choice, secondOption.id);
+  it("formats a source party key when the API has no resolved party name", () => {
+    const independent = { ...secondOption, id: "507f1f77bcf86cd799439015", name: "Drew", party: "independent", partyName: null };
+    render(<MpRunningMatePicker electionId="US-president" options={[independent]} currentRunningMateCharacterId={null} currentRunningMateName={null} busy={false} onLoad={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.getByRole("option", { name: "Independent" })).toBeInTheDocument();
+  });
+
+  it("keeps an eligible pending choice when filters hide it, but drops it on source refresh", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<MpRunningMatePicker electionId="US-president" options={[option, secondOption]} currentRunningMateCharacterId={null} currentRunningMateName={null} busy={false} onLoad={vi.fn()} onSave={vi.fn()} />);
+    const choice = screen.getByRole("combobox", { name: "Choose a running mate" });
+    await user.selectOptions(choice, option.id);
+    const party = screen.getByRole("combobox", { name: "Filter eligible players by party" });
+    await user.selectOptions(party, secondOption.party);
+
+    expect(within(choice).getAllByRole("option").map((item) => item.textContent)).toEqual([
+      "Choose an eligible player",
+      "Cal Okafor · Green · UT",
+    ]);
+    expect(screen.getByRole("region", { name: "Selected running mate" })).toHaveTextContent("Bea");
     expect(screen.getByRole("button", { name: "Save running mate" })).toBeEnabled();
-    await user.clear(search);
-    await user.selectOptions(party, option.party);
-    expect(screen.getByRole("button", { name: "Save running mate" })).toBeDisabled();
+
+    rerender(<MpRunningMatePicker electionId="US-president" options={[secondOption]} currentRunningMateCharacterId={null} currentRunningMateName={null} busy={false} onLoad={vi.fn()} onSave={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save running mate" })).toBeDisabled());
+    expect(screen.getByRole("region", { name: "Selected running mate" })).not.toHaveTextContent("Bea");
+
   });
 
   it("shows the source-selected mate and clears it through the null source action", async () => {
