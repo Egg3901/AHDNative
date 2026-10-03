@@ -265,6 +265,15 @@ whole extended gate. The independent retained turn-178 Game distributor replay
 is a separate bounded source proof; it does not complete the missing public
 presidential-primary, later-pack district or VP journeys in #97/#98.
 
+The same extended gate also runs `easternBlocNaturalJourney.sim.test.ts`:
+fresh 1953 creation, uninterrupted ordinary turns to the primary checkpoint,
+exact raw reload at turn 48, then ordinary continuation to the turn-96 Mazovia
+resolution and saved offices. Its focused run passes in about 103 seconds,
+including nonzero general votes, 65 weighted Mazovia seats and 460 Polish seats.
+This qualifies one natural background-country journey; independent retained
+source-input replay, all other representative country saves and regional-party
+treasury remain open in #96.
+
 ### Commons vacancy watcher and entry qualification
 
 The source [watcher and shared gate](https://github.com/Egg3901/AHDGame/blob/093daeae41b152c61bb22ad352054ff8cd5cef2a/src/lib/turn/commonsByElections.ts)
