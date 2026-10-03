@@ -269,6 +269,7 @@ describe("discount-window stigma (#327)", () => {
 describe("discount-window solvency integration (#327)", () => {
   it("settles the senior window claim before depositors on failure", () => {
     const { world, charter } = fundedWorld();
+    const treasuryBefore = world.budgets.US!.treasuryBalance;
     charter.npcDeposits = 1_000_000;
     charter.cashReserves = 350_000;
     charter.discountWindowDebt = 4_000;
@@ -280,8 +281,10 @@ describe("discount-window solvency integration (#327)", () => {
     expect(charter.status).toBe("failed");
     expect(charter.discountWindowDebt).toBe(0);
     expect(charter.discountWindowArrears).toBe(0);
-    // Flight took 300k, the 5k senior claim came next, depositors got the rest.
-    expect(world.centralBanks["US"]!.externalBroadMoney).toBe(300_000 + 45_000);
+    // Flight took 300k; after the 5k senior claim, the estate returned 45k
+    // and the source Treasury backstop supplied the remaining household book.
+    expect(world.centralBanks["US"]!.externalBroadMoney).toBe(1_000_000);
+    expect(world.budgets.US!.treasuryBalance).toBe(treasuryBefore - 655_000);
     expect(charter.npcDeposits).toBe(0);
     expect(charter.cashReserves).toBe(0);
   });

@@ -16,15 +16,9 @@
  * bank; investment behavior is reachable only via a synthetic (or future
  * charter-wave) investment/universal charter.
  *
- * Treasury backstop (PORT-STUB, flagged for operator review): mainline funds
- * a failed bank's uninsured NPC deposits from the federal budget after the
- * insurance fund is exhausted (insurance.ts DEPOSIT_INSURANCE_SPENDING_KEY,
- * depositBookReturn.ts). AHDClient's budget module (W2) has no live spending
- * hook wired for this, and adding one risks the budget invariants a
- * different wave owns — see this file's `resolveFailedBank` for the honest
- * alternative: an uninsured excess is money that already left the bank's
- * books when it failed and is not returned to the household pool. It is
- * accounted (visible in the returned summary), not silently dropped.
+ * Treasury backstop is recorded in the existing country budget in the source
+ * `depositBookReturn.ts` "depositInsurance" category when the insurance fund
+ * cannot cover a cash-backed household claim.
  */
 
 import type { TurnPhase } from "../phases/types.js";
@@ -34,12 +28,12 @@ import { sumInterbankDefaultsLastTurn, writeOffLenderSideInterbankOnFailure } fr
 import {
   CONTAGION_PANIC_TURNS,
   FLIGHT_RATE_BY_BAND,
-  INSURED_CAP_CAPITAL_MULTIPLE,
   RESERVE_REQUIREMENT,
   RUN_FAILURE_COVER_FRACTION,
   computeConfidence,
 } from "./constants.js";
 import { discountWindowStigma } from "./discountWindow.js";
+import { worldBankDeposits } from "./worldDeposits.js";
 import {
   computePropEquityBase,
   forceLiquidateToLeverageCap,
@@ -154,9 +148,10 @@ function evaluateOneBank(
   const defaultsLastTurn =
     sumLoanOutstanding(world, corp.id, "defaulted", turn) + sumInterbankDefaultsLastTurn(world, corp.id, turn);
 
+  const deposits = worldBankDeposits(world, corp);
   const { confidence, band } = computeConfidence({
     cashReserves: charter.cashReserves,
-    cashBackedDeposits: charter.npcDeposits,
+    cashBackedDeposits: deposits.cashBackedDeposits,
     totalLoans: charter.totalLoans,
     reserveRatioRequired: RESERVE_REQUIREMENT,
     arrearsOutstanding,
@@ -165,7 +160,7 @@ function evaluateOneBank(
     // #327: borrowing from the lender of last resort reads as a bank that
     // could not fund itself elsewhere (rules/confidence.ts). Zero for a bank
     // that never drew, so pre-#327 scoring is unchanged.
-    discountWindowStigma: discountWindowStigma(charter),
+    discountWindowStigma: discountWindowStigma({ ...charter, npcDeposits: deposits.cashBackedDeposits }),
     forcedLiquidation,
   });
 
@@ -187,7 +182,8 @@ function evaluateOneBank(
 
   let fails: boolean;
   if (depositTaking) {
-    const requiredLiquidity = RESERVE_REQUIREMENT * charter.npcDeposits;
+    const currentCashBackedDeposits = Math.max(0, charter.npcDeposits) + deposits.authoritativePlayerDeposits;
+    const requiredLiquidity = RESERVE_REQUIREMENT * currentCashBackedDeposits;
     fails = priorBand === "red" && charter.cashReserves < RUN_FAILURE_COVER_FRACTION * requiredLiquidity;
   } else if (propRunning) {
     // Source: an investment bank fails when red with no equity left behind
@@ -238,17 +234,18 @@ function sumLoanOutstanding(world: WorldState, bankCorpId: string, status: "arre
  * solo's single named player + one NPC household pool (see file doc for the
  * Treasury-backstop cut).
  *
- * NPC deposits are cash-backed: the senior central-bank window claim
- * (debt + arrears, #327) is settled first, then the remaining cash pays the
- * household pool, the insurance fund tops up to `insuredCap` next, and
- * anything still short is an uninsured loss (accounted in the summary, not
- * silently destroyed nor invented).
+ * NPC deposits are always cash-backed; player deposits join that household
+ * claim only in their authoritative currency read cohort. The senior central-
+ * bank window claim (debt + arrears, #327) is settled first, then estate cash
+ * pays the household pool, the insurance fund pays its available balance,
+ * and the source Treasury backstop covers any remaining shortfall. Current
+ * Game depositBookReturn.ts does not cap this bank-level payout at insuredCap.
  *
- * Player savings are a POINTER (see constants.ts / balanceSheet.ts doc): no
- * cash ever left `player.savings` for a deposit, so failure costs the
- * player the counterparty and future yield, never the principal — the
- * holder simply flips back to "centralBank", exactly mirroring mainline's
- * documented player-savings failure behavior.
+ * In the absent/off pointer rollout, player savings never left the wallet,
+ * so failure changes only the holder pointer. In the authoritative currency
+ * cohort, the live player balance is a cash-backed claim: it joins the NPC
+ * household tier after senior facilities, and its backing returns to the
+ * central-bank pool before the holder pointer changes.
  *
  * #329: live interbank loans against the failed bank are settled here in
  * source priority (depositBookReturn.ts tier 3: central-bank facilities,
@@ -284,17 +281,18 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
   charter.cbMarginDebt = 0;
   charter.cbMarginArrears = 0;
 
-  let npcClaim = Math.max(0, charter.npcDeposits);
+  const playerClaim = worldBankDeposits(world, corp).authoritativePlayerDeposits;
+  let npcClaim = Math.max(0, charter.npcDeposits) + playerClaim;
 
   const fromCash = Math.min(available, npcClaim);
   available -= fromCash;
   npcClaim -= fromCash;
   if (bank) bank.externalBroadMoney = Math.max(0, bank.externalBroadMoney + fromCash);
 
-  const insuredCap = charter.postedCapital * INSURED_CAP_CAPITAL_MULTIPLE;
   const fund = world.depositInsurance[corp.countryId];
+  let fromFund = 0;
   if (fund && npcClaim > 0) {
-    const fromFund = Math.min(fund.balance, npcClaim, insuredCap);
+    fromFund = Math.min(fund.balance, npcClaim);
     if (fromFund > 0) {
       fund.balance -= fromFund;
       fund.payoutsLifetime += fromFund;
@@ -302,6 +300,21 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
       npcClaim -= fromFund;
       summary.insurancePaid += fromFund;
     }
+  }
+  const budget = world.budgets[corp.countryId];
+  const fromTreasury = budget ? npcClaim : 0;
+  if (fromTreasury > 0) {
+    budget!.treasuryBalance -= fromTreasury;
+    budget!.spending.byCategory.depositInsurance =
+      (budget!.spending.byCategory.depositInsurance ?? 0) + fromTreasury;
+    budget!.spending.total += fromTreasury;
+    budget!.surplus -= fromTreasury;
+    if (fund) {
+      fund.payoutsLifetime += fromTreasury;
+    }
+    if (bank) bank.externalBroadMoney = Math.max(0, bank.externalBroadMoney + fromTreasury);
+    summary.insurancePaid += fromTreasury;
+    npcClaim = 0;
   }
   if (npcClaim > 0) summary.uninsuredLoss += npcClaim;
 

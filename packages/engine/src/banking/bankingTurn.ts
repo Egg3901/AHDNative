@@ -25,6 +25,7 @@ import { charterMay } from "./capabilities.js";
 import { serviceCbMarginInterest } from "./cbMargin.js";
 import { roundSavingsAmount, savingsApyPercent } from "../finance/savingsInterest.js";
 import { savingsReadsAuthoritative } from "../finance/centralBankPricing.js";
+import { worldBankDeposits } from "./worldDeposits.js";
 import {
   ARREARS_DEFAULT_TURNS,
   CREDIT_BANDS,
@@ -62,9 +63,10 @@ function ensureInsuranceFund(world: WorldState, countryId: string, insuredCap: n
 }
 
 /** Deposit ceiling from the capital-scale proxy, equity-capped. Source: capacityAllocation.ts + deposits.ts (see constants.ts file doc). */
-function depositCeilingFor(charter: NonNullable<Corporation["bankCharter"]>): number {
+function depositCeilingFor(world: WorldState, corp: Corporation): number {
+  const charter = corp.bankCharter!;
   const capacityCeilingProxy = charter.postedCapital * DEPOSIT_CEILING_CAPITAL_MULTIPLE;
-  const equity = bankEquity(charter);
+  const equity = bankEquity({ ...charter, npcDeposits: worldBankDeposits(world, corp).cashBackedDeposits });
   return equityCappedDepositCeiling(capacityCeilingProxy, equity);
 }
 
@@ -178,6 +180,7 @@ function serviceNpcBulkBook(
   turn: number,
   lendingRatePercent: number,
   reserveRatioRequired: number,
+  playerCashBackedDeposits: number,
 ): void {
   const bank = world.centralBanks[corp.countryId];
   if (!bank) return;
@@ -185,8 +188,9 @@ function serviceNpcBulkBook(
   const existing = world.bankLoans.filter((l) => l.bankCorpId === corp.id && l.borrowerType === "npcBulk" && (l.status === "current" || l.status === "arrears"));
   if (existing.some((l) => l.lastProcessedTurn === turn)) return;
 
-  const loanFundingCapacity = charter.npcDeposits * (1 - reserveRatioRequired);
-  const requiredReservesAmount = charter.npcDeposits * reserveRatioRequired;
+  const cashBackedDeposits = Math.max(0, charter.npcDeposits) + playerCashBackedDeposits;
+  const loanFundingCapacity = cashBackedDeposits * (1 - reserveRatioRequired);
+  const requiredReservesAmount = cashBackedDeposits * reserveRatioRequired;
   const currentTotal = existing.reduce((sum, l) => sum + Math.max(0, l.outstanding), 0);
   const nonNpcLoans = Math.max(0, charter.totalLoans - currentTotal);
   const npcFundingCapacity = Math.max(0, loanFundingCapacity - nonNpcLoans);
@@ -324,11 +328,12 @@ export const bankingTurnPhase: TurnPhase = {
       const depositRatePercent = effectiveDepositRatePercent(bank.primeRate, charter.depositOffset);
       const lendingRatePercent = effectiveLendingRatePercent(bank.primeRate, charter.lendingOffset);
 
-      const playerHolds = world.player.countryId === corp.countryId && world.player.savingsHolder === corp.id;
-      const playerDeposits = playerHolds ? Math.max(0, world.player.savings) : 0;
+      const deposits = worldBankDeposits(world, corp);
+      const playerDeposits = deposits.playerDeposits;
+      const authoritativePlayerDeposits = deposits.authoritativePlayerDeposits;
 
       // (a) NPC deposit flow
-      const depositCeiling = depositCeilingFor(charter);
+      const depositCeiling = depositCeilingFor(world, corp);
       const npcRoom = Math.max(0, depositCeiling - playerDeposits);
       const share = npcShareByBankId.get(corp.id) ?? 0;
       const uncappedTarget = share * Math.max(0, bank.externalBroadMoney);
@@ -369,7 +374,7 @@ export const bankingTurnPhase: TurnPhase = {
       const npcInterestPaid = npcInterestDue > 0 ? roundMoney(npcInterestDue * scale) : 0;
 
       if (playerInterestPaid > 0) {
-        charter.cashReserves = Math.max(0, charter.cashReserves - playerInterestPaid);
+        if (!authoritativeSavings) charter.cashReserves = Math.max(0, charter.cashReserves - playerInterestPaid);
         world.player.savings += playerInterestPaid;
       }
       if (npcInterestPaid > 0) {
@@ -384,7 +389,10 @@ export const bankingTurnPhase: TurnPhase = {
       const fund = world.depositInsurance[corp.countryId]!;
       const insuredDeposits =
         sumInsuredPlayerDeposits([playerDeposits + playerInterestPaid], insuredCap) + charter.npcDeposits;
-      const reserveRatioActual = computeReserveRatioActual(charter.cashReserves, charter.npcDeposits);
+      const reserveRatioActual = computeReserveRatioActual(
+        charter.cashReserves,
+        charter.npcDeposits + (authoritativeSavings ? authoritativePlayerDeposits + playerInterestPaid : 0),
+      );
       const premiumDue = computeInsurancePremium(insuredDeposits, reserveRatioActual, RESERVE_REQUIREMENT);
       if (premiumDue > 0) {
         const premiumPaid = Math.min(premiumDue, charter.cashReserves);
@@ -401,7 +409,15 @@ export const bankingTurnPhase: TurnPhase = {
       }
 
       // (e) NPC household bulk loan book
-      serviceNpcBulkBook(world, corp, charter, turn, lendingRatePercent, RESERVE_REQUIREMENT);
+      serviceNpcBulkBook(
+        world,
+        corp,
+        charter,
+        turn,
+        lendingRatePercent,
+        RESERVE_REQUIREMENT,
+        authoritativeSavings ? authoritativePlayerDeposits + playerInterestPaid : 0,
+      );
 
       // (f) Recompute cached aggregates, stamp idempotency key
       const finalPlayerDeposits = playerDeposits + playerInterestPaid;
