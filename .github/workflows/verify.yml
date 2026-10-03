@@ -9,6 +9,18 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  era_player_flows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Qualify source era records, player selection and saved ordinary turns
+        run: npx vitest run --config vitest.era-player.config.ts
   law_player_flows:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
