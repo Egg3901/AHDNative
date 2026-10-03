@@ -20,6 +20,7 @@ export default defineConfig({
       "src/game/partyWhipClock.test.ts",
       "src/ui/CabinetOfficePanel.test.tsx",
       "src/ui/LegislaturePanel.test.tsx",
+      "src/ui/LegislationDetailsPanel.test.tsx",
     ],
     maxWorkers: 1,
     fileParallelism: false,

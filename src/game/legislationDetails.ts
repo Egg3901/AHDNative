@@ -29,6 +29,7 @@ import {
   proposalNpiCost,
   BILL_PROPOSE_ACTION_COST,
   resolveCurrentBillVote,
+  partyWhipEligibilityError,
   type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -57,6 +58,7 @@ export interface LegislationBillMeta {
   votingAvailable: boolean;
   voteDisabledReason?: string;
   voteCost: number;
+  hardWhip?: { available: boolean; disabledReason?: string };
 }
 
 export interface LegislationChamberGroup {
@@ -250,6 +252,7 @@ export function sponsorParamsForLegislation(
 export function buildLegislationDetails(
   world: WorldState,
   selection: LegislationSelection = {},
+  observedAt?: string,
 ): LegislationDetailsQuery {
   const player = world.player;
   const countryId = player.countryId;
@@ -413,6 +416,12 @@ export function buildLegislationDetails(
       votingAvailable: gate.available,
       ...(gate.disabledReason ? { voteDisabledReason: gate.disabledReason } : {}),
       voteCost: gate.cost,
+      ...(bill.status === "active" || bill.status === "active_other" || bill.status === "veto_override"
+        ? (() => {
+            const disabledReason = partyWhipEligibilityError(world, bill, observedAt) ?? undefined;
+            return { hardWhip: { available: disabledReason === undefined, ...(disabledReason ? { disabledReason } : {}) } };
+          })()
+        : {}),
     };
   };
 
