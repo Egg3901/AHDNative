@@ -225,7 +225,7 @@ describe("bill lifecycle stage goldens", () => {
     // Advance past executive window
     for (let i = 0; i < 3; i++) advanceTurn(world);
     expect(world.bills[0]!.status).toBe("signed");
-    expect(world.enactedLaws.length).toBe(1);
+    expect(world.enactedLaws.filter((law) => law.id === "us.economy.workerSecurity.primary")).toHaveLength(1);
   });
 
   it("bicameral US: active -> active_other -> enrolled -> signed", () => {
@@ -278,7 +278,7 @@ describe("bill lifecycle stage goldens", () => {
     world.bills.push(bill);
     advanceTurn(world);
     expect(world.bills[0]!.status).toBe("failed");
-    expect(world.enactedLaws.length).toBe(0);
+    expect(world.enactedLaws.filter((law) => law.id === "us.economy.workerSecurity.primary")).toHaveLength(0);
   });
 
   it("chamber routing per legislature config: unicameral vs bicameral", () => {
@@ -331,8 +331,8 @@ describe("bill lifecycle stage goldens", () => {
     expect(world.bills[0]!.status).toBe("signed");
     // Bill adds growthRate delta, so world should be higher than control by ~0.001
     expect(world.countries["US"]!.economy.growthRate).toBeGreaterThan(control.countries["US"]!.economy.growthRate);
-    expect(world.enactedLaws.length).toBe(1);
-    expect(control.enactedLaws.length).toBe(0);
+    expect(world.enactedLaws.filter((law) => law.id === "us.economy.workerSecurity.primary")).toHaveLength(1);
+    expect(control.enactedLaws.filter((law) => law.id === "us.economy.workerSecurity.primary")).toHaveLength(0);
   });
 });
 
@@ -474,7 +474,7 @@ describe("repeal and expiry", () => {
     advanceTurn(world);
     for (let i = 0; i < 3; i++) advanceTurn(world);
     expect(world.bills[0]!.status).toBe("signed");
-    expect(world.enactedLaws.length).toBe(1);
+    expect(world.enactedLaws.filter((law) => law.id === "us.economy.workerSecurity.primary")).toHaveLength(1);
     // Now sponsor repeal requires seat
     world.player.legislativeSeat = { chamberKey: "house", countryId: "US" };
     const { executeAction } = await import("./actions/execute.js");

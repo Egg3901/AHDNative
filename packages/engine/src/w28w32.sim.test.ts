@@ -347,8 +347,9 @@ describe("W28 integration: billEnactment -> policyLedger -> policyEffects/minist
       provisions: [{ type: "policy", legislationTypeId: catalogId, effectDirection: -1 }],
     }));
 
-    expect(world.enactedLaws).toHaveLength(1);
-    expect(world.enactedLaws[0]?.repealedAtTurn).toBe(0);
+    const workerSecurityLaws = world.enactedLaws.filter((law) => law.id === catalogId);
+    expect(workerSecurityLaws).toHaveLength(1);
+    expect(workerSecurityLaws[0]?.repealedAtTurn).toBe(0);
     expect(world.policyLedger["bill-repeal-now"]?.isRepeal).toBe(true);
     for (let i = 0; i < 4; i++) runPolicyEffects(world);
     expect(world.nationalMetrics["US"]!["economy.workerSecurity"]!.value).toBeLessThan(afterLaw);
@@ -406,8 +407,9 @@ describe("W28 integration: billEnactment -> policyLedger -> policyEffects/minist
     runPolicyEffects(world);
 
     expect(world.policyLedger["bill-regional-level"]?.regionId).toBe(targetRegion.id);
-    expect(world.enactedLaws[0]?.scope).toBe("regional");
-    expect(world.enactedLaws[0]?.regionId).toBe(targetRegion.id);
+    const regionalLaw = world.enactedLaws.find((law) => law.billId === "bill-regional-level");
+    expect(regionalLaw?.scope).toBe("regional");
+    expect(regionalLaw?.regionId).toBe(targetRegion.id);
     expect(world.regionalMetrics[targetRegion.id]!["economy.workerSecurity"]!.value).toBeGreaterThan(50);
     expect(world.regionalMetrics[otherRegion.id]!["economy.workerSecurity"]!.value).toBe(50);
 

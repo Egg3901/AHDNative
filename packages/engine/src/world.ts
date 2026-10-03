@@ -53,6 +53,7 @@ import { seedRegionalCostOfLiving } from "./metrics/regionalCostOfLiving.js";
 import { seedMinisterialTargets } from "./metrics/ministerialTargetSeed.js";
 import { seedPoliticalBoards } from "./metrics/politicalBoardSeed.js";
 import { computeNationalMetrics } from "./metrics/nationalMetrics.js";
+import { seedSourceBaselinePolicies } from "./policyEffects/sourceBaseline.js";
 
 // v29: W30 governors (governors/governorAddresses/governorOrders). This wave
 // was pre-allocated v29 back when main was v27; the W12 banking wave landed
@@ -1362,6 +1363,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     settlements: [],
     internationalOrgs,
   };
+  seedSourceBaselinePolicies(world);
   if (world.player.mode === "hos") {
     const officeType = headOfStateOfficeForCountry(world.player.countryId);
     if (officeType) {

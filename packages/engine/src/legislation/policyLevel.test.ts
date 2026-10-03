@@ -144,7 +144,7 @@ describe("program law policy levels", () => {
 
     expect(bill.status).toBe("signed");
     expect(bill.enactedLevel).toBe(3);
-    expect(world.enactedLaws[0]).toMatchObject({ billId: bill.id, level: 3 });
+    expect(world.enactedLaws.find((law) => law.billId === bill.id)).toMatchObject({ billId: bill.id, level: 3 });
     expect(world.policyLedger[bill.id]).toMatchObject({
       policyOptionId: "3",
       effectDirection: 1,
@@ -154,7 +154,7 @@ describe("program law policy levels", () => {
     expect(restored.bills[0]?.provisions[0]).toMatchObject({ policyOptionId: "l3" });
     expect(restored.bills[0]?.enactedLevel).toBe(3);
     expect(restored.policyLedger[bill.id]).toMatchObject({ policyOptionId: "3", effectDirection: 1 });
-    expect(restored.enactedLaws[0]).toMatchObject({ billId: bill.id, level: 3 });
+    expect(restored.enactedLaws.find((law) => law.billId === bill.id)).toMatchObject({ billId: bill.id, level: 3 });
   });
 
   it("keeps source program levels out of legacy instant effects while recording policy direction", () => {

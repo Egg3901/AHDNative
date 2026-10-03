@@ -517,12 +517,15 @@ const RU_DD_ECONOMY: CatalogEntry[] = [
 // persisted policy ledger, defense/environment metric rows, and policy-budget
 // delta consumer implement those exact channels; no combat or alliance state
 // is implied by these rows.
-const SOURCE_METRIC_LAWS: CatalogEntry[] = [
+/** Exact current AHDGame political laws whose metric and fiscal channels are
+ * already represented in Native. Fresh-world creation seeds their authored
+ * source baseline into the persisted policy ledger. */
+export const SOURCE_METRIC_LAWS: CatalogEntry[] = [
   {
     id: "us.defense.diplomacy.primary", countryId: "US", kind: "primary",
     title: "Foreign Service and Negotiations Act", description: "The diplomatic corps and the negotiations it can sustain.",
     category: "defense", allowedScope: "national", baselineLevel: 2,
-    targets: [{ metricId: "defense.diplomacy", weight: 1 }], status: "available",
+    targets: [{ metricId: "defense.diplomacy", weight: 1 }], status: "available", budgetCostClass: "gdpFraction",
     levels: [
       { name: "Skeleton Service", description: "A skeleton service: minimal missions, and cables that go unanswered." },
       { name: "Professional Service", description: "A professional service: staffed embassies and a treaty corps that closes agreements.", gdpCostFraction: 0.0015 },
@@ -535,7 +538,7 @@ const SOURCE_METRIC_LAWS: CatalogEntry[] = [
     id: "us.defense.armedForces.primary", countryId: "US", kind: "primary",
     title: "Armed Forces Establishment Act", description: "The size, training, and readiness of the armed forces themselves.",
     category: "defense", allowedScope: "national", baselineLevel: 4,
-    targets: [{ metricId: "defense.armedForces", weight: 1 }], status: "available",
+    targets: [{ metricId: "defense.armedForces", weight: 1 }], status: "available", budgetCostClass: "gdpFraction",
     levels: [
       { name: "Skeleton Force", description: "A skeleton force: a constabulary-scale military for a continental nation." },
       { name: "Peacetime Cadre", description: "A peacetime cadre: a small professional force with a large doctrine.", gdpCostFraction: 0.02 },
@@ -548,7 +551,7 @@ const SOURCE_METRIC_LAWS: CatalogEntry[] = [
     id: "us.environment.conservation.primary", countryId: "US", kind: "primary",
     title: "Pollution Control Act", description: "Limits on what industry may put into air, water, and soil.",
     category: "environment", allowedScope: "both", baselineLevel: 1,
-    targets: [{ metricId: "environment.conservation", weight: 1 }], status: "available",
+    targets: [{ metricId: "environment.conservation", weight: 1 }], status: "available", budgetCostClass: "gdpFraction",
     levels: [
       { name: "No Controls", description: "Discharge is unrestrained; the river carries whatever the outfall pipe delivers." },
       { name: "Nuisance Abatement", description: "Nuisance abatement takes the worst single sources to court.", gdpCostFraction: 0.00038 },
@@ -561,7 +564,7 @@ const SOURCE_METRIC_LAWS: CatalogEntry[] = [
     id: "uk.defense.security.primary", countryId: "UK", kind: "primary",
     title: "Security Services and Signals Act", description: "The quiet services and the listening stations.",
     category: "defense", allowedScope: "national", baselineLevel: 2,
-    targets: [{ metricId: "defense.security", weight: 1 }], status: "available",
+    targets: [{ metricId: "defense.security", weight: 1 }], status: "available", budgetCostClass: "gdpFraction",
     levels: [
       { name: "No Apparatus", description: "Espionage goes unopposed; the secrets leave by the front door." },
       { name: "Security Foundations", description: "The quiet services are funded and staffed.", gdpCostFraction: 0.0023 },
