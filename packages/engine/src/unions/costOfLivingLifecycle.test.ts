@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { appendFileSync } from "node:fs";
-import { createWorld } from "../world.js";
+import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
@@ -156,7 +156,7 @@ describe("source regional cost-of-living lifecycle", () => {
     };
     legacy.schemaVersion = 65;
     const loaded = deserializeSave(JSON.stringify(legacy));
-    expect(loaded.meta.schemaVersion).toBe(68);
+    expect(loaded.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(loaded.regionalMetrics.SCO!["economic.costOfLiving"]?.simBaseline).toBeUndefined();
 
     loaded.regionalMetrics.SCO!["economic.costOfLiving"]!.simBaseline = 201;
