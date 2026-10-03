@@ -98,8 +98,7 @@ export type ExecuteActionParams = {
   regionId?: string;
   contractId?: string;
   issuerLevel?: "national" | "state";
-  /** Source canvassing batch size, 1 through 50. */
-  count?: number;
+  /** Source batch size for canvassing and standing ads, 1 through 50. */
   amount?: number; // for convertCash
   fromCurrency?: string;
   toCurrency?: string;

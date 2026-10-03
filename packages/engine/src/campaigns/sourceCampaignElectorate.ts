@@ -1,8 +1,10 @@
-/** Current AHDGame 1953 US campaign-unit substrate. The input tables are raw
- * Layer-1 marginals/positions/turnout rates; the cells and counted units are
- * derived here, not frozen output copied from a source run. */
+/** Current AHDGame US campaign-unit substrate. The inputs are raw
+ * Layer-1 marginals/positions/turnout rates; cells and counted units are
+ * derived here, not frozen output copied from a source run. Clockless legacy
+ * saves retain the narrower 1953 input path. */
 import { US_LAYER1_CAMPAIGN_INPUTS_1953 } from "@ahdclient/content";
 import type { CampaignCell } from "./targetedAds.js";
+import { sourceUsLayer1ForYear } from "./sourceUsLayer1Year.js";
 import {
   COUNTRY_PRIORS,
   GRANULAR_DIMENSIONS,
@@ -85,7 +87,25 @@ export function sourceCampaignUnits1953(
   stateId: string,
   overlays: { leanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>; turnoutBucketDeltas?: Record<string, number> } = {},
 ): SourceCampaignUnit[] | null {
-  const input = LAYER1[stateId];
+  return sourceCampaignUnitsFromLayer1(stateId, LAYER1[stateId], overlays);
+}
+
+export function sourceCampaignUnitsForYear(
+  stateId: string,
+  year: number,
+  startingYear: number,
+  overlays: { leanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>; turnoutBucketDeltas?: Record<string, number> } = {},
+): SourceCampaignUnit[] | null {
+  const substrate = sourceUsLayer1ForYear(stateId, year, startingYear);
+  if (!substrate) return null;
+  return sourceCampaignUnitsFromLayer1(stateId, substrate, overlays);
+}
+
+function sourceCampaignUnitsFromLayer1(
+  stateId: string,
+  input: Layer1Region | SourceCampaignLayer1Input | undefined,
+  overlays: { leanBucketDeltas?: Record<string, { economicLean?: number; socialLean?: number }>; turnoutBucketDeltas?: Record<string, number> },
+): SourceCampaignUnit[] | null {
   if (!input) return null;
   const dims: GenericGranularDimInput[] = GRANULAR_DIMENSIONS.map((name) => ({
     name,
@@ -192,10 +212,22 @@ export function sourceCampaignUnits1953(
   });
 }
 
+type SourceCampaignLayer1Input = NonNullable<ReturnType<typeof sourceUsLayer1ForYear>>;
+
 export function sourceCampaignCells1953(
   stateId: string,
   overlays?: Parameters<typeof sourceCampaignUnits1953>[1],
 ): CampaignCell[] | null {
   const units = sourceCampaignUnits1953(stateId, overlays);
+  return units ? units.flatMap((unit) => unit.campaignCells) : null;
+}
+
+export function sourceCampaignCellsForYear(
+  stateId: string,
+  year: number,
+  startingYear: number,
+  overlays?: Parameters<typeof sourceCampaignUnits1953>[1],
+): CampaignCell[] | null {
+  const units = sourceCampaignUnitsForYear(stateId, year, startingYear, overlays);
   return units ? units.flatMap((unit) => unit.campaignCells) : null;
 }

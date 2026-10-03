@@ -1,5 +1,7 @@
 import type { WorldState } from "../types.js";
-import { sourceArchetypeBucketValues, sourceCampaignCells1953 } from "./sourceCampaignElectorate.js";
+import { sourceArchetypeBucketValues, sourceCampaignCells1953, sourceCampaignCellsForYear } from "./sourceCampaignElectorate.js";
+import { sourceElectionClockForWorld } from "../elections/sourceElectionClock.js";
+import { supportsSourceUsStartingYear } from "./sourceUsLayer1Year.js";
 
 export interface TargetedAd {
   stateId: string;
@@ -100,11 +102,26 @@ export function hasSource1953DemographicShape(world: WorldState, stateId: string
   return required.every((id) => category.groups.some((group) => group.id === id) && demographics.groups[id] && baseline.groups[id]);
 }
 
-/** Project the demographic cells Native can author into Game's campaign-cell contract. */
+export function hasSourceYearDemographicShape(world: WorldState, stateId: string): boolean {
+  const clock = sourceElectionClockForWorld(world);
+  if (world.player.countryId !== "US" || !clock || !supportsSourceUsStartingYear(clock.startingYear) || world.regions[stateId]?.countryId !== "US") return false;
+  const category = (world.demographicCategories.US ?? []).find((row) => row._id === "voterGroups");
+  const demographics = world.stateDemographics[stateId];
+  const baseline = world.baselineDemographics[stateId];
+  if (!category || !demographics || !baseline || demographics.countryId !== "US") return false;
+  const required = ["young_renters", "evangelicals", "rural_traditionalists", "union_trades", "soccer_moms", "college_liberals", "small_business", "public_sector", "retirees", "libertarians", "new_immigrants", "secular_professionals"];
+  return required.every((id) => category.groups.some((group) => group.id === id) && demographics.groups[id] && baseline.groups[id]);
+}
+
+/** Project the source-year demographic cells into Game's campaign-cell contract. */
 export function campaignCellsForRegion(world: WorldState, stateId: string): CampaignCell[] {
-  // AHDGame's 1953 US source constructs a joint Layer-1 race/age/education/
-  // wealth substrate, rather than the one-axis voterGroups fallback below.
-  // Only use it for authored regions that actually exist in this world.
+  // Current AHDGame US sources construct a joint Layer-1 race/age/education/
+  // wealth substrate rather than the one-axis voterGroups fallback below.
+  const clock = sourceElectionClockForWorld(world);
+  if (clock) {
+    if (!hasSourceYearDemographicShape(world, stateId)) return [];
+    return sourceCampaignCellsForYear(stateId, clock.currentYear, clock.startingYear, sourceLayer1Overlays(world, stateId)) ?? [];
+  }
   if (hasSource1953DemographicShape(world, stateId)) {
     const sourceCells = sourceCampaignCells1953(stateId, sourceLayer1Overlays(world, stateId));
     if (sourceCells) return sourceCells;
