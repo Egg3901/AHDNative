@@ -36,6 +36,7 @@ describe("source per-capita policy cost consumers", () => {
     const region = { ...jpSeed, id: jpSeed.id, countryId: "JP" } as typeof world.regions[string];
     world.regions[region.id] = region;
     const population = region!.population ?? 0;
+    expect(regionalPolicySpendingDelta(world, region!.id)).toBe(0);
     const expected = 8_000 * population;
     world.policyLedger["fixture-jp-regional"] = {
       id: "fixture-jp-regional", legislationTypeId: "jp_regional_governance",
@@ -48,11 +49,12 @@ describe("source per-capita policy cost consumers", () => {
     expect(resumed.policyLedger["fixture-jp-regional"]).toEqual(world.policyLedger["fixture-jp-regional"]);
 
     resumed.policyLedger["fixture-jp-regional"].repealedAtTurn = resumed.meta.turn;
+    expect(regionalPolicySpendingDelta(resumed, region!.id)).toBe(0);
     resumed.policyLedger["fixture-jp-regional-replacement"] = {
       id: "fixture-jp-regional-replacement", legislationTypeId: "jp_regional_governance",
       policyOptionId: "jp_regional_governance_opt_6", sourcePolicyOptionId: "jp_regional_governance_opt_6",
       effectDirection: -1, scope: "regional", regionId: region!.id, countryId: "JP", enactedTurn: resumed.meta.turn, enactedAt: resumed.meta.date,
     };
-    expect(regionalPolicySpendingDelta(resumed, region!.id)).toBe(500 * population);
+    expect(regionalPolicySpendingDelta(resumed, region!.id)).toBe(0);
   });
 });
