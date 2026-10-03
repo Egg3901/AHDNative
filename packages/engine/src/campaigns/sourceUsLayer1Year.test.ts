@@ -95,10 +95,11 @@ describe("current-source US annual Layer-1 substrate", () => {
     expect(loaded.meta.turn).toBe(48);
     expect(loaded.player.targetedAds).toEqual(world.player.targetedAds);
     expect(campaignCellsForRegion(loaded, "NY")).toEqual(campaignCellsForRegion(world, "NY"));
-    const snapshots: import("../electionEngine/tally/types.js").VoteDistributionDiagnosticSnapshot[] = [];
+    const snapshots: unknown[] = [];
     expect(realAccumulate(loaded, rngFromSeed("source-year-ad-save-tally"), loaded.elections[0]!, undefined, (snapshot) => snapshots.push(snapshot))).toBe(true);
-    expect(snapshots[0]?.categories[0]?._id).toBe("granularCells");
-    const playerInput = snapshots[0]?.candidates.find((candidate) => candidate.candidateId === "player");
+    const snapshot = snapshots[0] as import("../electionEngine/tally/types.js").VoteDistributionDiagnosticSnapshot | undefined;
+    expect(snapshot?.categories[0]?._id).toBe("granularCells");
+    const playerInput = snapshot?.candidates.find((candidate) => candidate.candidateId === "player");
     expect(Object.keys(playerInput?.targetedAdBonuses ?? {}).length).toBeGreaterThan(0);
   });
 });
