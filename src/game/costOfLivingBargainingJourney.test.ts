@@ -8,6 +8,7 @@ const STAMP = "2026-10-03T00:00:00Z";
 const TERMS = { wageLevel: 1.5, agreementDurationTurns: 48, noStrikeTurns: 24 };
 let session = new GameSession();
 let employerId: string;
+let scottishLocalId: string;
 let resourceTurns = 0;
 
 function savedWorld() {
@@ -101,6 +102,7 @@ describe.sequential("UK cost-of-living bargaining through the public GameSession
     );
     expect(scottishLocal).toBeDefined();
     employerId = scottishLocal!.corporationId;
+    scottishLocalId = scottishLocal!.id;
 
     for (let drive = 0; drive < 40 && !unionRow().electionOpen; drive++) {
       earnActions(5);
@@ -114,7 +116,7 @@ describe.sequential("UK cost-of-living bargaining through the public GameSession
     session.advance();
     expect(unionRow().treasury).toBeGreaterThan(beforeDues);
 
-    const target = unionRow().sectors.find((sector) => sector.corporationId === employerId)!;
+    const target = unionRow().sectors.find((sector) => sector.id === scottishLocalId)!;
     expect(target).toBeDefined();
     for (let drive = 0; drive < 50; drive++) {
       const current = unionRow().sectors.find((sector) => sector.id === target.id)!;
@@ -130,8 +132,34 @@ describe.sequential("UK cost-of-living bargaining through the public GameSession
       expect(session.view().player.actions).toBe(actionsBeforeDrive - 1);
       expect(unionRow().treasury).toBeLessThan(treasuryBeforeDrive);
     }
-    const organized = unionRow().sectors.find((sector) => sector.corporationId === employerId)!;
-    expect(organized.unionization).toBeGreaterThanOrEqual(99);
+    const scottish = unionRow().sectors.find((sector) => sector.id === scottishLocalId)!;
+    expect(scottish.unionization).toBeGreaterThanOrEqual(99);
+    expect(scottish.representingUnionId).toBe(UNION_ID);
+  }, 120_000);
+
+  it("earns employer-wide member support with further paid organizing", () => {
+    // The claim is employer-wide. The Scottish shop alone does not supply
+    // enough worker-weighted support when the issuer has a larger local.
+    const target = unionRow().sectors
+      .filter((sector) => sector.corporationId === employerId)
+      .sort((a, b) => b.workers - a.workers)[0]!;
+    expect(target).toBeDefined();
+    for (let drive = 0; drive < 50; drive++) {
+      const current = unionRow().sectors.find((sector) => sector.id === target.id)!;
+      if (current.unionization >= 50 && current.representingUnionId === UNION_ID) break;
+      earnActions(1);
+      while (unionRow().treasury < unionRow().sectors.find((sector) => sector.id === target.id)!.treasuryCost) {
+        expect(resourceTurns++).toBeLessThan(40);
+        session.advance();
+      }
+      const actionsBeforeDrive = session.view().player.actions;
+      const treasuryBeforeDrive = unionRow().treasury;
+      session.organizeUnionSector(UNION_ID, target.id);
+      expect(session.view().player.actions).toBe(actionsBeforeDrive - 1);
+      expect(unionRow().treasury).toBeLessThan(treasuryBeforeDrive);
+    }
+    const organized = unionRow().sectors.find((sector) => sector.id === target.id)!;
+    expect(organized.unionization).toBeGreaterThanOrEqual(50);
     expect(organized.representingUnionId).toBe(UNION_ID);
   }, 120_000);
 
