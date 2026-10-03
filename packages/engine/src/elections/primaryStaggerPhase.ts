@@ -16,7 +16,6 @@ import {
 } from "./data/usPrimaryCalendar.js";
 import { electoralVotesByState } from "./presidentialElectoralCollege.js";
 import { campaignKey } from "../campaigns/lifecycle.js";
-import { policyPosition, targetedAdBonusByGroup } from "../campaigns/targetedAds.js";
 import type { ElectionRecord } from "./types.js";
 
 const STRETCHED_OFFSETS = [40, 32, 24, 16, 8, 0] as const;
@@ -127,19 +126,6 @@ function primaryCandidatesForState(world: WorldState, race: ElectionRecord, stat
         if (separator < 0 || !Number.isFinite(value)) continue;
         const groupId = key.slice(separator + 1);
         if (groupId) targetedAdBonuses[groupId] = (targetedAdBonuses[groupId] ?? 0) + Math.max(0, Math.min(0.25, value));
-      }
-      if (candidate.id === "player" && race.electionType !== "president" && world.player.targetedAds?.length) {
-        const standing = targetedAdBonusByGroup(
-          world,
-          stateId,
-          policyPosition(policies),
-          world.player.targetedAds,
-          world.meta.turn,
-        );
-        for (const [groupId, bonus] of Object.entries(standing)) {
-          const legacy = targetedAdBonuses[groupId] ?? 0;
-          targetedAdBonuses[groupId] = legacy > 0 ? (1 + legacy) * (1 + bonus) - 1 : bonus;
-        }
       }
       return {
         candidateId: candidate.id,
