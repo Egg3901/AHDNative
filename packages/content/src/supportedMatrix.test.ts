@@ -63,6 +63,9 @@ describe("supported era/country matrix (#118)", () => {
       const u = UNAVAILABLE_ERAS.find((x) => x.era === era)!;
       expect(u.status).toBe("no-pack");
       expect(u.authorityPreset).toBe(`${era}-default`);
+      expect(u.reason).toContain("US/UK/JP");
+      expect(u.reason).toContain("2019");
+      expect(u.reason).toContain("2020 roster");
     }
   });
 

@@ -4,6 +4,7 @@ export type { NppHomeRegionSeatSeed } from "./packs/nppHomeRegionSeats.js";
 export { US_STATE_DEMOGRAPHICS_1953 } from "./packs/usStateDemographics1953.js";
 export { US_LAYER1_CAMPAIGN_INPUTS_1953 } from "./packs/usLayer1CampaignInputs1953.js";
 export { default as US_SOURCE_YEAR_ELECTORATE } from "./packs/usSourceYearElectorate.json";
+export { default as SOURCE_REFERENCE_ERA_OUTPUTS } from "./packs/sourceReferenceEraOutputs.json";
 export { default as US_ERA_CHECKPOINTS_1953 } from "./packs/usEraCheckpoints1953.json";
 export type { StateDemographicsSeed } from "./packs/usStateDemographics1953.js";
 export { validatePack } from "./validate.js";

@@ -125,24 +125,27 @@ export const UNAVAILABLE_ERAS: UnavailableEra[] = [
     status: "no-pack",
     authorityPreset: "1999-default",
     reason:
-      "Authority player is US/UK but no Native content has been ported; " +
-      "no historical data may be invented to fill the gap.",
+      "Source authorizes US/UK/JP, but the preset has no complete Native pack. " +
+      "Source preset lanes fall back to 2019 and historical seats fall back " +
+      "to the 2020 roster; neither may be relabeled as 1999 data.",
   },
   {
     era: "2007",
     status: "no-pack",
     authorityPreset: "2007-default",
     reason:
-      "Authority player is US/UK but no Native content has been ported; " +
-      "no historical data may be invented to fill the gap.",
+      "Source authorizes US/UK/JP, but the preset has no complete Native pack. " +
+      "Source preset lanes fall back to 2019 and historical seats fall back " +
+      "to the 2020 roster; neither may be relabeled as 2007 data.",
   },
   {
     era: "2023",
     status: "no-pack",
     authorityPreset: "2023-default",
     reason:
-      "Authority player is US/UK but no Native content has been ported; " +
-      "no historical data may be invented to fill the gap.",
+      "Source authorizes US/UK/JP, but the preset has no complete Native pack. " +
+      "Source preset lanes fall back to 2019 and historical seats fall back " +
+      "to the 2020 roster; neither may be relabeled as 2023 data.",
   },
 ];
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rulingPartyIdForCountry } from "@ahdclient/engine";
-import { GameSession } from "./session";
+import { GameSession, gameChoices } from "./session";
 
 const options = { era: "1953", countryId: "US", seed: "native-session-v1", playerName: "Alex" };
 const savingsSaveAt = "2026-10-03T06:00:00.000Z";
@@ -59,6 +59,45 @@ describe("singleplayer session", () => {
     const saved = JSON.parse(spectator.serialize("2026-10-03T06:00:00.000Z"));
     expect(saved.world.player.mode).toBe("worldsim");
     expect(saved.world.player.countryId).toBe("IE");
+  });
+
+  it("creates, saves, and reloads every ordinary selectable era/country with stable content identity", () => {
+    const stamp = "2026-10-03T06:00:00.000Z";
+    const pairs = gameChoices().flatMap((era) => era.countries
+      .filter((country) => country.playerSelectable)
+      .map((country) => ({ era: era.id, countryId: country.id })));
+    expect(pairs.map(({ era, countryId }) => `${era}/${countryId}`).sort()).toEqual([
+      "1953/DD", "1953/RU", "1953/UK", "1953/US",
+      "1979/DD", "1979/RU", "1979/UK", "1979/US",
+      "1991/UK", "1991/US", "2019/UK", "2019/US",
+    ]);
+
+    for (const { era, countryId } of pairs) {
+      const session = new GameSession();
+      const created = session.create({ era, countryId, seed: `matrix-${era}-${countryId}`, playerName: "Matrix" });
+      const contentIdentity = {
+        era: created.era,
+        countryId: created.countryId,
+        partyIds: created.parties.map((party) => party.id).sort(),
+        regionIds: created.regions.map((region) => region.id).sort(),
+        chamberKeys: (created.legislature.chambers ?? []).map((chamber) => chamber.key).sort(),
+      };
+      const save = session.serialize(stamp);
+      const stored = JSON.parse(save) as { world: { meta: { era: string }; player: { countryId: string } } };
+      expect(stored.world.meta.era).toBe(era);
+      expect(stored.world.player.countryId).toBe(countryId);
+
+      const restored = new GameSession();
+      const reloaded = restored.load(save);
+      expect({
+        era: reloaded.era,
+        countryId: reloaded.countryId,
+        partyIds: reloaded.parties.map((party) => party.id).sort(),
+        regionIds: reloaded.regions.map((region) => region.id).sort(),
+        chamberKeys: (reloaded.legislature.chambers ?? []).map((chamber) => chamber.key).sort(),
+      }).toEqual(contentIdentity);
+      expect(restored.serialize(stamp)).toBe(save);
+    }
   });
 
   it("executes a quoted home-to-foreign-currency trade through the public session", () => {
@@ -340,12 +379,17 @@ describe("world setup through the session contract (#241)", () => {
     expect(view.player.mode).toBe("hos");
     expect(view.player.hosPartyId).toBe("US_REP");
     expect(view.player).toMatchObject({ permanentHeadOfState: true, currentOffice: "president" });
-    expect(view.actions.map((action) => action.id)).toEqual(["adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation"]);
-    expect(view.actions.every((action) => action.category === "executive")).toBe(true);
+    expect(view.actions.filter((action) => action.category === "executive").map((action) => action.id)).toEqual([
+      "adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation",
+    ]);
+    expect(view.actions.find((action) => action.id === "targetedAds")?.category).toBe("influence");
     const loaded = new GameSession();
     loaded.load(session.serialize(stamp));
     expect(loaded.view().player).toMatchObject({ mode: "hos", hosPartyId: "US_REP", homeRegionId: "NY", permanentHeadOfState: true, currentOffice: "president" });
-    expect(loaded.view().actions.map((action) => action.id)).toEqual(["adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation"]);
+    expect(loaded.view().actions.filter((action) => action.category === "executive").map((action) => action.id)).toEqual([
+      "adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation",
+    ]);
+    expect(loaded.view().actions.find((action) => action.id === "targetedAds")?.category).toBe("influence");
   });
 
   it("applies Historical initialization as a real 1953 UK consequence versus Founding", () => {

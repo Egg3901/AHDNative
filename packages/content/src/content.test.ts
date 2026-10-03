@@ -1,10 +1,54 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { PACKS, pack1953, pack1979 } from "./packs/index.js";
 import { validatePack } from "./validate.js";
 import type { SeedPack } from "./types.js";
 import US_SOURCE_YEAR_ELECTORATE from "./packs/usSourceYearElectorate.json";
+import SOURCE_REFERENCE_ERA_OUTPUTS from "./packs/sourceReferenceEraOutputs.json";
 
 describe("validatePack", () => {
+  it("exports actual source outputs and explicit fallback provenance for reference-era presets", () => {
+    const artifact = SOURCE_REFERENCE_ERA_OUTPUTS as unknown as {
+      provenance: { sourceRepository: string; sourceCommit: string; sourceFiles: string[]; normalizedRuntimeFields: string[] };
+      historicalSeatRoster2020Fallback: { rowCount: number; sha256: string; rows: unknown[] };
+      eras: Array<{
+        year: number;
+        preset: string;
+        playerCountries: string[];
+        historicalSeatOutput: { rowCount: number; sha256: string; recordedFallbacks: Array<{ label: string; preset: string }> };
+        budgetOutput: { rowCount: number; sha256: string; rows: Array<{ countryId: string; fiscalYear: number; gdp: number; sourceFiscalYear?: number; economicFactors?: { lastUpdated?: string } }> };
+      }>;
+    };
+    const sha256 = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+    expect(artifact.provenance).toMatchObject({
+      sourceRepository: "Egg3901/AHDGame",
+      sourceCommit: "c35bcd86cbdbb877e73a0e9a45b0726605bdbc7a",
+    });
+    expect(artifact.provenance.normalizedRuntimeFields).toContain(
+      "budgetOutput.rows[].economicFactors.lastUpdated: source assigns current seed time; non-epoch Date values use a stable marker.",
+    );
+    expect(artifact.historicalSeatRoster2020Fallback.rowCount).toBe(1007);
+    expect(sha256(artifact.historicalSeatRoster2020Fallback.rows)).toBe(artifact.historicalSeatRoster2020Fallback.sha256);
+    expect(artifact.eras.map((entry) => entry.year)).toEqual([1999, 2007, 2023]);
+    const usBudgetGdp = new Map([[1999, 9_660_000_000_000], [2007, 14_450_000_000_000], [2023, 27_400_000_000_000]]);
+    for (const entry of artifact.eras) {
+      expect(entry.preset).toBe(`${entry.year}-default`);
+      expect(entry.playerCountries).toEqual(["US", "UK", "JP"]);
+      expect(entry.historicalSeatOutput).toMatchObject({
+        rowCount: 1007,
+        sha256: artifact.historicalSeatRoster2020Fallback.sha256,
+        recordedFallbacks: [{ label: "historicalSeats:getPresetSeats", preset: entry.preset }],
+      });
+      expect(entry.budgetOutput.rowCount).toBe(16);
+      expect(sha256(entry.budgetOutput.rows)).toBe(entry.budgetOutput.sha256);
+      expect(entry.budgetOutput.rows.every((row) => row.fiscalYear === entry.year)).toBe(true);
+      expect(entry.budgetOutput.rows.find((row) => row.countryId === "US")?.gdp).toBe(usBudgetGdp.get(entry.year));
+      expect(entry.budgetOutput.rows.some((row) => row.economicFactors?.lastUpdated === "<runtime-generated-at-source-seed>")).toBe(true);
+    }
+    expect(artifact.eras[0]!.budgetOutput.rows.find((row) => row.countryId === "UK")?.sourceFiscalYear).toBe(1991);
+    expect(artifact.eras[2]!.budgetOutput.rows.find((row) => row.countryId === "UK")?.sourceFiscalYear).toBe(2020);
+  });
+
   it("validates the exported US electorate anchors for unshipped reference years", () => {
     const artifact = US_SOURCE_YEAR_ELECTORATE as unknown as {
       provenance: { sourceRepository: string; sourceCommit: string; sourceAnchorYears: number[]; worldStartYears: number[] };
