@@ -14,6 +14,7 @@ export default defineConfig({
     setupFiles: ["src/ui/test-setup.ts"],
     include: [
       "packages/content/src/content.test.ts",
+      "packages/content/src/usHistoricalStates.test.ts",
       "packages/content/src/supportedMatrix.test.ts",
       "packages/engine/src/eraCoverage.test.ts",
       "packages/engine/src/elections/presidentialElectoralCollege.test.ts",

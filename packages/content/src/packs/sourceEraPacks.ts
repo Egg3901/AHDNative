@@ -3,7 +3,7 @@ import sourceOutputs from "./sourceReferenceEraOutputs.json" with { type: "json"
 import { pack2019 } from "./2019.js";
 import { ROSTER_2019_PARTIES, ROSTER_2019_STATES } from "./roster2019.js";
 import { ukRegions2019 } from "./ukRegions2019.js";
-import { usStates2019 } from "./usStates2019.js";
+import { usStates1999, usStates2007 } from "./usStatesReference1999And2007.js";
 import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 import { BUDGETS_1999 } from "./budgets1999.js";
 import { BUDGETS_2007 } from "./budgets2007.js";
@@ -113,7 +113,7 @@ function buildEraPack(
       legislature: "Source getPresetSeats fallback is the 2020 historical seat roster for these presets.",
       states: year === 2023
         ? "US uses source states2023 and source buildAllRegistrationSeeds default lane; Japan uses source jpRegions2023 geography/economy/seats with Native's explicitly retained 2019 registration estimates; UK and other non-player regional lanes retain their 2019 bundle."
-        : `Source preset selector falls back to 2019-default for missing regional/state bundles except Japan, whose country seeder selects its authored jpRegions${year} geography/economy/seats; Native retains its 2019 JP registration estimates and the 2019 fallback for remaining regional lanes.`,
+        : `Source preset selector falls back to 2019-default for missing regional/state bundles except the US and Japan: executed AHDGame bfe655d5023085ebda0f7fdb59e1c2ea6a57fb3b selects authored usStates${year} and jpRegions${year} geography/economy/seats. US registration uses the actual source default lane; Native retains its declared 2019 JP registration estimates and remaining non-US regional lanes.`,
       cycle: `Source preset starts in ${year}; Native meta.startingYear and 48-turn year clock use the same year anchor.`,
       demographics: year === 2023
         ? "US Layer-1 rows are generated from source stateCensusData2023; UK/non-US rows retain their declared 2019 fallback."
@@ -137,11 +137,11 @@ function buildEraPack(
     pack.states = [
       ...ROSTER_2019_STATES.filter((state) => state.countryId !== "JP"),
       ...japanRegions(year),
-      ...usStates2019,
+      ...structuredClone(year === 1999 ? usStates1999 : usStates2007),
       ...ukRegions2019,
     ];
   }
-  // The source 2023 US state materializer already emits its special DC
+  // The source 1999/2007/2023 US state materializers emit their actual DC
   // presidential geography row (zero House and state-senate seats). Keep the
   // corporation-HQ fallback only in packs whose state roster lacks DC, so
   // createWorld receives one DC identity rather than duplicate geography.
