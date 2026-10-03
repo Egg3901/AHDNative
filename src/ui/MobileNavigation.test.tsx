@@ -46,10 +46,10 @@ describe("MobileNavigation", () => {
     expect(nation.sections?.[2]!.items.map((i) => i.label)).toEqual(["Economy", "National Budget", "National Metrics", "Command Economy"]);
 
     // World sections and their in-section order match worldNavItems groupings;
-    // Stock market and Bonds sit under World, not a "Character" group.
+    // Stock market, Bonds, and the offline currency exchange sit under World.
     const world = MENU_GROUPS.find((g) => g.label === "World")!;
     expect(world.sections?.map((s) => s.label)).toEqual(["Economy", "Diplomacy", "Other", "Leaderboards"]);
-    expect(world.sections?.[0]!.items.map((i) => i.id)).toEqual(["markets", "sectors", "bonds", "banking"]);
+    expect(world.sections?.[0]!.items.map((i) => i.id)).toEqual(["markets", "sectors", "bonds", "forex", "banking"]);
     expect(world.sections?.[1]!.items.map((i) => i.id)).toEqual(["nations", "worldDirectory", "worldMap"]);
     expect(world.sections?.[2]!.items.map((i) => i.id)).toEqual(["news", "worldSettings"]);
   });
@@ -57,7 +57,7 @@ describe("MobileNavigation", () => {
   it("drawer exposes every reachable destination exactly once", () => {
     const ids = drawerRouteIds();
     for (const id of [
-      "actions", "parties", "legislature", "elections", "news", "profile", "portfolio", "banking",
+      "actions", "parties", "legislature", "elections", "news", "profile", "portfolio", "banking", "forex",
       "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings",
       "legislationDetails", "markets", "sectors", "search", "partyManagement", "bonds", "caucuses",
       "referendums", "notifications", "regions", "presidentialDetails", "politicalMetrics",
@@ -171,7 +171,10 @@ describe("MobileNavigation", () => {
     expect(within(world).getByRole("group", { name: "Economy" })).toBeInTheDocument();
     expect(within(world).getByRole("button", { name: "Stock market" })).toBeInTheDocument();
     expect(within(world).getByRole("button", { name: "Bonds" })).toBeInTheDocument();
+    expect(within(world).getByRole("button", { name: "Currency exchange" })).toBeInTheDocument();
     expect(within(world).getByRole("button", { name: "Banking" })).toBeInTheDocument();
+    await user.click(within(world).getByRole("button", { name: "Currency exchange" }));
+    expect(onNavigate).toHaveBeenCalledWith("forex");
     // #352: the in-game World administration surface lives under World > Other.
     expect(within(world).getByRole("button", { name: "World settings" })).toBeInTheDocument();
     await user.click(within(world).getByRole("button", { name: "World settings" }));
@@ -596,20 +599,21 @@ describe("MobileNavigation", () => {
 
   it("omits reference-only destinations Native cannot reach instead of adding placeholders", () => {
     // Reference worldNavItems.ts / nationDetailsSections.ts expose Crises,
-    // International Orgs, Currency Exchange, Trade, IMF, Unions and My
-    // Corporation. Native has no route or data surface for them, so they
-    // must not appear as drawer rows (NAVIGATION-PARITY.md sections 2-3).
+    // International Orgs, Trade, IMF, Unions and My Corporation. Native has
+    // no route or data surface for them, so they must not appear as drawer
+    // rows (NAVIGATION-PARITY.md sections 2-3). Currency Exchange now has a
+    // real quote/action surface under World > Economy.
     // Sectors left this list in #89 with a real World > Economy destination;
     // Hall of Fame left it in #73 with a real World > Leaderboards route
     // over the recorded offline standings.
     const ids = drawerRouteIds() as string[];
-    for (const id of ["crises", "myCorporation", "unions", "forex", "trade", "imf", "internationalOrgs"]) {
+    for (const id of ["crises", "myCorporation", "unions", "trade", "imf", "internationalOrgs"]) {
       expect(ids).not.toContain(id);
     }
     const labels = MENU_GROUPS
       .flatMap((group) => [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)])
       .map((item) => item.label);
-    for (const label of ["My Corporation", "Unions", "Crises", "Currency Exchange", "Trade", "IMF", "International Orgs"]) {
+    for (const label of ["My Corporation", "Unions", "Crises", "Trade", "IMF", "International Orgs"]) {
       expect(labels).not.toContain(label);
     }
     expect(ids).toContain("worldMap");

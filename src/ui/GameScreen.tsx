@@ -95,6 +95,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   profile: "Profile",
   portfolio: "Portfolio",
   banking: "Banking",
+  forex: "Currency Exchange",
   partyDetails: "Party details", electionDetails: "Election details", campaignDetails: "Campaign", politicians: "Politicians",
   presidentialDetails: "Presidential election", politicalMetrics: "Political metrics",
   referendums: "Referendums",
@@ -149,7 +150,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadStateOwnership, loadUnionManagement, loadLegislation, loadPolitics, loadPoliticalMetrics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadStateOwnership, loadUnionManagement, loadLegislation, loadPolitics, loadPoliticalMetrics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, quoteForexTrade, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // #510 bounded return stack: detail routes remember the chain of browse
@@ -941,6 +942,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} contextKey={newsStorageKey} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
           {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} countryId={world.countryId} /> : null}
+          {route === "forex" ? <FinancePanel finance={world.finance} section="forex" busy={busy} onAction={onAction} quoteForexTrade={quoteForexTrade} /> : null}
           {route === "notifications" ? (
             <NotificationsInbox
               items={world.notifications.items}

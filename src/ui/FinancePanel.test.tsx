@@ -58,6 +58,42 @@ describe("FinancePanel portfolio", () => {
   });
 });
 
+describe("FinancePanel currency exchange", () => {
+  it("quotes, exchanges through the session action and refreshes the returned wallet", async () => {
+    const user = userEvent.setup();
+    const FinancePanel = await renderPanel();
+    const { GameSession } = await import("../game/session");
+    const session = new GameSession();
+    session.create({ era: "1979", countryId: "US", seed: "finance-fx-ui", playerName: "Alex" });
+    session.advance();
+    const initial = session.view().finance;
+    const quoteForex = vi.fn(async (from: string, to: string, amount: number) => session.forexQuote(from, to, amount));
+    const onAction = vi.fn(async (id: string, params?: import("../game/actionInput").GameActionParams) => session.act(id, params).ok);
+    const renderFinance = (finance: FinanceView) => <FinancePanel finance={finance} section="forex" busy={false} onAction={onAction} quoteForexTrade={quoteForex} />;
+    const mounted = render(renderFinance(initial));
+
+    expect(screen.getByRole("heading", { name: "Exchange Currency" })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("From currency"), "USD");
+    await user.selectOptions(screen.getByLabelText("To currency"), "GBP");
+    await user.type(screen.getByLabelText("Amount (USD)"), "100");
+    expect(await screen.findByText("You receive")).toBeInTheDocument();
+    expect(quoteForex).toHaveBeenCalledWith("USD", "GBP", 100);
+    expect(screen.getByText(/Fee/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Exchange Now" }));
+    expect(onAction).toHaveBeenCalledWith("exchangeCurrency", { fromCurrency: "USD", toCurrency: "GBP", amount: 100 });
+    mounted.rerender(renderFinance(session.view().finance));
+    expect(screen.getByText("GBP balance")).toBeInTheDocument();
+    const settledBalance = session.view().finance.forex?.balances.GBP;
+    expect(settledBalance).toBeGreaterThan(0);
+    expect(screen.getByLabelText("GBP balance")).toHaveTextContent(String(settledBalance));
+    await user.clear(screen.getByLabelText("Amount (USD)"));
+    await user.type(screen.getByLabelText("Amount (USD)"), "999999999");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/insufficient USD balance/i);
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("FinancePanel banking", () => {
   it("shows balances and the savings holder", async () => {
     const FinancePanel = await renderPanel();
