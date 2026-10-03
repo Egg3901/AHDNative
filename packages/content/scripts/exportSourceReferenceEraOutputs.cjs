@@ -203,7 +203,7 @@ fs.writeFileSync(nativeOutput, `${JSON.stringify(artifact)}\n`);
 const typeScriptDemographics = [
   'import type { StateDemographicsSeed } from "./usStateDemographics1953.js";',
   '/**',
-  ' * US state demographics for 2023. Generated from current AHDGame source — DO NOT HAND-EDIT.',
+  ' * US state demographics for 2023. Generated from current AHDGame source. Do not edit by hand.',
   ` * Source: ${EXPECTED_SOURCE_REVISION} src/lib/countries/us/data/usStateCensusData2023.ts + src/lib/seeds/stateDemographics.ts#generateStateDemographicsForTest.`,
   ' * Uses the source default registration lane and Layer-1 positions disabled, matching the public 2023 preset producer.',
   ' */',

@@ -1,6 +1,6 @@
 import type { StateDemographicsSeed } from "./usStateDemographics1953.js";
 /**
- * US state demographics for 2023. Generated from current AHDGame source — DO NOT HAND-EDIT.
+ * US state demographics for 2023. Generated from current AHDGame source. Do not edit by hand.
  * Source: c35bcd86cbdbb877e73a0e9a45b0726605bdbc7a src/lib/countries/us/data/usStateCensusData2023.ts + src/lib/seeds/stateDemographics.ts#generateStateDemographicsForTest.
  * Uses the source default registration lane and Layer-1 positions disabled, matching the public 2023 preset producer.
  */
