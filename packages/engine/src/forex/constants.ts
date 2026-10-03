@@ -142,6 +142,24 @@ export function getInitialRatesForEra(era: string): Readonly<Record<string, Curr
 export const DRIFT_SPEED = 0.05;
 /** Source: currencies.ts RATE_NOISE_MAX */
 export const RATE_NOISE_MAX = 0.004;
+/** Game currencies.ts market-maker base spread. */
+export const MARKET_MAKER_SPREAD = 0.01;
+/** Game currencies.ts VOLUME_LOOKBACK_TURNS. */
+export const VOLUME_LOOKBACK_TURNS = 24;
+export const VOLUME_PRESSURE_SENSITIVITY = 0.0001;
+export const VOLUME_PRESSURE_CAP = 0.05;
+export const VOLUME_DIRECTION_WEIGHT = 0.2;
+export const ORGANIC_VOLUME_HALF_PRESSURE_ANCHOR = 1_000_000_000;
+export const ORGANIC_VOLUME_DIRECTION_WEIGHT = 0.05;
+export const ORGANIC_FULL_BREADTH_TRADERS = 5;
+export const FOREX_SIZE_FEE_MAX = 0.2;
+export const FOREX_SIZE_FEE_HALF_ANCHOR = 10_000_000_000;
+export const FOREX_LIQUIDITY_REFERENCE_VOLUME = 100_000_000;
+export const FOREX_LIQUIDITY_FEE_MIN = 0.5;
+export const FOREX_LIQUIDITY_FEE_MAX = 1.5;
+export const FOREX_MAX_TRADE_FEE = 0.3;
+export const SPREAD_FEE_FOREX_REVENUE_RATIO = 0.25;
+export const SPREAD_FEE_RESERVE_RATIO = 0.5;
 /** Source: currencies.ts RATE_FLOOR_MULTIPLIER / RATE_CEILING_MULTIPLIER */
 export const RATE_FLOOR_MULTIPLIER = 0.5;
 export const RATE_CEILING_MULTIPLIER = 1.5;

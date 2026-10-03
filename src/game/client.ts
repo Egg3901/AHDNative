@@ -76,6 +76,9 @@ export class GameClient {
   selectConstituency(constituencyId: string) { return this.send<GameView>({ type: "selectConstituency", constituencyId }); }
   updateWorldFeatureFlags(flags: Partial<WorldFeatureFlags>) { return this.send<GameView>({ type: "worldFeatureFlags", flags }); }
   view() { return this.send<GameView>({ type: "view" }); }
+  forexQuote(fromCurrency: string, toCurrency: string, amount: number) {
+    return this.send<import("@ahdclient/engine").ForexTradeQuoteResult>({ type: "forexQuote", fromCurrency, toCurrency, amount });
+  }
   advance() { return this.send<GameView>({ type: "advance" }); }
   act(actionId: string, params?: GameActionParams) {
     return this.send<{ result: { ok: true; message: string; outcome: ActionOutcome } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });

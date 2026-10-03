@@ -76,7 +76,9 @@ export function buyCorporateSectorForSale(
     existingBuyerAsset.unionization = mergedUnionization!;
     mergeCorporateSectorPhysicalLedger(existingBuyerAsset, asset);
     existingBuyerAsset.representingUnionId ??= asset.representingUnionId;
-    existingBuyerAsset.strikeStartedAtTurn ??= asset.strikeStartedAtTurn;
+    if (existingBuyerAsset.strikeStartedAtTurn == null && asset.strikeStartedAtTurn !== undefined) {
+      existingBuyerAsset.strikeStartedAtTurn = asset.strikeStartedAtTurn;
+    }
     existingBuyerAsset.strikeCooldownUntilTurn = Math.max(existingBuyerAsset.strikeCooldownUntilTurn ?? 0, asset.strikeCooldownUntilTurn ?? 0) || null;
     delete assets[asset.id];
     return { ok: true, priceAnchor: price, merged: true };

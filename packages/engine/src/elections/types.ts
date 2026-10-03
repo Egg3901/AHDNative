@@ -112,6 +112,16 @@ export interface ElectionRecord {
   candidates: ElectionCandidate[];
   /** candidate id -> accumulated votes. */
   tally: Record<string, number>;
+  /** Explicit source tally opt-in. Absence keeps the country's ordinary allocator. */
+  countingMethod?: "pr_stv";
+  /** Original ballot rankings, retained as cast for an opted-in PR-STV race. */
+  rankedBallots?: import("./prStv.js").RankedBallot[];
+  rankedPreferenceModel?: "same_party_then_policy_distance_v1";
+  /** Frozen source-compatible ranked count, present only after PR-STV resolution. */
+  prStvResult?: import("./prStv.js").PrStvResult;
+  resolutionPath?: "pr_stv" | "legacy";
+  /** Conversion floors/penalties cannot be represented by the source PR-STV count. */
+  conversionTerms?: unknown;
   /** Full tally document for the ported accumulateVoteTurn (US races). */
   tallyState?: unknown;
   /**

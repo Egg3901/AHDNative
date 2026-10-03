@@ -199,10 +199,10 @@ export function decideNppBargainingAction(input: NppBargainingPolicyInput): NppB
     openingUnionWage: opening.wageLevel,
     employerWageLevel: input.employerWageLevel,
     unionLeverage: campaign.mandate.leverage,
-    employerProfitMargin: input.employerProfitMargin,
+    ...(input.employerProfitMargin !== undefined ? { employerProfitMargin: input.employerProfitMargin } : {}),
     actionPressure: industrialActionPressure({
       escalationLevel: campaign.escalationLevel,
-      escalationStartedAtTurn: campaign.escalationStartedAtTurn,
+      ...(campaign.escalationStartedAtTurn !== undefined ? { escalationStartedAtTurn: campaign.escalationStartedAtTurn } : {}),
       currentTurn,
     }),
   });
@@ -229,4 +229,3 @@ export function decideNppBargainingAction(input: NppBargainingPolicyInput): NppB
   }
   return { action: "counter", terms };
 }
-

@@ -37,6 +37,7 @@ self.addEventListener("message", async (event: MessageEvent<GameRequest>) => {
       case "selectConstituency": value = session.selectConstituency(command.constituencyId); break;
       case "worldFeatureFlags": value = session.updateWorldFeatureFlags(command.flags); break;
       case "view": value = session.view(); break;
+      case "forexQuote": value = session.forexQuote(command.fromCurrency, command.toCurrency, command.amount); break;
       case "advance": value = session.advance(); break;
       case "action": value = { result: session.act(command.actionId, command.params), view: session.view() }; break;
       case "sectorSale": {

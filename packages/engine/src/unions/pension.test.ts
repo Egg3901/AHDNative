@@ -4,9 +4,10 @@
  * Every constant is pinned to its AHDGame source value
  * (src/lib/pensions/rules.ts at e364c0495); every function is exercised
  * through the public pension.ts contract including edges, and the
- * validators prove fail-closed save behavior. No turn, no world.
+ * validators prove fail-closed save behavior against a complete seeded world. No turn simulation.
  */
 import { describe, expect, it } from "vitest";
+import { createWorld } from "../world.js";
 import {
   describeFundingBand,
   employerPensionCostForTurn,
@@ -58,11 +59,12 @@ function scheme(overrides: Partial<PensionScheme> = {}): PensionScheme {
 }
 
 function worldWithUnion() {
-  return {
-    unions: {
-      "US-manufacturing": { id: "US-manufacturing", countryId: "US" },
-    },
-  } as Parameters<typeof validatePensionScheme>[0];
+  return createWorld({
+    era: "1953",
+    countryId: "US",
+    seed: "pension-validator-fixture",
+    playerName: "Test",
+  });
 }
 
 describe("pension constants (no invented numbers)", () => {
@@ -340,12 +342,11 @@ describe("scheme and ledger validation (fail closed)", () => {
   });
 
   function ledgerWorld() {
-    return {
-      unions: { "US-manufacturing": { id: "US-manufacturing", countryId: "US" } },
-      pensionSchemes: {
-        "US-manufacturing": scheme({ unionName: "Test Union" }),
-      },
-    } as Parameters<typeof validatePensionLedger>[0];
+    const world = worldWithUnion();
+    world.pensionSchemes = {
+      "US-manufacturing": scheme({ unionName: "Test Union" }),
+    };
+    return world;
   }
 
   function contributionLegs(): PensionLedgerRecord[] {

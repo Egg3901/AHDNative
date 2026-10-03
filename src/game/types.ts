@@ -9,7 +9,7 @@ import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
 import type { PoliticsView } from "./politics";
 import type { ResourceDetailsView } from "./resources";
-import type { HomeRegionContext, NppAutonomyLevel, SingleplayerDifficulty, SingleplayerMode, WorldFeatureFlags } from "@ahdclient/engine";
+import type { ForexTradeQuoteResult, HomeRegionContext, NppAutonomyLevel, SingleplayerDifficulty, SingleplayerMode, WorldFeatureFlags } from "@ahdclient/engine";
 export type WorldInitialization = "historical" | "founding";
 export type CharacterRace = "white" | "black" | "hispanic" | "asian" | "other";
 export type CharacterGender = "male" | "female" | "nonbinary";
@@ -69,7 +69,10 @@ export interface EraChoice {
 }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
 export type ActionCategory = "influence" | "fundraising" | "intelligence" | "executive";
-export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate" | "targetPoliticianId" | "holder" | "corporation" | "corporationRegion" | "corporationVote"; choices?: { id: string; label: string }[]; destinations?: { id: string; corporationId: string; label: string }[];
+export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "targetedAd" | "budgetSpending" | "taxRate" | "targetPoliticianId" | "holder" | "corporation" | "corporationRegion" | "corporationVote"; choices?: { id: string; label: string }[]; destinations?: { id: string; corporationId: string; label: string }[]; regionChoices?: { id: string; label: string }[]; quoteRevision?: number;
+  quoteTurn?: number;
+  quoteUnitCost?: number;
+  maxActionCount?: number;
   /** Hub grouping, mirroring AHDGame actions categories (influence/money/research). */
   category?: ActionCategory;
   /** Quoted fund cost from the engine projection; executeAction remains authoritative. */
@@ -266,6 +269,8 @@ export interface FinanceView {
   /** Recorded wealth series for the portfolio trend chart. Absent on older projections; empty before the first turn. */
   wealthHistory?: FinanceWealthHistoryPoint[];
   wire?: WireView;
+  /** Current currency wallet and source-authored exchange-rate choices. */
+  forex?: { enabled: boolean; currencies: string[]; balances: Record<string, number> };
 }
 /**
  * The player's validated cabinet seat (#510). Mirrors AHDGame's cabinet nav
@@ -357,6 +362,7 @@ export interface GameScreenProps {
   contextKey?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
   onAction: (id: string, params?: GameActionParams) => void | Promise<boolean>;
+  quoteForexTrade?: (fromCurrency: string, toCurrency: string, amount: number) => Promise<ForexTradeQuoteResult>;
   /**
    * Direct corporate-sector sale commands (#294) plus corporation acquisition
    * (#299): list, update, unlist, or buy a recorded sector-asset listing with

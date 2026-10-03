@@ -19,6 +19,7 @@ import {
 import { resolveNominationForParty } from "../electionEngine/resolution/conventionResolution.js";
 import { presidentialPrimaryMajority, presidentialPrimaryWavesComplete } from "./primaryStaggerPhase.js";
 import { BUILTIN_PARTY_FAMILY } from "./data/usPrimaryCalendar.js";
+import { campaignCellsForRegion, campaignPrimaryScore, meanAdBonus, targetedAdBonuses } from "../campaigns/targetedAds.js";
 import type {
   ElectionCandidate,
   ElectionRecord,
@@ -184,11 +185,25 @@ function primaryStandings(
   const standings = new Map<string, ScoredPrimaryCandidate[]>();
   for (const [partyId, candidates] of candidatesByParty) {
     const hasPlayerInParty = candidates.some((candidate) => !candidate.isNPP);
-    const scored = candidates.map((candidate) => ({
-      candidate,
-      score: scoreCandidate(world, politicians, candidate, hasPlayerInParty, stateLean, rec.countryId === "US" && rec.electionType === "president"),
-      sharePct: 0,
-    }));
+    const scored = candidates.map((candidate) => {
+      let score = scoreCandidate(world, politicians, candidate, hasPlayerInParty, stateLean, rec.countryId === "US" && rec.electionType === "president");
+      // Game applies human standing ads after the ordinary primary score and
+      // before party ranking. Its dedicated presidential primary never runs
+      // this regional-campaign adjustment.
+      if (candidate.id === "player" && rec.electionType !== "president") {
+        const regionId = stateId ?? rec.countryId;
+        const cells = campaignCellsForRegion(world, regionId);
+        const position = presidentialPosition(world, candidate, politicians);
+        if (cells.length > 0 && position && world.player.targetedAds?.length) {
+          const bonuses = targetedAdBonuses(cells, {
+            economicLean: position.charEP,
+            socialLean: position.charSP,
+          }, world.player.targetedAds, regionId, world.meta.turn);
+          score = campaignPrimaryScore(score, meanAdBonus(cells, bonuses), PRIMARY_SHARE_SOFTMAX_TEMPERATURE);
+        }
+      }
+      return { candidate, score, sharePct: 0 };
+    });
     scored.sort((a, b) => b.score - a.score);
     const sharePct = shares(scored.map((entry) => entry.score));
     scored.forEach((entry, index) => {

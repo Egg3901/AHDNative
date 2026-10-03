@@ -7,6 +7,7 @@ import { runVoteAccumulation } from "./orchestration.js";
 import { campaignKey, ensureCampaignsForElection } from "../campaigns/lifecycle.js";
 import type { ElectionCandidate, ElectionRecord } from "./types.js";
 import type { Politician } from "../types.js";
+import { campaignCellsForRegion, campaignPrimaryScore, meanAdBonus, targetedAdBonuses } from "../campaigns/targetedAds.js";
 
 function fixture() {
   const world = createWorld({ seed: "primary-resolution", playerName: "Player", countryId: "US", era: "1953" });
@@ -111,6 +112,50 @@ describe("resolvePrimaries", () => {
     // 75/150*20=10, national reach (1-exp(-45/45))*15=9.4818, favorability
     // 80/100*25=20. Rounded to the source's one decimal: 79.5.
     expect(rec.primarySnapshots?.[0]?.byParty[party.id]?.[0]?.score).toBe(79.5);
+  });
+
+  it("applies source standing ads to regional primary scoring but excludes presidential primaries", () => {
+    const control = fixture();
+    const treatment = fixture();
+    const targetWorld = treatment.world;
+    const demographic = targetWorld.demographicCategories.US!.find((category) =>
+      category.groups.some((group) => targetWorld.stateDemographics.NY!.groups[group.id]),
+    )!;
+    const group = demographic.groups.find((entry) => targetWorld.stateDemographics.NY!.groups[entry.id])!;
+    targetWorld.player.targetedAds = [{
+      stateId: "NY", dimension: demographic._id, bucket: group.id, bonus: 0.25, lastPurchaseTurn: targetWorld.meta.turn,
+    }];
+    const cells = campaignCellsForRegion(targetWorld, "NY");
+    const sourceBonus = meanAdBonus(cells, targetedAdBonuses(cells, { economicLean: 0, socialLean: 0 }, targetWorld.player.targetedAds, "NY", targetWorld.meta.turn));
+
+    resolvePrimaries(control.world);
+    resolvePrimaries(treatment.world);
+    const baseScore = control.rec.primaryResults!.byParty.DEM![0]!.score;
+    expect(treatment.rec.primaryResults!.byParty.DEM![0]!.score).toBe(campaignPrimaryScore(baseScore, sourceBonus, 8));
+
+    const presidentialControl = fixture();
+    const presidentialTreatment = fixture();
+    for (const current of [presidentialControl, presidentialTreatment]) {
+      const usParty = Object.values(current.world.parties).find((party) => party.countryId === "US")!;
+      current.rec.electionType = "president";
+      current.rec.state = undefined;
+      current.rec.chamberKey = "president";
+      current.rec.candidates = [{ id: "player", name: "Player", partyId: usParty.id, isNPP: false, incumbent: false }];
+      current.world.player.partyId = usParty.id;
+      current.world.player.policies = { economic: 0, social: 0 };
+      current.world.player.favorability = 80;
+      current.world.player.nationalInfluence = 45;
+      current.world.player.partyInfluence = 75;
+    }
+    const presidentialAds = presidentialTreatment.world.demographicCategories.US![0]!;
+    const presidentialGroup = presidentialAds.groups.find((entry) => presidentialTreatment.world.stateDemographics.NY!.groups[entry.id])!;
+    presidentialTreatment.world.player.targetedAds = [{
+      stateId: "NY", dimension: presidentialAds._id, bucket: presidentialGroup.id, bonus: 0.25, lastPurchaseTurn: presidentialTreatment.world.meta.turn,
+    }];
+    recordPrimarySnapshots(presidentialControl.world);
+    recordPrimarySnapshots(presidentialTreatment.world);
+    expect(presidentialTreatment.rec.primarySnapshots?.[0]?.byParty.US_DEM?.[0]?.score)
+      .toBe(presidentialControl.rec.primarySnapshots?.[0]?.byParty.US_DEM?.[0]?.score);
   });
 
   it("advances the source top three per party in parliamentary systems", () => {

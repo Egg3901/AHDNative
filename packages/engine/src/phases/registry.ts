@@ -97,7 +97,7 @@ import { pmAppointmentPhase } from "../government/pmAppointment.js";
 import { impeachmentLifecyclePhase } from "../impeachment/phases.js";
 import { presidentialSuccessionPhase } from "../executive/phases.js";
 import { cabinetTransitionPhase, cabinetNominationLifecyclePhase } from "../cabinet/phases.js";
-import { scotusTurnPhase, ukJrSurpriseTurnPhase } from "../judiciary/phases.js";
+import { scotusTurnPhase, ukJrSurpriseTurnPhase, eraCheckpointsPhase } from "../judiciary/phases.js";
 import {
   worldEventsMaintenancePhase,
   worldEventsSchedulerPhase,
@@ -145,6 +145,7 @@ import { warsTurnPhase } from "../wars/phases.js";
 import { politicalCabinetResidualPhase } from "../politicalMetrics/phases.js";
 import { ministerialOrdersPhase } from "../ministerialOrders/phases.js";
 import { policyEffectsPhase } from "../policyEffects/phases.js";
+import { regionalCostOfLivingPhase } from "../metrics/regionalCostOfLiving.js";
 import { resolveProspectsPhase } from "../extraction/prospecting.js";
 import { contractOfferAcceptancePhase } from "../extraction/contracts.js";
 import { achievementCheckPhase } from "../achievements/phase.js";
@@ -350,6 +351,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   cabinetTransitionPhase,
   cabinetNominationLifecyclePhase,
   scotusTurnPhase,
+  eraCheckpointsPhase,
   ukJrSurpriseTurnPhase,
   // W10 markets note: recomputeSharePricesPhase used to be registered here.
   // #309 moved the entry to right after the W13 bond cluster below so the
@@ -650,6 +652,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // value the same turn, same as mainline.
   ministerialOrdersPhase,
   policyEffectsPhase,
+  // Game's stateEffects metricEngine follows policyEffects. Union bargaining
+  // has already consumed the prior persisted regional inputs this turn.
+  regionalCostOfLivingPhase,
   // W11 (extraction/prospecting) + W35 (player wealth/wires/achievements)
   // batch, at END before newsMaintenance — same rng-stream-stability rule as
   // every other tail cluster above (this codebase runs commodityPrices/

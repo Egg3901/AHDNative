@@ -8,6 +8,7 @@ import { calcRdScoreAfterTurn, rdMoraleFactor, sourcePlanTrendGdpGrowth, sourceP
 import { corporationTurnPhase, runCorporationTurn, runCorporateRdInnovations, updateNppCorporationFinancialPolicy } from "./corporationTurn.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng, sha256FirstUint32BE } from "./rdInnovationRng.js";
+import { rngFromSeed } from "../rng.js";
 
 describe("corporation R&D lifecycle", () => {
   it("matches immutable Game score, decay, and morale vectors", () => {
@@ -55,7 +56,7 @@ describe("corporation R&D lifecycle", () => {
     corp.currentGrowthRate = 6;
     corp.profitMargin = -50;
     corp.effectiveProfitMargin = -50;
-    corporationTurnPhase.run(world);
+    corporationTurnPhase.run(world, rngFromSeed("rd-lifecycle-turn"));
     expect(corp.targetGrowthRate).toBe(6.02);
   });
 

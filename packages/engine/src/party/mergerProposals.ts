@@ -250,7 +250,7 @@ function applyPartyMerge(world: WorldState, proposal: PartyMergerProposal): void
     if (coalition.chairPartyId === absorbedId) coalition.chairPartyId = survivorId;
     coalition.updatedAtTurn = world.meta.turn;
   }
-  if (survivor.coalitionId == null) survivor.coalitionId = absorbed.coalitionId;
+  if (survivor.coalitionId == null && absorbed.coalitionId !== undefined) survivor.coalitionId = absorbed.coalitionId;
   absorbed.coalitionId = null;
   const government = world.governments[countryId];
   if (government) {

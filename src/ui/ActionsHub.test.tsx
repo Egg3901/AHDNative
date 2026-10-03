@@ -183,6 +183,31 @@ describe("ActionsHub", () => {
     expect(onAction).toHaveBeenCalledWith("voteCorporateRelocation", { corporationId: "corp-a", relocationChoice: "no" });
   });
 
+  it("submits the selected standing-ad region and audience with its quote revision", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    render(
+      <ActionsHub
+        actions={[{
+          id: "targetedAds", name: "Targeted Ads", description: "Reach voters.", cost: 1,
+          available: true, requires: "targetedAd", regionChoices: [{ id: "AL", label: "Alabama" }, { id: "NY", label: "New York" }],
+          choices: [{ id: "voterGroups:young_renters", label: "Young Renters (Voter Groups)" }], quoteRevision: 7,
+          quoteTurn: 12, quoteUnitCost: 35.699999999999996, maxActionCount: 50,
+        }]}
+        {...props} onAction={onAction} category="all" onCategoryChange={() => {}}
+      />,
+    );
+    await user.selectOptions(screen.getByRole("combobox", { name: "Region for Targeted Ads" }), "NY");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Targeted ad voter group" }), "voterGroups:young_renters");
+    await user.clear(screen.getByRole("spinbutton", { name: "Targeted ad action count" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Targeted ad action count" }), "3");
+    await user.click(screen.getByRole("button", { name: "Take action: Targeted Ads" }));
+    expect(onAction).toHaveBeenCalledWith("targetedAds", {
+      regionId: "NY", demographicCategory: "voterGroups", demographicGroup: "young_renters",
+      expectedRevision: 7, expectedTurn: 12, expectedCost: 107.1, count: 3,
+    });
+  });
+
   it("shows cooldown, prerequisite and funds cost from the projection", () => {
     const cooling: ActionView[] = [
       {

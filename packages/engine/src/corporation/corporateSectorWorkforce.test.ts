@@ -124,7 +124,7 @@ describe("#296 corporate-sector workers and union representation", () => {
     const world = createWorld(WORLD);
     const assets = corporateSectorAssets(world);
     const asset = Object.values(assets)[0]!;
-    const records = { [asset.id]: { ...asset } } as Record<string, (typeof asset & { workers?: unknown })>;
+    const records: Record<string, Omit<typeof asset, "workers"> & { workers?: unknown }> = { [asset.id]: { ...asset } };
     delete records[asset.id]!.workers;
     (records[asset.id]! as { representingUnionId?: unknown }).representingUnionId = undefined;
     backfillSectorWorkforce(world, records as never);

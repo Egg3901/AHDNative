@@ -240,7 +240,7 @@ export const crisisTurnPhase: TurnPhase = {
       if (crisis.durationTurns !== null && turn >= crisis.startTurn + crisis.durationTurns) {
         crisis.status = "resolved";
         crisis.endTurn = turn;
-        world.news.push({ id: `${crisis.id}:end`, turn, date, headline: crisis.wireMessageOnEnd, body: crisis.description, category: "Crisis", countryId: crisis.countryIds[0], eventId: crisis.id, eventName: crisis.name });
+        world.news.push({ id: `${crisis.id}:end`, turn, date, headline: crisis.wireMessageOnEnd, body: crisis.description, category: "Crisis", ...(crisis.countryIds[0] ? { countryId: crisis.countryIds[0] } : {}), eventId: crisis.id, eventName: crisis.name });
       }
     }
   },

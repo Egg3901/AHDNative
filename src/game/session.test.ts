@@ -50,6 +50,49 @@ function sessionWithConstrainedCentralBankPool(): GameSession {
 }
 
 describe("singleplayer session", () => {
+  it("executes a quoted home-to-foreign-currency trade through the public session", () => {
+    const session = new GameSession();
+    session.create({ ...options, era: "1979" });
+    session.advance(); // Source trade-history queries begin at turn 1.
+    const before = JSON.parse(session.serialize("2026-10-03T06:00:00.000Z"));
+    const amount = Math.min(100, before.world.player.cash);
+    const quote = session.forexQuote("USD", "GBP", amount);
+    expect(quote.ok).toBe(true);
+    if (!quote.ok) return;
+    const result = session.act("exchangeCurrency", {
+      fromCurrency: "USD",
+      toCurrency: "GBP",
+      amount: quote.quote.fromAmount,
+    });
+    expect(result.ok).toBe(true);
+    const after = JSON.parse(session.serialize("2026-10-03T06:00:00.000Z"));
+    expect(after.world.player.cash).toBe(before.world.player.cash - quote.quote.fromAmount);
+    expect(after.world.player.currencyBalances.personal.GBP).toBe(quote.quote.toAmount);
+    expect(after.world.centralBanks.US.forexRevenue - (before.world.centralBanks.US.forexRevenue ?? 0)).toBe(Math.round(quote.quote.spreadFee * 0.25));
+    expect(after.world.centralBanks.UK.spreadFeeReserveBalances.USD - (before.world.centralBanks.UK.spreadFeeReserveBalances?.USD ?? 0)).toBe(Math.round(quote.quote.spreadFee * 0.5));
+    expect(after.world.forexTradeHistory).toHaveLength(1);
+    expect(after.world.forexTradeHistory[0]).toMatchObject({ turn: before.world.meta.turn, source: "manual", amount: quote.quote.fromAmount, spread: quote.quote.spreadFee });
+    const resumed = new GameSession();
+    resumed.load(session.serialize("2026-10-03T06:00:00.000Z"));
+    expect(JSON.parse(resumed.serialize("2026-10-03T06:00:00.000Z")).world.forexTradeHistory).toEqual(after.world.forexTradeHistory);
+    session.advance();
+    resumed.advance();
+    const directNext = JSON.parse(session.serialize("2026-10-03T06:00:00.000Z")).world;
+    const loadedNext = JSON.parse(resumed.serialize("2026-10-03T06:00:00.000Z")).world;
+    expect(loadedNext).toEqual(directNext);
+    expect(loadedNext.meta.turn).toBe(before.world.meta.turn + 1);
+    expect(loadedNext.exchangeRates.UK.buyVolume24).toBeCloseTo(quote.quote.anchorAmount);
+  });
+
+  it("rejects invalid and unaffordable currency trades without changing any saved state", () => {
+    const session = new GameSession();
+    session.create(options);
+    const before = session.serialize("2026-10-03T06:00:00.000Z");
+    expect(session.act("exchangeCurrency", { fromCurrency: "USD", toCurrency: "USD", amount: 100 }).ok).toBe(false);
+    expect(session.act("exchangeCurrency", { fromCurrency: "USD", toCurrency: "GBP", amount: Number.MAX_SAFE_INTEGER }).ok).toBe(false);
+    expect(session.serialize("2026-10-03T06:00:00.000Z")).toBe(before);
+  });
+
   it("creates a real playable country and exposes the player's starting world", () => {
     const session = new GameSession();
     const view = session.create(options);

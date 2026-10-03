@@ -85,8 +85,9 @@ describe("#293 corporate-sector asset core", () => {
       id, stateId: "AL", sectorType: "chemical_industries" as const,
       revenue: 7_000, strategyId: "pharmaceuticals",
       representingUnionId: null, unionization: 0,
-      capitalStock: undefined, capacityBookAnchor: undefined,
     };
+    delete asset.capitalStock;
+    delete asset.capacityBookAnchor;
     assets[id] = asset;
     const issuerRevenue = issuer.revenue;
     // Game 0538 market/capital.seedCapitalStock takes the sector's revenue

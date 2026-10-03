@@ -15,10 +15,11 @@
  * and 44px controls, plus a deliberate two-column desktop grid. Surfaces are
  * solid .ahd-card (no backdrop-filter), so there is no Liquid Glass
  * transparency to fall back from; see the prefers-contrast rule in ui.css.
- * Multi-currency conversion, loans, and monetary-policy controls are #76
- * mechanics and stay explicit unavailable text here, never fake controls.
+ * Currency conversion is a separate World > Economy destination; loans and
+ * monetary-policy controls remain explicit unavailable text, never fake controls.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ForexTradeQuoteResult } from "@ahdclient/engine";
 import type { FinanceView, GameScreenProps, WireView } from "../game/types";
 import { RouteHero, bankingHero, bankingHeroAlt } from "./RouteHero";
 import { TrendChart } from "./TrendChart";
@@ -27,9 +28,10 @@ export type WalletLoadStatus = "ready" | "loading" | "error";
 
 export interface FinancePanelProps {
   finance: FinanceView;
-  section: "portfolio" | "banking";
+  section: "portfolio" | "banking" | "forex";
   busy: boolean;
   onAction: GameScreenProps["onAction"];
+  quoteForexTrade?: GameScreenProps["quoteForexTrade"];
   /** Cross-links the two real finance destinations (wallet/portfolio and banking). */
   onNavigate?: (route: "portfolio" | "banking") => void;
   /**
@@ -94,8 +96,8 @@ function CapabilityNote() {
     <div className="ahd-card ahd-card-pad">
       <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>More accounts</h3>
       <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0" }}>
-        Only one savings account is available offline. Currency conversion, loans, and
-        monetary-policy controls are not available in this build.
+        Only one savings account is available offline. Loans and monetary-policy
+        controls are not available in this build. Currency exchange is under World.
       </p>
     </div>
   );
@@ -643,7 +645,7 @@ function WalletError({ section, loadError, onNavigate }: { section: "portfolio" 
   );
 }
 
-export function FinancePanel({ finance, section, busy, onAction, onNavigate, onOpenCompany, countryId, status = "ready", loadError = null, mode = "sp" }: FinancePanelProps) {
+export function FinancePanel({ finance, section, busy, onAction, quoteForexTrade, onNavigate, onOpenCompany, countryId, status = "ready", loadError = null, mode = "sp" }: FinancePanelProps) {
   if (mode === "mp") {
     const other = section === "portfolio" ? "banking" : "portfolio";
     return (
@@ -670,6 +672,9 @@ export function FinancePanel({ finance, section, busy, onAction, onNavigate, onO
       </div>
     );
   }
+  if (section === "forex") {
+    return <div className="ahd-wallet"><ForexSection finance={finance} busy={busy} onAction={onAction} quoteForexTrade={quoteForexTrade} /></div>;
+  }
   if (status === "loading") {
     return (
       <div className="ahd-wallet">
@@ -689,6 +694,73 @@ export function FinancePanel({ finance, section, busy, onAction, onNavigate, onO
       {section === "banking"
         ? <BankingSection finance={finance} busy={busy} onAction={onAction} onNavigate={onNavigate} countryId={countryId} />
         : <PortfolioSection finance={finance} onNavigate={onNavigate} onOpenCompany={onOpenCompany} />}
+    </div>
+  );
+}
+
+function ForexSection({ finance, busy, onAction, quoteForexTrade }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"]; quoteForexTrade?: GameScreenProps["quoteForexTrade"] }) {
+  const forex = finance.forex;
+  const [from, setFrom] = useState(finance.currency);
+  const [to, setTo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [quote, setQuote] = useState<ForexTradeQuoteResult | null>(null);
+  const [tradeError, setTradeError] = useState<string | null>(null);
+  const latest = useRef(0);
+  const currencies = forex?.currencies ?? [];
+  const availableTo = currencies.filter((currency) => currency !== from);
+
+  useEffect(() => {
+    if (!to || !currencies.includes(to)) setTo(availableTo[0] ?? "");
+  }, [from, to, currencies.join("|")]);
+
+  useEffect(() => {
+    const request = ++latest.current;
+    setQuote(null);
+    const value = Number(amount);
+    if (!quoteForexTrade || !forex?.enabled || !from || !to || !amount.trim() || !Number.isFinite(value) || value <= 0) return;
+    void quoteForexTrade(from, to, value).then((result) => {
+      if (latest.current === request) setQuote(result);
+    }).catch((error: unknown) => {
+      if (latest.current === request) setQuote({ ok: false, error: error instanceof Error ? error.message : "Quote unavailable." });
+    });
+    return () => { latest.current += 1; };
+  }, [amount, from, to, quoteForexTrade, forex?.enabled]);
+
+  const numericAmount = Number(amount);
+  const amountValid = amount.trim() !== "" && Number.isFinite(numericAmount) && numericAmount > 0;
+  const submit = async () => {
+    setTradeError(null);
+    if (!forex?.enabled) { setTradeError("Currency exchange is not enabled in this world."); return; }
+    if (!quoteForexTrade) { setTradeError("Live exchange quotes are unavailable."); return; }
+    if (!amountValid || !from || !to || from === to) { setTradeError("Choose two different currencies and enter a positive amount."); return; }
+    const accepted = await onAction("exchangeCurrency", { fromCurrency: from, toCurrency: to, amount: numericAmount });
+    if (accepted === false) setTradeError("The exchange was refused. Check the current balance and quote.");
+  };
+
+  if (!forex || !quoteForexTrade) {
+    return <div className="ahd-card ahd-card-pad" role="note"><h2 className="ahd-h2">Exchange Currency</h2><p className="ahd-muted">Live exchange data is unavailable in this build.</p></div>;
+  }
+  return (
+    <div className="ahd-stack" style={{ maxWidth: "42rem" }}>
+      <section className="ahd-card ahd-card-pad" aria-label="Currency exchange">
+        <h2 className="ahd-h2">Exchange Currency</h2>
+        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.35rem 0 0" }}>Choose a currency pair and review the live fee and proceeds before trading.</p>
+        {!forex.enabled ? <p className="ahd-muted" role="status">Currency exchange is disabled for this world.</p> : null}
+        <dl style={{ display: "flex", flexDirection: "column", gap: "0.25rem", margin: "0.65rem 0" }}>
+          {Object.entries(forex.balances).filter(([, balance]) => balance !== 0).map(([currency, balance]) => <div key={currency} aria-label={`${currency} balance`} style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}><dt>{currency} balance</dt><dd className="ahd-mono" style={{ margin: 0 }}>{formatFinanceMoney(balance, currency)}</dd></div>)}
+        </dl>
+        {currencies.length < 2 ? <p className="ahd-muted">There are not enough source-recorded currencies to exchange.</p> : (
+          <div className="ahd-stack" style={{ gap: "0.55rem" }}>
+            <label className="ahd-field"><span className="ahd-label">From currency</span><select className="ahd-input" style={{ minHeight: 44 }} value={from} onChange={(event) => { setFrom(event.target.value); setTradeError(null); }} disabled={busy || !forex.enabled}>{currencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>
+            <label className="ahd-field"><span className="ahd-label">To currency</span><select className="ahd-input" style={{ minHeight: 44 }} value={to} onChange={(event) => { setTo(event.target.value); setTradeError(null); }} disabled={busy || !forex.enabled}>{availableTo.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>
+            <label className="ahd-field"><span className="ahd-label">Amount ({from})</span><input className="ahd-input" style={{ minHeight: 44 }} type="number" min="0" step="any" value={amount} onChange={(event) => { setAmount(event.target.value); setTradeError(null); }} disabled={busy || !forex.enabled} aria-label={`Amount (${from})`} /></label>
+            {quote?.ok ? <div role="status" className="ahd-card ahd-card-pad"><p style={{ margin: 0 }}>You receive <strong>{formatFinanceMoney(quote.quote.toAmount, to)}</strong></p><p className="ahd-muted" style={{ margin: "0.25rem 0 0", fontSize: "0.78rem" }}>Fee {formatFinanceMoney(quote.quote.spreadFee, from)} ({(quote.quote.feeRate * 100).toFixed(2)}%) · rate {quote.quote.crossRate.toPrecision(5)} {to}/{from}</p></div> : null}
+            {quote && !quote.ok ? <p role="alert" className="ahd-error-text">{quote.error}</p> : null}
+            {tradeError ? <p role="alert" className="ahd-error-text">{tradeError}</p> : null}
+            <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" style={{ minHeight: 44 }} onClick={() => void submit()} disabled={busy || !forex.enabled || !amountValid || !quote?.ok}>Exchange Now</button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

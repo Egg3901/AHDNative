@@ -203,9 +203,9 @@ describe("extraction contract issuance + NPC acceptance", () => {
 
     const without = mkWorld();
     addRegionalExtractionOperation(without);
-    withOffer.corporations["US-extraction"]!.ceoId = undefined;
+    delete withOffer.corporations["US-extraction"]!.ceoId;
     withOffer.corporations["US-extraction"]!.ceoType = "npp";
-    without.corporations["US-extraction"]!.ceoId = undefined;
+    delete without.corporations["US-extraction"]!.ceoId;
     without.corporations["US-extraction"]!.ceoType = "npp";
 
     advanceTurn(withOffer);
@@ -286,7 +286,7 @@ describe("extraction contract issuance + NPC acceptance", () => {
     expect(operation.capacityBookAnchor).toBeGreaterThan(0);
     expect(operation.producedUnits).toBeGreaterThan(0);
     expect(operation.realizedRevenue).toBeGreaterThan(0);
-    expect(w.regionalBudgets.TX!.revenue.resourceRoyalties).toBeGreaterThan(firstTurnRoyaltyBudget);
+    expect(w.regionalBudgets.TX!.revenue.resourceRoyalties).toBeGreaterThan(firstTurnRoyaltyBudget ?? 0);
     const restored = deserializeSave(serializeSave(w, "2026-10-01T00:00:00.000Z"));
     expect(Object.values(corporateSectorAssets(restored))).toContainEqual(expect.objectContaining({
       id: operation.id,

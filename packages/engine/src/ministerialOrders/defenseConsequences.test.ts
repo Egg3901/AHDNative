@@ -19,8 +19,8 @@ describe("#276 defense ministerial order consequences", () => {
     expect(defenseOrders).toHaveLength(12);
     expect(defenseOrders.filter((order) => order.availability === "blocked" && order.blocker.startsWith("regionalTargetRequired:")))
       .toHaveLength(2);
-    const unavailable = defenseOrders.filter((order) =>
-      order.availability === "blocked" && order.blocker.startsWith("defenseUnavailable:"),
+    const unavailable = defenseOrders.flatMap((order) =>
+      order.availability === "blocked" && order.blocker.startsWith("defenseUnavailable:") ? [order] : [],
     );
     expect(defenseOrders.filter(order => order.availability === "supported").map(order => `${order.positionId}:${order.id}`).sort()).toEqual([
       "secretary_of_defense:defense_modernization",
@@ -28,6 +28,7 @@ describe("#276 defense ministerial order consequences", () => {
     ]);
     expect(unavailable).toHaveLength(8);
     for (const order of unavailable) {
+      if (order.availability !== "blocked") throw new Error(`Expected ${order.id} to be blocked`);
       expect(order.blocker).toBe(`defenseUnavailable:${order.id}`);
       expect(order.unavailableEffects).toEqual(
         order.effects.map((effect) => ({
@@ -71,10 +72,10 @@ describe("#276 defense ministerial order consequences", () => {
     }];
 
     advanceTurn(world);
-    expect(world.regionalMetrics.LON["economic.unemploymentRate"]?.value).toBe(9.95);
+    expect(world.regionalMetrics.LON!["economic.unemploymentRate"]?.value).toBe(9.95);
     const restored = deserializeSave(serializeSave(world, "2026-09-15T00:00:00.000Z"));
     advanceTurn(restored);
-    expect(restored.regionalMetrics.LON["economic.unemploymentRate"]?.value).toBe(9.95);
+    expect(restored.regionalMetrics.LON!["economic.unemploymentRate"]?.value).toBe(9.95);
     expect(restored.ministerialOrders[0]).toMatchObject({ active: false, status: "expired" });
   });
 

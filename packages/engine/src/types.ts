@@ -525,6 +525,12 @@ export interface WorldState {
    */
   exchangeRates: Record<string, import("./forex/types.js").ExchangeRate>;
   /**
+   * Player FX conversions with source trade-time anchor notionals. Absence on
+   * older saves means no reconstructable history; do not infer trades from
+   * current balances or rates. Schema v66.
+   */
+  forexTradeHistory?: import("./forex/types.js").ForexTradeRecord[];
+  /**
    * Pre-forex balance checkpoint — captured each turn immediately before
    * forexTurn reprices every currency. Ports
    * src/lib/ledger/balanceSnapshot.ts writePreForexBalanceCheckpoint and the
@@ -878,6 +884,13 @@ export interface WorldMeta {
   rng: RngState;
   /** Completed turns. 0 = freshly created world. */
   turn: number;
+  /**
+   * Source election/demographic clock anchor (AHDGame GameState.startingYear).
+   * New worlds set this from their selected content-pack era, independently
+   * of a custom displayed startDate. Absent on legacy/imported saves whose
+   * source clock cannot be established without guessing from the native date.
+   */
+  startingYear?: number;
   /** In-game date as ISO day, e.g. "1953-01-06". One turn = one week. */
   date: string;
   /**
@@ -1077,6 +1090,10 @@ export interface PlayerCharacter {
   lastUndergroundDriveTurn?: number | null;
   /** Campaign funds (local) for player. */
   funds: number;
+  /** Source Character.targetedAds standing exposure, shared across candidacies. */
+  targetedAds?: import("./campaigns/targetedAds.js").TargetedAd[];
+  /** Revision guarding quote-to-purchase state for standing targeted ads. */
+  targetedAdsRevision?: number;
   donorBaseLevel: number;
   politicalInfluence: number;
   /** Accumulated national reputation. Legacy saves omit it and start at zero. */

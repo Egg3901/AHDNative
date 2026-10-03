@@ -24,10 +24,11 @@ import {
   type UnionContributionRecord,
 } from "./contributions.js";
 import { unionsTurnPhase } from "./phases.js";
+import { FIRST_CHOICE_RNG } from "./testRng.js";
 
 const WORLD = { era: "1953", countryId: "US", seed: "issue-321-payouts", playerName: "Alex" } as const;
 const SAVED_AT = "2026-09-15T00:00:00.000Z";
-const RNG = { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! };
+const RNG = FIRST_CHOICE_RNG;
 
 function organizer(world: ReturnType<typeof createWorld>, unionId: string, characterId: string, strength: number) {
   return { ...createUnionOrganizer(unionId, characterId, 0), strength, organizeCount: 3 };

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { admissionHazard, admissionRoll, TERRITORY_ADMISSIONS } from "../electionEngine/resolution/statehoodAdmission.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { advanceTurn } from "../engine.js";
-import { createWorld } from "../world.js";
+import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { processStatehoodAdmission } from "./statehoodPhase.js";
 
 function seedWithAdmission(stateId: string, year: number): string {
@@ -64,7 +64,7 @@ describe("ordinary-turn statehood admission", () => {
     expect(world.elections.some((race) => race.countryId === "US" && race.state === "AK" && race.electionType === "senate")).toBe(true);
 
     const save = serializeSave(world, "2026-10-02T00:00:00Z");
-    expect(JSON.parse(save).schemaVersion).toBe(65);
+    expect(JSON.parse(save).schemaVersion).toBe(SCHEMA_VERSION);
     const resumed = deserializeSave(save);
     const previousNewsCount = resumed.news.filter((item) => item.headline.includes("admitted to the Union")).length;
     advanceTurn(resumed);

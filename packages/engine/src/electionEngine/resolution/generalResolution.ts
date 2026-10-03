@@ -20,12 +20,16 @@
 import { allocateSeats, type RankedCandidate } from "./seatAllocation.js";
 import { blocListQuotaForGovernment } from "./constants.js";
 import type { Election } from "./generalResolutionHelpers.js";
+import { countPrStv, validateRankedBallots, type PrStvResult, type RankedBallot } from "../../elections/prStv.js";
 
 export interface TallyInput {
   electionId: string;
   totalVotes: Record<string, number>;
   candidateParties?: Record<string, string>;
   finalized?: boolean;
+  countingMethod?: "pr_stv";
+  rankedBallots?: RankedBallot[];
+  conversionTerms?: unknown;
 }
 
 export interface CandidateInput {
@@ -67,6 +71,8 @@ export interface GeneralResolutionResult {
   shouldSpawnHouse?: boolean;
   shouldSpawnCommons?: boolean;
   blocListUsed?: boolean;
+  prStvResult?: PrStvResult;
+  resolutionPath?: "pr_stv" | "legacy";
 }
 
 /**
@@ -80,6 +86,29 @@ export function resolveGeneralElectionPure(input: GeneralResolutionInput): Gener
   const totalVotesCast = Object.values(tally.totalVotes).reduce((a, b) => a + b, 0);
   if (totalVotesCast === 0) return null;
   if (candidates.length === 0) return null;
+
+  if (tally.countingMethod === "pr_stv") {
+    if (election.countryId !== "IE" || !["dail", "localCouncil"].includes(election.electionType))
+      throw new Error("Ranked PR-STV is supported only for Irish Dail and local council races");
+    if (tally.conversionTerms)
+      throw new Error("Ranked PR-STV does not support conversion vote penalties or reserved seat floors");
+    validateRankedBallots(tally.rankedBallots, tally.totalVotes);
+    const activeIds = candidates.map((candidate) => candidate._id);
+    const prStvResult = countPrStv(activeIds, totalSeats, tally.rankedBallots);
+    const holders = candidates.map((candidate) => `${candidate.isNPP ? "npp" : "player"}:${candidate.characterId ?? candidate._id}`);
+    if (new Set(holders).size !== holders.length)
+      throw new Error("PR-STV requires distinct candidate holder identities");
+    return {
+      electionId: election._id,
+      isMultiSeat: true,
+      authoritativeSeats: totalSeats,
+      seatsEstimate: prStvResult.seats,
+      winners: prStvResult.elected.map((id) => [id, 1]),
+      losers: candidates.filter((candidate) => !prStvResult.seats[candidate._id]).map((candidate) => candidate._id),
+      prStvResult,
+      resolutionPath: "pr_stv",
+    };
+  }
 
   const ranked: RankedCandidate[] = candidates
     .map((c) => ({ id: c._id, votes: tally.totalVotes[c._id] ?? 0, party: c.party }))
@@ -106,6 +135,7 @@ export function resolveGeneralElectionPure(input: GeneralResolutionInput): Gener
     shouldSpawnHouse: election.electionType === "house",
     shouldSpawnCommons: election.electionType === "commons",
     blocListUsed: !!blocShares,
+    resolutionPath: "legacy",
   };
 }
 

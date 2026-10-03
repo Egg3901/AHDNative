@@ -37,11 +37,13 @@ import {
 export type ActionId =
   | "buyBond"
   | "sellBond"
+  | "exchangeCurrency"
   | "issueCorporateBond"
   | "buybackCorporateBond"
   | "fundraise"
   | "campaign"
   | "advertise"
+  | "targetedAds"
   | "buildDonorBase"
   | "poll"
   | "pollLarge"
@@ -211,6 +213,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["bonds"],
+    status: "available",
+  },
+  exchangeCurrency: {
+    id: "exchangeCurrency",
+    name: "Exchange Currency",
+    description: "Exchange personal balances at the current market-maker quote, including size and recent-volume fees.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["forex", "personal-cash"],
     status: "available",
   },
   issueCorporateBond: {
@@ -1225,7 +1237,17 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   campaignTargetedAd: {
     id: "campaignTargetedAd",
     name: "Buy targeted ads",
-    description: "Spend one action and 100 funds to buy targeted ads for a demographic group in the campaign region.",
+    description: "Review the quoted local campaign-fund cost, then spend 1–50 actions on targeted ads for a demographic group in the campaign region.",
+    baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
+    cooldown: 0,
+    fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
+    systems: ["campaign/targeting"],
+    status: "available",
+  },
+  targetedAds: {
+    id: "targetedAds",
+    name: "Targeted Ads",
+    description: "Review the quoted local campaign-fund cost, then spend 1–50 actions on voter exposure in an eligible region. Ads decay over 24 turns and cap at 25%.",
     baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
     cooldown: 0,
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,

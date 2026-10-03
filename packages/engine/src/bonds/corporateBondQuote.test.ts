@@ -45,7 +45,7 @@ describe("public corporate bond issuance quote", () => {
     world.corporateSectors = seedCorporateSectorAssets(world);
     const asset = Object.values(world.corporateSectors ?? {}).find((candidate) => candidate.corporationId === corp.id)!;
     asset.realizedRevenue = 70_000; // Native receipt is a seven-day sum.
-    world.plantMarketDemand = { external: {} };
+    world.plantMarketDemand = { external: {}, corporateInputs: {} };
 
     const quote = quoteCorporateBondIssuance(world, corp.id);
     // Independently executed Game 01797b2708 corporateCredit helpers with a
