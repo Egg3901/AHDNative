@@ -10,13 +10,16 @@ import { chooseFoundingActor, seedSourceNppCorporations } from "./nppSourceBoots
 describe("source NPP company bootstrap", () => {
   it("uses distinct active source NPP identities and balances free candidates by affiliation then influence", () => {
     const world = createWorld({ seed: "source-npp-ceo-selection", playerName: "Tester", countryId: "US", homeRegionId: "DC", era: "1953" });
+    const parties = Object.values(world.parties).filter((party) => party.countryId === "US" && party.mergedIntoPartyId == null).sort((a, b) => a.id.localeCompare(b.id));
+    expect(parties.length).toBeGreaterThanOrEqual(2);
+    const [partyOne, partyTwo] = parties;
     const actor = (id: string, partyId: string, influence: number, sequentialId: number) => ({
       id, countryId: "US", homeRegionId: "DC", partyId, politicalInfluence: influence, sequentialId, retiredAtTurn: null,
     });
     world.corporateNppActors = {
-      "npp:owned": actor("npp:owned", "1", 95, 1),
-      "npp:party-one": actor("npp:party-one", "1", 70, 2),
-      "npp:party-two": actor("npp:party-two", "2", 10, 3),
+      "npp:owned": actor("npp:owned", partyOne!.id, 95, 1),
+      "npp:party-one": actor("npp:party-one", partyOne!.id, 70, 2),
+      "npp:party-two": actor("npp:party-two", partyTwo!.id, 10, 3),
     };
     const template = Object.values(world.corporations)[0]!;
     world.corporations["source-ceo-selection-existing"] = { ...structuredClone(template), id: "source-ceo-selection-existing", countryId: "US", ceoId: "npp:owned", ceoType: "npp" };

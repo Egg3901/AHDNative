@@ -126,7 +126,7 @@ export function validateCorporateCashLedger(value: unknown): void {
     const isAssetCash = isCapacity || isFounding;
     const identity = [row["corporationId"], isAssetCash ? details["sectorId"] : isStartingGrant ? "t1" : details["nodeId"], row["turn"]];
     const expectedId = typeof identity[0] === "string" && typeof identity[1] === "string" && Number.isInteger(identity[2])
-      ? isCapacity ? `capacity-build:${identity[0]}:${identity[1]}:t${identity[2]}` : isFounding ? `sector-founding:${identity[0]}:${identity[1]}:t${identity[2]}` : isStartingGrant ? `starting-grant:${identity[0]}:t0` : corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
+      ? isCapacity ? `capacity-build:${identity[0]}:${identity[1]}:t${identity[2]}` : isFounding ? `sector-founding:${identity[0]}:${identity[1]}:t${identity[2]}` : isStartingGrant ? `starting-grant:${identity[0]}:t${identity[2]}` : corporateTechUnlockLedgerKey(identity[0], identity[1], identity[2] as number)
       : "";
     if (!expectedId || row["id"] !== expectedId || details["ledgerKey"] !== expectedId || ids.has(expectedId)) {
       throw new Error("Invalid corporate cash ledger identity");
@@ -149,7 +149,7 @@ export function validateCorporateCashLedger(value: unknown): void {
     for (const key of (isStartingGrant ? [] : isAssetCash ? ["sectorType"] : ["nodeName", "decadeId", "lane"]) as string[]) {
       if (typeof details[key] !== "string" || details[key].length === 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
-    for (const key of (isAssetCash ? ["units", "costAnchor", "onlineTurn"] : ["slot", "rdCost"]) as string[]) {
+    for (const key of (isStartingGrant ? [] : isAssetCash ? ["units", "costAnchor", "onlineTurn"] : ["slot", "rdCost"]) as string[]) {
       if (typeof details[key] !== "number" || !Number.isFinite(details[key]) || details[key] < 0) throw new Error(`Invalid corporate cash ledger ${key} for ${expectedId}`);
     }
     if (isFounding && (typeof details["entryFeeAnchor"] !== "number" || !Number.isFinite(details["entryFeeAnchor"]) || details["entryFeeAnchor"] < 0)) throw new Error(`Invalid corporate cash ledger entryFeeAnchor for ${expectedId}`);
