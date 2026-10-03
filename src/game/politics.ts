@@ -349,6 +349,10 @@ export interface PoliticsPresidentialView {
 
 export interface PoliticsElectionDetail {
   id: string; title: string; status: string; date: string; filingDate: string;
+  /** Source public race identity (`country-type-region[-class]`), derived from the recorded election. */
+  seatId?: string | null;
+  /** Turn when candidate filing closes; paired with the source public race key. */
+  primaryEndTurn?: number | null;
   phase: RacePhase;
   playerCandidate: boolean;
   candidates: PoliticsCandidateView[];
@@ -604,6 +608,14 @@ function isGeneralPhase(world: WorldState, election: WorldState["elections"][num
     ? world.meta.turn >= election.primaryEndTurn : true;
   const generalOpen = typeof election.endTurn === "number" ? world.meta.turn <= election.endTurn : true;
   return primaryClosed && generalOpen;
+}
+
+function sourceSeatIdForElection(election: WorldState["elections"][number]): string | null {
+  if (election.electionType === "president") return `${election.countryId}-president`;
+  if (!election.state) return null;
+  const parts = [election.countryId, election.electionType, election.state];
+  if (election.senateClass !== undefined) parts.push(String(election.senateClass));
+  return parts.join("-");
 }
 
 function upgradeAction(
@@ -1518,6 +1530,8 @@ export function projectPolitics(world: WorldState): PoliticsView {
       const primary = projectPrimary(world, election);
       return {
         id: election.id,
+        seatId: sourceSeatIdForElection(election),
+        primaryEndTurn: election.primaryEndTurn ?? null,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
         status: election.status, date: dateAtTurn(world, election.endTurn), filingDate: dateAtTurn(world, election.primaryEndTurn),
         phase, playerCandidate, candidates, winnerNames, winnerIds, totalVotes,

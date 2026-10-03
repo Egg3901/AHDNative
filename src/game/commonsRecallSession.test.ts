@@ -87,6 +87,9 @@ describe("UK Commons recall public session boundary", () => {
     );
     expect(resumed.view().player.legislativeSeat).toBeNull();
     expect(finalWorld.ukCommonsVacancies.find((vacancy: { id: string }) => vacancy.id === finalState.vacancyId)).toMatchObject({ reason: "recall", regionId: "NIR", seats: 3 });
-    expect(finalWorld.elections.find((race: { electionType: string; state?: string }) => race.electionType === "special_commons" && race.state === "NIR")).toMatchObject({ totalSeats: 3 });
+    const specialRecord = finalWorld.elections.find((race: { electionType: string; state?: string }) => race.electionType === "special_commons" && race.state === "NIR");
+    expect(specialRecord).toMatchObject({ totalSeats: 3 });
+    const specialRace = resumed.politics().elections.find((race) => race.id === specialRecord!.id);
+    expect(specialRace).toMatchObject({ seatId: "UK-special_commons-NIR", primaryEndTurn: expect.any(Number) });
   }, 180_000);
 });

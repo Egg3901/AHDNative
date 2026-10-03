@@ -2,7 +2,7 @@
  * Seed pack format: versioned data, one per era.
  *
  * Forward compatibility: packs declare optional extension tables
- * (states, parties, sectors) as optional arrays. Existing packs
+ * (states, economy-only regions, parties, sectors) as optional arrays. Existing packs
  * omit them; future packs may include them; validation and engine
  * ignore missing extensions. Unknown top-level keys are ignored so
  * adding new tables does not break older consumers.
@@ -15,6 +15,12 @@ export interface SeedPack {
   countries: CountrySeed[];
   /** Optional extension tables: states, parties, sectors, budgets. */
   states?: StateSeed[];
+  /**
+   * Source-authored regions for economy-preview countries which do not have
+   * political registration/office seeds in this era. Kept out of `states` so
+   * they cannot silently become election units.
+   */
+  economyRegions?: EconomyRegionSeed[];
   /** Authored corporation HQ locations that do not participate in political state systems (e.g. DC in 1953). */
   corporationHeadquartersRegions?: CorporationHeadquartersRegionSeed[];
   parties?: PartySeed[];
@@ -28,6 +34,22 @@ export interface CorporationHeadquartersRegionSeed {
   id: string;
   countryId: string;
   name: string;
+}
+
+/** Regional economic/census data that carries no electoral registration. */
+export interface EconomyRegionSeed {
+  id: string;
+  countryId: string;
+  name: string;
+  population: number;
+  /** Source GDP in millions USD. */
+  gdp: number;
+  /** Formal lower-house/district allocation when authored by source. */
+  houseSeats: number;
+  /** Regional upper/subnational seat estimate when authored by source. */
+  senateSeats: number;
+  /** Source-authored era metric overlays for this economy-only region. */
+  metrics: Record<string, number>;
 }
 
 export interface EraSeed {

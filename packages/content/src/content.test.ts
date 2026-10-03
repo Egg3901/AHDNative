@@ -40,6 +40,15 @@ describe("validatePack", () => {
     expect(() => validatePack(bad2)).toThrow(/growthRate/i);
   });
 
+  it("strictly validates economy-only regions without allowing political field leakage", () => {
+    const bad = structuredClone(pack1953) as SeedPack;
+    bad.economyRegions![0]!.metrics["economic.gdpGrowth"] = Number.NaN;
+    expect(() => validatePack(bad)).toThrow(/economyRegions.*metrics/i);
+    const unknownField = structuredClone(pack1953) as SeedPack;
+    (unknownField.economyRegions![0] as unknown as Record<string, unknown>)["registration"] = {};
+    expect(() => validatePack(unknownField)).toThrow(/unknown field/i);
+  });
+
   it("rejects invalid packVersion", () => {
     const bad = structuredClone(PACKS[0]!) as SeedPack;
     (bad as unknown as Record<string, unknown>)["packVersion"] = 0;
@@ -61,6 +70,19 @@ describe("validatePack", () => {
     const playable = new Set(pack1953.countries.filter((c) => c.playable).map((c) => c.id));
     const partyCountries = new Set((pack1953.parties ?? []).map((p) => p.countryId));
     for (const id of playable) expect(partyCountries.has(id)).toBe(true);
+  });
+
+  it("ports authored 1953 China economy regions without treating them as political states", () => {
+    const regions = pack1953.economyRegions ?? [];
+    expect(pack1953.countries.find((country) => country.id === "CN")?.playable).toBe(false);
+    expect(regions.map((region) => region.id)).toEqual(["DB", "HB", "HD", "HZ", "HN", "XN", "XB"]);
+    expect(regions.reduce((sum, region) => sum + region.population, 0)).toBe(585_000_000);
+    expect(regions.reduce((sum, region) => sum + region.gdp, 0)).toBe(33_333);
+    expect(regions.reduce((sum, region) => sum + region.houseSeats, 0)).toBe(1_226);
+    expect(regions.reduce((sum, region) => sum + region.senateSeats, 0)).toBe(3_781);
+    expect(pack1953.states?.some((state) => state.countryId === "CN")).toBe(false);
+    expect((pack1953.parties ?? []).filter((party) => party.countryId === "CN").map((party) => party.id)).toEqual(["CN_CCP", "CN_CDL", "CN_CNDCA"]);
+    expect(regions.every((region) => Object.keys(region.metrics).length > 0)).toBe(true);
   });
 
   it("registry is exactly the four real mainline presets, no fabricated eras", async () => {
