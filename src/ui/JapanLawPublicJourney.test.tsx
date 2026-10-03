@@ -33,7 +33,8 @@ describe("Japan public consumption-tax law journey (#283)", () => {
       playerName: "Japan PM",
       mode: "hos",
     });
-    expect(view.player).toMatchObject({ mode: "hos", countryId: "JP" });
+    expect(view.player).toMatchObject({ mode: "hos" });
+    expect(japanWorld(session).player.countryId).toBe("JP");
     expect(view.legislature.sponsor.available).toBe(true);
 
     let query = session.legislation({ catalogId: "jp_consumption_tax" });
