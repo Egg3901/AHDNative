@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { earnCareerGovernment } from "../government/earnCareerGovernment.testSupport.js";
 import { executeAction } from "../actions/execute.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
@@ -419,6 +420,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
       chamberKey: "npc",
       regionId: world.player.homeRegionId,
     });
+    world = earnCareerGovernment(world, "cn_value_added_tax");
     // Test a well-resourced legal player; their office still comes solely from
     // the source-generated election and each action uses its authored price.
     world.player.actions = 200;
