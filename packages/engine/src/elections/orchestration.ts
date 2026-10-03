@@ -243,7 +243,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
       senateClasses?: [number, number];
       senateSeats?: number;
     };
-    if (r.countryId !== "US") continue;
+    if (r.countryId !== "US" || r.id === "DC") continue;
     if (typeof r.houseSeats === "number" && r.houseSeats > 0) {
       specs.push({
         electionType: "house",
@@ -269,6 +269,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   for (const region of Object.values(regions)) {
     const r = region as unknown as { id: string; countryId: string };
     if (!GOVERNOR_COUNTRIES.has(r.countryId)) continue;
+    if (r.countryId === "US" && r.id === "DC") continue;
     if (
       (r.countryId === "RU" || r.countryId === "DD") &&
       !sourceNppCountryLive(r.countryId)

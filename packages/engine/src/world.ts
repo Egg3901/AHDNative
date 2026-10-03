@@ -1987,6 +1987,7 @@ function seedGovernors(regions: WorldState["regions"]): WorldState["governors"] 
   const governors: WorldState["governors"] = {};
   for (const region of Object.values(regions)) {
     if (!GOVERNOR_COUNTRIES.has(region.countryId)) continue;
+    if (region.countryId === "US" && region.id === "DC") continue;
     if (region.countryId === "UK" && !UK_DEVOLVED_GOVERNOR_REGIONS.has(region.id)) continue;
     governors[region.id] = {
       stateId: region.id,

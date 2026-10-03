@@ -11,6 +11,7 @@ import { eraToPreset } from "../electionEngine/resolution/constants.js";
 import { serializeSave, deserializeSave } from "../save.js";
 import type { WorldState } from "../types.js";
 import type { ElectionRecord } from "./types.js";
+import { electionSeriesForWorld } from "./orchestration.js";
 
 const OPTS = { seed: "ec-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
@@ -264,6 +265,24 @@ describe("electoralVotesByState — live apportionment-helper wiring (#98)", () 
     expect(total).toBe(538);
     expect(total).toBe(houseSum + 2 * Object.keys(seats).length + 3);
     expect(electoralMajorityFor(total)).toBe(270);
+  });
+
+  it("2023: keeps the source district's electors and excludes state offices across a full save", () => {
+    const world = createWorld({ ...OPTS, era: "2023" });
+    const ev = electoralVotesByState(world, "US");
+    expect({
+      population: world.regions.DC?.population,
+      houseSeats: world.regions.DC?.houseSeats,
+      senateSeats: world.regions.DC?.senateSeats,
+      districtElectors: ev.DC,
+      totalElectors: Object.values(ev).reduce((sum, votes) => sum + votes, 0),
+      governor: world.governors.DC,
+      stateRaces: electionSeriesForWorld(world).filter((race) => race.state === "DC"),
+    }).toEqual({ population: 678972, houseSeats: 0, senateSeats: 0, districtElectors: 3, totalElectors: 538, governor: undefined, stateRaces: [] });
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    expect(electoralVotesByState(restored, "US")).toEqual(ev);
+    expect(restored.governors.DC).toBeUndefined();
+    expect(electionSeriesForWorld(restored).filter((race) => race.state === "DC")).toEqual([]);
   });
 
   it("adds the source DC unit once the live year passes the 1961 gate", () => {
