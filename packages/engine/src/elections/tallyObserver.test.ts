@@ -7,9 +7,45 @@ import { realAccumulate } from "./tallyAdapter.js";
 import { campaignKey, ensureCampaignsForElection } from "../campaigns/lifecycle.js";
 import { executeAction } from "../actions/execute.js";
 import { quoteTargetedAds } from "../actions/campaignTargetedAd.js";
-import { hasSource1953DemographicShape, campaignCellsForRegion, targetedAdBonuses } from "../campaigns/targetedAds.js";
+import { hasSource1953DemographicShape, hasSourceYearDemographicShape, campaignCellsForRegion, targetedAdBonuses } from "../campaigns/targetedAds.js";
 
 describe("ephemeral tally input observer", () => {
+  it("selects the year-resolved source electorate for an anchored ordinary general tally", () => {
+    const world = createWorld({ seed: "source-year-general-cells", playerName: "Player", countryId: "US", era: "1953", homeRegionId: "NY" });
+    expect(world.meta.startingYear).toBe(1953);
+    expect(hasSourceYearDemographicShape(world, "NY")).toBe(true);
+    const initialCells = campaignCellsForRegion(world, "NY");
+    expect(initialCells.length).toBeGreaterThan(0);
+    expect(initialCells.reduce((sum, cell) => sum + cell.share, 0)).toBeCloseTo(1, 10);
+
+    // The ordinary completed-turn counter maps through the actual 48-turn
+    // source clock; at turn 48 the source year is 1954.
+    world.meta.turn = 48;
+    const nextYearCells = campaignCellsForRegion(world, "NY");
+    expect(nextYearCells.length).toBeGreaterThan(0);
+    expect(nextYearCells).not.toEqual(initialCells);
+    expect(nextYearCells.reduce((sum, cell) => sum + cell.share, 0)).toBeCloseTo(1, 10);
+
+    const partyId = Object.values(world.parties).find((party) => party.countryId === "US")!.id;
+    const opponent = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === partyId)!;
+    world.player.partyId = partyId;
+    const race: ElectionRecord = {
+      id: "house:US:NY:source-year-general",
+      electionType: "house", countryId: "US", state: "NY", cycle: 1, status: "active",
+      startTurn: 0, primaryEndTurn: 0, endTurn: 90, totalSeats: 1, chamberKey: "house",
+      candidates: [
+        { id: "player", name: world.player.name, partyId, isNPP: false, incumbent: false },
+        { id: opponent.id, name: opponent.name, partyId, isNPP: true, incumbent: true },
+      ],
+      tally: {},
+    };
+    world.elections = [race];
+    ensureCampaignsForElection(world, race);
+    const snapshots: import("../electionEngine/tally/types.js").VoteDistributionDiagnosticSnapshot[] = [];
+    expect(realAccumulate(world, rngFromSeed("source-year-general"), race, undefined, (snapshot) => snapshots.push(snapshot))).toBe(true);
+    expect(snapshots[0]?.categories[0]?._id).toBe("granularCells");
+  });
+
   it("keeps an unsupported synthetic one-axis fixture on its legacy targeted-ad path", () => {
     const world = createWorld({ seed: "tally-standing-ad-policy-axes", playerName: "Player", countryId: "US", era: "1953" });
     const partyId = Object.values(world.parties).find((party) => party.countryId === "US")!.id;

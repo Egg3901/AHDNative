@@ -25,8 +25,9 @@ import { buildNationwideElectoratePreload } from "../electionEngine/nationwideEl
 import { distributeVotesByGroupLevelAllocation } from "../electionEngine/voteDistribution.js";
 import { distributeVotesBySwingFlow } from "../electionEngine/voteDistributionSwingFlow.js";
 import { CAMPAIGN_TARGETED_AD_CAP } from "../actions/campaignTargetedAd.js";
-import { hasSource1953DemographicShape, sourceLayer1Overlays, targetedAdBonuses } from "../campaigns/targetedAds.js";
-import { remapArchetypeValuesToSourceUnits, sourceCampaignUnits1953 } from "../campaigns/sourceCampaignElectorate.js";
+import { hasSource1953DemographicShape, hasSourceYearDemographicShape, sourceLayer1Overlays, targetedAdBonuses } from "../campaigns/targetedAds.js";
+import { remapArchetypeValuesToSourceUnits, sourceCampaignUnits1953, sourceCampaignUnitsForYear } from "../campaigns/sourceCampaignElectorate.js";
+import { sourceElectionClockForWorld } from "./sourceElectionClock.js";
 import { electoralVoteUnitsForWorld } from "./presidentialElectoralCollege.js";
 import { appliesExplicitPresidentialLean, presidentialRulesetVersionFor } from "./presidentialRuleset.js";
 import { displayLean, PRESIDENTIAL_UNIT_LEAN, presidentialLeanVoteMultiplier, sourceFallbackStateLean } from "./presidentialLean.js";
@@ -142,10 +143,16 @@ function sourceGranularSubstrateForTurn(
   enriched: import("../electionEngine/types.js").EnrichedCandidate[],
   index?: TallyTurnIndex,
 ) {
-  if (rec.countryId !== "US" || !hasSource1953DemographicShape(world, slice.stateId)) return null;
+  if (rec.countryId !== "US") return null;
+  const clock = sourceElectionClockForWorld(world);
+  const sourceYearShape = clock !== null && hasSourceYearDemographicShape(world, slice.stateId);
+  const legacy1953Shape = clock === null && hasSource1953DemographicShape(world, slice.stateId);
+  if (!sourceYearShape && !legacy1953Shape) return null;
   const legacyTurnout = campaignTurnoutModifiers(world, rec.id, index);
   const overlays = sourceLayer1Overlays(world, slice.stateId, legacyTurnout);
-  const units = sourceCampaignUnits1953(slice.stateId, overlays);
+  const units = sourceYearShape && clock
+    ? sourceCampaignUnitsForYear(slice.stateId, clock.currentYear, clock.startingYear, overlays)
+    : sourceCampaignUnits1953(slice.stateId, overlays);
   if (!units) return null;
   const groups = Object.fromEntries(units.map((unit) => [unit.id, {
     population: unit.share * 100,
