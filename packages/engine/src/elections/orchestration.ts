@@ -835,7 +835,6 @@ function applyUachtaranResolution(
     tally: { electionId: rec.id, totalVotes: rec.tally, finalized: true },
     candidates,
     totalSeats: 1,
-    currentYear: Number(world.meta.date.slice(0, 4)),
   };
   const result = resolveGeneralElectionPure(input);
   let winnerId: string | null = null;
@@ -1025,7 +1024,6 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
     tally: { electionId: rec.id, totalVotes: rec.tally, finalized: true },
     candidates,
     totalSeats: 1,
-    currentYear: Number(world.meta.date.slice(0, 4)),
   };
   const result = resolveGeneralElectionPure(input);
   if (!result) return;
@@ -1118,7 +1116,6 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     tally: { electionId: rec.id, totalVotes: rec.tally, finalized: true },
     candidates,
     totalSeats: rec.totalSeats,
-    currentYear: Number(world.meta.date.slice(0, 4)),
     // Without this, house allocation falls back to mainline's 2020-census
     // HOUSE_SEATS table (TX 38, PA 17...); solo worlds carry era apportionment.
     ...(rec.state !== undefined
