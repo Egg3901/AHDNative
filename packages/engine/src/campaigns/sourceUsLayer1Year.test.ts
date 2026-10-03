@@ -57,6 +57,12 @@ describe("current-source US annual Layer-1 substrate", () => {
     expect(campaignCellsForRegion(world, "NY")).toEqual(sourceCampaignUnits1953("NY")!.flatMap((unit) => unit.campaignCells));
   });
 
+  it("leaves non-US source-clock worlds on their existing authored-cell fallback", () => {
+    const world = createWorld({ seed: "source-year-non-us-fallback", playerName: "Player", countryId: "UK", era: "1953", homeRegionId: "LON" });
+    expect(world.meta.startingYear).toBe(1953);
+    expect(campaignCellsForRegion(world, "LON").length).toBeGreaterThan(0);
+  });
+
   it("carries an ordinary source-year ad purchase through save/reload into the general tally", () => {
     const world = createWorld({ seed: "source-year-ad-save-tally", playerName: "Player", countryId: "US", era: "1953", homeRegionId: "NY" });
     world.meta.turn = 48;

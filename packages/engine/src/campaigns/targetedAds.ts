@@ -118,11 +118,11 @@ export function campaignCellsForRegion(world: WorldState, stateId: string): Camp
   // Current AHDGame US sources construct a joint Layer-1 race/age/education/
   // wealth substrate rather than the one-axis voterGroups fallback below.
   const clock = sourceElectionClockForWorld(world);
-  if (clock) {
+  if (world.player.countryId === "US" && clock) {
     if (!hasSourceYearDemographicShape(world, stateId)) return [];
     return sourceCampaignCellsForYear(stateId, clock.currentYear, clock.startingYear, sourceLayer1Overlays(world, stateId)) ?? [];
   }
-  if (hasSource1953DemographicShape(world, stateId)) {
+  if (world.player.countryId === "US" && !clock && hasSource1953DemographicShape(world, stateId)) {
     const sourceCells = sourceCampaignCells1953(stateId, sourceLayer1Overlays(world, stateId));
     if (sourceCells) return sourceCells;
   }
