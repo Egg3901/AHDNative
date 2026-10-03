@@ -213,6 +213,10 @@ export type ExecuteActionParams = {
   demographicGroup?: string;
   /** Optimistic quote revision for standing ad purchase. */
   expectedRevision?: number;
+  /** Source-shaped targeted-ad quote fields; stale quotes are rejected before charging. */
+  expectedTurn?: number;
+  expectedCost?: number;
+  count?: number;
   // #68 campaign strength
   /** Batched single-click count for campaignContribute; "max" resolves server-side. */
   clicks?: number | "max";
@@ -592,8 +596,17 @@ function executeActionInner(
   if (nppInfluence && !nppInfluence.ok) return nppInfluence;
   const nppRecruit = actionId === "recruitCaucusNpp" ? quoteRecruitCaucusNpp(world, params, actorId) : null;
   if (nppRecruit && !nppRecruit.ok) return nppRecruit;
+  const targetedAdQuote = actionId === "targetedAds" || actionId === "campaignTargetedAd"
+    ? CampaignTargetedAd.quoteTargetedAds(world, params.count ?? 1)
+    : null;
+  if ((actionId === "targetedAds" || actionId === "campaignTargetedAd") &&
+    (!targetedAdQuote || params.expectedTurn !== targetedAdQuote.turn || params.expectedCost !== targetedAdQuote.cost ||
+      params.expectedRevision !== targetedAdQuote.revision)) {
+    return { ok: false, error: "The ad quote changed. Refresh before buying." };
+  }
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
-  const cost = canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
+  const cost = targetedAdQuote ? targetedAdQuote.count * CampaignTargetedAd.CAMPAIGN_TARGETED_AD_ACTIONS
+    : canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
     ? partyCaucus.actionCost
     : actionId === "sponsorBill"
       ? BILL_PROPOSE_ACTION_COST
@@ -607,7 +620,7 @@ function executeActionInner(
   // Game character quotes price the actor's home state, not a UI target.
   const actionRegion = world.regions[actor.homeRegionId ?? ""];
   const playerStats = found.kind === "player" ? effectivePlayerStats(world) : undefined;
-  const fundCost = canvass?.ok ? canvass.funds : nppInfluence?.ok ? nppInfluence.fundCost : nppRecruit?.ok ? nppRecruit.fundCost : partyCaucus ? partyCaucus.fundCost : actionFundCost({
+  const fundCost = targetedAdQuote?.cost ?? (canvass?.ok ? canvass.funds : nppInfluence?.ok ? nppInfluence.fundCost : nppRecruit?.ok ? nppRecruit.fundCost : partyCaucus ? partyCaucus.fundCost : actionFundCost({
     actionId,
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
@@ -617,7 +630,7 @@ function executeActionInner(
     population: actionRegion?.population,
     era: world.meta.era,
     ...(playerStats ? { stats: playerStats } : {}),
-  });
+  }));
   if (fundCost > 0) {
     // Prefer campaign funds; allow actor.funds only (player funds field)
     const available = actor.funds ?? 0;
@@ -1106,6 +1119,9 @@ function executeActionInner(
       demographicCategory: params.demographicCategory,
       demographicGroup: params.demographicGroup,
       expectedRevision: params.expectedRevision,
+      expectedTurn: params.expectedTurn,
+      expectedCost: params.expectedCost,
+      count: params.count,
     });
     if (!res.ok) {
       actor.actions += cost;
@@ -1122,6 +1138,9 @@ function executeActionInner(
       demographicCategory: params.demographicCategory,
       demographicGroup: params.demographicGroup,
       expectedRevision: params.expectedRevision,
+      expectedTurn: params.expectedTurn,
+      expectedCost: params.expectedCost,
+      count: params.count,
     });
     if (!res.ok) {
       actor.actions += cost;

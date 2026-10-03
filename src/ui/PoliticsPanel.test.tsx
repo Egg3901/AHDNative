@@ -381,7 +381,9 @@ describe("PoliticsPanel elections", () => {
         regionId: "AL",
         regions: [{ id: "AL", name: "Alabama" }, { id: "NY", name: "New York" }],
         revision: 0,
-        targets: ["AL", "NY"].map((regionId) => ({ regionId, category: "voterGroups", categoryName: "Voter Groups", group: "young_renters", groupName: "Young Renters", bonus: 0, maxed: false })),
+        quoteTurn: 4,
+        quoteUnitCost: 100,
+        targets: ["AL", "NY"].map((regionId) => ({ regionId, category: "voterGroups", categoryName: "Voter Groups", group: "young_renters", groupName: "Young Renters", bonus: 0, maxCount: 25, maxed: false })),
         action: { id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1, available: true },
       },
       activity: [{
@@ -430,6 +432,9 @@ describe("PoliticsPanel elections", () => {
       demographicCategory: "voterGroups",
       demographicGroup: "young_renters",
       expectedRevision: 0,
+      expectedTurn: 4,
+      expectedCost: 100,
+      count: 1,
     });
     expect(screen.getByText(/1,500 strength · \+3\.0% vote boost/)).toBeInTheDocument();
     expect(screen.getByText(/Contribute x1/)).toBeInTheDocument();

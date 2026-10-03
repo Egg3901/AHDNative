@@ -7,6 +7,7 @@ import { campaignKey } from "../campaigns/lifecycle.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { executeAction } from "./execute.js";
 import { adExposure } from "../campaigns/targetedAds.js";
+import { quoteTargetedAds } from "./campaignTargetedAd.js";
 
 const OPTS = { seed: "campaign-targeted-ad", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
@@ -40,8 +41,86 @@ function firstTarget(world: ReturnType<typeof createWorld>, regionId: string) {
   return { category: category!, group: group! };
 }
 
+function quoteParams(world: ReturnType<typeof createWorld>, count = 1) {
+  const quote = quoteTargetedAds(world, count)!;
+  return { count, expectedRevision: quote.revision, expectedTurn: quote.turn, expectedCost: quote.cost };
+}
+
 describe("campaignTargetedAd", () => {
-  it("spends one action and 100 funds, persists the capped bonus, and decays it", () => {
+  it("quotes the source frozen world base rate, not the market rate, and uses the forex-off anchor price", () => {
+    const world = createWorld(OPTS);
+    world.player.countryId = "UK";
+    world.exchangeRates.UK!.baseRate = 0.357;
+    world.exchangeRates.UK!.rate = 0.5;
+
+    const quote = quoteTargetedAds(world, 3)!;
+    expect(quote).toMatchObject({ turn: world.meta.turn, revision: 0, count: 3, cost: 107.1 });
+    expect(quote.unitCost).toBeCloseTo(35.7, 12);
+    expect(quoteTargetedAds(world, 51)).toBeNull();
+    world.featureFlags.foreignExchange = false;
+    expect(quoteTargetedAds(world, 3)?.cost).toBe(300);
+  });
+
+  it("fails closed when the enabled forex quote has no valid world base rate", () => {
+    const world = createWorld(OPTS);
+    world.exchangeRates.US!.baseRate = Number.NaN;
+    expect(quoteTargetedAds(world)).toBeNull();
+  });
+
+  it("charges multiple quoted ad actions atomically into one source exposure flight", () => {
+    const { world, race } = setupFiledRace();
+    const target = firstTarget(world, race.state!);
+    world.player.actions = 30;
+    world.player.funds = 3_000;
+    const result = executeAction(world, "player", "campaignTargetedAd", {
+      electionId: race.id, regionId: race.state!, demographicCategory: target.category._id,
+      demographicGroup: target.group.id, ...quoteParams(world, 5),
+    });
+
+    expect(result).toMatchObject({ ok: true, changes: { actions: -5, funds: -500 } });
+    expect(world.player.targetedAds).toHaveLength(1);
+    expect(world.player.targetedAds![0]).toMatchObject({ bonus: 0.05, lastPurchaseTurn: world.meta.turn });
+    expect(world.player.targetedAdsRevision).toBe(1);
+  });
+
+  it("rejects stale turn and stale-cost quotes without changing the world or purse", () => {
+    for (const stale of ["turn", "cost", "count"] as const) {
+      const { world, race } = setupFiledRace();
+      const target = firstTarget(world, race.state!);
+      world.player.actions = 30;
+      world.player.funds = 3_000;
+      const quote = quoteParams(world, 2);
+      if (stale === "turn") world.meta.turn += 1;
+      else if (stale === "cost") world.exchangeRates.US!.baseRate += 0.01;
+      const submittedQuote = stale === "count" ? { ...quote, count: 3 } : quote;
+      const before = serializeSave(world, "2026-10-03T00:00:00.000Z");
+
+      expect(executeAction(world, "player", "campaignTargetedAd", {
+        electionId: race.id, regionId: race.state!, demographicCategory: target.category._id,
+        demographicGroup: target.group.id, ...submittedQuote,
+      })).toEqual({ ok: false, error: "The ad quote changed. Refresh before buying." });
+      expect(serializeSave(world, "2026-10-03T00:00:00.000Z")).toBe(before);
+    }
+  });
+
+  it("rejects a batch above the target cap without changing the saved world", () => {
+    const { world, race } = setupFiledRace();
+    const target = firstTarget(world, race.state!);
+    world.player.actions = 30;
+    world.player.funds = 3_000;
+    const before = serializeSave(world, "2026-10-03T00:00:00.000Z");
+
+    expect(executeAction(world, "player", "campaignTargetedAd", {
+      electionId: race.id,
+      regionId: race.state!,
+      demographicCategory: target.category._id,
+      demographicGroup: target.group.id,
+      ...quoteParams(world, 26),
+    })).toEqual({ ok: false, error: "Invalid target or action count" });
+    expect(serializeSave(world, "2026-10-03T00:00:00.000Z")).toBe(before);
+  });
+
+  it("spends one quoted action and source-local funds, persists the capped bonus, and decays it", () => {
     const { world, race } = setupFiledRace();
     const target = firstTarget(world, race.state!);
     world.player.actions = 30;
@@ -52,8 +131,8 @@ describe("campaignTargetedAd", () => {
       regionId: race.state!,
       demographicCategory: target.category._id,
       demographicGroup: target.group.id,
-      expectedRevision: 0,
-    })).toEqual({ ok: true, message: `Bought targeted ads for ${target.group.name} voters in ${world.regions[race.state!]!.name}.`, changes: { actions: -1, funds: -100 } });
+      ...quoteParams(world),
+    })).toEqual({ ok: true, message: `Bought 1 targeted ad action for ${target.group.name} voters in ${world.regions[race.state!]!.name}.`, changes: { actions: -1, funds: -100 } });
     expect(world.player.actions).toBe(29);
     expect(world.player.funds).toBe(2_900);
     expect(world.player.targetedAds).toEqual([{
@@ -90,12 +169,12 @@ describe("campaignTargetedAd", () => {
       demographicCategory: target.category._id,
       demographicGroup: target.group.id,
     };
-    for (let i = 0; i < 25; i += 1) expect(executeAction(world, "player", "campaignTargetedAd", { ...params, expectedRevision: i }).ok).toBe(true);
+    for (let i = 0; i < 25; i += 1) expect(executeAction(world, "player", "campaignTargetedAd", { ...params, ...quoteParams(world) }).ok).toBe(true);
     expect(world.player.targetedAds?.[0]?.bonus).toBeCloseTo(0.25, 10);
     const before = { actions: world.player.actions, funds: world.player.funds };
-    expect(executeAction(world, "player", "campaignTargetedAd", { ...params, expectedRevision: 25 })).toEqual({
+    expect(executeAction(world, "player", "campaignTargetedAd", { ...params, ...quoteParams(world) })).toEqual({
       ok: false,
-      error: "This demographic target is already at the ad bonus cap.",
+      error: "Invalid target or action count",
     });
     expect(world.player.actions).toBe(before.actions);
     expect(world.player.funds).toBe(before.funds);
@@ -115,14 +194,14 @@ describe("campaignTargetedAd", () => {
       regionId,
       demographicCategory: target.category._id,
       demographicGroup: target.group.id,
-      expectedRevision: 0,
+      ...quoteParams(world),
     }).ok).toBe(true);
     expect(world.player.targetedAds?.[0]).toMatchObject({
       stateId: regionId, dimension: target.category._id, bucket: target.group.id, bonus: 0.01,
     });
   });
 
-  it("feeds the candidate's targeted ad bonus into the race tally", () => {
+  it("keeps standing ads out of the normal regional general tally", () => {
     const { world, race } = setupFiledRace();
     const target = firstTarget(world, race.state!);
     world.player.actions = 30;
@@ -133,7 +212,7 @@ describe("campaignTargetedAd", () => {
       demographicCategory: target.category._id,
       demographicGroup: target.group.id,
     };
-    for (let i = 0; i < 25; i += 1) expect(executeAction(world, "player", "campaignTargetedAd", { ...params, expectedRevision: i }).ok).toBe(true);
+    for (let i = 0; i < 25; i += 1) expect(executeAction(world, "player", "campaignTargetedAd", { ...params, ...quoteParams(world) }).ok).toBe(true);
 
     const baselineWorld = deserializeSave(serializeSave(world, "2026-09-11T00:00:00.000Z"));
     baselineWorld.player.targetedAds = undefined;
@@ -147,7 +226,7 @@ describe("campaignTargetedAd", () => {
       treatedPlayerBonuses = snapshot.candidates.find((candidate) => candidate.candidateId === "player")?.targetedAdBonuses;
     })).toBe(true);
     expect(baselinePlayerBonuses).toBeUndefined();
-    expect(treatedPlayerBonuses?.[target.group.id]).toBeGreaterThan(0);
+    expect(treatedPlayerBonuses).toBeUndefined();
   });
 
   it("rejects an invalid demographic target without charging resources", () => {
@@ -161,7 +240,7 @@ describe("campaignTargetedAd", () => {
       regionId: race.state!,
       demographicCategory: "missing",
       demographicGroup: "missing",
-      expectedRevision: 0,
+      ...quoteParams(world),
     })).toEqual({ ok: false, error: "Choose a recorded demographic target in this region." });
     expect(world.player.actions).toBe(before.actions);
     expect(world.player.funds).toBe(before.funds);

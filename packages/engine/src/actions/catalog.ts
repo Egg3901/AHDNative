@@ -1226,7 +1226,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   campaignTargetedAd: {
     id: "campaignTargetedAd",
     name: "Buy targeted ads",
-    description: "Spend one action and 100 funds to buy targeted ads for a demographic group in the campaign region.",
+    description: "Review the quoted local campaign-fund cost, then spend 1–50 actions on targeted ads for a demographic group in the campaign region.",
     baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
     cooldown: 0,
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
@@ -1236,7 +1236,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   targetedAds: {
     id: "targetedAds",
     name: "Targeted Ads",
-    description: "Spend one action and 100 funds on voter exposure in an eligible region. Ads decay over 24 turns and cap at 25%.",
+    description: "Review the quoted local campaign-fund cost, then spend 1–50 actions on voter exposure in an eligible region. Ads decay over 24 turns and cap at 25%.",
     baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
     cooldown: 0,
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,

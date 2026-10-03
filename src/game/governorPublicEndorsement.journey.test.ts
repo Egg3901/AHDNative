@@ -134,6 +134,9 @@ describe.sequential("earned governor presidential endorsement journey", () => {
             demographicCategory: target.category,
             demographicGroup: target.group,
             expectedRevision: campaign.targetedAds.revision,
+            expectedTurn: campaign.targetedAds.quoteTurn,
+            expectedCost: campaign.targetedAds.quoteUnitCost,
+            count: 1,
           });
           if (result.ok) successfulAds++;
           adAttempt++;

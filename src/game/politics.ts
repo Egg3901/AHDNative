@@ -11,7 +11,9 @@ import {
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
   CAMPAIGN_TARGETED_AD_CAP,
+  CAMPAIGN_TARGETED_AD_BOOST, CAMPAIGN_TARGETED_AD_MAX_ACTIONS,
   campaignTargetedAdRegions, currentAdBonus,
+  quoteTargetedAds,
   requiresPrimaryResolution,
   ukCommonsByElectionGate, type CommonsByElectionGate,
   UK_DEVOLUTION_REGIONS,
@@ -132,6 +134,8 @@ export interface PoliticsCampaignCanvassingView {
 export interface PoliticsCampaignTargetedAdsView {
   regionId: string | null;
   revision: number;
+  quoteTurn?: number;
+  quoteUnitCost?: number;
   regions: { id: string; name: string }[];
   targets: {
     regionId: string;
@@ -140,6 +144,7 @@ export interface PoliticsCampaignTargetedAdsView {
     group: string;
     groupName: string;
     bonus: number;
+    maxCount: number;
     maxed: boolean;
   }[];
   action: ActionView;
@@ -854,15 +859,18 @@ function campaignTargetedAdsAction(
           group: group.id,
           groupName: group.name,
           bonus,
+          maxCount: Math.min(CAMPAIGN_TARGETED_AD_MAX_ACTIONS, Math.ceil(Math.max(0, CAMPAIGN_TARGETED_AD_CAP - bonus - 1e-10) / CAMPAIGN_TARGETED_AD_BOOST)),
           maxed: bonus >= CAMPAIGN_TARGETED_AD_CAP - 1e-10,
         };
       }));
   });
   const entry = ACTION_CATALOG.campaignTargetedAd;
   const cost = getActionCost(entry, world.player.donorBaseLevel, world.player.politicalInfluence, world.player.favorability);
-  const fundCost = campaignAnchorToLocal(entry.fundCost, world.player.countryId);
+  const quote = quoteTargetedAds(world, 1);
+  const fundCost = quote?.unitCost ?? 0;
   const reason = campaignReason
     ?? (!defaultRegion ? "No campaign region is available." : undefined)
+    ?? (!quote ? "Campaign currency quote unavailable for this country." : undefined)
     ?? (targets.length === 0 ? "No eligible campaign demographic targets." : undefined)
     ?? (targets.every((target) => target.maxed) ? "All targeted ad audiences are at the bonus cap." : undefined)
     ?? (world.player.actions < cost ? "Not enough action points." : undefined)
@@ -871,6 +879,7 @@ function campaignTargetedAdsAction(
     regionId: defaultRegion ?? null,
     regions: regions.map((regionId) => ({ id: regionId, name: world.regions[regionId]?.name ?? regionId })),
     revision: world.player.targetedAdsRevision ?? 0,
+    ...(quote ? { quoteTurn: quote.turn, quoteUnitCost: quote.unitCost } : {}),
     targets,
     action: {
       id: "campaignTargetedAd",
