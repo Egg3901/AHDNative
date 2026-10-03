@@ -9,6 +9,30 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  ec_source_flows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Qualify source geography and presidential saved-turn consumers
+        run: npx vitest run --config vitest.ec-source.config.ts
+  historical_feature_consumers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Qualify feature refusals on retained historical writers
+        run: npx vitest run --config vitest.historical-consumers.config.ts
   jp_whip_flows:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
