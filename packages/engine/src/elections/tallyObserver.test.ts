@@ -8,6 +8,7 @@ import { campaignKey, ensureCampaignsForElection } from "../campaigns/lifecycle.
 import { executeAction } from "../actions/execute.js";
 import { quoteTargetedAds } from "../actions/campaignTargetedAd.js";
 import { hasSource1953DemographicShape, hasSourceYearDemographicShape, campaignCellsForRegion, targetedAdBonuses } from "../campaigns/targetedAds.js";
+import { dateForTurn } from "../calendar.js";
 
 describe("ephemeral tally input observer", () => {
   it("selects the year-resolved source electorate for an anchored ordinary general tally", () => {
@@ -19,8 +20,10 @@ describe("ephemeral tally input observer", () => {
     expect(initialCells.reduce((sum, cell) => sum + cell.share, 0)).toBeCloseTo(1, 10);
 
     // The ordinary completed-turn counter maps through the actual 48-turn
-    // source clock; at turn 48 the source year is 1954.
+    // source clock; at turn 48 the source year is 1954. This is a declared
+    // checkpoint fixture, so keep the Native weekly display date consistent.
     world.meta.turn = 48;
+    world.meta.date = dateForTurn(48);
     const nextYearCells = campaignCellsForRegion(world, "NY");
     expect(nextYearCells.length).toBeGreaterThan(0);
     expect(nextYearCells).not.toEqual(initialCells);
