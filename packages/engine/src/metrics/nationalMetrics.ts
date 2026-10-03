@@ -44,7 +44,7 @@ import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { isMetricActive } from "./metricActivation.js";
 import { legacyPoliticalHalfFromBoard } from "../politicalMetrics/sourceRuntime.mjs";
 
-export type MetricValue = { value: number };
+export type MetricValue = { value: number; simBaseline?: number };
 
 export type NationalMetrics = Record<string, MetricValue>; // key "category.metric"
 

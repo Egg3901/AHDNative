@@ -986,6 +986,28 @@ function assertCurrentWorldState(world: WorldState): void {
   ) {
     throw new Error("Not a valid save file: invalid world state");
   }
+
+  // Schema 68 adds source metric-engine coexistence state only to the
+  // cost-of-living node. Old rows may legitimately omit it; present values
+  // must be consumable by the 40..200 bounded source node.
+  const regionalMetrics = value["regionalMetrics"];
+  if (!isRecord(regionalMetrics)) throw new Error("Not a valid save file: invalid regional metrics");
+  for (const [regionId, regionMetrics] of Object.entries(regionalMetrics)) {
+    if (!isRecord(regionMetrics)) throw new Error(`Not a valid save file: invalid regional metrics for ${regionId}`);
+    const col = regionMetrics["economic.costOfLiving"];
+    if (col === undefined) continue;
+    if (
+      !isRecord(col) ||
+      Object.keys(col).some((key) => key !== "value" && key !== "simBaseline") ||
+      typeof col["value"] !== "number" || !Number.isFinite(col["value"]) ||
+      (col["value"] as number) < 40 || (col["value"] as number) > 200 ||
+      (col["simBaseline"] !== undefined &&
+        (typeof col["simBaseline"] !== "number" || !Number.isFinite(col["simBaseline"]) ||
+          (col["simBaseline"] as number) < 40 || (col["simBaseline"] as number) > 200))
+    ) {
+      throw new Error(`Not a valid save file: invalid regional cost-of-living metric for ${regionId}`);
+    }
+  }
   const lastRelocatedTurn = player["lastRelocatedTurn"];
   if (lastRelocatedTurn !== undefined &&
       (!Number.isSafeInteger(lastRelocatedTurn) || (lastRelocatedTurn as number) < 0)) {
@@ -4004,6 +4026,9 @@ export function deserializeSave(raw: string): WorldState {
   // default Irish races. The schema barrier makes opt-in ballot/result
   // continuations unreadable to the prior tally grammar.
   if (save.schemaVersion < 67) save.world.meta.schemaVersion = 67;
+  // v68: preserve genuinely absent regional rows and coexistence baselines
+  // until their first ordinary cost-of-living metric turn.
+  if (save.schemaVersion < 68) save.world.meta.schemaVersion = 68;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
