@@ -32,6 +32,22 @@ const { COUNTRY_ORDER } = require(path.join(sourceRoot, 'src/lib/constants/count
 const { SENATE_CLASSES_BY_STATE } = require(path.join(sourceRoot, 'src/lib/constants/states.ts'));
 const { states2023 } = require(path.join(sourceRoot, 'src/lib/seeds/reference/states2023.ts'));
 const { stateCensusData2023 } = require(path.join(sourceRoot, 'src/lib/countries/us/data/usStateCensusData2023.ts'));
+const jpRegionsByYear = Object.fromEntries([1999, 2007, 2023].map((year) => {
+  const module = require(path.join(sourceRoot, `src/lib/countries/jp/data/jpRegions${year}.ts`));
+  const rows = module[`jpRegions${year}`];
+  if (!Array.isArray(rows) || rows.length !== 8) throw new Error(`Expected eight source JP regions for ${year}`);
+  return [year, rows.map((row) => ({
+    id: row._id,
+    name: row.name,
+    countryId: row.countryId,
+    population: row.population,
+    gdp: row.gdp,
+    houseSeats: row.houseDistricts,
+    senateSeats: row.stateSenateSeats,
+    region: row.region,
+    votingSystem: row.votingSystem,
+  }))];
+}));
 const { buildAllRegistrationSeeds } = require(path.join(sourceRoot, 'src/lib/seeds/registration/registrationLanes.ts'));
 const { generateStateDemographicsForTest } = require(path.join(sourceRoot, 'src/lib/seeds/stateDemographics.ts'));
 const { getPresetFallbacks, resetPresetFallbacks } = require(path.join(sourceRoot, 'src/lib/seeds/presetSelector.ts'));
@@ -146,6 +162,7 @@ const artifact = {
       'src/lib/seeds/partySeedRegistry.ts#partySeedsForPreset',
       'src/lib/seeds/registration/registrationLanes.ts#buildAllRegistrationSeeds',
       'src/lib/seeds/stateDemographics.ts#generateStateDemographicsForTest',
+      ...[1999, 2007, 2023].map((year) => `src/lib/countries/jp/data/jpRegions${year}.ts#jpRegions${year}`),
     ],
     nativeExportScope: 'Source-returned preset roster, budget, party, exchange-rate, 2023 state/demographic outputs plus explicit 2020 seat fallback; playable SeedPack assembly and unsupported system disclosure remain separate.',
     normalizedRuntimeFields: ['budgetOutput.rows[].economicFactors.lastUpdated: source assigns current seed time; non-epoch Date values use a stable marker.'],
@@ -167,6 +184,13 @@ const artifact = {
     generatedDemographics: { rowCount: us2023Demographics.length, sha256: hash(us2023Demographics), rows: us2023Demographics },
     registrationSource: 'buildAllRegistrationSeeds current/default lane (the source has no 2023-specific registration builder)',
     senateClassSource: 'SENATE_CLASSES_BY_STATE; non-state DC uses the existing neutral [1,2] placeholder convention',
+  },
+  jpRegionalContent: {
+    sourceFiles: [1999, 2007, 2023].map((year) => `src/lib/countries/jp/data/jpRegions${year}.ts#jpRegions${year}`),
+    presets: Object.entries(jpRegionsByYear).map(([year, rows]) => ({
+      year: Number(year), rowCount: rows.length, sha256: hash(rows), rows,
+    })),
+    registrationSource: 'Native retains its existing 2019 StateSeed registration estimates by stable JP region id; AHDGame JP region bundles author geography/economy/seats, not StateSeed registration fields.',
   },
   sourcePlayerPartyRosters: {
     sourceFile: 'src/lib/seeds/partySeedRegistry.ts#partySeedsForPreset',
