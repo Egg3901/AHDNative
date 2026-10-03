@@ -10,19 +10,21 @@ source bill-enactment delta in this range only adds analytics capture.
 | Law | Source effect | Native producer and continuation |
 | --- | --- | --- |
 | `ru.economy.stability.primary` | `RU_LAWS`: `economy.stability`, L3 baseline, five authored levels, GDP costs | Same-country 1953 HoS can sponsor the selected level; bill/policy ledger records it, budget delta and ordinary policy-effect phase consume it, and save/reload preserves the ledger and next-turn metric. |
-| `dd.economy.workerSecurity.primary` | `DD_LAWS`: `economy.workerSecurity`, both national/regional scope, L3 baseline, five levels and source reform title | Same as RU; catalog retains source `both` scope, while this public witness exercises national scope only. |
+| `dd.economy.workerSecurity.primary` | `DD_LAWS`: `economy.workerSecurity`, both national/regional scope, L3 baseline, five levels and source reform title | Public HOS action witnesses national and actual-region scope; regional ledger and ordinary metric destination survive save/reload. |
 | `us.defense.diplomacy.primary` | `US_LAWS`: `defense.diplomacy`, L2 baseline and GDP-cost ladder | Source row only targets the scalar metric; no alliance records are authored by the law. Native budget and metric policy consumers handle its authored channels. |
 | `us.defense.armedForces.primary` | `US_LAWS`: `defense.armedForces`, L4 baseline and GDP-cost ladder | Source row only targets the scalar metric; it does not directly create units or mutate conflict state. Native budget and metric policy consumers handle its authored channels. |
 | `us.environment.conservation.primary` | `US_LAWS`: `environment.conservation`, both scope, L1 baseline and GDP-cost ladder | Native policy ledger, environmental metric destination, and budget delta path consume the authored target and costs. |
 | `uk.defense.security.primary` | `UK_LAWS`: `defense.security`, L2 baseline and GDP-cost ladder | Source row only targets the scalar metric; Native budget and metric policy consumers handle it. |
-| `us.tax.tariffs` | `US_LAWS`: federal `tariffs`, 0–15%, 0.5-point rate step, zero baseline | Existing sponsor, tariff tax base/revenue calculation, rate phase-in and save/reload continuation. This is distinct from the unmatched synthetic `us.tariff.primary` ID. |
+| `us.tax.tariffs` | `US_LAWS`: federal `tariffs`, 0–15%, 0.5-point rate step, zero baseline | Existing sponsor, import-value tariff revenue, budget surplus reconciliation, rate phase-in and save/reload continuation. The current turn books receipts at its in-force rate before advancing the next rate step. This is distinct from unmatched synthetic `us.tariff.primary`. |
 
 Focused tests use real `createWorld`, `executeAction`, `advanceTurn`,
 `serializeSave`, and `deserializeSave` seams. They use source HOS creation as
-the player authority and make no claim about a chamber-vote career. Program
-level selection is accepted by the engine action; the general legislation UI
-still reports levels as read-only and does not offer a level selector, so UI
-selection parity remains open under parent #101.
+the player authority and make no claim about a chamber-vote career. The
+player query and legislation panel expose the source baseline and selector for
+authored discrete levels. Both-scope laws expose national or an actual
+same-country region; region IDs flow through `sponsorBill`, whose engine
+validation and policy-ledger consumer retain the requested scope. Sponsor
+eligibility, office, country and action costs remain on the existing gates.
 
 ## Still unavailable
 
@@ -53,11 +55,15 @@ sales-tax budget leg).
 
 - The first `sourceMetricExecutableSlice.test.ts` run was red: both RU/DD catalog rows
   were unavailable and exposed only a dummy metric. After porting exact source
-  rows, the targeted RU/DD + source-metric tests passed 6/6.
+  rows, the targeted source producer/save/turn tests pass 7/7, including regional scope.
 - Targeted `catalogUnavailableInventory.test.ts` and `policyLevel.test.ts`
   passed with them; total was 17/17 across those three files.
-- `usTariffExecutableSlice.test.ts` passed 1/1, including phase-in and matched
-  save/reload continuation.
+- `usTariffExecutableSlice.test.ts` verifies phase-in, matched save/reload,
+  import-value receipts and budget surplus reconciliation.
+- `LegislationDetailsPanel.test.tsx` passed 19/19, including level `l3` and an
+  actual same-country region passed through the sponsor action callback.
+- `legislationDetails.test.ts` passed 16/16, including actual-region projection
+  and national/regional action parameters.
 - The generator CLI could not run in this sandbox because its `tsx` IPC socket
   and Node child-process Git revision probe return `EPERM`. The generated
   unavailable inventory was mechanically filtered to match the generator's
@@ -65,5 +71,8 @@ sales-tax budget leg).
   remaining unavailable catalog entry exactly once.
 
 This is a source review and executable slice, not full #285/#101 acceptance:
-the catalog still has unavailable rows listed above, the level selector is
-not exposed by the general UI, and the full package gate has not been run.
+the catalog still has unavailable rows listed above and the full package gate
+has not been run. The five unmatched IDs remain synthetic Native stubs, not
+aliases: `us.tariff.primary`, `us.subsidy.industry.primary`,
+`us.union.law.primary`, `us.electoral.law.primary`, and
+`us.centralBank.independence.primary`.
