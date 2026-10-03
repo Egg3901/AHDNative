@@ -884,6 +884,13 @@ export interface WorldMeta {
   rng: RngState;
   /** Completed turns. 0 = freshly created world. */
   turn: number;
+  /**
+   * Source election/demographic clock anchor (AHDGame GameState.startingYear).
+   * New worlds set this from their selected content-pack era, independently
+   * of a custom displayed startDate. Absent on legacy/imported saves whose
+   * source clock cannot be established without guessing from the native date.
+   */
+  startingYear?: number;
   /** In-game date as ISO day, e.g. "1953-01-06". One turn = one week. */
   date: string;
   /**

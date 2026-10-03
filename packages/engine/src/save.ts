@@ -214,6 +214,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       }
     }
   }
+  if (isRecord(world["meta"]) && hasOwn(world["meta"], "startingYear")) {
+    return { ok: false, error: "The source 48-turn election clock cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
   const standingAds = isRecord(world["player"]) ? world["player"]["targetedAds"] : undefined;
   if (Array.isArray(standingAds) && standingAds.length > 0) {
     return { ok: false, error: "Standing targeted-ad exposure cannot be continued by the schema 42 turn reader; keep this Native save." };
@@ -1012,6 +1015,10 @@ function assertCurrentWorldState(world: WorldState): void {
     ) {
       throw new Error(`Not a valid save file: invalid regional cost-of-living metric for ${regionId}`);
     }
+  }
+  if (meta["startingYear"] !== undefined &&
+      (!Number.isSafeInteger(meta["startingYear"]) || (meta["startingYear"] as number) < 1000 || (meta["startingYear"] as number) > 9999)) {
+    throw new Error("Not a valid save file: invalid source starting year");
   }
   const lastRelocatedTurn = player["lastRelocatedTurn"];
   if (lastRelocatedTurn !== undefined &&

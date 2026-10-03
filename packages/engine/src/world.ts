@@ -1187,6 +1187,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       seed: options.seed,
       rng: rng.state(),
       turn: 0,
+      startingYear: Number(pack.era.id),
       date: startDate,
       era: pack.era.id,
       // W33: eraCrossing guard field, seeded to the starting era so a fresh
