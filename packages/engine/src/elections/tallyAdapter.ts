@@ -300,7 +300,7 @@ function nationalPartyOrgs(world: WorldState, countryId: string): TallyStatePart
   return result;
 }
 
-function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInputs {
+function derivedInputs(world: WorldState, rec: ElectionRecord, index?: TallyTurnIndex): TallyDerivedInputs {
   const incumbentSeatShareByParty = new Map<string, number>();
   const leg = world.legislatures[rec.countryId];
   const chamber = leg?.chambers.find((c) => c.key === rec.chamberKey);
@@ -317,16 +317,18 @@ function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInpu
   // electionEngine/fundsByParty.ts aggregateFundsByParty. Races without
   // campaigns (isCampaignEligible.ts gates which races get one) correctly
   // yield an empty map, same as mainline where no Campaign doc exists.
-  const fundsByParty = aggregateFundsByParty(
-    rec.candidates.filter(isElectionCandidateActive).map((cand) => {
-      const campaign = world.campaigns[campaignKey(rec.id, cand.id)];
-      return {
-        party: cand.partyId,
-        spendStock: campaign?.spendStock ?? 0,
-        spendThisTurn: campaign?.spendThisTurn ?? 0,
-      };
-    }),
-  );
+  // Game loads every campaign document by electionId for each regional tally.
+  // Candidate rows are not the source of truth here: withdrawn candidates'
+  // archived campaign rows remain in the election history and are included by
+  // the source query as well. The turn index gives each persisted campaign one
+  // contribution, without multiplying funds by regional tally slices.
+  const raceCampaigns = index?.campaignsByElection.get(rec.id) ??
+    Object.values(world.campaigns).filter((campaign) => campaign.electionId === rec.id);
+  const fundsByParty = aggregateFundsByParty(raceCampaigns.map((campaign) => ({
+    party: campaign.partyId,
+    spendStock: campaign.spendStock ?? 0,
+    spendThisTurn: campaign.spendThisTurn ?? 0,
+  })));
   // W24: the sitting president's party feeds the presidential-coattail driver
   // for down-ballot races (accumulateVoteTurn.ts self-excludes the
   // president's own race via isHeadOfGovernmentRace, so this is a no-op
@@ -630,7 +632,7 @@ function runAccumulateCore(
     enriched,
     turnNumber: world.meta.turn,
     now,
-    derived: derivedInputs(world, rec),
+    derived: derivedInputs(world, rec, index),
     distributeFn: isGeneralElection
       ? distributeVotesBySwingFlow
       : distributeVotesByGroupLevelAllocation,

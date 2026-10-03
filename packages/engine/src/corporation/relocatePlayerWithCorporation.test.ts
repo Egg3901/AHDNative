@@ -4,6 +4,7 @@ import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { serializeSave, deserializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
 import { SOURCE_CHARACTER_RELOCATION_COOLDOWN_TURNS } from "./relocatePlayerWithCorporation.js";
+import { ensureCampaign } from "../campaigns/lifecycle.js";
 
 function relocationWorld() {
   const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: "ceo-relocation-source", playerName: "Alex" });
@@ -90,12 +91,21 @@ describe("source CEO relocation with corporation", () => {
     world.player.legislativeSeat = { chamberKey: "house", countryId: "US", regionId: "AL" };
     world.player.politicalInfluence = 80;
     world.player.donorBaseLevel = 4;
-    world.elections.push({
+    const race: (typeof world.elections)[number] = {
       id: "house:US:AL:c1", electionType: "house", countryId: "US", state: "AL", cycle: 1,
       status: "active", startTurn: world.meta.turn, primaryEndTurn: world.meta.turn + 1,
       endTurn: world.meta.turn + 2, totalSeats: 1, chamberKey: "house",
-      candidates: [{ id: "player", name: "Alex", partyId: "US_DEM", isNPP: false, incumbent: false, status: "active" }],
-      tally: {},
+      candidates: [
+        { id: "player", name: "Alex", partyId: "US_DEM", isNPP: false, incumbent: false, status: "active" as const },
+        { id: "rival", name: "Rival", partyId: "US_REP", isNPP: false, incumbent: false, status: "active" as const },
+      ],
+      tally: { player: 100, rival: 80 },
+      stateTallyStates: { AL: { totalVotes: { player: 100, rival: 80 } } },
+    };
+    world.elections.push(race);
+    ensureCampaign(world, {
+      electionId: race.id, candidateId: "player", candidateIsNPP: false,
+      partyId: "US_DEM", countryId: "US", electionType: "house", turn: world.meta.turn,
     });
     const beforeForexRevenue = world.centralBanks.US!.forexRevenue ?? 0;
     const beforeReserve = world.centralBanks.UK!.spreadFeeReserveBalances?.USD ?? 0;
@@ -111,7 +121,12 @@ describe("source CEO relocation with corporation", () => {
     expect(world.player).toMatchObject({ countryId: "UK", homeRegionId: "LON", currentOffice: null, legislativeSeat: null, politicalInfluence: 0, donorBaseLevel: 0 });
     expect(world.player.partyId).toBeNull();
     expect(world.parties.US_DEM!.memberCount).toBe(originalPartyMembers);
-    expect(world.elections.at(-1)!.candidates.some((candidate) => candidate.id === "player")).toBe(false);
+    const movedRace = world.elections.at(-1)!;
+    expect(movedRace.candidates.find((candidate) => candidate.id === "player")?.status).toBe("withdrawn");
+    expect(movedRace.candidates.find((candidate) => candidate.id === "rival")?.status).toBe("active");
+    expect(movedRace.tally).toEqual({ rival: 80 });
+    expect((movedRace.stateTallyStates?.AL as { totalVotes: Record<string, number> }).totalVotes).toEqual({ rival: 80 });
+    expect(world.campaigns[`${movedRace.id}:player`]?.status).toBe("archived");
     expect(corp).toMatchObject({ countryId: "UK", headquartersRegionId: "LON", liquidCurrencyCode: "GBP", sharePrice: 4.284, revenue: 100_000, currentGrowthCost: 1_000, foundingRevenue: 200_000, ceoSalaryPerTurn: 357, rdBudgetPerTurn: 2_000 });
     expect(corp.liquidCapital).toBe(Math.round(500_000 * currencyScale * 100) / 100 - expectedCost);
     expect(corp.earningsHistory).toEqual([12_000]);
@@ -121,5 +136,12 @@ describe("source CEO relocation with corporation", () => {
     expect(sector.plantsPnl).toMatchObject({ revenue: 26_775, inputs: 4_284, labour: 1_428, upkeep: 714, otherOpex: 1_071, financialLegs: 249.9, profit: 18_564 });
     expect(world.centralBanks.US!.forexRevenue).toBe(beforeForexRevenue + Math.round(Math.round(spreadAnchor * world.exchangeRates.US!.rate) * 0.25));
     expect(world.centralBanks.UK!.spreadFeeReserveBalances?.USD).toBe(beforeReserve + Math.round(Math.round(spreadAnchor * world.exchangeRates.US!.rate) * 0.5));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    const savedRace = loaded.elections.find((election) => election.id === movedRace.id)!;
+    expect(savedRace.candidates.find((candidate) => candidate.id === "player")?.status).toBe("withdrawn");
+    expect(savedRace.candidates.find((candidate) => candidate.id === "rival")?.status).toBe("active");
+    expect(savedRace.tally).toEqual({ rival: 80 });
+    expect((savedRace.stateTallyStates?.AL as { totalVotes: Record<string, number> }).totalVotes).toEqual({ rival: 80 });
+    expect(loaded.campaigns[`${movedRace.id}:player`]?.status).toBe("archived");
   });
 });
