@@ -19,8 +19,9 @@ Runtime source `d43ebc84ccb2113b95fe49d4b01cc83bbf2effbd` passed the complete
 The delivered commit changes only Mac bootstrap, workflow guard and iOS documentation;
 all runtime sources are identical. The corrected source passed 48 rules/workflow
 guards and repeated SP/recovery 3/3. The exact head's repeated
-[full gate](https://github.com/Egg3901/AHDNative/actions/runs/37088728120) and
-[PR #738](https://github.com/Egg3901/AHDNative/pull/738) merge remain pending.
+[full gate](https://github.com/Egg3901/AHDNative/actions/runs/37088728120) passed
+every step. [PR #738](https://github.com/Egg3901/AHDNative/pull/738) merged as
+`15a6aa690800ccbe8c1c508df2e2d4d28afbff3f`.
 #124 and #510 stay partial; full route/capability coverage, mechanics, save interchange
 and named-device lifecycle/performance acceptance stay open. Schema 54 is retained;
 unqualified schema 65 integration is excluded. [Release evidence](RELEASE-0.1.10.md).

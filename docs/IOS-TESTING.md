@@ -94,7 +94,10 @@ The most recently delivered and processed internal iOS preview is marketing
 version `0.1.10`, Apple build `1.23` (source `preview/0.1.10-2`): Apple processing
 VALID, INTERNAL_ONLY, IN_BETA_TESTING, attached to the existing internal Owner review
 group with assignment confirmed by a fresh read. Actual IPA metadata and approved
-packaged icons were verified privately. Current source metadata is `0.1.10`.
+packaged icons were verified privately. The exact source passed the complete
+[verification gate](https://github.com/Egg3901/AHDNative/actions/runs/37088728120),
+and [PR #738](https://github.com/Egg3901/AHDNative/pull/738) merged as `15a6aa69`.
+Current source metadata is `0.1.10`.
 Networking and dependency sources are unchanged from the preceding qualified runtime;
 the actual IPA and App Store Connect encryption Boolean remain `false`. This records
 delivery metadata, not a new legal classification. For the next authorized candidate, set the intended marketing version
