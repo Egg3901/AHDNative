@@ -237,13 +237,21 @@ describe("#40/#106 default TFP seed at createWorld", () => {
     expect(tfpBasket(nationalTfp(loaded, "UK"))).toBe(basket);
   });
 
-  it("refuses historical v42 export of a fresh world whose TFP inputs the old turn engine drops", () => {
+  it("refuses historical v42 export of a fresh world whose TFP inputs the old turn engine drops", async () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
-    // Isolate the TFP projection contract from the independently-tested
-    // schema-69 source clock refusal. Authentic v42 saves predate the durable
-    // startingYear anchor and preserve its genuine absence on load.
-    delete world.meta.startingYear;
-    const projected = projectSaveToV42(serializeSave(world, "2026-09-10T00:00:00.000Z"));
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("source 48-turn election clock"),
+    });
+    // Add the fresh TFP inputs to a migrated authentic v42 world to isolate
+    // their refusal without stripping other current-world incompatibilities.
+    const { readFileSync } = await import("node:fs");
+    const { gunzipSync } = await import("node:zlib");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const fixture = join(dirname(fileURLToPath(import.meta.url)), "../../../../fixtures/v42-1953-US.save.json.gz");
+    const legacy = deserializeSave(gunzipSync(readFileSync(fixture)).toString("utf8"));
+    legacy.regionalMetrics = world.regionalMetrics;
+    const projected = projectSaveToV42(serializeSave(legacy, SAVED_AT));
     expect(projected).toMatchObject({ ok: false, error: expect.stringContaining("Regional metric records") });
   });
 

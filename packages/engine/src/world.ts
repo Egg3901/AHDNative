@@ -4,8 +4,9 @@ import { assignSourceHomeStates } from "./elections/sourceHomeState.js";
 import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
-import type { BackgroundElectionSeed } from "@ahdclient/content";
+import type { BackgroundElectionSeed, SeedPack } from "@ahdclient/content";
 import { eraToPreset } from "./electionEngine/resolution/constants.js";
+import { createJPRegionalBudgetRows } from "./budget/jpRegionalBudget.js";
 import { createPoliticiansForWorld, generatePolitician } from "./politician.js";
 import { CATEGORIES_BY_COUNTRY_1953 } from "./demographics/categories.js";
 import { US_STATE_DEMOGRAPHICS_1953, type StateDemographicsSeed } from "./demographics/usStateDemographics1953.js";
@@ -203,7 +204,11 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v68: regional cost-of-living coexistence baseline is now persisted and
 // consumed by union local mandates; readers without that lifecycle must refuse.
 // v69: standing targeted-ad exposure and its source election-year anchor.
-export const SCHEMA_VERSION = 69;
+// v70: source JP background fiscal rows and optional Internal Affairs grant
+// shares. Existing saves keep absent mutable allocations; missing base rows are
+// reconstructed from immutable era pack data at the next ordinary budget turn.
+// v71: persisted national whip attempts and source wall-clock party-control anchors.
+export const SCHEMA_VERSION = 71;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1784,21 +1789,7 @@ function seedDemographics(
 }
 
 function seedBudgets(
-  pack: { era: { id: string }; budgets?: Array<{
-    countryId: string;
-    fiscalYear: number;
-    population: number;
-    gdp: number;
-    currencyCode: string;
-    taxBaseRatios: { taxableIncome: number; corporateProfits: number; wagesAndSalaries: number; importValue: number; taxableSales: number };
-    taxRates: { incomeTax: number; domesticCorporateTax: number; foreignCorporateTax: number; payrollTax: number; tariffs: number; salesTax: number; solidaritySurcharge?: number };
-    otherRevenue: number;
-    debt: { principal: number; interestRate: number; ceiling: number };
-    creditRating: string;
-    baselineSpendingByCategory: Record<string, number>;
-    baselineStateGrants: number;
-    economicFactors: { gdpGrowth: number; wageGrowth: number; inflationRate: number; tradeGrowth: number };
-  }> },
+  pack: SeedPack,
   regions: WorldState["regions"],
 ): { budgets: WorldState["budgets"]; regionalBudgets: WorldState["regionalBudgets"] } {
   const budgets: WorldState["budgets"] = {};
@@ -1963,6 +1954,17 @@ function seedBudgets(
       consecutiveDeficits: 0,
     };
   }
+
+  // Japan participates as a simulated source country even while the player
+  // creation gate remains closed. Keep its eight source regional-budget rows
+  // in the fiscal book only; putting these rows in the shared Region table
+  // would incorrectly seed elections and demographics from an economy-only
+  // action. The source seeds every JP regional StatePolicy at its center option
+  // in all eras; these remain fiscal rows and do not create voter regions.
+  // createWorld uses the same deterministic source baseline as the ordinary
+  // phase's legacy-row initializer. Neither path fabricates electoral regions
+  // or a minister's historical grant allocation.
+  if (budgets.JP) Object.assign(regionalBudgets, createJPRegionalBudgetRows(pack.era.id));
 
   return { budgets, regionalBudgets };
 }

@@ -202,7 +202,7 @@ export interface LegislatureView {
   proposals: { id: string; title: string; description: string }[];
   sponsor: ActionView;
   bills: { id: string; title: string; status: string; chamber: string; chamberKey?: string; sponsorName: string;
-    votesFor: number; votesAgainst: number; votesAbstain: number;
+    votesFor: number; votesAgainst: number; votesAbstain: number; hardWhip?: ActionView;
     playerVote: "for" | "against" | "abstain" | null; voting: ActionView; }[];
   /** Configured chambers for this country (index.ts projection). */
   chambers?: LegislatureChamberView[];
@@ -342,6 +342,7 @@ export interface GameScreenProps {
   loadCabinetOffice?: () => Promise<import("./cabinetOffice").CabinetOfficeView>;
   /** Validated ministerial order issue; present alongside loadCabinetOffice. */
   onIssueCabinetOrder?: (input: import("./cabinetOffice").IssueCabinetOrderInput) => void;
+  onSetJPRegionalAllocation?: (input: import("./cabinetOffice").SetJPRegionalAllocationInput) => void;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
   loadStateOwnership?: (countryId?: string) => Promise<import("./stateOwnership").StateOwnershipView>;

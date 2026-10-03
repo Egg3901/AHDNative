@@ -10,6 +10,10 @@ export type { ForexTradeQuote, ForexTradeQuoteResult, CurrencyVolume } from "./f
 export type { CommodityClearingInput, CommodityClearingResult, CountryCommodityClearing } from "./trade/clearing.js";
 export { corporateTradeSnapshotPhase, recordCorporateTradeSnapshot } from "./trade/corporateTrade.js";
 export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCountryEconomyRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
+export { calculateJPRegionalBudget, processJPRegionalBudget, JP_RESIDENT_TAX_MEDIAN_INCOME_FALLBACK, JP_PROPERTY_VALUE_PER_CAPITA_FALLBACK } from "./budget/jpRegionalBudget.js";
+export { setJPRegionalBudgetAllocation, JP_INTERNAL_AFFAIRS_MINISTER } from "./budget/jpAllocation.js";
+export type { JPRegionalBudgetInput, JPRegionalBudgetResult } from "./budget/jpRegionalBudget.js";
+export type { JPAllocationResult } from "./budget/jpAllocation.js";
 export { isNewCharacterSelection } from "@ahdclient/content";
 export { electorateLeanForGroups, listCreationHomeRegions } from "./demographics/homeRegionContext.js";
 export type { HomeRegionContext, HomeRegionElectorateLean } from "./demographics/homeRegionContext.js";
@@ -512,3 +516,4 @@ export type { ContractAuthority } from "./extraction/authority.js";
 export { expandRegionalExtraction, SECTOR_EXPANSION_BASE_COST_ANCHOR } from "./extraction/operations.js";
 
 export { addCanvassBoost, canvassEligibility, quoteCanvass } from "./actions/canvass.js";
+export { partyWhipEligibilityError } from "./npp/partyWhipEligibility.js";

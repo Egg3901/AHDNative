@@ -26,7 +26,8 @@
  *    its revenue is a percentage of calculated income-tax receipts.
  *  - Legislation types: src/lib/seeds/reference/legislationTypes.ts (US, UK),
  *    src/lib/seeds/{ru,dd,jp,de,ie,cn,br}/{c}LegislationTypes.ts.
- * The 1953 pack keeps its hand-authored budgets (same field set).
+ * The 1953 pack keeps its hand-authored budgets (same field set), including
+ * the source JP macro budget used by the background fiscal simulation.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -69,7 +70,7 @@ type Cfg = {
 };
 
 const PACK_COUNTRIES: Record<string, string[]> = {
-  "1979": ["US", "UK", "RU", "DD"],
+  "1979": ["US", "UK", "RU", "DD", "JP"],
   "1991": ["US", "UK", "JP", "DE", "CN", "BR", "IE"],
   "1999": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],
   "2007": ["US", "UK", "JP", "DE", "IE", "BR", "CN", "NG"],

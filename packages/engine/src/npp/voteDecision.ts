@@ -67,14 +67,19 @@ function currentOpposition(
 }
 
 /** Resolve one ordinary federal NPP ballot from the source cross-pressure inputs. */
-export function resolveNppBillVote(world: WorldState, bill: Bill, voter: Politician): "for" | "against" | "abstain" {
-  const recordedWhip = currentPartyWhip(world, voter, bill);
+export function resolveNppBillVote(
+  world: WorldState,
+  bill: Bill,
+  voter: Politician,
+  whipOverride?: CrossPressurePartyWhip,
+): "for" | "against" | "abstain" {
+  const recordedWhip = whipOverride ?? currentPartyWhip(world, voter, bill);
   // Native's explicit abstain whip is a public extension; Game party whips only
   // express for/against, so keep the existing instruction's direct semantics.
   if (recordedWhip?.direction === "abstain") return "abstain";
 
   const partyWhip: CrossPressurePartyWhip | null = recordedWhip
-    ? { direction: recordedWhip.direction, mode: recordedWhip.mode }
+    ? { direction: recordedWhip.direction, ...(recordedWhip.mode === undefined ? {} : { mode: recordedWhip.mode }) }
     : null;
   const level = effectiveNppAutonomyLevelForCountry(world.nppAutonomyLevel, bill.countryId, world.player.countryId);
   const opposition = nppAutonomyLevelAtLeast(level, "v1")

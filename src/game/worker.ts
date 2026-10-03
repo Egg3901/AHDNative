@@ -21,6 +21,7 @@ self.addEventListener("message", async (event: MessageEvent<GameRequest>) => {
       case "regions": value = session.regions(command.query); break;
       case "cabinetOffice": value = session.cabinetOffice(); break;
       case "issueCabinetOrder": value = session.issueCabinetOrder({ positionId: command.positionId, orderId: command.orderId, ...(command.targetRegionId ? { targetRegionId: command.targetRegionId } : {}) }); break;
+      case "setJPRegionalAllocation": value = session.setJPRegionalAllocation(command.input); break;
       case "caucusManagement": value = session.caucusManagement(); break;
       case "partyManagement": value = session.partyManagement(); break;
       case "markets": value = session.markets(); break;
