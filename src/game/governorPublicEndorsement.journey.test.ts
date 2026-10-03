@@ -129,13 +129,19 @@ describe.sequential("earned governor presidential endorsement journey", () => {
       if ((view.turn - race.primaryEndTurn) % 3 === 0) {
         const campaign = session.politics().elections.find((entry) => entry.id === GOVERNOR_RACE)?.playerCampaign;
         const groupId = FAVORABLE_GROUPS[adAttempt % FAVORABLE_GROUPS.length]!;
-        const target = campaign?.targetedAds.targets.find((entry) => entry.group === groupId && !entry.maxed);
-        if (campaign?.targetedAds.action.available && target && target.bonus < 0.25) {
+        const adProjection = campaign?.targetedAds;
+        const target = adProjection?.targets.find((entry) => entry.group === groupId && !entry.maxed);
+        if (adProjection?.action.available && target && target.bonus < 0.25 &&
+          adProjection.quoteTurn !== undefined && adProjection.quoteUnitCost !== undefined) {
           const result = session.act("campaignTargetedAd", {
             electionId: GOVERNOR_RACE,
             regionId: "WY",
             demographicCategory: target.category,
             demographicGroup: target.group,
+            expectedRevision: adProjection.revision,
+            expectedTurn: adProjection.quoteTurn,
+            expectedCost: adProjection.quoteUnitCost,
+            count: 1,
           });
           if (result.ok) successfulAds++;
           adAttempt++;
