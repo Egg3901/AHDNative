@@ -296,6 +296,7 @@ export type MpFetchOpId =
   | "mail-sent"
   | "admin-maintenance"
   | "election-detail"
+  | "running-mate-characters"
   | "corporation-detail"
   | "union-detail"
   | "cabinet-detail"
@@ -318,7 +319,8 @@ export type MpMutateOpId =
   | "auth-logout"
   | "savings-open"
   | "savings-deposit"
-  | "savings-withdraw";
+  | "savings-withdraw"
+  | "running-mate-set";
 
 export type MpExecuteActionType =
   | "fundraise"

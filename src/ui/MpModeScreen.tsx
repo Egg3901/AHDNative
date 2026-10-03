@@ -6,6 +6,7 @@ import { isCabinetCountryCode, isCabinetPositionId, isCorporationId, isElectionI
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
+import { MpRunningMatePicker } from "./MpRunningMatePicker";
 import { ActionCategories } from "./ActionCategories";
 import { ACTION_HUB_CATEGORIES, type ActionsCategoryFilter } from "./ActionsHub";
 import { RouteHero, PROFILE_HERO_IMAGE } from "./RouteHero";
@@ -59,6 +60,8 @@ const IDLE: MpSnapshot = {
   turn: null,
   capabilities: null,
   electionDetail: null,
+  runningMateOptions: null,
+  runningMateElectionId: null,
   corporationDetail: null,
   unionDetail: null,
   cabinetDetail: null,
@@ -801,8 +804,10 @@ export function MpModeScreen({ host, onAsk, askContent, onExit, preferences, onP
 
         {/* Election detail drill-in (#359 election slice): authoritative
           * summary for the Standing active election, opened only with data
-          * loaded. Read-only: candidacy, campaigns, and every write stay
-          * absent. Back returns to Standing, never into local SP state. */}
+          * loaded. The running-mate selector below is the one narrow source
+          * presidential-ticket mutation this view exposes; the source route
+          * owns candidate authorization, eligibility, and persistence. Back
+          * returns to Standing, never into local SP state. */}
         {visibleElection && electionPhaseLabel && (
           <>
           <article id="mp-election" className="ahd-card ahd-card-pad" aria-label="Election detail" tabIndex={-1} hidden={activeSection !== "mp-election"}>
@@ -816,6 +821,17 @@ export function MpModeScreen({ host, onAsk, askContent, onExit, preferences, onP
               {visibleElection.state && (<><dt>State</dt><dd>{visibleElection.state}</dd></>)}
               <dt>Cycle</dt><dd>{visibleElection.cycle}</dd>
             </dl>
+            {visibleElection.electionType === "president"
+              && !visibleElection.isEnded
+              && (visibleElection.status === "active" || visibleElection.status === "upcoming") && (
+              <MpRunningMatePicker
+                electionId={visibleElection.id}
+                options={snapshot.runningMateElectionId === visibleElection.id ? snapshot.runningMateOptions : null}
+                busy={busy}
+                onLoad={(id) => { void runGeneral((s) => s.loadRunningMateOptions(id)); }}
+                onSave={(id, runningMateId) => { void runGeneral((s) => s.setRunningMate(id, runningMateId)); }}
+              />
+            )}
           </article>
           <div hidden={activeSection !== "mp-election"} className="ahd-mp-row ahd-mp-back">
             <button

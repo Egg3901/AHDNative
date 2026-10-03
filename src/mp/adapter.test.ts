@@ -192,6 +192,8 @@ describe("MpModeSession enter", () => {
       turn: null,
       capabilities: null,
       electionDetail: null,
+      runningMateOptions: null,
+      runningMateElectionId: null,
       corporationDetail: null,
       unionDetail: null,
       cabinetDetail: null,
@@ -653,7 +655,10 @@ describe("MpModeSession election detail (#359 election slice)", () => {
       },
     });
 
-  function enteredHost(extraFetch: Record<string, Array<string | { reject: string }>>) {
+  function enteredHost(
+    extraFetch: Record<string, Array<string | { reject: string }>>,
+    extraMutate: Record<string, Array<string | { reject: string }>> = {},
+  ) {
     return scriptedHost({
       fetch: {
         "auth-session": [probeA],
@@ -663,6 +668,7 @@ describe("MpModeSession election detail (#359 election slice)", () => {
         notifications: [inbox()],
         ...extraFetch,
       },
+      mutate: extraMutate,
     });
   }
 
@@ -683,6 +689,39 @@ describe("MpModeSession election detail (#359 election slice)", () => {
       leaderName: "Ada",
     });
     expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID, undefined, undefined, undefined, undefined, undefined, undefined);
+  });
+
+  it("loads only source-eligible human mates and saves through the authenticated election route", async () => {
+    const mateId = "507f1f77bcf86cd799439013";
+    const { host, calls } = enteredHost({
+      "running-mate-characters": [JSON.stringify({ characters: [{
+        id: mateId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
+        partyColor: "#123456", countryId: "US",
+      }] })],
+      "election-detail": [summary()],
+    }, {
+      "running-mate-set": [JSON.stringify({ success: true, message: "Bea is now your running mate." })],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+
+    const choices = await session.loadRunningMateOptions(SEAT_ID);
+    expect(choices.phase).toBe("ready");
+    expect(choices.runningMateElectionId).toBe(SEAT_ID);
+    expect(choices.runningMateOptions).toEqual([{
+      id: mateId, name: "Bea", party: "3", partyName: "Labor", homeState: "WY",
+      partyColor: "#123456", countryId: "US",
+    }]);
+    const saved = await session.setRunningMate(SEAT_ID, mateId);
+    expect(saved.phase).toBe("ready");
+    expect(saved.notice).toBe("Bea is now your running mate.");
+    expect(host.fetch).toHaveBeenCalledWith(
+      "running-mate-characters", undefined, undefined, SEAT_ID, undefined, undefined, undefined, undefined, undefined, undefined,
+    );
+    expect(host.mutate).toHaveBeenCalledWith("running-mate-set", { electionId: SEAT_ID, runningMateId: mateId });
+    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID, undefined, undefined, undefined, undefined, undefined, undefined);
+    expect(calls.filter((call) => call.op.startsWith("running-mate")).map((call) => call.kind)).toEqual(["fetch", "mutate"]);
+    expect(JSON.stringify(saved)).not.toMatch(/sp_|singleplayer|localSave/i);
   });
 
   it("rejects bad references client-side without a bridge call", async () => {
