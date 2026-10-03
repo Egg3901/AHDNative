@@ -1,5 +1,5 @@
 import type { Region } from "../types.js";
-import { createSourceStateBudgetSnapshot } from "./sourceStateBudget.js";
+import { applySourceStateCorporateTaxBaseUpdate, createSourceStateBudgetSnapshot } from "./sourceStateBudget.js";
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -30,10 +30,34 @@ export function validateSourceStateBudgets(value: unknown, regions: Record<strin
     }
     const expected = createSourceStateBudgetSnapshot(region, era);
     const row = raw as Record<string, unknown>;
-    // Every persisted field is deterministic from the retained source GDP.
-    // This also rejects unknown fields so the writer cannot silently accept a
-    // new continuation meaning under the same schema family.
-    if (!expected || canonical(row) !== canonical(expected)) {
+    const update = row["corporateTaxBaseUpdate"];
+    let expectedCurrent = expected;
+    if (update !== undefined) {
+      if (typeof update !== "object" || update === null || Array.isArray(update)) {
+        throw new Error(`Not a valid save file: invalid source StateBudget update ${regionId}`);
+      }
+      const fields = update as Record<string, unknown>;
+      const turn = fields["turn"];
+      const domesticAnnualIncomeLocal = fields["domesticAnnualIncomeLocal"];
+      const foreignAnnualIncomeLocal = fields["foreignAnnualIncomeLocal"];
+      if (Object.keys(fields).sort().join(",") !== "domesticAnnualIncomeLocal,foreignAnnualIncomeLocal,turn" ||
+        typeof turn !== "number" || !Number.isSafeInteger(turn) || turn < 0 ||
+        typeof domesticAnnualIncomeLocal !== "number" || !Number.isFinite(domesticAnnualIncomeLocal) || domesticAnnualIncomeLocal < 0 ||
+        typeof foreignAnnualIncomeLocal !== "number" || !Number.isFinite(foreignAnnualIncomeLocal) || foreignAnnualIncomeLocal < 0) {
+        throw new Error(`Not a valid save file: invalid source StateBudget update ${regionId}`);
+      }
+      if (expected) {
+        expectedCurrent = applySourceStateCorporateTaxBaseUpdate(expected, {
+          turn,
+          domesticAnnualIncomeLocal,
+          foreignAnnualIncomeLocal,
+        });
+      }
+    }
+    // Seed rows are exact generation snapshots. Updated rows are reconstructed
+    // from their persisted source-turn accounting input; unknown fields remain
+    // rejected, and historical rows without that optional input remain valid.
+    if (!expectedCurrent || canonical(row) !== canonical(expectedCurrent)) {
       throw new Error(`Not a valid save file: invalid source StateBudget snapshot ${regionId}`);
     }
   }

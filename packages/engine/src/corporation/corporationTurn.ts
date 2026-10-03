@@ -65,6 +65,7 @@ import {
   type CorporationLabourFactors,
 } from "./corporationLabour.js";
 import { syncSourceRegionalSectorReceipts } from "./sourceRegionalSectorSeed.js";
+import { refreshSourceStateCorporateTaxBases } from "../budget/sourceStateBudget.js";
 import { corporatePlantsRealizationRatio, runCorporatePlantProductionTurn, sourceCorpDailyGrossRevenueLocal } from "./plantProduction.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng } from "./rdInnovationRng.js";
@@ -475,6 +476,7 @@ export const corporationTurnPhase: TurnPhase = {
       advanceNppCorporationStrategies(world, corp.id);
       updateNppCorporationFinancialPolicy(corp, world.meta.era, fx);
     }
+    refreshSourceStateCorporateTaxBases(world);
     // Current source turn writes the rating after issuer and per-asset P&L.
     refreshNativeCorporateCreditSnapshots(world);
     // Game runs NPP strategy decisions after the current sector and issuer

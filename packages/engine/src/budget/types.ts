@@ -205,6 +205,17 @@ export interface SourceStateBudgetSnapshot {
   stateGdp: number;
   gdpInput: { amount: number; currencyCode: string; unit: "millions" };
   amountBasis: "literal-state-gdp-times-one-million-no-fx";
+  /**
+   * Last Game-shaped 75/25 corporate-profit base refresh. The income figures
+   * are positive per-turn source operating income, annualized at 48 turns and
+   * already expressed in the operating state's local accounting units. Absent
+   * on the exact generation snapshot and on historical saves.
+   */
+  corporateTaxBaseUpdate?: {
+    turn: number;
+    domesticAnnualIncomeLocal: number;
+    foreignAnnualIncomeLocal: number;
+  };
   taxBases: {
     taxableIncome: number;
     taxableSales: number;
