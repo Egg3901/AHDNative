@@ -471,7 +471,13 @@ export class MpModeSession {
     if (!validated.ok) {
       return this.set({ error: validated.reason });
     }
-    this.set({ error: null, notice: null, retryAfter: null });
+    this.set({
+      error: null,
+      notice: null,
+      retryAfter: null,
+      runningMateOptions: null,
+      runningMateElectionId: null,
+    });
     const result = await mpFetch(this.host, "election-detail", undefined, undefined, validated.id);
     if (result.kind === "remote" && result.http === 404) {
       // The referenced race no longer resolves server-side: say so with the
@@ -491,7 +497,13 @@ export class MpModeSession {
     if (!this.snapshot.userId) return this.enter();
     const validated = validateElectionId(electionId);
     if (!validated.ok) return this.set({ error: validated.reason });
-    this.set({ error: null, notice: null, retryAfter: null });
+    this.set({
+      error: null,
+      notice: null,
+      retryAfter: null,
+      runningMateOptions: null,
+      runningMateElectionId: null,
+    });
     const result = await mpFetch(this.host, "running-mate-characters", undefined, undefined, validated.id);
     if (result.kind !== "ok") return this.applyRemoteFailure(result, "action");
     const options = parseRunningMateCharacters(result.bodyText);

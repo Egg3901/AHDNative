@@ -827,6 +827,8 @@ export function MpModeScreen({ host, onAsk, askContent, onExit, preferences, onP
               <MpRunningMatePicker
                 electionId={visibleElection.id}
                 options={snapshot.runningMateElectionId === visibleElection.id ? snapshot.runningMateOptions : null}
+                currentRunningMateCharacterId={visibleElection.currentRunningMateCharacterId}
+                currentRunningMateName={visibleElection.currentRunningMateName}
                 busy={busy}
                 onLoad={(id) => { void runGeneral((s) => s.loadRunningMateOptions(id)); }}
                 onSave={(id, runningMateId) => { void runGeneral((s) => s.setRunningMate(id, runningMateId)); }}
