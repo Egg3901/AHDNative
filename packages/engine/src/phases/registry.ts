@@ -145,6 +145,7 @@ import { warsTurnPhase } from "../wars/phases.js";
 import { politicalCabinetResidualPhase } from "../politicalMetrics/phases.js";
 import { ministerialOrdersPhase } from "../ministerialOrders/phases.js";
 import { policyEffectsPhase } from "../policyEffects/phases.js";
+import { regionalCostOfLivingPhase } from "../metrics/regionalCostOfLiving.js";
 import { resolveProspectsPhase } from "../extraction/prospecting.js";
 import { contractOfferAcceptancePhase } from "../extraction/contracts.js";
 import { achievementCheckPhase } from "../achievements/phase.js";
@@ -650,6 +651,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // value the same turn, same as mainline.
   ministerialOrdersPhase,
   policyEffectsPhase,
+  // Game's stateEffects metricEngine follows policyEffects. Union bargaining
+  // has already consumed the prior persisted regional inputs this turn.
+  regionalCostOfLivingPhase,
   // W11 (extraction/prospecting) + W35 (player wealth/wires/achievements)
   // batch, at END before newsMaintenance — same rng-stream-stability rule as
   // every other tail cluster above (this codebase runs commodityPrices/

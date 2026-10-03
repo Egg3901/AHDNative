@@ -122,7 +122,9 @@ export function mandateFromLocals(
       unionization: local.unionization ?? density,
       wageLevel: local.wageLevel ?? 1,
       workerExpectationIndex: local.workerExpectationIndex,
-      costOfLivingIndex: undefined,
+      costOfLivingIndex: local.stateId
+        ? world.regionalMetrics[local.stateId]?.["economic.costOfLiving"]?.value
+        : undefined,
     })),
     laborTightness: macro.laborTightness,
     lawSupport: macro.lawSupport,

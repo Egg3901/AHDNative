@@ -47,6 +47,7 @@ import type { CommandEconomyState } from "./commandEconomy/types.js";
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
 import { seedTfpLeaves } from "./metrics/tfpSeed.js";
+import { seedRegionalCostOfLiving } from "./metrics/regionalCostOfLiving.js";
 import { seedMinisterialTargets } from "./metrics/ministerialTargetSeed.js";
 import { seedPoliticalBoards } from "./metrics/politicalBoardSeed.js";
 import { computeNationalMetrics } from "./metrics/nationalMetrics.js";
@@ -194,7 +195,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // stamps, source UK devolution institutions/Northern Ireland conflict state,
 // and UK Commons recall petition clocks/signatures/declarations/support samples.
 // Older readers must refuse these continuations.
-export const SCHEMA_VERSION = 65;
+// v68: regional cost-of-living coexistence baseline is now persisted and
+// consumed by union local mandates; readers without that lifecycle must refuse.
+export const SCHEMA_VERSION = 68;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1383,6 +1386,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // Issue #40/#106: Game seed writes regional TFP leaves before turn 1, so t0
   // nationalMetrics (prev-turn to the first macro read) is the seed basket.
   seedTfpLeaves(world);
+  seedRegionalCostOfLiving(world);
   seedMinisterialTargets(world);
   seedPoliticalBoards(world);
   computeNationalMetrics(world);
