@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { decodeSavePayload, encodeSavePayload, type SavePayload } from './savePayload';
+import type { SerializedSave } from './serializedSave';
 
 export interface SaveMetadata {
   slotId: string; savedAt: string; schemaVersion: number;
@@ -28,11 +29,19 @@ async function transaction<T>(mode: IDBTransactionMode, operation: (store: IDBOb
   });
 }
 export const saveRepository = {
-  async save(slotId: string, contents: string): Promise<void> {
+  async save(slotId: string, input: string | SerializedSave): Promise<void> {
+    const serialized = typeof input === 'string' ? undefined : input;
+    const contents = typeof input === 'string' ? input : input.contents;
     if (isTauri()) return invoke('save_game', { slotId, contents });
-    const save = JSON.parse(contents);
-    const metadata: SaveMetadata = { slotId, savedAt: save.savedAt, schemaVersion: save.schemaVersion,
-      turn: save.world.meta.turn, countryId: save.world.player.countryId, playerName: save.world.player.name };
+    // The envelope is produced by the in-process worker serializer. Keep the
+    // raw-string API's parse/validation behavior for fixture and import saves.
+    const metadata: SaveMetadata = serialized
+      ? { slotId, ...serialized.metadata }
+      : (() => {
+        const save = JSON.parse(contents);
+        return { slotId, savedAt: save.savedAt, schemaVersion: save.schemaVersion,
+          turn: save.world.meta.turn, countryId: save.world.player.countryId, playerName: save.world.player.name };
+      })();
     const payload = await encodeSavePayload(contents);
     await transaction('readwrite', store => store.put({ slotId, contents: payload, metadata } satisfies StoredSave));
   },
