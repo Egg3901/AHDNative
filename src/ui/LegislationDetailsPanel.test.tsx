@@ -140,6 +140,25 @@ describe("LegislationDetailsPanel", () => {
     expect(onAction).toHaveBeenCalledWith("vetoBill", { billId: "bill-enrolled" });
   });
 
+  it("exposes source hard-whip actions on an active bill in the legislation details route", async () => {
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    query.chambers[0]!.active.push({
+      id: "bill-whip-details", title: "Active Whip Bill", status: "active",
+      chamberKey: "house", chamberName: "House of Representatives", sponsorName: "Ada",
+      votesFor: 0, votesAgainst: 0, votesAbstain: 0, playerVote: null,
+      votingOpen: true, votingAvailable: true, voteCost: 1,
+      hardWhip: { available: true },
+    });
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Hard whip NPPs for on Active Whip Bill" }));
+    expect(onAction).toHaveBeenCalledWith("issuePartyWhip", {
+      billId: "bill-whip-details", whipDirection: "for", whipMode: "hard",
+    });
+  });
+
   it("opens real bill details on selection and keeps the enacted level distinct from the new proposal control", async () => {
     const LegislationDetailsPanel = await renderPanel();
     const query = makeQuery();

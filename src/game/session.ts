@@ -482,7 +482,7 @@ export class GameSession {
   }
 
 
-  legislation(selection: LegislationSelection = {}) { return buildLegislationDetails(this.requireWorld(), selection); }
+  legislation(selection: LegislationSelection = {}) { return buildLegislationDetails(this.requireWorld(), selection, this.readObservedAt()); }
 
   worldOverview() { return projectWorldOverview(this.requireWorld()); }
 

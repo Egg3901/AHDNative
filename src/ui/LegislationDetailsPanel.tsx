@@ -184,6 +184,23 @@ function BillCard({
               {v.label}
             </button>
           ))}
+          {bill.hardWhip ? (
+            <>
+              {(["for", "against"] as const).map((direction) => (
+                <button
+                  key={direction}
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  disabled={busy || !bill.hardWhip!.available}
+                  onClick={() => onAction("issuePartyWhip", { billId: bill.id, whipDirection: direction, whipMode: "hard" })}
+                  aria-label={`Hard whip NPPs ${direction} on ${bill.title}`}
+                >Hard whip NPPs {direction}</button>
+              ))}
+              <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                {bill.hardWhip.available ? "No action cost" : bill.hardWhip.disabledReason}
+              </span>
+            </>
+          ) : null}
         </div>
       ) : null}
       {bill.vetoAvailable ? (

@@ -57,6 +57,7 @@ export interface LegislationBillMeta {
   votingAvailable: boolean;
   voteDisabledReason?: string;
   voteCost: number;
+  hardWhip?: { available: boolean; disabledReason?: string };
   /** Only the modeled sitting US President can use the source veto route. */
   vetoAvailable?: boolean;
 }
@@ -415,6 +416,12 @@ export function buildLegislationDetails(
       votingAvailable: gate.available,
       ...(gate.disabledReason ? { voteDisabledReason: gate.disabledReason } : {}),
       voteCost: gate.cost,
+      ...(bill.status === "active" || bill.status === "active_other" || bill.status === "veto_override"
+        ? (() => {
+            const disabledReason = partyWhipEligibilityError(world, bill, observedAt) ?? undefined;
+            return { hardWhip: { available: disabledReason === undefined, ...(disabledReason ? { disabledReason } : {}) } };
+          })()
+        : {}),
       ...(bill.countryId === "US" && bill.status === "enrolled" && world.executives.US?.presidentId === "player"
         ? { vetoAvailable: true }
         : {}),
