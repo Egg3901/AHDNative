@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 let _ctr=0; class ObjectId { _id: string; constructor(){ this._id = `oid-${++_ctr}`; } toString(){ return this._id; } equals(o:any){ return this._id===o._id; } }
 type ElectionCandidate = any; type PoliticalParty = any; type PrimarySnapshot = any;
 import { buildPollingData, computeSeatEstimates } from "./buildPollingData.js";
-import { allocateSeats, getMajoritarianBonus } from "./seatAllocation.js";
+import { allocateSeats } from "./seatAllocation.js";
 
 // Minimal fixtures — buildPollingData only reads the fields set here.
 function makeCandidate(overrides: Partial<ElectionCandidate>): ElectionCandidate {
@@ -211,15 +211,14 @@ describe("buildPollingData — primary phase", () => {
 // shapes that used to diverge.
 
 describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", () => {
-  const YEAR_1953 = 1953;
-  const bonus = getMajoritarianBonus("commons", YEAR_1953);
 
   /** Runs both engines over the same votes and returns per-party seat totals. */
   function bothEngines(
     region: string,
     seats: number,
     votes: Record<string, number>,
-    parties: Record<string, string>
+    parties: Record<string, string>,
+    countryId = "UK",
   ) {
     const tally = { totalVotes: votes, candidateParties: parties } as never;
     const projection = computeSeatEstimates(
@@ -227,7 +226,7 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
       seats,
       tally,
       new Set(Object.keys(votes)),
-      bonus
+      countryId,
     );
     const ranked = Object.entries(votes)
       .map(([id, v]) => ({ id, votes: v, party: parties[id] }))
@@ -240,7 +239,9 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
       ranked,
       totalVotes,
       undefined,
-      bonus
+      undefined,
+      undefined,
+      countryId
     ).seatsEstimate;
     const byParty = (est: Record<string, number> | null) => {
       const out: Record<string, number> = {};
@@ -338,5 +339,33 @@ describe("computeSeatEstimates — parity with allocateSeats (ticket #1032)", ()
     expect(projection).toEqual(resolution);
     const total = Object.values(projection).reduce((s, v) => s + v, 0);
     expect(total).toBe(10);
+  });
+});
+
+describe("US House delegation-sized eligibility", () => {
+  it("uses the same seat-scaled gate in projection and resolution", () => {
+    const votes = { major: 700, minor: 180, fringe: 120 };
+    const parties = { major: "A", minor: "B", fringe: "C" };
+    const tally = { totalVotes: votes, candidateParties: parties } as never;
+    const projection = computeSeatEstimates(
+      "house",
+      5,
+      tally,
+      new Set(Object.keys(votes)),
+      "US",
+    );
+    const resolution = allocateSeats(
+      "house",
+      "CA",
+      5,
+      Object.entries(votes).map(([id, value]) => ({ id, votes: value, party: parties[id as keyof typeof parties] })),
+      1000,
+      { CA: 5 },
+      undefined,
+      undefined,
+      "US",
+    ).seatsEstimate;
+    expect(projection).toMatchObject({ major: 4, minor: 1, fringe: 0 });
+    expect(projection).toEqual(resolution);
   });
 });

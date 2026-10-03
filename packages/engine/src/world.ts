@@ -4,6 +4,7 @@ import { assignSourceHomeStates } from "./elections/sourceHomeState.js";
 import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
+import { eraToPreset } from "./electionEngine/resolution/constants.js";
 import { createPoliticiansForWorld } from "./politician.js";
 import { CATEGORIES_BY_COUNTRY_1953 } from "./demographics/categories.js";
 import { US_STATE_DEMOGRAPHICS_1953, type StateDemographicsSeed } from "./demographics/usStateDemographics1953.js";
@@ -97,7 +98,9 @@ import {
 // prior multi-wave resolver note in save.ts (see v16->v17, v27->v28, etc.).
 import { computeFormation } from "./government/formation.js";
 import { seatSingleplayerHeadOfGovernment } from "./government/singleplayerHeadOfGovernment.js";
-import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES } from "./government/constants.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES, UK_DEVOLVED_GOVERNOR_REGIONS } from "./government/constants.js";
+import { initialUKDevolutionState } from "./devolution/ukInstitutions.js";
+import { initialNorthernIrelandLivingConflict } from "./livingConflict/northernIreland.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
 // Pre-allocated v39 for M1 (Lane 12 Head of State mode). This branch point
@@ -185,6 +188,10 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // continuation; older readers count one vote per office and must refuse them.
 // v65: legislative notice, source NPP strategy/replacement/cash and corporate
 // relocation/FX state needs its new consumers. The published64 reader refuses it.
+// v65: annual source statehood-admission continuation and admittedYear region
+// stamps, source UK devolution institutions/Northern Ireland conflict state,
+// and UK Commons recall petition clocks/signatures/declarations/support samples.
+// Older readers must refuse these continuations.
 export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
@@ -804,6 +811,42 @@ export function createWorld(options: NewWorldOptions): WorldState {
 
   const { regions, electoratePools, regionTurnouts, partyRegions, partyPressures, candidateSupports } =
     seedSupport(pack, parties, politicians);
+  // Mainline's 1953 state collection contains Alaska and Hawaii as territories
+  // with real 1950 population/GSP, but they are absent from the House map until
+  // the statehood turn phase stamps admittedYear. Keep the source geography in
+  // the world from creation so admission changes status, not identity.
+  if (pack.era.id === "1953" && pack.countries.some((country) => country.id === "US" && country.playable)) {
+    const territories = [
+      { id: "AK", name: "Alaska", population: 128643, gdp: 450 },
+      { id: "HI", name: "Hawaii", population: 499794, gdp: 1100 },
+    ] as const;
+    const usParties = Object.values(parties).filter((party) => party.countryId === "US");
+    for (const territory of territories) {
+      regions[territory.id] = {
+        id: territory.id,
+        countryId: "US",
+        name: territory.name,
+        population: territory.population,
+        gdp: territory.gdp,
+        houseSeats: 0,
+        senateSeats: 0,
+        censusRegion: "West",
+      };
+      electoratePools[territory.id] = seedPool("US", territory.id);
+      regionTurnouts[territory.id] = {
+        regionId: territory.id,
+        countryId: "US",
+        modifiers: seedTurnoutModifiers("US"),
+        lastDecayAppliedTurn: 0,
+      };
+      for (const party of usParties) {
+        const key = `${territory.id}:${party.id}`;
+        const { organization, registration } = seedPartyRegion(party, territory.id);
+        partyRegions[key] = { regionId: territory.id, partyId: party.id, countryId: "US", organization, registration };
+        partyPressures[`${party.id}:${territory.id}`] = { partyId: party.id, regionId: territory.id, countryId: "US", value: 0 };
+      }
+    }
+  }
   for (const location of pack.corporationHeadquartersRegions ?? []) {
     if (regions[location.id]) continue;
     regions[location.id] = {
@@ -1105,6 +1148,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     baselineDemographics,
     demographicCategories,
     census,
+    statehood: { startingPreset: eraToPreset(pack.era.id) },
     laborForces,
     budgets,
     regionalBudgets,
@@ -1138,6 +1182,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
     // in packages/content). Seeded here with office AP capped so powers are
     // immediately usable once a holder seats.
     governors: seedGovernors(regions),
+    ...(countries.UK ? { ukDevolution: initialUKDevolutionState(Number(pack.era.startDate.slice(0, 4))) } : {}),
+    ...(countries.UK && initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4)))
+      ? { northernIrelandConflict: initialNorthernIrelandLivingConflict(Number(pack.era.startDate.slice(0, 4))) }
+      : {}),
     governorAddresses: [],
     governorOrders: [],
     player: {
@@ -1805,6 +1853,7 @@ function seedGovernors(regions: WorldState["regions"]): WorldState["governors"] 
   const governors: WorldState["governors"] = {};
   for (const region of Object.values(regions)) {
     if (!GOVERNOR_COUNTRIES.has(region.countryId)) continue;
+    if (region.countryId === "UK" && !UK_DEVOLVED_GOVERNOR_REGIONS.has(region.id)) continue;
     governors[region.id] = {
       stateId: region.id,
       countryId: region.countryId,

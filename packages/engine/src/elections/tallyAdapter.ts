@@ -10,6 +10,7 @@ import type {
   TallyInput,
   TallyStatePartyOrgInput,
   TallyTurnoutInput,
+  VoteDistributionDiagnosticSnapshot,
 } from "../electionEngine/tally/types.js";
 import { enrichCandidates } from "../electionEngine/candidateEnrichment.js";
 import type {
@@ -458,8 +459,15 @@ function nationwideSliceFor(world: WorldState, countryId: string, electionId?: s
 }
 
 /** Shared accumulate core: mirrors mainline's per-turn tally write against a resolved state/nationwide slice. */
-function runAccumulate(world: WorldState, rng: WorldRng, rec: ElectionRecord, slice: StateSlice, index?: TallyTurnIndex): boolean {
-  const result = runAccumulateCore(world, rng, rec, slice, rec.tallyState, undefined, index);
+function runAccumulate(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+  slice: StateSlice,
+  index?: TallyTurnIndex,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
+): boolean {
+  const result = runAccumulateCore(world, rng, rec, slice, rec.tallyState, undefined, index, observeInput);
   if (!result) return false;
   rec.tallyState = result.tallyState as unknown as ElectionRecord["tallyState"];
   rec.tally = { ...result.totals };
@@ -481,6 +489,7 @@ function runAccumulateCore(
   priorTallyState: unknown,
   presidentialModifierStateId: string = slice.stateId,
   index?: TallyTurnIndex,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
 ): { tallyState: unknown; totals: Record<string, number> } | null {
   const { stateId, state, demographics, turnout, statePartyOrgs } = slice;
 
@@ -629,6 +638,7 @@ function runAccumulateCore(
     ...(additionalVoteMultipliersByCandidateId
       ? { additionalVoteMultipliersByCandidateId }
       : {}),
+    ...(observeInput ? { diagnosticObserver: observeInput } : {}),
   };
 
   const result = accumulateVoteTurn(input);
@@ -723,7 +733,13 @@ function combinedDistrictTallyState(
  * in practice; it exists for future eras/content packs that ship states
  * without demographics yet.
  */
-function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: ElectionRecord, index?: TallyTurnIndex): boolean {
+function realAccumulatePresident(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+  index?: TallyTurnIndex,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
+): boolean {
   const regions = Object.values(world.regions).filter((r) => r.countryId === rec.countryId);
   const stateIds = regions.map((r) => r.id).sort((a, b) => a.localeCompare(b));
 
@@ -741,7 +757,7 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
   if (slices.size === 0) {
     const nw = nationwideSliceFor(world, rec.countryId, rec.id, index);
     if (!nw) return false;
-    return runAccumulate(world, rng, rec, nw, index);
+    return runAccumulate(world, rng, rec, nw, index, observeInput);
   }
 
   const stateTallyStates = { ...(rec.stateTallyStates ?? {}) };
@@ -779,6 +795,7 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
           stateTallyStates[unit.unitId],
           stateId,
           index,
+          observeInput,
         );
         if (!result) continue;
         ranAny = true;
@@ -794,7 +811,7 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
       }
       continue;
     }
-    const result = runAccumulateCore(world, rng, rec, slice, stateTallyStates[stateId], undefined, index);
+    const result = runAccumulateCore(world, rng, rec, slice, stateTallyStates[stateId], undefined, index, observeInput);
     if (!result) continue;
     ranAny = true;
     stateTallyStates[stateId] = result.tallyState;
@@ -810,11 +827,17 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
 }
 
 /** Returns true when the real tally ran; false = caller falls back to the stub. */
-export function realAccumulate(world: WorldState, rng: WorldRng, rec: ElectionRecord, index?: TallyTurnIndex): boolean {
+export function realAccumulate(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+  index?: TallyTurnIndex,
+  observeInput?: (snapshot: unknown) => void,
+): boolean {
   if (rec.electionType === "president") {
-    return realAccumulatePresident(world, rng, rec, index);
+    return realAccumulatePresident(world, rng, rec, index, observeInput);
   }
   const slice = rec.state ? stateSliceFor(world, rec.state, rec.id, false, index) : null;
   if (!slice) return false;
-  return runAccumulate(world, rng, rec, slice, index);
+  return runAccumulate(world, rng, rec, slice, index, observeInput as ((snapshot: VoteDistributionDiagnosticSnapshot) => void) | undefined);
 }

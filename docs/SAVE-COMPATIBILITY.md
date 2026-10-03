@@ -10,6 +10,8 @@ Schema 65 adds bill corporation targets, legislative acquisition provenance and 
 
 The unpublished schema 65 integration also contains source NPP strategy memory, physical capacity replacement, corporate cash records, headquarters votes and corporate currency relocation. Individual producer tests are recorded separately; combined continuation and actual published-reader refusal still require qualification before publication. This is partial work on #107 and #75.
 
+Schema 65 also contains source annual statehood admission, UK devolution and Northern Ireland conflict records, Commons vacancies and recall petition clocks, signatures, declarations and support samples. The local migration preserves their historical absence except for the statehood preset guard. Existing recorded public fixtures qualify their named boundaries; complete country journeys, combined validation and published-reader refusal remain open.
+
 ## Run
 
 ```sh

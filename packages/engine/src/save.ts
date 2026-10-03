@@ -940,6 +940,160 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid player relocation turn");
   }
 
+  const ukDevolution = value["ukDevolution"];
+  if (ukDevolution !== undefined) {
+    const expectedRegions = ["LON", "NIR", "SCO", "WAL"];
+    if (
+      !isRecord(ukDevolution) ||
+      ukDevolution["_id"] !== "UK" ||
+      !isRecord(ukDevolution["regions"]) ||
+      Object.keys(ukDevolution["regions"]).sort().join(",") !== expectedRegions.join(",") ||
+      Object.keys(ukDevolution).some((key) => !["_id", "regions", "lastPolicyBillId", "northernIrelandPeace"].includes(key)) ||
+      (ukDevolution["lastPolicyBillId"] !== undefined &&
+        (typeof ukDevolution["lastPolicyBillId"] !== "string" || ukDevolution["lastPolicyBillId"].length === 0))
+    ) {
+      throw new Error("Not a valid save file: invalid UK devolution institution state");
+    }
+    const niPeace = ukDevolution["northernIrelandPeace"];
+    if (niPeace !== undefined && (
+      !isRecord(niPeace) ||
+      Object.keys(niPeace).some((key) => !["posture", "changedTurn", "assemblyFirstCycle", "assemblyFirstElectionEndTurn"].includes(key)) ||
+      !["unsettled", "power_sharing", "suspended"].includes(String(niPeace["posture"])) ||
+      !Number.isInteger(niPeace["changedTurn"]) || (niPeace["changedTurn"] as number) < 0 ||
+      (niPeace["assemblyFirstCycle"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstCycle"]) || (niPeace["assemblyFirstCycle"] as number) < 1)) ||
+      (niPeace["assemblyFirstElectionEndTurn"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstElectionEndTurn"]) || (niPeace["assemblyFirstElectionEndTurn"] as number) < 0))
+    )) {
+      throw new Error("Not a valid save file: invalid Northern Ireland peace posture");
+    }
+    if (niPeace !== undefined) {
+      for (const field of ["assemblyFirstCycle", "assemblyFirstElectionEndTurn"]) {
+        const fieldValue = niPeace[field];
+        if (fieldValue !== undefined && (!Number.isInteger(fieldValue) || (fieldValue as number) < 0)) {
+          throw new Error("Not a valid save file: invalid Northern Ireland peace institution anchor");
+        }
+      }
+    }
+    for (const regionId of expectedRegions) {
+      const institution = ukDevolution["regions"][regionId];
+      if (
+        !isRecord(institution) ||
+        Object.keys(institution).some((key) => !["active", "firstCycle", "firstElectionEndTurn"].includes(key)) ||
+        typeof institution["active"] !== "boolean" ||
+        !Number.isInteger(institution["firstCycle"]) ||
+        (institution["firstCycle"] as number) < 1 ||
+        (institution["firstElectionEndTurn"] !== undefined &&
+          (!Number.isInteger(institution["firstElectionEndTurn"]) || (institution["firstElectionEndTurn"] as number) < 0))
+      ) {
+        throw new Error(`Not a valid save file: invalid UK devolution institution state for ${regionId}`);
+      }
+    }
+  }
+
+  const niConflict = value["northernIrelandConflict"];
+  if (niConflict !== undefined) {
+    const phases = ["armed_stalemate", "backchannels", "ceasefire", "multiparty_talks", "agreement", "power_sharing", "fragile_settlement"];
+    const trackKeys = ["violence", "settlementMomentum", "legitimacy", "unionistConsent", "nationalistConsent", "decommissioning", "institutionalStability", "domesticConsent", "referendumRatification", "ratificationAuthorization", "ratificationFailureCount"];
+    if (!isRecord(niConflict) || niConflict["_id"] !== "northern_ireland" || niConflict["hasOpened"] !== true || !phases.includes(String(niConflict["phase"])) || niConflict["phaseLevel"] !== phases.indexOf(String(niConflict["phase"])) + 1 || !["active", "negotiating", "ceasefire", "settled", "closed"].includes(String(niConflict["status"])) || !isRecord(niConflict["tracks"]) || Object.keys(niConflict["tracks"]).sort().join(",") !== trackKeys.sort().join(",")) {
+      throw new Error("Not a valid save file: invalid Northern Ireland living-conflict state");
+    }
+    for (const key of trackKeys) {
+      const n = niConflict["tracks"][key];
+      const max = key === "referendumRatification" ? 1 : key === "ratificationAuthorization" || key === "ratificationFailureCount" ? 2 : 100;
+      if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > max) throw new Error(`Not a valid save file: invalid Northern Ireland track ${key}`);
+    }
+    for (const key of ["phaseTurns", "totalTurns", "lastProcessedTurn", "lastInteractionTurn"]) {
+      const min = key === "lastInteractionTurn" ? -24 : -1;
+      if (!Number.isInteger(niConflict[key]) || (niConflict[key] as number) < min) throw new Error("Not a valid save file: invalid Northern Ireland living-conflict clock");
+    }
+    if (niConflict["decision"] !== undefined && (!isRecord(niConflict["decision"]) || !["peace_initiative", "agreement_implementation"].includes(String(niConflict["decision"]["interaction"])) || typeof niConflict["decision"]["nodeId"] !== "string" || !Number.isInteger(niConflict["decision"]["nodeIndex"]) || !Number.isInteger(niConflict["decision"]["openedTurn"]) || !Number.isInteger(niConflict["decision"]["deadlineTurn"]))) {
+      throw new Error("Not a valid save file: invalid Northern Ireland conflict decision");
+    }
+  }
+  const niPoll = value["northernIrelandPeacePoll"];
+  if (niPoll !== undefined && (!isRecord(niPoll) || typeof niPoll["id"] !== "string" || niPoll["kind"] !== "peace_agreement" || !["campaigning", "completed"].includes(String(niPoll["status"])) || typeof niPoll["agreementKey"] !== "string" || !Number.isInteger(niPoll["openedTurn"]) || !Number.isInteger(niPoll["closesTurn"]) || typeof niPoll["yesShare"] !== "number" || !Number.isFinite(niPoll["yesShare"]) || niPoll["yesShare"] < 0 || niPoll["yesShare"] > 100 || !isRecord(niPoll["campaignSpendUnits"]) || !isRecord(niPoll["campaignSpendUnits"]) || typeof niPoll["campaignSpendUnits"]["yes"] !== "number" || typeof niPoll["campaignSpendUnits"]["no"] !== "number" || !Array.isArray(niPoll["cohortBaseline"]))) {
+    throw new Error("Not a valid save file: invalid Northern Ireland peace poll");
+  }
+
+  const ukCommonsVacancies = value["ukCommonsVacancies"];
+  if (ukCommonsVacancies !== undefined) {
+    if (!Array.isArray(ukCommonsVacancies)) throw new Error("Not a valid save file: invalid UK Commons vacancy ledger");
+    const seenVacancyIds = new Set<string>();
+    for (const vacancy of ukCommonsVacancies) {
+      if (!isRecord(vacancy) || Object.keys(vacancy).some((key) => !["id", "countryId", "regionId", "formerHolderId", "seats", "reason", "vacatedTurn", "status", "electionId", "filledById", "filledTurn"].includes(key)) ||
+        typeof vacancy["id"] !== "string" || typeof vacancy["regionId"] !== "string" || vacancy["countryId"] !== "UK" || typeof vacancy["formerHolderId"] !== "string" || !["death", "retirement", "defection", "resignation", "recall", "removal"].includes(String(vacancy["reason"])) || !Number.isInteger(vacancy["vacatedTurn"]) || !["open", "scheduled", "filled", "subsumed"].includes(String(vacancy["status"])) ||
+        (vacancy["seats"] !== undefined && (!Number.isSafeInteger(vacancy["seats"]) || (vacancy["seats"] as number) < 1)) ||
+        seenVacancyIds.has(vacancy["id"]) ||
+        (vacancy["status"] === "scheduled" && typeof vacancy["electionId"] !== "string") ||
+        (vacancy["status"] === "filled" && ((vacancy["filledById"] !== undefined && typeof vacancy["filledById"] !== "string") || !Number.isInteger(vacancy["filledTurn"]))) ||
+        (vacancy["status"] !== "filled" && (vacancy["filledById"] !== undefined || vacancy["filledTurn"] !== undefined))) {
+        throw new Error("Not a valid save file: invalid UK Commons vacancy entry");
+      }
+      seenVacancyIds.add(vacancy["id"]);
+    }
+  }
+
+  const recallPetitions = value["ukCommonsRecallPetitions"];
+  if (recallPetitions !== undefined) {
+    const petitionKeys = ["id", "countryId", "regionId", "officialId", "targetName", "targetPartyId", "status", "trigger", "lowStreak", "lastEvaluatedTurn", "signatures", "declarations", "supportSamples", "openedTurn", "checkStartTurn", "checkEndTurn", "resolvedTurn", "outcome", "vacancyId", "expireReason"];
+    const ids = new Set<string>();
+    const liveOfficials = new Set<string>();
+    const recallVacancies = new Map((Array.isArray(ukCommonsVacancies) ? ukCommonsVacancies : []).filter(isRecord).map((row) => [String(row["id"]), row]));
+    const currentTurn = isRecord(value["meta"]) && Number.isSafeInteger(value["meta"]["turn"]) ? value["meta"]["turn"] as number : -1;
+    if (!Array.isArray(recallPetitions)) throw new Error("Not a valid save file: invalid UK Commons recall ledger");
+    for (const petition of recallPetitions) {
+      if (!isRecord(petition) || Object.keys(petition).some((key) => !petitionKeys.includes(key)) ||
+        typeof petition["id"] !== "string" || !petition["id"] || ids.has(petition["id"]) || petition["countryId"] !== "UK" ||
+        typeof petition["regionId"] !== "string" || !petition["regionId"] || typeof petition["officialId"] !== "string" || !petition["officialId"] ||
+        typeof petition["targetName"] !== "string" || !["watch", "open", "check", "retained", "vacated", "expired"].includes(String(petition["status"])) ||
+        !["infamy", "lowApproval"].includes(String(petition["trigger"])) || !Number.isSafeInteger(petition["lowStreak"]) || (petition["lowStreak"] as number) < 0 ||
+        !Number.isSafeInteger(petition["lastEvaluatedTurn"]) || (petition["lastEvaluatedTurn"] as number) < -1 ||
+        (petition["targetPartyId"] !== undefined && typeof petition["targetPartyId"] !== "string") ||
+        !Array.isArray(petition["signatures"]) || !Array.isArray(petition["declarations"]) || !Array.isArray(petition["supportSamples"])) {
+        throw new Error("Not a valid save file: invalid UK Commons recall petition");
+      }
+      ids.add(petition["id"]);
+      const live = ["watch", "open", "check"].includes(String(petition["status"]));
+      if (live && liveOfficials.has(petition["officialId"])) throw new Error("Not a valid save file: duplicate live UK Commons recall office");
+      if (live) liveOfficials.add(petition["officialId"]);
+      const uniqueActors = new Set<string>();
+      for (const signature of petition["signatures"]) {
+        if (!isRecord(signature) || Object.keys(signature).some((key) => !["actorId", "turn"].includes(key)) || typeof signature["actorId"] !== "string" || !signature["actorId"] || !Number.isSafeInteger(signature["turn"]) || (signature["turn"] as number) < 0 || uniqueActors.has(signature["actorId"])) throw new Error("Not a valid save file: invalid UK Commons recall signature");
+        uniqueActors.add(signature["actorId"]);
+        if ((petition["openedTurn"] !== undefined && (signature["turn"] as number) < (petition["openedTurn"] as number)) || (currentTurn >= 0 && (signature["turn"] as number) > currentTurn)) throw new Error("Not a valid save file: UK Commons recall signature outside petition clock");
+      }
+      uniqueActors.clear();
+      for (const declaration of petition["declarations"]) {
+        if (!isRecord(declaration) || Object.keys(declaration).some((key) => !["actorId", "side", "turn"].includes(key)) || typeof declaration["actorId"] !== "string" || !declaration["actorId"] || !["retain", "remove"].includes(String(declaration["side"])) || !Number.isSafeInteger(declaration["turn"]) || (declaration["turn"] as number) < 0 || uniqueActors.has(declaration["actorId"])) throw new Error("Not a valid save file: invalid UK Commons recall declaration");
+        uniqueActors.add(declaration["actorId"]);
+        if ((petition["checkStartTurn"] !== undefined && (declaration["turn"] as number) < (petition["checkStartTurn"] as number)) || (petition["checkEndTurn"] !== undefined && (declaration["turn"] as number) > (petition["checkEndTurn"] as number)) || (currentTurn >= 0 && (declaration["turn"] as number) > currentTurn)) throw new Error("Not a valid save file: UK Commons recall declaration outside check clock");
+      }
+      let priorSampleTurn = -1;
+      for (const sample of petition["supportSamples"]) {
+        if (!isRecord(sample) || Object.keys(sample).some((key) => !["turn", "favorability"].includes(key)) || !Number.isSafeInteger(sample["turn"]) || (sample["turn"] as number) < 0 || (sample["turn"] as number) <= priorSampleTurn || typeof sample["favorability"] !== "number" || !Number.isFinite(sample["favorability"]) || sample["favorability"] < 0 || sample["favorability"] > 100) throw new Error("Not a valid save file: invalid UK Commons recall support sample");
+        priorSampleTurn = sample["turn"] as number;
+        if ((petition["checkStartTurn"] !== undefined && priorSampleTurn < (petition["checkStartTurn"] as number)) || (currentTurn >= 0 && priorSampleTurn > currentTurn)) throw new Error("Not a valid save file: UK Commons recall sample outside check clock");
+      }
+      const turnFields = ["openedTurn", "checkStartTurn", "checkEndTurn", "resolvedTurn"] as const;
+      for (const key of turnFields) if (petition[key] !== undefined && (!Number.isSafeInteger(petition[key]) || (petition[key] as number) < 0)) throw new Error("Not a valid save file: invalid UK Commons recall clock");
+      if ((petition["status"] === "watch" && ((petition["lowStreak"] as number) > 3 || petition["openedTurn"] !== undefined || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["resolvedTurn"] !== undefined || petition["signatures"].length !== 0 || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0)) ||
+        (petition["status"] === "open" && (!Number.isSafeInteger(petition["openedTurn"]) || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["resolvedTurn"] !== undefined)) ||
+        (petition["status"] === "open" && ((petition["openedTurn"] as number) > currentTurn || petition["outcome"] !== undefined || petition["vacancyId"] !== undefined || petition["expireReason"] !== undefined || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0)) ||
+        (petition["status"] === "check" && (!Number.isSafeInteger(petition["openedTurn"]) || !Number.isSafeInteger(petition["checkStartTurn"]) || !Number.isSafeInteger(petition["checkEndTurn"]) || (petition["checkEndTurn"] as number) !== (petition["checkStartTurn"] as number) + 6 || (petition["checkStartTurn"] as number) > currentTurn || petition["resolvedTurn"] !== undefined || petition["outcome"] !== undefined || petition["vacancyId"] !== undefined || petition["expireReason"] !== undefined || petition["signatures"].length < 5)) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && (petition["openedTurn"] === undefined || (petition["openedTurn"] as number) > currentTurn || petition["declarations"].length > 0 && petition["checkStartTurn"] === undefined)) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && !Number.isSafeInteger(petition["resolvedTurn"])) ||
+        (petition["status"] === "vacated" && (petition["outcome"] !== "vacated" || typeof petition["vacancyId"] !== "string" || !recallVacancies.has(petition["vacancyId"] as string) || recallVacancies.get(petition["vacancyId"] as string)?.["formerHolderId"] !== petition["officialId"] || recallVacancies.get(petition["vacancyId"] as string)?.["reason"] !== "recall")) ||
+        (petition["status"] === "retained" && (petition["outcome"] !== "retained" || petition["checkStartTurn"] === undefined || petition["supportSamples"].length === 0)) ||
+        (petition["status"] === "expired" && (typeof petition["expireReason"] !== "string" || petition["expireReason"] !== "fewer than 5 signatures within 12 turns" || petition["outcome"] !== undefined || petition["signatures"].length >= 5 || petition["openedTurn"] === undefined || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0 || (petition["resolvedTurn"] as number) < (petition["openedTurn"] as number) + 12)) ||
+        (petition["status"] !== "vacated" && petition["vacancyId"] !== undefined) ||
+        (petition["status"] !== "expired" && petition["expireReason"] !== undefined) ||
+        (petition["status"] !== "retained" && petition["status"] !== "vacated" && petition["outcome"] !== undefined) ||
+        (petition["status"] === "vacated" && (petition["checkStartTurn"] === undefined || petition["supportSamples"].length === 0)) ||
+        ((petition["status"] === "retained" || petition["status"] === "vacated") && (petition["checkEndTurn"] === undefined || (petition["resolvedTurn"] as number) < (petition["checkEndTurn"] as number))) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && !Number.isSafeInteger(petition["resolvedTurn"])) ||
+        (currentTurn >= 0 && Number.isSafeInteger(petition["lastEvaluatedTurn"]) && (petition["lastEvaluatedTurn"] as number) > currentTurn)) throw new Error("Not a valid save file: inconsistent UK Commons recall petition phase");
+    }
+  }
+
   const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>
     holder["seatsHeld"] === undefined ||
     (Number.isSafeInteger(holder["seatsHeld"]) && (holder["seatsHeld"] as number) >= 1);
@@ -3721,10 +3875,22 @@ export function deserializeSave(raw: string): WorldState {
   // v64: preserve absent legacy seat weights as one. Historical winner
   // weights cannot be reconstructed from previously redistributed rosters.
   if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
-  // v65: legislative taking notices, NPP strategy/replacement/cash records,
-  // and corporate relocation/FX receipts need their new continuation consumers.
-  // Preserve historical absence instead of inventing prior choices or history.
-  if (save.schemaVersion < 65) save.world.meta.schemaVersion = 65;
+  // v65: legislative notices, corporate/NPP finance, annual statehood and
+  // UK devolved/conflict/recall state share this unpublished version boundary.
+  // Preserve historical absence except for the statehood preset guard.
+  if (save.schemaVersion < 65) {
+    save.world.meta.schemaVersion = 65;
+    const regions = save.world.regions;
+    const currentEra = typeof save.world.meta.era === "string" ? save.world.meta.era : "1953";
+    const inferredPreset = regions?.AK?.countryId === "US" && regions.AK.houseSeats === 0
+      ? "1953-default"
+      : `${currentEra}-default`;
+    const statehood = save.world.statehood && typeof save.world.statehood === "object"
+      ? save.world.statehood as Record<string, unknown>
+      : {};
+    if (typeof statehood.startingPreset !== "string") statehood.startingPreset = inferredPreset;
+    save.world.statehood = statehood as NonNullable<typeof save.world.statehood>;
+  }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

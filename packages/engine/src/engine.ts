@@ -13,12 +13,26 @@ export interface AdvanceTurnOptions {
   /** Adapter-provided monotonic clock for profiling. Omit for deterministic reports. */
   now?: () => number;
   /** Diagnostic observer, outside phase timing. Must not mutate the live world. */
-  afterPhase?: (name: string, world: Readonly<WorldState>, rng: Readonly<RngState>) => void;
+  afterPhase?: (
+    name: string,
+    world: Readonly<WorldState>,
+    rng: Readonly<RngState>,
+  ) => void;
+  /** Optional ephemeral pure-tally input observer; absent in ordinary play. */
+  observeElectionTallyInput?: (snapshot: unknown) => void;
 }
 
-export function advanceTurn(world: WorldState, options: AdvanceTurnOptions = {}): TurnReport {
+export function advanceTurn(
+  world: WorldState,
+  options: AdvanceTurnOptions = {},
+): TurnReport {
   const rng = rngFromState(world.meta.rng);
-  const context = { playerAtTurnStart: structuredClone(world.player) };
+  const context = {
+    playerAtTurnStart: structuredClone(world.player),
+    ...(options.observeElectionTallyInput
+      ? { observeElectionTallyInput: options.observeElectionTallyInput }
+      : {}),
+  };
   const phaseTimings = [];
   for (const phase of TURN_PHASES) {
     if (!isTurnPhaseEnabled(world.featureFlags, phase.name)) continue;

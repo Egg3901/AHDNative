@@ -1041,3 +1041,22 @@ describe("PoliticsPanel elections dual-pane list/detail (#438)", () => {
     expect(screen.getByLabelText("Race")).toHaveValue("senate:US:TX:c1");
   });
 });
+
+describe("PoliticsPanel Commons recall reachability", () => {
+  it("shows signature and support actions from the projected UK petition", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const politics: PoliticsView = {
+      ...makePolitics(), countryId: "UK", countryName: "United Kingdom", commonsRecalls: [{
+        id: "commons-recall:UK-1:1", regionId: "NIR", targetName: "Fixture MP", status: "open", trigger: "infamy",
+        signatureCount: 2, signaturesRequired: 5, turnsToSignatureExpiry: 8, checkEndTurn: null,
+        removeDeclarations: 0, retainDeclarations: 0, playerSignatureRecorded: false, playerDeclaration: null, vacancyId: null,
+      }],
+    };
+    render(<PoliticsPanel politics={politics} section="elections" clock={CLOCK} busy={false} onAction={onAction} />);
+    expect(screen.getByRole("region", { name: "Commons recall petitions" })).toHaveTextContent("2/5");
+    await user.click(screen.getByRole("button", { name: "Sign petition" }));
+    expect(onAction).toHaveBeenCalledWith("signCommonsRecallPetition", { petitionId: "commons-recall:UK-1:1" });
+  });
+});

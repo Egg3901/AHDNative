@@ -8,7 +8,7 @@
  * handles authoritative seat counts, Bloc lists, and era bundles. The tally
  * snapshot is a live projection using Largest Remainder (Hamilton) with the
  * same thresholds and majoritarian bonus the resolver uses, but scoped to
- * the running vote totals. Keep the two in sync when changing either.
+ * the running vote totals.
  */
 
 import type { EnrichedCandidate } from "../types.js";
@@ -18,105 +18,23 @@ import type { EnrichedCandidate } from "../types.js";
 // projection (this file previously carried a stale copy missing the soviet
 // and snap types).
 import { MULTI_SEAT_TYPES } from "../resolution/constants.js";
-
-function getMultiSeatMinShare(
-  electionType: string,
-  opts?: { majoritarian?: boolean },
-): number {
-  if (opts?.majoritarian && (electionType === "commons" || electionType === "snap_commons"))
-    return 0.1;
-  if (
-    electionType === "stateSenate" ||
-    electionType === "regionalCouncil" ||
-    electionType === "landtag" ||
-    electionType === "peoplesCongress" ||
-    electionType === "dail" ||
-    electionType === "seanad" ||
-    electionType === "localCouncil" ||
-    electionType === "assembleeNationale" ||
-    electionType === "cameraDeputati" ||
-    electionType === "congresoDiputados" ||
-    electionType === "riksdag" ||
-    electionType === "milletMeclisi" ||
-    electionType === "nationalrat" ||
-    electionType === "eduskunta" ||
-    electionType === "vouli" ||
-    electionType === "volkskammerDeputy" ||
-    electionType === "landAssembly"
-  )
-    return 0.1;
-  return 0.2;
-}
-
-function getMajoritarianBonus(
-  electionType: string,
-  currentYear?: number | null,
-): { exponent: number } | undefined {
-  if (electionType !== "commons" && electionType !== "snap_commons") return undefined;
-  if (currentYear == null) return undefined;
-  if (currentYear >= 1999) return undefined;
-  return { exponent: 3 };
-}
-
-function applyMajoritarianBonus(
-  candidates: Array<{ id: string; votes: number; group: string }>,
-  bonus: { exponent: number; orgRanking?: string[] },
-): Map<string, number> {
-  const groupVotes = new Map<string, number>();
-  for (const c of candidates) {
-    groupVotes.set(c.group, (groupVotes.get(c.group) ?? 0) + c.votes);
-  }
-  const sortedGroups = [...groupVotes.entries()].sort((a, b) => b[1] - a[1]);
-  if (sortedGroups.length < 2) return new Map(candidates.map((c) => [c.id, c.votes]));
-  const total = sortedGroups.reduce((s, [, v]) => s + v, 0);
-  if (total <= 0) return new Map(candidates.map((c) => [c.id, c.votes]));
-  const topTwoGroups = new Set(sortedGroups.slice(0, 2).map(([g]) => g));
-  const topTwoVotes = sortedGroups.slice(0, 2).reduce((s, [, v]) => s + v, 0);
-  const result = new Map<string, number>();
-  for (const c of candidates) {
-    if (!topTwoGroups.has(c.group)) {
-      result.set(c.id, c.votes);
-      continue;
-    }
-    const share = c.votes / topTwoVotes;
-    const g0 = sortedGroups[0]![1];
-    const g1 = sortedGroups[1]![1];
-    const boostedShare = Math.pow(share, bonus.exponent) / (
-      Math.pow(g0 / topTwoVotes, bonus.exponent) +
-      Math.pow(g1 / topTwoVotes, bonus.exponent)
-    );
-    const boostedTotal = topTwoVotes;
-    result.set(c.id, boostedShare * boostedTotal);
-  }
-  return result;
-}
-
-function rankPartiesByOrganization(
-  statePartyOrgs: Array<{ partyId: string; organization: number }>,
-): string[] {
-  return [...statePartyOrgs]
-    .sort((a, b) => b.organization - a.organization)
-    .map((po) => po.partyId);
-}
+import { getMultiSeatMinShare } from "../resolution/seatAllocation.js";
 
 export interface EstimateSeatsArgs {
   electionType: string;
+  countryId?: string;
   totalSeats?: number | null;
   enriched: EnrichedCandidate[];
   newTotals: Record<string, number>;
-  currentYear?: number | null;
-  statePartyOrgs?: Array<{ partyId: string; organization: number }>;
 }
 
 export function estimateSeats(args: EstimateSeatsArgs): Record<string, number> | undefined {
-  const { electionType, totalSeats, enriched, newTotals, currentYear, statePartyOrgs } = args;
+  const { electionType, countryId, totalSeats, enriched, newTotals } = args;
   if (!totalSeats || !MULTI_SEAT_TYPES.has(electionType)) return undefined;
   const totalVotesCast = enriched.reduce((s, ec) => s + (newTotals[ec.candidateId] ?? 0), 0);
   if (totalVotesCast === 0) return undefined;
 
-  const minShare = getMultiSeatMinShare(electionType, {
-    majoritarian: getMajoritarianBonus(electionType, currentYear) !== undefined,
-  });
+  const minShare = getMultiSeatMinShare(electionType, totalSeats, countryId);
   const groupKey = (ec: EnrichedCandidate) =>
     ec.party && ec.party !== "independent" ? `party:${ec.party}` : `cand:${ec.candidateId}`;
   const votesByGroup = new Map<string, number>();
@@ -140,24 +58,8 @@ export function estimateSeats(args: EstimateSeatsArgs): Record<string, number> |
   const seats: Record<string, number> = {};
   for (const ec of enriched) seats[ec.candidateId] = 0;
 
-  const baseBonus = getMajoritarianBonus(electionType, currentYear);
-  const majoritarianBonus = baseBonus
-    ? { ...baseBonus, orgRanking: rankPartiesByOrganization(statePartyOrgs ?? []) }
-    : undefined;
-  const effectiveVotes =
-    majoritarianBonus && pool.length > 1
-      ? applyMajoritarianBonus(
-          pool.map((ec) => ({
-            id: ec.candidateId,
-            votes: newTotals[ec.candidateId] ?? 0,
-            group: groupKey(ec),
-          })),
-          majoritarianBonus,
-        )
-      : undefined;
-
   const allocations = pool.map((ec) => {
-    const votes = effectiveVotes?.get(ec.candidateId) ?? newTotals[ec.candidateId] ?? 0;
+    const votes = newTotals[ec.candidateId] ?? 0;
     const exactSeats = (votes / poolVotes) * totalSeats;
     return {
       candidateId: ec.candidateId,
@@ -184,4 +86,4 @@ export function estimateSeats(args: EstimateSeatsArgs): Record<string, number> |
   return seats;
 }
 
-export { MULTI_SEAT_TYPES, getMultiSeatMinShare, getMajoritarianBonus, applyMajoritarianBonus, rankPartiesByOrganization };
+export { MULTI_SEAT_TYPES, getMultiSeatMinShare };

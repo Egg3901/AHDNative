@@ -42,7 +42,10 @@ export function electoralVotesByState(world: WorldState, countryId: string): Rec
   const seats: Record<string, number> = {};
   for (const region of Object.values(world.regions)) {
     if (region.countryId !== countryId || region.corporationHeadquartersOnly === true) continue;
-    seats[region.id] = region.houseSeats ?? 0;
+    // A source territory has a real region and population before statehood,
+    // but zero House districts and no federal electors. Do not turn its two
+    // future Senate seats into present-day electoral votes.
+    if (typeof region.houseSeats === "number" && region.houseSeats > 0) seats[region.id] = region.houseSeats;
   }
   const liveYear = Number(world.meta.date.slice(0, 4));
   const evAll = electoralVotesFromSeats(seats, {
@@ -68,7 +71,7 @@ export function electoralVoteUnitsForWorld(
   const seats: Record<string, number> = {};
   for (const region of Object.values(world.regions)) {
     if (region.countryId !== countryId || region.corporationHeadquartersOnly === true) continue;
-    seats[region.id] = region.houseSeats ?? 0;
+    if (typeof region.houseSeats === "number" && region.houseSeats > 0) seats[region.id] = region.houseSeats;
   }
   const liveYear = Number(world.meta.date.slice(0, 4));
   const units = electoralVoteUnitsFromSeats(seats, {

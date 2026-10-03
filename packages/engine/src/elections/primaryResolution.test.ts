@@ -164,6 +164,26 @@ describe("resolvePrimaries", () => {
     expect(rec.candidates.map((candidate) => candidate.id)).toEqual(["player"]);
   });
 
+  it("keeps source candidate order when primary ballots tie despite different score standings", () => {
+    const { world, rec, npc } = fixture();
+    // Independent AHDGame comparator: once cumulative ballots exist it sorts
+    // by ballot totals only; stable sort retains candidate-query order on a
+    // tie. A score fallback here would incorrectly move the NPC ahead.
+    world.player.favorability = 0;
+    world.player.politicalInfluence = 0;
+    npc.favorability = 100;
+    npc.politicalInfluence = 100;
+    rec.primaryVotes = { player: 500, [npc.id]: 500 };
+
+    resolvePrimaries(world);
+
+    expect(rec.primaryResults?.byParty.DEM?.map((entry) => [entry.candidateId, entry.won])).toEqual([
+      ["player", true],
+      [npc.id, false],
+    ]);
+    expect(rec.primaryResults?.byParty.DEM?.map((entry) => entry.sharePct)).toEqual([50, 50]);
+  });
+
   it("excludes a withdrawn candidate and records an incumbent primary loss", () => {
     const { world, rec, npc } = fixture();
     rec.candidates = [rec.candidates[1]!, rec.candidates[0]!];

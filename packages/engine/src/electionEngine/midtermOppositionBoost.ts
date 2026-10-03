@@ -15,7 +15,7 @@
 export const MIDTERM_OPPOSITION_MULTIPLIER = 1.05 as const;
 
 // Inlined from `src/lib/elections/ukRegionalCouncilStagger.ts` — pure logic.
-const UK_REGIONAL_COUNCIL_COHORT_BY_REGION: Readonly<Record<string, number>> = {
+export const UK_REGIONAL_COUNCIL_COHORT_BY_REGION: Readonly<Record<string, number>> = {
   SCO: 1,
   NIR: 2,
   NEE: 2,

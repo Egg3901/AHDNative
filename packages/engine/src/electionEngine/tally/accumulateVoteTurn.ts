@@ -323,6 +323,43 @@ export function accumulateVoteTurn(
   let votesPerCandidate: Record<string, number> = {};
   let sharesPct: Record<string, number> = {};
   if (distributeFn) {
+    const distributionOptions = {
+      useAveragedPositions: election.electionType === "president" && isGeneral,
+      partyPositionWeight:
+        election.electionType === "president" && isGeneral ? 1 / 3 : undefined,
+      includeInfluenceInAppeal: false,
+      useNationalInfluenceForReach: election.electionType === "president",
+      presidentialPrimaryNationalReach:
+        election.electionType === "president" && !isGeneral,
+      applyPartyFit: election.electionType === "president" && !isGeneral,
+      votingSystem: (state.votingSystem as string) ?? "fptp",
+      isGeneralElection: isGeneral,
+      countryId: election.countryId,
+      isOnePartyState: derived.isOnePartyState,
+      currentStateId: state._id,
+      parentRegionId: state.parentRegionId ?? undefined,
+      manifestoMultipliers: derived.manifestoMultipliers,
+      liveTurnouts: effLiveTurnouts,
+      hasPlayerInRace,
+      partyGroupFavorabilityByKey: effPartyGroupFavorabilityByKey,
+      regByParty,
+      regShareByParty,
+      govModifierByParty,
+      incumbentSeatShareByParty: derived.incumbentSeatShareByParty,
+      incumbentPartyId,
+      incumbentApproval,
+      legislativeIncumbentPartyId: legislativeIncumbency?.incumbentPartyId,
+      legislativeIncumbentTenureTerms: legislativeIncumbency?.tenureTerms,
+      houseIncumbentTenureTermsByCandidateId: derived.houseIncumbentTenureTermsByCandidateId,
+      fundsByParty: derived.fundsByParty,
+      presidentialModifierByParty,
+      medianVoter,
+      spoilerRate:
+        election.electionType === "president" && isGeneral ? 0.02 : undefined,
+      useOrgAwareSpoiler:
+        election.electionType === "president" && isGeneral,
+      useSwingFlowModel: true,
+    };
     const result = distributeFn(
       effEnriched,
       effectiveTurnPool,
@@ -331,46 +368,25 @@ export function accumulateVoteTurn(
       effDemographics as unknown as import("../types.js").StateDemographics,
       effCategories as unknown as import("../types.js").DemographicCategory[],
       partyOrgByParty,
-      {
-        useAveragedPositions: election.electionType === "president" && isGeneral,
-        partyPositionWeight:
-          election.electionType === "president" && isGeneral ? 1 / 3 : undefined,
-        includeInfluenceInAppeal: false,
-        useNationalInfluenceForReach: election.electionType === "president",
-        presidentialPrimaryNationalReach:
-          election.electionType === "president" && !isGeneral,
-        applyPartyFit: election.electionType === "president" && !isGeneral,
-        votingSystem: (state.votingSystem as string) ?? "fptp",
-        isGeneralElection: isGeneral,
-        countryId: election.countryId,
-        isOnePartyState: derived.isOnePartyState,
-        currentStateId: state._id,
-        parentRegionId: state.parentRegionId ?? undefined,
-        manifestoMultipliers: derived.manifestoMultipliers,
-        liveTurnouts: effLiveTurnouts,
-        hasPlayerInRace,
-        partyGroupFavorabilityByKey: effPartyGroupFavorabilityByKey,
-        regByParty,
-        regShareByParty,
-        govModifierByParty,
-        incumbentSeatShareByParty: derived.incumbentSeatShareByParty,
-        incumbentPartyId,
-        incumbentApproval,
-        legislativeIncumbentPartyId: legislativeIncumbency?.incumbentPartyId,
-        legislativeIncumbentTenureTerms: legislativeIncumbency?.tenureTerms,
-        houseIncumbentTenureTermsByCandidateId: derived.houseIncumbentTenureTermsByCandidateId,
-        fundsByParty: derived.fundsByParty,
-        presidentialModifierByParty,
-        medianVoter,
-        spoilerRate:
-          election.electionType === "president" && isGeneral ? 0.02 : undefined,
-        useOrgAwareSpoiler:
-          election.electionType === "president" && isGeneral,
-        useSwingFlowModel: true,
-      },
+      distributionOptions,
     );
     votesPerCandidate = result.votesPerCandidate;
     sharesPct = result.sharesPct;
+    input.diagnosticObserver?.({
+      election,
+      candidates: effEnriched,
+      effectiveTurnPool,
+      totalPool: effTotalPool,
+      electorate,
+      demographics: effDemographics as unknown as import("../types.js").StateDemographics,
+      categories: effCategories as unknown as import("../types.js").DemographicCategory[],
+      partyOrgByParty: [...partyOrgByParty],
+      options: distributionOptions,
+      turnNumber,
+      ...(input.rng ? { rngState: input.rng.state() } : {}),
+      nativeVotesPerCandidate: result.votesPerCandidate,
+      nativeSharesPct: result.sharesPct,
+    });
   } else {
     // Fallback: even split when no distributor supplied (tests that pin caps)
     const per = effEnriched.length > 0 ? effectiveTurnPool / effEnriched.length : 0;
@@ -410,11 +426,10 @@ export function accumulateVoteTurn(
   // Seat estimation (Hamilton)
   const seatsEstimate = estimateSeats({
     electionType: election.electionType,
+    countryId: election.countryId,
     totalSeats: election.totalSeats ?? null,
     enriched: effEnriched,
     newTotals,
-    currentYear: derived.currentYear ?? null,
-    statePartyOrgs: input.statePartyOrgs.map((po) => ({ partyId: po.partyId, organization: po.organization })),
   });
 
   // Build snapshot

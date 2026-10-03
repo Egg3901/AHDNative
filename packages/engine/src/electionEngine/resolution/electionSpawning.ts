@@ -121,6 +121,7 @@ export function planNextElectionForType(
     senateClass: params.senateClass,
     chamberClass: params.chamberClass,
     countryId: params.countryId,
+    customCycle1EndTurn: params.customCycle1EndTurn,
   });
   if (!spawn) return null;
   const dur = DEFAULT_DURATIONS[params.electionType];

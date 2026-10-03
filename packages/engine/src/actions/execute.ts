@@ -85,8 +85,14 @@ import { proposeNationalizationBill } from "../legislation/nationalizationBills.
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
 import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
+import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeacePoll } from "../livingConflict/northernIreland.js";
+import { resignUkCommonsSeat, validateUkCommonsDefection, vacatePlayerCommonsSeat } from "../elections/ukCommonsVacancies.js";
+import { declareUkCommonsRecall, signUkCommonsRecallPetition } from "../elections/ukCommonsRecall.js";
+import { recomputeComposition } from "../elections/orchestration.js";
 
 export type ExecuteActionParams = {
+  /** Player preference for automatic re-entry in the most recent state race. */
+  enabled?: boolean;
   regionId?: string;
   contractId?: string;
   issuerLevel?: "national" | "state";
@@ -108,6 +114,8 @@ export type ExecuteActionParams = {
   endorsedType?: "party" | "politician";
   endorsementId?: string;
   electionId?: string;
+  petitionId?: string;
+  recallSide?: "retain" | "remove";
   // Legislation
   catalogId?: string;
   /** Source-generated program-law option id (`l0` through `l4`). */
@@ -116,6 +124,8 @@ export type ExecuteActionParams = {
   vote?: "for" | "against" | "abstain";
   pmAppointmentVoteId?: string;
   pmVote?: "aye" | "nay";
+  niOptionId?: string;
+  niPollSide?: "yes" | "no";
   sponsorCountryId?: string;
   billTitle?: string;
   billCategory?: string;
@@ -456,6 +466,10 @@ function executeActionInner(
   ) {
     return { ok: false, error: LEGISLATION_FREEZE_MESSAGE };
   }
+  if (actionId === "sponsorBill" && ["uk_northern_ireland_peace", "ie_northern_ireland_peace"].includes(params.catalogId ?? "")) {
+    if (world.northernIrelandConflict?.phase !== "agreement") return { ok: false, error: "Northern Ireland settlement bills may be sponsored only during the authored agreement phase." };
+    if (params.policyOptionId !== "l1") return { ok: false, error: "The source peace-ratification path requires the ratify option." };
+  }
 
   // Campaign presence is charged to the active campaign's own source pools,
   if (actionId === "sponsorBill" && params.catalogId === "state_ownership.nationalize") {
@@ -685,6 +699,46 @@ function executeActionInner(
         ? declineExtractionContractOffer(world, contractId)
         : revokeExtractionContract(world, contractId);
     return result.ok ? { ok: true, message: `${actionId} completed for ${contractId}.` } : result;
+  }
+
+  if (actionId === "chooseNorthernIrelandConflictOption") {
+    if (found.kind !== "player") return { ok: false, error: "Only the current country player may answer a living-conflict role decision." };
+    const result = chooseNorthernIrelandLivingConflictOption(world, actorId, params.niOptionId ?? "");
+    return result.ok ? { ok: true, message: `Recorded the Northern Ireland position ${params.niOptionId}.` } : result;
+  }
+  if (actionId === "campaignNorthernIrelandPeacePoll") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may campaign on the Northern Ireland peace-agreement ballot." };
+    const result = campaignNorthernIrelandPeacePoll(world, params.niPollSide ?? "yes", params.units ?? 0);
+    return result.ok ? { ok: true, message: `Recorded ${params.units} ${params.niPollSide} campaign units for the peace-agreement poll.` } : result;
+  }
+  if (actionId === "resignCommonsSeat") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can resign their UK Commons seat." };
+    const result = resignUkCommonsSeat(world);
+    if (!result.ok) return result;
+    recomputeComposition(world, "UK", "commons");
+    return { ok: true, message: `You resigned from your ${result.vacancy.regionId} Commons office; a by-election is now due.` };
+  }
+  if (actionId === "defectCommonsSeat") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player can defect from the Commons." };
+    const partyId = params.partyId ?? "";
+    const eligibility = validateUkCommonsDefection(world, partyId);
+    if (!eligibility.ok) return eligibility;
+    const membership = Membership.defectParty(world, partyId);
+    if (!membership.ok) return membership;
+    const result = vacatePlayerCommonsSeat(world, "defection");
+    if (!result.ok) return result;
+    recomputeComposition(world, "UK", "commons");
+    return { ok: true, message: `You defected; your former ${result.vacancy.regionId} Commons office is due for a by-election.` };
+  }
+  if (actionId === "signCommonsRecallPetition") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may sign a Commons recall petition." };
+    const result = signUkCommonsRecallPetition(world, params.petitionId ?? "");
+    return result.ok ? { ok: true, message: `Signature recorded (${result.signatures} of 5).` } : result;
+  }
+  if (actionId === "declareCommonsRecall") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may declare a position in a Commons recall check." };
+    const result = declareUkCommonsRecall(world, params.petitionId ?? "", params.recallSide ?? "retain");
+    return result.ok ? { ok: true, message: `Your ${params.recallSide ?? "retain"} position was recorded.` } : result;
   }
 
   if (actionId === "fundraise") {
@@ -2689,6 +2743,19 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "withdrawGovernorEndorsement":
       return params.electionId && params.endorsementId
         ? null : "withdrawGovernorEndorsement requires electionId and endorsementId";
+    case "chooseNorthernIrelandConflictOption":
+      return params.niOptionId ? null : "chooseNorthernIrelandConflictOption requires niOptionId";
+    case "campaignNorthernIrelandPeacePoll":
+      return params.niPollSide && params.units !== undefined ? null : "campaignNorthernIrelandPeacePoll requires niPollSide and units";
+    case "resignCommonsSeat":
+      return null;
+    case "defectCommonsSeat":
+      return params.partyId ? null : "defectCommonsSeat requires partyId";
+    case "signCommonsRecallPetition":
+      return params.petitionId ? null : "signCommonsRecallPetition requires petitionId";
+    case "declareCommonsRecall":
+      return params.petitionId && params.recallSide && ["retain", "remove"].includes(params.recallSide)
+        ? null : "declareCommonsRecall requires petitionId and recallSide (retain or remove)";
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null

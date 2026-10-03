@@ -964,6 +964,29 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
 
   return (
     <div className="ahd-stack">
+      {politics.countryId === "UK" ? (
+        <section className="ahd-card ahd-card-pad" aria-label="Commons recall petitions">
+          <h2 className="ahd-h2">Commons recalls</h2>
+          <p className="ahd-help" role="note">Petitions open from the source infamy or sustained low-favorability rules. Five character signatures start a six-turn support check; the current player can contribute one signature and one position.</p>
+          {(politics.commonsRecalls ?? []).length === 0 ? <p className="ahd-muted">No seated Commons office is currently under recall review.</p> : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "0.5rem" }}>
+              {(politics.commonsRecalls ?? []).map((petition) => (
+                <li key={petition.id} className="ahd-card ahd-card-pad">
+                  <strong>{petition.targetName}</strong><span className="ahd-muted"> · {petition.regionId} · {petition.status}</span>
+                  {petition.status === "open" ? <p className="ahd-muted">Signatures: {petition.signatureCount}/{petition.signaturesRequired}; closes in {petition.turnsToSignatureExpiry} turns.</p> : null}
+                  {petition.status === "check" ? <p className="ahd-muted">Support check ends turn {petition.checkEndTurn}; remove {petition.removeDeclarations}, retain {petition.retainDeclarations}.</p> : null}
+                  {petition.vacancyId ? <p className="ahd-muted">The recalled office is now in the Commons vacancy process.</p> : null}
+                  {petition.status === "open" ? <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy || petition.playerSignatureRecorded} onClick={() => onAction("signCommonsRecallPetition", { petitionId: petition.id })}>{petition.playerSignatureRecorded ? "Signature recorded" : "Sign petition"}</button> : null}
+                  {petition.status === "check" ? <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                    <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy || petition.playerDeclaration === "retain"} onClick={() => onAction("declareCommonsRecall", { petitionId: petition.id, recallSide: "retain" })}>Retain</button>
+                    <button type="button" className="ahd-btn ahd-btn-sm" disabled={busy || petition.playerDeclaration === "remove"} onClick={() => onAction("declareCommonsRecall", { petitionId: petition.id, recallSide: "remove" })}>Remove</button>
+                  </div> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
       <div>
         <RouteHero
           image={electionsHero()}

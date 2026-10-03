@@ -218,6 +218,8 @@ export interface WorldState {
   demographicCategories: Record<string, import("./demographics/categories.js").DemographicCategory[]>;
   /** Census reapportionment state. Ports src/lib/turn/census.ts GameState.lastCensusYear/lastCensus. Schema v14. */
   census: { lastCensusYear?: number; lastCensus?: { year: number; deltas: import("./demographics/census.js").SeatDelta[] } };
+  /** Annual statehood-admission evaluation guard, mirroring GameState.lastStatehoodYear. */
+  statehood?: { lastEvaluatedYear?: number; startingPreset?: string };
   /** Per-region labor force headcount (civilian). Computed from workingAge + conscription + participation. Schema v14. */
   laborForces: Record<string, number>;
   /** National budgets per country (fiscal system). Ports FederalBudget shape. Schema v15. */
@@ -411,6 +413,21 @@ export interface WorldState {
    * unchanged on top.
    */
   governors: Record<string, import("./governor/types.js").GovernorState>;
+  /**
+   * UK devolved-executive institutions and their first election anchors.
+   * New worlds seed the authored settlement; legacy saves may omit this state
+   * and retain that absence until a national policy actually changes it.
+   * Schema v63.
+   */
+  ukDevolution?: import("./devolution/ukInstitutions.js").UKDevolutionState;
+  /** Distinct political living conflict; never merged into military `conflicts`. Schema v63. */
+  northernIrelandConflict?: import("./livingConflict/northernIreland.js").NorthernIrelandLivingConflict;
+  /** Belfast Agreement public consent poll; intentionally separate from reunification referendum actuation. */
+  northernIrelandPeacePoll?: import("./livingConflict/northernIreland.js").NorthernIrelandPeacePoll;
+  /** Source-shaped UK Commons vacancy ledger. Absent on saves predating #2886 parity work. */
+  ukCommonsVacancies?: import("./elections/ukCommonsVacancies.js").UkCommonsVacancy[];
+  /** Source-shaped MP recall petition pipeline; absent on legacy saves. Schema v65. */
+  ukCommonsRecallPetitions?: import("./elections/ukCommonsRecall.js").UkCommonsRecallPetition[];
   governorAddresses: import("./governor/types.js").GovernorAddress[];
   governorOrders: import("./governor/types.js").GovernorOrder[];
   /**
@@ -1650,6 +1667,8 @@ export interface Region {
   /** Migration provenance: this HQ-only row was absent from the legacy save. */
   legacyProjectionDefault?: true;
   /** Optional enriched state metadata for US states (W38+). Mirrors StateSeed fields. */
+  /** In-game admission year for a territory admitted after its starting pack. */
+  admittedYear?: number;
   population?: number;
   houseSeats?: number;
   senateSeats?: number;
