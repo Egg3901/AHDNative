@@ -118,17 +118,40 @@ export interface CountryBudget {
 /**
  * Regional (state) budget — generic version.
  * Source: src/lib/turn/regionalBudget.ts BudgetCalculationInput/Result + StateBudget shape.
- * JP/DE country-specific variants are unported (issue #103); see regionalBudget.ts.
- * JP and DE are economy entries, not player countries, in the 1991 and 2019 packs.
- * A recorded regional budget uses the generic processor independently of player eligibility.
+ * The generic processor covers the supported country rows. Japan's source
+ * regional-budget subset uses its dedicated processor in budget/phases.ts;
+ * schema v70 retains the source JP StatePolicy ladder and budget cost outputs.
+ * Fiscal-only JP rows deliberately do not imply electoral Region entities or
+ * new-character eligibility.
  */
 export interface RegionalBudget {
   regionId: string;
   countryId: string;
+  /** Japan's authored Local Allocation Tax option cost, in JPY per capita. Schema v70. */
+  jpNationalGrantPerCapita?: number;
+  /** Current source JP `State.population`, retained with the fiscal-only row. */
+  jpPopulation?: number;
+  /** Source JP `RegionalBudget.propertyValuePerCapita`, defaulting to ¥8m. */
+  jpPropertyValuePerCapita?: number;
+  /** Source JP `RegionalBudget.propertyValueBaseline`, defaulting to ¥8m. */
+  jpPropertyValueBaseline?: number;
+  /**
+   * Source JP prefectural StatePolicy rows. The option ID/index and political
+   * axes are retained because source forced austerity mutates this ladder.
+   * Absent on historical rows; only fresh source rows seed center options.
+   */
+  jpRegionalPolicies?: import("./jpRegionalPolicyCatalog.js").JPRegionalPolicyState[];
+  /** Annual source StatePolicy cost total, JPY. */
+  jpEnactedPolicyCosts?: number;
+  /** Annual state-subsidy cost total, JPY. */
+  jpSubsidyCosts?: number;
   revenue: {
     councilTax: number;
     businessRates: number;
     grant: number;
+    /** Japan source regional budget revenue lines (schema v70, absent on legacy rows). */
+    jpResidentTax?: number;
+    jpFixedAssetTax?: number;
     /**
      * Issue #100: regional (state-scope) tax revenue = Σ (phased rate% × the
      * region's GDP-derived tax base) for each enacted state tax. Source:

@@ -175,3 +175,30 @@ Political metrics destination now uses source overview/category/metric labels,
 population-weighted scores and actual region/cabinet rows. [Evidence and remaining
 scope](POLITICAL-BOARD-CONSUMERS.md) keeps #105/#263/#510 partial; this does not
 claim full approval, military, history or current-SP interchange parity.
+
+## Regional cost of living (schema68)
+
+Game `0538f4264354eeb837dc1b0b47639e74591fca17` supplies the actual
+`macroMetrics` seed writes through each country's metrics seeder. Native
+captures those writes with `scripts/cost-of-living-reference.mjs`; new worlds
+retain the authored value and no simulated baseline. Scotland starts at98,
+and the first ordinary turn preserves98 while recording its structural104.5
+baseline. Source inertia, policy residuals, two-decimal rounding and final/EMA
+bounds40..200 retain that cold-start behavior. Loading older saves preserves
+the absence of both the metric and baseline until an ordinary turn writes them.
+
+US1991/2019 seed values include source randomization. The generator captures
+their centers at `Math.random=0.5`; runtime replays draw4 of the existing
+66-draw/state TFP seed tape, preserving its order without consuming turn RNG.
+Passing `source-col-modern-rng-tape` as the generator's optional third argument
+reproduces the actual source oracle for both eras. Tests compare all51source
+US rows against that oracle, alongside the authored Scotland lifecycle,
+save/reload and paid public bargaining journey. The same generated registry
+also includes source Japan rows, though Native has not populated those macro
+rows in its current new worlds.
+
+The local bargaining consumer reads the saved regional metric. Complete
+source `buildBargainingMandate` outputs match the declared phase, neutral
+control and earned public inputs. This does not establish full reference
+world simulation, labor/macro producers, housing pressure, all local pools or
+bidirectional current-SP interchange parity; #114 remains partial.

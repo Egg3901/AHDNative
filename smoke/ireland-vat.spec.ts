@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { advanceTurn, createWorld, deserializeSave, executeAction, serializeSave } from "@ahdclient/engine";
 import {
   advanceGame,
@@ -12,6 +13,38 @@ import {
 
 let eligibleSeatSave: Buffer | undefined;
 let eligibleTaoiseachSave: Buffer | undefined;
+
+function attachTurnDiagnostics(page: import("@playwright/test").Page) {
+  const report = (stage: string) => {
+    const memory = process.memoryUsage();
+    let browserProcesses: string;
+    try {
+      browserProcesses = execFileSync("ps", ["-eo", "pid,ppid,rss,comm"], {
+        encoding: "utf8", timeout: 2_000, maxBuffer: 1024 * 1024,
+      }).split("\n").filter((line) => /chrome|chromium/.test(line)).join("\n");
+    } catch (error) {
+      browserProcesses = error instanceof Error ? error.message : "Process sampling failed.";
+    }
+    const cgroup: Record<string, string> = {};
+    for (const file of ["memory.current", "memory.max", "memory.events"]) {
+      try { cgroup[file] = readFileSync(`/sys/fs/cgroup/${file}`, "utf8").trim(); }
+      catch { /* The host may not expose a cgroup memory controller. */ }
+    }
+    let hostMemory = "";
+    try {
+      hostMemory = readFileSync("/proc/meminfo", "utf8").split("\n")
+        .filter((line) => /^(MemTotal|MemAvailable|SwapTotal|SwapFree):/.test(line)).join("\n");
+    } catch { /* Process samples remain available on non-Linux hosts. */ }
+    process.stderr.write(`[IE turn memory] ${JSON.stringify({
+      stage, at: new Date().toISOString(), runner: memory, browserProcesses, cgroup, hostMemory,
+    })}\n`);
+  };
+  page.on("console", (message) => {
+    if (message.text().startsWith("[AHD session stage]")) report(message.text());
+  });
+  page.on("crash", () => report("page:crash"));
+  page.on("pageerror", (error) => report(`page:error:${error.message}`));
+}
 
 function playableIrishSeatSave(): Buffer {
   if (eligibleSeatSave) return Buffer.from(eligibleSeatSave);
@@ -168,6 +201,7 @@ async function openLegislation(page: import("@playwright/test").Page) {
 
 test("Irish party chair nominates a Taoiseach through the Dáil and resumes the passed appointment", async ({ page }, testInfo) => {
   test.setTimeout(1_800_000);
+  attachTurnDiagnostics(page);
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto("/");
   await loadFixture(page, playableIrishSeatSave());
@@ -200,6 +234,7 @@ test("Irish party chair nominates a Taoiseach through the Dáil and resumes the 
 
 test("Irish PM proposes, passes and resumes the authored 23% VAT bill", async ({ page }, testInfo) => {
   test.setTimeout(1_800_000);
+  attachTurnDiagnostics(page);
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto("/");
   await loadFixture(page, playableIrishTaoiseachSave());
@@ -237,13 +272,7 @@ test("Irish PM replaces VAT through a source bill and resumes its saved fiscal p
   // synchronous deserialization does not consume the browser journey budget.
   let fixture = signedIrishVatSave();
   const page = await context.newPage();
-  page.on("crash", () => {
-    const memory = process.memoryUsage();
-    process.stderr.write(`[IE VAT smoke] page crashed at ${new Date().toISOString()}; test-worker rss=${memory.rss} heap=${memory.heapUsed} external=${memory.external}\n`);
-  });
-  page.on("pageerror", (error) => {
-    process.stderr.write(`[IE VAT smoke] page error at ${new Date().toISOString()}: ${error.stack ?? error.message}\n`);
-  });
+  attachTurnDiagnostics(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await loadFixture(page, fixture);
@@ -251,6 +280,10 @@ test("Irish PM replaces VAT through a source bill and resumes its saved fiscal p
   await gameReady(page);
   await openLegislation(page);
   const vatTitle = "Statutory Value-Added Tax Act";
+  // Legislation details are driven by the selected catalog entry. The page
+  // defaults to the first available bill, so choose VAT before looking for its
+  // authored rate selector.
+  await page.getByLabel("Available legislation", { exact: true }).selectOption("ie_vat_rate");
   const priorBillCount = await page.getByRole("article", { name: vatTitle, exact: true }).count();
   const rateSelector = page.getByLabel("Tax rate", { exact: true });
   await rateSelector.selectOption("25");
@@ -259,11 +292,16 @@ test("Irish PM replaces VAT through a source bill and resumes its saved fiscal p
   await page.getByRole("button", { name: "Sponsor bill", exact: true }).click();
   await expect(page.getByRole("article", { name: vatTitle, exact: true })).toHaveCount(priorBillCount + 1);
   await advanceUntilVote(page, vatTitle);
+  const replacement = page.getByRole("article", { name: vatTitle, exact: true }).first();
+  const whipFor = replacement.getByRole("button", { name: `Hard whip NPPs for on ${vatTitle}`, exact: true });
+  await expect(whipFor).toBeEnabled();
+  await whipFor.click();
+  await gameReady(page);
   await advanceUntilLatestBillSigned(page, vatTitle);
   // Completed bills are newest-first; the first card is the newly signed
   // replacement, while the last card is the older 23% enactment.
-  const replacement = page.getByRole("article", { name: vatTitle, exact: true }).first();
-  await replacement.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
+  const replacementAfterVote = page.getByRole("article", { name: vatTitle, exact: true }).first();
+  await replacementAfterVote.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
   await expect(page.getByText("Selected rate: 25%", { exact: true })).toBeVisible();
   await saveGame(page);
   await page.reload();

@@ -40,7 +40,6 @@ import * as ReferendumGroundGame from "../referendum/groundGame.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import {
   getPlayerPartyLeadershipGate,
-  isPartyLeadershipAuthority,
   isPlayerNationalLeadershipVoter,
 } from "../intraparty/leadershipTenure.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
@@ -81,6 +80,11 @@ import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
+import { chamberSeatWeights } from "../government/seatWeights.js";
+import { tallyVotes } from "../legislation/billVoteLogic.js";
+import { isEligibleNppBillVoter, resolveNppBillVote } from "../npp/voteDecision.js";
+import { hardNppWhipSuccessChance } from "../npp/partyWhipSuccess.js";
+import { partyWhipEligibilityError } from "../npp/partyWhipEligibility.js";
 import { proposeNationalizationBill } from "../legislation/nationalizationBills.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
 import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
@@ -99,8 +103,7 @@ export type ExecuteActionParams = {
   regionId?: string;
   contractId?: string;
   issuerLevel?: "national" | "state";
-  /** Source canvassing batch size, 1 through 50. */
-  count?: number;
+  /** Source batch size for canvassing and standing ads, 1 through 50. */
   amount?: number; // for convertCash
   fundSlug?: string;
   units?: number;
@@ -164,7 +167,7 @@ export type ExecuteActionParams = {
   position?: "chair" | "viceChair" | "treasurer";
   countryId?: string;
   disbandVote?: "yes" | "no";
-  whipDirection?: "for" | "against" | "abstain";
+  whipDirection?: "for" | "against";
   whipMode?: "hard" | "soft";
   // W10 markets
   corpId?: string;
@@ -216,6 +219,12 @@ export type ExecuteActionParams = {
   managerId?: string;
   demographicCategory?: string;
   demographicGroup?: string;
+  /** Optimistic quote revision for standing ad purchase. */
+  expectedRevision?: number;
+  /** Source-shaped targeted-ad quote fields; stale quotes are rejected before charging. */
+  expectedTurn?: number;
+  expectedCost?: number;
+  count?: number;
   // #68 campaign strength
   /** Batched single-click count for campaignContribute; "max" resolves server-side. */
   clicks?: number | "max";
@@ -238,6 +247,11 @@ export type ExecuteActionParams = {
   /** Extra campaign-anchor funds on top of the type's baseFundCost. */
   influenceFundAmount?: number;
 };
+
+export interface ActionExecutionContext {
+  /** Observed wall clock from GameSession; pure engine callers may omit it. */
+  observedAt?: string;
+}
 
 export type ExecuteActionResult =
   | { ok: true; message: string; changes?: Partial<Record<"actions" | "funds" | "cash" | "infamy" | "politicalInfluence" | "nationalInfluence" | "favorability" | "donorBaseLevel", number>> }
@@ -274,7 +288,6 @@ const HOS_PARTY_BYPASS_ACTIONS: ReadonlySet<string> = new Set([
   "leaveCaucus",
   "contestPartyLeadership",
   "votePartyLeadership",
-  "issuePartyWhip",
   "contestCommittee",
   "voteCommittee",
   "createCoalition",
@@ -298,6 +311,7 @@ export function executeAction(
   actorId: string,
   actionId: string,
   params: ExecuteActionParams = {},
+  context: ActionExecutionContext = {},
 ): ExecuteActionResult {
   // Dispatchers validate before their first domain mutation. Accounting is
   // the only shared state charged before dispatch, so snapshot it once and
@@ -329,9 +343,22 @@ export function executeAction(
       }
     : undefined;
   try {
-    const result = executeActionWithModeBypass(world, actorId, actionId, params);
+    const partyIdBefore = actorId === "player" ? world.player.partyId : undefined;
+    const partyIdsBefore = actorId === "player" ? new Set(Object.keys(world.parties)) : undefined;
+    const result = executeActionWithModeBypass(world, actorId, actionId, params, context);
     if (!result.ok && actor && accounting) restoreActionAccounting(actor, accounting);
-    if (result.ok && actorId === "player") accrueCharacterActionXp(world, actionId);
+    if (result.ok && actorId === "player") {
+      if (context.observedAt && world.player.partyId !== partyIdBefore) {
+        world.player.partyJoinedAt = world.player.partyId ? context.observedAt : null;
+        world.player.lastPartySwitchAt = context.observedAt;
+      }
+      if (context.observedAt && partyIdsBefore) {
+        for (const [partyId, party] of Object.entries(world.parties)) {
+          if (!partyIdsBefore.has(partyId) && !party.isDefault) party.nppControlCreatedAt = context.observedAt;
+        }
+      }
+      accrueCharacterActionXp(world, actionId);
+    }
     if (result.ok && actor && accounting) {
       const changes: Extract<ExecuteActionResult, { ok: true }>["changes"] = {};
       for (const key of ["actions", "funds", "cash", "infamy", "politicalInfluence", "nationalInfluence", "favorability", "donorBaseLevel"] as const) {
@@ -390,6 +417,7 @@ function executeActionWithModeBypass(
   actorId: string,
   actionId: string,
   params: ExecuteActionParams,
+  context: ActionExecutionContext,
 ): ExecuteActionResult {
   const player = world.player as unknown as { mode: string; partyId: string | null; hosPartyId: string | null };
   const bypass =
@@ -398,11 +426,11 @@ function executeActionWithModeBypass(
     !player.partyId &&
     !!player.hosPartyId &&
     HOS_PARTY_BYPASS_ACTIONS.has(actionId);
-  if (!bypass) return executeActionInner(world, actorId, actionId, params);
+  if (!bypass) return executeActionInner(world, actorId, actionId, params, context);
   const original = player.partyId;
   player.partyId = player.hosPartyId;
   try {
-    return executeActionInner(world, actorId, actionId, params);
+    return executeActionInner(world, actorId, actionId, params, context);
   } finally {
     player.partyId = original;
   }
@@ -413,6 +441,7 @@ function executeActionInner(
   actorId: string,
   actionId: string,
   params: ExecuteActionParams = {},
+  context: ActionExecutionContext = {},
 ): ExecuteActionResult {
   const catalog = (ACTION_CATALOG as Record<string, typeof ACTION_CATALOG[ActionId]>)[actionId];
   if (!catalog) return { ok: false, error: `Unknown action: ${actionId}` };
@@ -557,7 +586,7 @@ function executeActionInner(
       tickerSymbol: params.tickerSymbol ?? "",
       sectorType: params.sectorType!,
       ...(params.secondarySectorType ? { secondarySectorType: params.secondarySectorType } : {}),
-      startingCapital: params.startingCapital,
+      ...(params.startingCapital !== undefined ? { startingCapital: params.startingCapital } : {}),
     });
     return result.ok
       ? { ok: true, message: `Founded ${world.corporations[result.corporationId]!.name} (${world.corporations[result.corporationId]!.tickerSymbol}) with ${result.startingCapital} in starting capital.` }
@@ -622,8 +651,17 @@ function executeActionInner(
   if (nppInfluence && !nppInfluence.ok) return nppInfluence;
   const nppRecruit = actionId === "recruitCaucusNpp" ? quoteRecruitCaucusNpp(world, params, actorId) : null;
   if (nppRecruit && !nppRecruit.ok) return nppRecruit;
+  const targetedAdQuote = actionId === "targetedAds" || actionId === "campaignTargetedAd"
+    ? CampaignTargetedAd.quoteTargetedAds(world, params.count ?? 1)
+    : null;
+  if ((actionId === "targetedAds" || actionId === "campaignTargetedAd") &&
+    (!targetedAdQuote || params.expectedTurn !== targetedAdQuote.turn || params.expectedCost !== targetedAdQuote.cost ||
+      params.expectedRevision !== targetedAdQuote.revision)) {
+    return { ok: false, error: "The ad quote changed. Refresh before buying." };
+  }
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
-  const cost = canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
+  const cost = targetedAdQuote ? targetedAdQuote.count * CampaignTargetedAd.CAMPAIGN_TARGETED_AD_ACTIONS
+    : canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
     ? partyCaucus.actionCost
     : actionId === "sponsorBill"
       ? BILL_PROPOSE_ACTION_COST
@@ -637,7 +675,7 @@ function executeActionInner(
   // Game character quotes price the actor's home state, not a UI target.
   const actionRegion = world.regions[actor.homeRegionId ?? ""];
   const playerStats = found.kind === "player" ? effectivePlayerStats(world) : undefined;
-  const fundCost = canvass?.ok ? canvass.funds : nppInfluence?.ok ? nppInfluence.fundCost : nppRecruit?.ok ? nppRecruit.fundCost : partyCaucus ? partyCaucus.fundCost : actionFundCost({
+  const fundCost = targetedAdQuote?.cost ?? (canvass?.ok ? canvass.funds : nppInfluence?.ok ? nppInfluence.fundCost : nppRecruit?.ok ? nppRecruit.fundCost : partyCaucus ? partyCaucus.fundCost : actionFundCost({
     actionId,
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
@@ -647,7 +685,7 @@ function executeActionInner(
     population: actionRegion?.population,
     era: world.meta.era,
     ...(playerStats ? { stats: playerStats } : {}),
-  });
+  }));
   if (fundCost > 0) {
     // Prefer campaign funds; allow actor.funds only (player funds field)
     const available = actor.funds ?? 0;
@@ -1135,6 +1173,29 @@ function executeActionInner(
       regionId: params.regionId,
       demographicCategory: params.demographicCategory,
       demographicGroup: params.demographicGroup,
+      expectedRevision: params.expectedRevision,
+      expectedTurn: params.expectedTurn,
+      expectedCost: params.expectedCost,
+      count: params.count,
+    });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "targetedAds") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can buy standing targeted ads" };
+    const res = CampaignTargetedAd.purchaseStandingTargetedAd(world, {
+      regionId: params.regionId,
+      demographicCategory: params.demographicCategory,
+      demographicGroup: params.demographicGroup,
+      expectedRevision: params.expectedRevision,
+      expectedTurn: params.expectedTurn,
+      expectedCost: params.expectedCost,
+      count: params.count,
     });
     if (!res.ok) {
       actor.actions += cost;
@@ -1900,7 +1961,7 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `Unknown bill: ${billId}` };
     }
-    if (bill.countryId !== world.player.countryId || bill.sponsorPartyId === null && world.parties[partyId]?.countryId !== bill.countryId) {
+    if (bill.countryId !== world.player.countryId || world.parties[partyId]?.countryId !== bill.countryId) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Party and bill must be in the same country" };
@@ -1910,28 +1971,76 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `Bill not in voting status: ${bill.status}` };
     }
-    if (!isPartyLeadershipAuthority(world, partyId, "player")) {
+    if (direction !== "for" && direction !== "against") {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
-      return { ok: false, error: "Party whip requires the national chair or acting vice chair" };
+      return { ok: false, error: "Source party whips support for or against" };
     }
-    const issuerRole = world.parties[partyId]?.chairId === "player" ? "chair" : "actingViceChair";
+    const eligibilityError = partyWhipEligibilityError(world, bill, context.observedAt);
+    if (eligibilityError) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: eligibilityError };
+    }
+    const existingAttempts = (world.partyWhips ?? []).filter((candidate) =>
+      candidate.billId === billId
+      && candidate.partyId === partyId
+      && candidate.countryId === bill.countryId
+      && candidate.chamber === bill.currentChamber
+      && candidate.stateId === undefined,
+    );
+    const attemptNumber = (existingAttempts.length + 1) as 1 | 2;
+    const issuerRole = world.parties[partyId]?.chairId === "player" ? "chair" : "viceChair";
     const whip = {
-      id: `whip-${billId}-${partyId}`,
+      id: `whip-${billId}-${partyId}-${attemptNumber}`,
       billId,
       partyId,
       countryId: bill.countryId,
       chamber: bill.currentChamber,
       direction,
       mode,
+      attemptNumber,
       issuedAtTurn: world.meta.turn,
       issuerId: "player",
       issuerRole,
     } as const;
     const partyWhips = world.partyWhips ??= [];
-    const existing = partyWhips.findIndex((candidate) => candidate.billId === billId && candidate.partyId === partyId);
-    if (existing >= 0) partyWhips[existing] = whip;
-    else partyWhips.push(whip);
+    partyWhips.push(whip);
+
+    // A source hard whip is an immediate per-NPP success roll. A successful
+    // NPP changes its recorded ballot; a failed NPP keeps the bill verdict
+    // recomputed with the hard instruction in its cross-pressure inputs.
+    // Soft whips are advisory and never rewrite a recorded ballot here.
+    if (mode === "hard" && (direction === "for" || direction === "against")) {
+      const voteMap = bill.status === "active_other" ? (bill.otherChamberVotes ??= {}) : bill.votes;
+      const statecraft = effectivePlayerStats(world)?.statecraft ?? NEUTRAL_STAT;
+      const statecraftBonus = Math.round((statMultiplier(statecraft) - 1) * 50);
+      const rng = rngFromState(world.meta.rng);
+      for (const politician of world.politicians) {
+        if (politician.countryId !== bill.countryId
+          || politician.chamberKey !== bill.currentChamber
+          || politician.partyId !== partyId
+          || !isEligibleNppBillVoter(world, bill, politician)) continue;
+        if (voteMap[politician.id] === direction) continue;
+
+        const obeys = rng.int(1, 100) <= hardNppWhipSuccessChance(politician.personality, statecraftBonus);
+        voteMap[politician.id] = obeys ? direction : resolveNppBillVote(world, bill, politician, { direction, mode: "hard" });
+      }
+      world.meta.rng = rng.state();
+
+      const weights = chamberSeatWeights(world, bill.countryId, bill.currentChamber);
+      const countedVotes = Object.fromEntries(Object.entries(voteMap).filter(([id]) => weights.has(id)));
+      const tally = tallyVotes(countedVotes, weights);
+      if (bill.status === "active_other") {
+        bill.otherChamberVotesFor = tally.for;
+        bill.otherChamberVotesAgainst = tally.against;
+        bill.otherChamberVotesAbstain = tally.abstain;
+      } else {
+        bill.votesFor = tally.for;
+        bill.votesAgainst = tally.against;
+        bill.votesAbstain = tally.abstain;
+      }
+    }
     return { ok: true, message: `Issued ${mode} ${direction} whip for ${partyId} on ${billId}` };
   }
   if (actionId === "createCoalition") {
@@ -2881,9 +2990,13 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         ? null
         : "campaignCanvass requires electionId, regionId, demographicCategory, and demographicGroup";
     case "campaignTargetedAd":
-      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
+      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup && typeof params.expectedRevision === "number"
         ? null
-        : "campaignTargetedAd requires electionId, regionId, demographicCategory, and demographicGroup";
+        : "campaignTargetedAd requires electionId, regionId, demographicCategory, demographicGroup, and expectedRevision";
+    case "targetedAds":
+      return params.regionId && params.demographicCategory && params.demographicGroup && typeof params.expectedRevision === "number"
+        ? null
+        : "targetedAds requires regionId, demographicCategory, demographicGroup, and expectedRevision";
     case "campaignContribute":
       return params.electionId ? null : "campaignContribute requires electionId";
     case "sponsorBill":
@@ -2906,10 +3019,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         ? null
         : "votePartyLeadership requires intrapartyElectionId and candidateId";
     case "issuePartyWhip":
-      return params.billId && (params.whipDirection === "for" || params.whipDirection === "against" || params.whipDirection === "abstain")
+      return params.billId && (params.whipDirection === "for" || params.whipDirection === "against")
         && (params.whipMode === undefined || params.whipMode === "hard" || params.whipMode === "soft")
         ? null
-        : "issuePartyWhip requires billId, whipDirection, and a valid whipMode";
+        : "issuePartyWhip requires billId and a whipDirection of for or against, with a valid whipMode";
     case "voteCommittee":
       return params.intrapartyElectionId && (params.committeeCandidateIds || params.candidateId)
         ? null

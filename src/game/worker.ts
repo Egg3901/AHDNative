@@ -1,12 +1,14 @@
 /// <reference lib="webworker" />
 import { GameSession, gameChoices, creationChoices } from "./session";
 import type { GameRequest, GameResponse } from "./protocol";
+import { encodeSerializedSave } from "./serializedSave";
 
 const session = new GameSession();
-self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
+self.addEventListener("message", async (event: MessageEvent<GameRequest>) => {
   const { id, command } = event.data;
   try {
     let value: unknown;
+    const transfer: Transferable[] = [];
     switch (command.type) {
       case "choices": value = gameChoices(); break;
       case "creationChoices": value = creationChoices(command.era, command.countryId); break;
@@ -19,6 +21,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "regions": value = session.regions(command.query); break;
       case "cabinetOffice": value = session.cabinetOffice(); break;
       case "issueCabinetOrder": value = session.issueCabinetOrder({ positionId: command.positionId, orderId: command.orderId, ...(command.targetRegionId ? { targetRegionId: command.targetRegionId } : {}) }); break;
+      case "setJPRegionalAllocation": value = session.setJPRegionalAllocation(command.input); break;
       case "caucusManagement": value = session.caucusManagement(); break;
       case "partyManagement": value = session.partyManagement(); break;
       case "markets": value = session.markets(); break;
@@ -73,6 +76,18 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
         break;
       }
       case "serialize": value = session.serialize(command.savedAt, command.includeSaveNotice); break;
+      case "serializeWithMetadata": value = session.serializeWithMetadata(command.savedAt, command.includeSaveNotice); break;
+      case "serializeForStorage": {
+        const serialized = session.serializeWithMetadata(command.savedAt, command.includeSaveNotice);
+        const encoded = await encodeSerializedSave(serialized);
+        value = encoded;
+        const buffer = encoded.contents.bytes.buffer;
+        if (buffer instanceof ArrayBuffer) transfer.push(buffer);
+        if (import.meta.env?.VITE_AHD_SMOKE_FIXTURES === "1") {
+          console.info("[AHD session stage]", JSON.stringify({ stage: "storage:encoded", turn: encoded.metadata.turn, at: new Date().toISOString(), codeUnits: serialized.contents.length, bytes: encoded.contents.bytes.byteLength }));
+        }
+        break;
+      }
       case "load": value = session.load(command.contents); break;
       case "notificationsRead": value = session.markNotificationRead(command.id); break;
       case "notificationsDelete": value = session.deleteNotification(command.id); break;
@@ -80,7 +95,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "notificationsSaved": value = session.recordSave(); break;
       default: throw new Error("Unknown game command.");
     }
-    self.postMessage({ id, ok: true, value } satisfies GameResponse);
+    self.postMessage({ id, ok: true, value } satisfies GameResponse, { transfer });
   } catch (error) {
     self.postMessage({ id, ok: false, error: error instanceof Error ? error.message : "The game operation failed." } satisfies GameResponse);
   }

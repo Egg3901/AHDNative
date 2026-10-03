@@ -14,6 +14,7 @@ import type { WorldOverviewView } from "./worldOverview";
 import type { PoliticsView, PoliticalMetricsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
 import type { ActionOutcome } from "./notifications";
+import type { EncodedSerializedSave, SerializedSave } from "./serializedSave";
 import type { EraChoice, CreationChoices, GameView, NewGameOptions } from "./types";
 import type { SectorAcquireResult, SectorSaleResult, WorldFeatureFlags } from "@ahdclient/engine";
 
@@ -59,6 +60,9 @@ export class GameClient {
   issueCabinetOrder(input: IssueCabinetOrderInput) {
     return this.send<{ result: { ok: true; message: string } | { ok: false; error: string }; view: GameView }>({ type: "issueCabinetOrder", ...input });
   }
+  setJPRegionalAllocation(input: import("./cabinetOffice").SetJPRegionalAllocationInput) {
+    return this.send<{ result: { ok: true } | { ok: false; error: string }; view: GameView }>({ type: "setJPRegionalAllocation", input });
+  }
   caucusManagement() { return this.send<CaucusManagementView>({ type: "caucusManagement" }); }
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }
@@ -93,6 +97,8 @@ export class GameClient {
     return this.send<{ result: unknown; view: GameView }>(command);
   }
   serialize(savedAt: string, includeSaveNotice = false) { return this.send<string>({ type: "serialize", savedAt, ...(includeSaveNotice ? { includeSaveNotice: true } : {}) }); }
+  serializeWithMetadata(savedAt: string, includeSaveNotice = false) { return this.send<SerializedSave>({ type: "serializeWithMetadata", savedAt, ...(includeSaveNotice ? { includeSaveNotice: true } : {}) }); }
+  serializeForStorage(savedAt: string, includeSaveNotice = false) { return this.send<EncodedSerializedSave>({ type: "serializeForStorage", savedAt, ...(includeSaveNotice ? { includeSaveNotice: true } : {}) }); }
   load(contents: string) { return this.send<GameView>({ type: "load", contents }); }
   markNotificationRead(id: string) { return this.send<GameView>({ type: "notificationsRead", id }); }
   deleteNotification(id: string) { return this.send<GameView>({ type: "notificationsDelete", id }); }

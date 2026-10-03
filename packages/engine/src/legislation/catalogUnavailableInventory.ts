@@ -1788,23 +1788,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "dd.economy.workerSecurity.primary",
-    "countryId": "DD",
-    "nativeScope": "national",
-    "sourceScope": "both",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "economy.workerSecurity"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "politicalMetrics",
-    "sourcePath": "src/lib/politicalLegislation/laws/ddLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "de_academic_reform",
     "countryId": "DE",
     "nativeScope": "national",
@@ -2271,26 +2254,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "taxRateChange": null,
     "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.laborParticipation,social.kitaCoverage",
-    "sourcePath": "src/lib/countries/de/data/deLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "de_government_ethics",
-    "countryId": "DE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "bundestag:bundestag_chair",
-      "bundestag:bundestag_obmann"
-    ],
-    "authoredTargets": [
-      "governance.governmentTransparency",
-      "governance.publicTrust",
-      "governance.voterTurnout"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/countries/de/data/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3115,75 +3078,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "ie_corporate_tax_rate",
-    "countryId": "IE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "dail:dail_chair",
-      "dail:dail_vice"
-    ],
-    "authoredTargets": [
-      "economic.gdpGrowth",
-      "economic.unemploymentRate",
-      "social.incomeInequality",
-      "governance.budgetBalance"
-    ],
-    "taxRateChange": {
-      "scope": "federal",
-      "taxType": "domesticCorporateTax"
-    },
-    "authoredRateOptions": [
-      {
-        "id": "ie_corporate_tax_rate_opt_0",
-        "rate": 0
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_1",
-        "rate": 5
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_2",
-        "rate": 9
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_3",
-        "rate": 12.5
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_4",
-        "rate": 15
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_5",
-        "rate": 18
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_6",
-        "rate": 20
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_7",
-        "rate": 23
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_8",
-        "rate": 26
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_9",
-        "rate": 30
-      },
-      {
-        "id": "ie_corporate_tax_rate_opt_10",
-        "rate": 33
-      }
-    ],
-    "blockingSystem": "budget/taxRateLadder",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "ie_criminal_justice",
     "countryId": "IE",
     "nativeScope": "national",
@@ -3451,27 +3345,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "ie_electoral_reform",
-    "countryId": "IE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "dail:dail_chair",
-      "dail:dail_vice"
-    ],
-    "authoredTargets": [
-      "governance.voterTurnout",
-      "social.civicParticipation",
-      "governance.publicTrust",
-      "governance.governmentTransparency"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "ie_excise_duty",
     "countryId": "IE",
     "nativeScope": "national",
@@ -3697,47 +3570,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "taxRateChange": null,
     "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "ie_gender_equality",
-    "countryId": "IE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "dail:dail_chair",
-      "dail:dail_vice"
-    ],
-    "authoredTargets": [
-      "social.genderEquality",
-      "social.socialMobility",
-      "social.civicParticipation",
-      "social.socialCohesion"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "ie_government_ethics",
-    "countryId": "IE",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "dail:dail_chair",
-      "dail:dail_vice"
-    ],
-    "authoredTargets": [
-      "governance.governmentTransparency",
-      "governance.publicTrust",
-      "social.civicParticipation"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -6467,40 +6299,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "ru.economy.stability.primary",
-    "countryId": "RU",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "economy.stability"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "plannedEconomy",
-    "sourcePath": "src/lib/politicalLegislation/laws/ruLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "uk.defense.security.primary",
-    "countryId": "UK",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "defense.security"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "military",
-    "sourcePath": "src/lib/politicalLegislation/laws/ukLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "us.centralBank.independence.primary",
     "countryId": "US",
     "nativeScope": "national",
@@ -6512,40 +6310,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "blockingSystem": "centralBank/governance",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
-  },
-  {
-    "id": "us.defense.armedForces.primary",
-    "countryId": "US",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "defense.armedForces"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "military/conflict",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
-    "sourceMatch": "matched"
-  },
-  {
-    "id": "us.defense.diplomacy.primary",
-    "countryId": "US",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "defense.diplomacy"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "military/alliance",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
-    "sourceMatch": "matched"
   },
   {
     "id": "us.economy.mobility.primary",
@@ -6576,23 +6340,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "blockingSystem": "elections/electoralLaw",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
-  },
-  {
-    "id": "us.environment.conservation.primary",
-    "countryId": "US",
-    "nativeScope": "national",
-    "sourceScope": "both",
-    "prerequisites": [
-      "active:any-year"
-    ],
-    "authoredTargets": [
-      "environment.conservation"
-    ],
-    "taxRateChange": null,
-    "authoredRateOptions": [],
-    "blockingSystem": "politicalMetrics/environment",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
-    "sourceMatch": "matched"
   },
   {
     "id": "us.subsidy.industry.primary",

@@ -23,6 +23,8 @@ import {
 import { calculateSubsidyCostForCountry, SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
 import { getTurnInYear, FISCAL_YEAR_START_TURN_IN_YEAR, TURNS_PER_YEAR } from "./fiscalYear.js";
 import { advanceTaxRatePhaseIn } from "./taxRatePhaseIn.js";
+import { regionalPolicySpendingDelta } from "../policyEffects/budget.js";
+import { createJPRegionalBudgetRows, processJPRegionalBudget } from "./jpRegionalBudget.js";
 
 function sourcePipelineGdpGrowth(world: import("../types.js").WorldState, countryId: string): number {
   const national = world.nationalMetrics?.[countryId]?.["economic.gdpGrowth"]?.value;
@@ -152,9 +154,8 @@ export const fiscalYearPhase: TurnPhase = {
 
 // ── Regional budget processing (generic) ─────────────────────────────
 // Source: src/lib/turn/regionalBudget.ts processRegionalBudgets (generic).
-// Country-specific JP/DE variants remain unported (issue #103). JP and DE
-// are economy entries, not player countries, in the 1991 and 2019 packs.
-// The generic processor consumes any recorded regional budget rows.
+// JP uses its dedicated source processor below. DE remains an unported
+// country-specific variant (issue #103).
 export const regionalBudgetProcessingPhase: TurnPhase = {
   name: "regionalBudgetProcessing",
   run(world) {
@@ -180,6 +181,11 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
           rb.taxRatePhaseIn = ramp.pending;
         }
       }
+      // Japan uses its source prefectural processor below; generic UK-style
+      // council/business revenue is not a substitute.
+      if (region.countryId === "JP") {
+        continue;
+      }
       const pop = region.population ?? 0;
       const nationalPop = countryBudget.population;
       const regionGdpAbs = regionalGdpAbsolute(region, countryBudget);
@@ -202,6 +208,8 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
       for (const [k, v] of Object.entries(countryBudget.spending.byCategory)) {
         byCat[k] = nationalPop > 0 ? Math.round((v * pop) / nationalPop) : 0;
       }
+      const regionalPolicyDelta = regionalPolicySpendingDelta(world, rid);
+      if (regionalPolicyDelta !== 0) byCat.other = (byCat.other ?? 0) + regionalPolicyDelta;
       const spendTotal = Object.values(byCat).reduce((s, v) => s + v, 0) + Math.round(rb.revenue.grant * 0.5) + (rb.spending.resourceProspecting ?? 0);
       rb.spending.byCategory = byCat;
       rb.spending.total = spendTotal;
@@ -211,6 +219,24 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
       else rb.consecutiveDeficits = 0;
       // Austerity trigger (>1 consecutive deficit) is deferred — would need enacted law downgrade
       // Cited as deferred: src/lib/turn/regionalBudget.ts forced austerity (most expensive programme downgraded)
+    }
+    // JP source geography is retained as budget-only rows. A legacy save with
+    // no prior JP fiscal rows receives the source-authored baseline on its
+    // first ordinary processing turn; no historical cabinet allocation or
+    // mutable regional policy is guessed. It is deliberately
+    // not inserted into the shared electoral Region map while JP remains
+    // unplayable; the source pack supplies the eight immutable prefectoral
+    // identities/populations to the country-specific processor. Game seeds
+    // each JP regional policy at its center option for every preset; the
+    // shared row builder records the exact center StatePolicy ladders and
+    // source tax rates/grant cost. Legacy absent policy history remains absent.
+    if (world.budgets?.JP) {
+      for (const [regionId, row] of Object.entries(createJPRegionalBudgetRows(world.meta.era))) {
+        if (!world.regionalBudgets[regionId]) world.regionalBudgets[regionId] = row;
+      }
+    }
+    for (const [regionId, row] of Object.entries(world.regionalBudgets ?? {})) {
+      if (row.countryId === "JP") processJPRegionalBudget(world, regionId);
     }
   },
 };

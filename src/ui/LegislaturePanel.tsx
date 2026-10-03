@@ -461,6 +461,29 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
                     </button>
                   ))}
                   <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{voteHint}</span>
+                  {bill.hardWhip ? (
+                    <>
+                      <button
+                        type="button"
+                        className="ahd-btn ahd-btn-sm"
+                        onClick={() => onAction("issuePartyWhip", { billId: bill.id, whipDirection: "for", whipMode: "hard" })}
+                        disabled={busy || !bill.hardWhip.available}
+                        aria-label={`Hard whip NPPs for on ${bill.title}`}
+                      >Hard whip NPPs for</button>
+                      <button
+                        type="button"
+                        className="ahd-btn ahd-btn-sm"
+                        onClick={() => onAction("issuePartyWhip", { billId: bill.id, whipDirection: "against", whipMode: "hard" })}
+                        disabled={busy || !bill.hardWhip.available}
+                        aria-label={`Hard whip NPPs against on ${bill.title}`}
+                      >Hard whip NPPs against</button>
+                      <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                        {bill.hardWhip.available
+                          ? bill.hardWhip.cost > 0 ? `Cost ${bill.hardWhip.cost} actions` : "No action cost"
+                          : bill.hardWhip.disabledReason}
+                      </span>
+                    </>
+                  ) : null}
                 </div> : null}
               </article>
             );

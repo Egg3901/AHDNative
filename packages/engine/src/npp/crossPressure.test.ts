@@ -6,6 +6,8 @@ import {
   computeWhipForce,
   verdictFromForces,
 } from "./crossPressure.js";
+import type { Bill } from "../legislation/types.js";
+import { getLaw, type CatalogEntry } from "../legislation/catalog.js";
 
 const voter = {
   partyId: "CN_CCP",
@@ -14,7 +16,7 @@ const voter = {
   personality: { loyalty: 80, stubbornness: 20, ambition: 50 },
 } as const;
 
-const bill = {
+const bill: Pick<Bill, "countryId" | "sponsorPartyId" | "legislationTypeId" | "effectDirection" | "provisions" | "category"> = {
   countryId: "CN",
   category: "economic",
   sponsorPartyId: "CN_OTHER",
@@ -28,13 +30,16 @@ const bill = {
     economic: 3,
     social: 0,
   }],
-} as const;
+};
 
-const selectedLaw = {
+const sourceTaxPolicy = getLaw("cn_value_added_tax")?.taxPolicy;
+if (!sourceTaxPolicy) throw new Error("The source CN VAT fixture requires its tax-policy contract");
+const selectedLaw: Pick<CatalogEntry, "taxPolicy"> = {
   taxPolicy: {
+    ...sourceTaxPolicy,
     options: [{ id: "cn_value_added_tax_opt_8", rate: 19, effectDirection: 1, economic: 3, social: 0 }],
   },
-} as const;
+};
 
 describe("source NPP bill cross-pressure", () => {
   it("matches the pinned Game tax-vector force and verdict", () => {
@@ -66,6 +71,8 @@ describe("source NPP bill cross-pressure", () => {
   it("still applies a recorded source whip when a federal bill has no policy provision", () => {
     const result = computeCrossPressureForces(voter, {
       sponsorPartyId: null,
+      legislationTypeId: "",
+      effectDirection: 0,
       provisions: [],
       category: "economic",
     }, {}, {
@@ -80,8 +87,9 @@ describe("source NPP bill cross-pressure", () => {
   });
 
   it("matches the source population-weighted option approvals and uses zero when absent", () => {
-    const approvalLaw = {
+    const approvalLaw: Pick<CatalogEntry, "taxPolicy"> = {
       taxPolicy: {
+        ...sourceTaxPolicy,
         options: [{
           id: "cn_value_added_tax_opt_8",
           rate: 19,
@@ -91,11 +99,12 @@ describe("source NPP bill cross-pressure", () => {
           archetypeApprovals: { rural_workers: -40, urban_professionals: 30 },
         }],
       },
-    } as const;
+    };
     const demographics = {
+      _id: "CN-source-vector", countryId: "CN", categoryWeights: { archetypes: 100 }, lastUpdated: "1953-01-06T00:00:00.000Z",
       groups: {
-        rural_workers: { population: 25 },
-        urban_professionals: { population: 75 },
+        rural_workers: { population: 25, economicLean: 0, socialLean: 0, turnout: 0 },
+        urban_professionals: { population: 75, economicLean: 0, socialLean: 0, turnout: 0 },
       },
     };
     expect(computeCrossPressureForces(voter, bill, approvalLaw, {

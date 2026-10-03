@@ -5,7 +5,8 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
 import type { Bill } from "../legislation/types.js";
 import { nppBehaviorPhase } from "../npp/nppBehavior.js";
-import { rngFromSeed } from "../rng.js";
+import { hardNppWhipSuccessChance } from "../npp/partyWhipSuccess.js";
+import { rngFromSeed, rngFromState } from "../rng.js";
 import { projectPlayerPartyInfluence } from "../party/playerInfluence.js";
 import { partyInfluenceTurnPhase } from "../party/phases.js";
 import { accelerateNationalPartyElections, resolveNationalPartyElections } from "./nationalPartyElections.js";
@@ -198,20 +199,29 @@ describe("issue 102 leadership acceptance", () => {
     expect(() => initiateDisbandVote(world, coalition.id, "US_DEM", "player")).toThrow(/chair|vice/i);
   });
 
-  it("persists a party whip and makes NPP bill voting follow a hard direction", () => {
+  it("applies a hard whip with the source per-NPP chance and saved world RNG", () => {
     const world = createWorld(OPTIONS);
     world.player.partyId = "US_DEM";
     world.parties.US_DEM!.chairId = "player";
     world.player.actions = 100;
-    const demPoliticians = world.politicians.filter((politician) => politician.partyId === "US_DEM").slice(0, 3);
-    for (const politician of demPoliticians) politician.chamberKey = "house";
-    // Pin all seated voters to an independently source-vectored compliance
-    // input. A hard whip is still compliance-scaled in Game, so default
-    // randomized personalities can legitimately abstain near the threshold.
-    for (const politician of world.politicians.filter((candidate) => candidate.partyId === "US_DEM" && candidate.chamberKey === "house")) {
-      politician.personality = { loyalty: 80, ambition: 50, stubbornness: 20 };
+    for (const politician of world.politicians.filter((candidate) => candidate.partyId === "US_DEM")) {
+      politician.chamberKey = "senate";
     }
-    world.bills.push(activeBill("bill-hard-whip"));
+    const demPoliticians = world.politicians.filter((politician) => politician.partyId === "US_DEM").slice(0, 3);
+    for (const politician of demPoliticians) {
+      politician.chamberKey = "house";
+      politician.personality = { loyalty: 0, ambition: 50, stubbornness: 100 };
+      politician.ideology = { economic: 5, social: 0 };
+    }
+    const bill = activeBill("bill-hard-whip");
+    bill.provisions = [{ type: "policy", legislationTypeId: "test.policy", effectDirection: 1, economic: 5, social: 0 }];
+    world.bills.push(bill);
+
+    // Source formula for this declared vector is 55 + round(0 * .35)
+    // - round(100 * .18) + 15 hard = 52%; neutral statecraft adds zero.
+    expect(hardNppWhipSuccessChance(demPoliticians[0]!.personality, 0)).toBe(52);
+    const expectedRng = rngFromState(world.meta.rng);
+    const expectedVotes = demPoliticians.map(() => expectedRng.int(1, 100) <= 52 ? "against" : "for");
 
     const issued = executeAction(world, "player", "issuePartyWhip", {
       billId: "bill-hard-whip",
@@ -220,23 +230,165 @@ describe("issue 102 leadership acceptance", () => {
     });
     expect(issued.ok).toBe(true);
     expect(world.partyWhips).toHaveLength(1);
+    expect(demPoliticians.map((politician) => bill.votes[politician.id])).toEqual(expectedVotes);
+    expect(world.meta.rng).toEqual(expectedRng.state());
 
     const raw = JSON.parse(serializeSave(world, "2026-09-11T00:00:00.000Z")) as { world: Record<string, unknown> };
     delete raw.world.partyWhips;
     expect(deserializeSave(JSON.stringify(raw)).partyWhips).toBeUndefined();
     const restored = deserializeSave(serializeSave(world, "2026-09-11T00:00:00.000Z"));
     expect(restored.partyWhips).toEqual(world.partyWhips);
+    expect(restored.bills[0]!.votes).toEqual(bill.votes);
+    expect(restored.meta.rng).toEqual(world.meta.rng);
     for (let turn = 0; turn < 20; turn++) {
       restored.meta.turn = turn;
       nppBehaviorPhase.run(restored, rngFromSeed(`whip-${turn}`));
     }
-    const demVotes = Object.entries(restored.bills[0]!.votes)
-      .filter(([politicianId]) => restored.politicians.find((politician) => politician.id === politicianId)?.partyId === "US_DEM")
-      .map(([, vote]) => vote);
-    expect(demVotes.length).toBeGreaterThan(0);
-    expect(new Set(demVotes)).toEqual(new Set(["against"]));
+    expect(demPoliticians.map((politician) => restored.bills[0]!.votes[politician.id])).toEqual(expectedVotes);
 
     advanceTurn(restored);
     expect(restored.partyWhips).toHaveLength(1);
+  });
+
+  it("matches source whip authority and leaves AP untouched", () => {
+    const world = createWorld(OPTIONS);
+    world.player.partyId = "US_DEM";
+    world.parties.US_DEM!.chairId = "other-chair";
+    world.parties.US_DEM!.viceChairId = "player";
+    world.player.actions = 1;
+    world.bills.push(activeBill("bill-vice-whip"));
+
+    const result = executeAction(world, "player", "issuePartyWhip", {
+      billId: "bill-vice-whip",
+      whipDirection: "for",
+      whipMode: "soft",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(world.player.actions).toBe(1);
+    expect(world.partyWhips).toMatchObject([{ issuerRole: "viceChair", attemptNumber: 1 }]);
+  });
+
+  it("retains two independent attempts and refuses a third for one bill chamber", () => {
+    const world = createWorld(OPTIONS);
+    world.player.partyId = "US_DEM";
+    world.parties.US_DEM!.chairId = "player";
+    world.player.actions = 0;
+    world.bills.push(activeBill("bill-whip-cap"));
+
+    const first = executeAction(world, "player", "issuePartyWhip", {
+      billId: "bill-whip-cap",
+      whipDirection: "for",
+      whipMode: "soft",
+    });
+    const second = executeAction(world, "player", "issuePartyWhip", {
+      billId: "bill-whip-cap",
+      whipDirection: "against",
+      whipMode: "soft",
+    });
+    const third = executeAction(world, "player", "issuePartyWhip", {
+      billId: "bill-whip-cap",
+      whipDirection: "for",
+      whipMode: "soft",
+    });
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    expect(third).toMatchObject({ ok: false, error: expect.stringMatching(/maximum.*2|two.*whip/i) });
+    expect(world.partyWhips).toMatchObject([
+      { attemptNumber: 1, direction: "for" },
+      { attemptNumber: 2, direction: "against" },
+    ]);
+    expect(world.partyWhips?.map((whip) => whip.direction)).toEqual(["for", "against"]);
+    const restored = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
+    expect(restored.partyWhips).toEqual(world.partyWhips);
+    const malformed = JSON.parse(serializeSave(world, "2026-10-03T00:00:00.000Z")) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; partyWhips: Array<{ attemptNumber?: number }> };
+    };
+    malformed.world.partyWhips[1]!.attemptNumber = 1;
+    expect(() => deserializeSave(JSON.stringify(malformed))).toThrow(/attempt sequence/i);
+    const afterReload = executeAction(restored, "player", "issuePartyWhip", {
+      billId: "bill-whip-cap",
+      whipDirection: "against",
+      whipMode: "hard",
+    });
+    expect(afterReload).toMatchObject({ ok: false, error: expect.stringMatching(/maximum.*2|two.*whip/i) });
+  });
+
+  it("preserves a legacy single whip as one attempt when reading the previous schema", () => {
+    const world = createWorld(OPTIONS);
+    world.player.partyId = "US_DEM";
+    world.parties.US_DEM!.chairId = "player";
+    world.bills.push(activeBill("bill-legacy-whip"));
+    expect(executeAction(world, "player", "issuePartyWhip", {
+      billId: "bill-legacy-whip",
+      whipDirection: "for",
+      whipMode: "soft",
+    }).ok).toBe(true);
+    const raw = JSON.parse(serializeSave(world, "2026-10-03T00:00:00.000Z")) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; partyWhips: Array<Record<string, unknown>> };
+    };
+    raw.schemaVersion = 70;
+    raw.world.meta.schemaVersion = 70;
+    delete raw.world.partyWhips[0]!.attemptNumber;
+    const restored = deserializeSave(JSON.stringify(raw));
+    expect(restored.partyWhips?.[0]?.attemptNumber).toBeUndefined();
+    const second = executeAction(restored, "player", "issuePartyWhip", {
+      billId: "bill-legacy-whip",
+      whipDirection: "against",
+      whipMode: "soft",
+    });
+    expect(second.ok).toBe(true);
+    expect(restored.partyWhips?.map((whip) => whip.attemptNumber)).toEqual([undefined, 2]);
+  });
+
+  it("does not let a head-of-state title substitute for source party membership or allow abstain", () => {
+    const world = createWorld(OPTIONS);
+    world.player.mode = "hos";
+    world.player.partyId = null;
+    world.player.hosPartyId = "US_DEM";
+    world.parties.US_DEM!.chairId = "player";
+    world.bills.push(activeBill("bill-hos-whip"));
+
+    const denied = executeAction(world, "player", "issuePartyWhip", {
+      billId: "bill-hos-whip",
+      whipDirection: "for",
+      whipMode: "soft",
+    });
+    expect(denied).toMatchObject({ ok: false, error: expect.stringMatching(/membership/i) });
+    world.player.mode = "career";
+    world.player.partyId = "US_DEM";
+    world.partyWhips = [];
+    const abstain = executeAction(world, "player", "issuePartyWhip", JSON.parse(
+      '{"billId":"bill-hos-whip","whipDirection":"abstain","whipMode":"soft"}',
+    ));
+    expect(abstain).toMatchObject({ ok: false, error: expect.stringMatching(/for or against/i) });
+    expect(world.partyWhips).toHaveLength(0);
+  });
+
+  it("keeps a soft whip advisory without changing ballots or consuming RNG", () => {
+    const world = createWorld(OPTIONS);
+    world.player.partyId = "US_DEM";
+    world.parties.US_DEM!.chairId = "player";
+    world.player.actions = 100;
+    const politician = world.politicians.find((candidate) => candidate.partyId === "US_DEM")!;
+    politician.chamberKey = "house";
+    const bill = activeBill("bill-soft-whip");
+    bill.votes[politician.id] = "for";
+    bill.votesFor = 1;
+    world.bills.push(bill);
+    const rngBefore = [...world.meta.rng];
+
+    const issued = executeAction(world, "player", "issuePartyWhip", {
+      billId: bill.id,
+      whipDirection: "against",
+      whipMode: "soft",
+    });
+
+    expect(issued.ok).toBe(true);
+    expect(bill.votes[politician.id]).toBe("for");
+    expect(world.meta.rng).toEqual(rngBefore);
   });
 });

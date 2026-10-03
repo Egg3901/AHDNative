@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advanceTurn } from "../engine.js";
-import { executeAction } from "../actions/execute.js";
+import { executeAction, type ExecuteActionParams } from "../actions/execute.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
@@ -38,11 +38,12 @@ describe("setSubsidyRate proposal and enactment lifecycle (#94)", () => {
     expect(world.player.actions).toBe(before - 10);
     expect(world.subsidies).toEqual([]);
     const bill = world.bills.at(-1)!;
+    const currentStatus = () => bill.status;
     expect(bill).toMatchObject({ status: "proposed", category: "industry", provisions: [{ type: "subsidy", subsidyScopeType: "sector", targetSectorType: "energy", domesticOnly: true }] });
     for (let i = 0; i < 12 && bill.status !== "signed" && bill.status !== "failed"; i++) {
       advanceTurn(world);
       advanceTurn(control);
-      if (bill.status !== "signed") expect(world.subsidies).toEqual([]);
+      if (currentStatus() !== "signed") expect(world.subsidies).toEqual([]);
     }
     const signed = bill;
     expect(signed.status).toBe("signed");
@@ -70,7 +71,9 @@ describe("setSubsidyRate proposal and enactment lifecycle (#94)", () => {
     const world = createWorld(HOS_OPTS);
     world.nppAutonomyLevel = "off";
     world.player.actions = 100;
-    const invalid = executeAction(world, "player", "setSubsidyRate", { subsidyOp: "enact", subsidyScopeType: "sector", sectorType: "mithril" });
+    const invalidParams: ExecuteActionParams = { subsidyOp: "enact", subsidyScopeType: "sector", sectorType: "energy" };
+    Reflect.set(invalidParams, "sectorType", "mithril");
+    const invalid = executeAction(world, "player", "setSubsidyRate", invalidParams);
     expect(invalid).toMatchObject({ ok: false, error: expect.stringContaining("present in the player's country") });
     expect(world.bills).toHaveLength(0);
     expect(world.player.actions).toBe(100);

@@ -5,6 +5,7 @@ import {
   isMinisterialOrderActive,
   normalizeMinisterialActionPool,
   normalizeMinisterialOrderLifecycle,
+  listRegions as listSourceRegions,
   type WorldState,
 } from "@ahdclient/engine";
 
@@ -78,12 +79,22 @@ export interface CabinetOfficeView {
   positions: CabinetPositionView[];
   activeOrders: CabinetActiveOrderView[];
   regions: CabinetRegionOption[];
+  /** Japan's source Internal Affairs allocation state, when this office is held by the player. */
+  jpRegionalAllocation?: {
+    canEdit: boolean;
+    percentages: Record<string, number>;
+    lastChangedTurn: number | null;
+  };
 }
 
 export interface IssueCabinetOrderInput {
   positionId: string;
   orderId: string;
   targetRegionId?: string;
+}
+
+export interface SetJPRegionalAllocationInput {
+  allocationPercents: Record<string, number>;
 }
 
 function describeBlocker(blocker: string): string {
@@ -103,10 +114,12 @@ export function projectCabinetOffice(world: WorldState): CabinetOfficeView {
   const isExecutive = world.executives[countryId]?.presidentId === "player";
   for (const order of world.ministerialOrders) normalizeMinisterialOrderLifecycle(order, world.meta.turn);
 
-  const regions = Object.values(world.regions)
-    .filter((region) => region.countryId === countryId)
-    .map((region) => ({ id: region.id, name: region.name }))
-    .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
+  const regions = countryId === "JP"
+    ? listSourceRegions(world.meta.era, countryId)
+    : Object.values(world.regions)
+      .filter((region) => region.countryId === countryId)
+      .map((region) => ({ id: region.id, name: region.name }))
+      .sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
   const regionName = (id: string | undefined): string | null =>
     id ? (world.regions[id]?.name ?? id) : null;
 
@@ -203,6 +216,15 @@ export function projectCabinetOffice(world: WorldState): CabinetOfficeView {
     positions,
     activeOrders,
     regions,
+    ...(countryId === "JP" ? {
+      jpRegionalAllocation: {
+        canEdit: world.cabinetMembers.some((member) =>
+          member.countryId === "JP" && member.positionId === "JP_internal_affairs_minister" && member.characterId === "player"),
+        percentages: structuredClone(world.jpRegionalBudgetAllocation?.allocationPercents
+          ?? Object.fromEntries(regions.map((region) => [region.id, 100 / 8]))),
+        lastChangedTurn: world.jpRegionalBudgetAllocation?.lastAllocationChangedTurn ?? null,
+      },
+    } : {}),
   };
 }
 

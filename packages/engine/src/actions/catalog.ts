@@ -45,6 +45,7 @@ export type ActionId =
   | "fundraise"
   | "campaign"
   | "advertise"
+  | "targetedAds"
   | "buildDonorBase"
   | "poll"
   | "pollLarge"
@@ -697,8 +698,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   issuePartyWhip: {
     id: "issuePartyWhip",
     name: "Issue Party Whip",
-    description: "Issue a bill-specific national party instruction. The national chair or acting vice chair may set a hard or soft for/against/abstain direction, which NPP bill voting follows and persists through save/reload. Cost 2 AP.",
-    baseCost: 2,
+    description: "Issue a bill-specific national party instruction. The national chair or vice chair may apply an immediate probabilistic hard for/against whip or record a soft for/against instruction for later NPP voting. Two attempts are allowed per bill and chamber.",
+    baseCost: 0,
     cooldown: 0,
     fundCost: 0,
     systems: ["intraparty/partyWhip", "legislation/voting"],
@@ -1260,7 +1261,17 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   campaignTargetedAd: {
     id: "campaignTargetedAd",
     name: "Buy targeted ads",
-    description: "Spend one action and 100 funds to buy targeted ads for a demographic group in the campaign region.",
+    description: "Review the quoted local campaign-fund cost, then spend 1–50 actions on targeted ads for a demographic group in the campaign region.",
+    baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
+    cooldown: 0,
+    fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
+    systems: ["campaign/targeting"],
+    status: "available",
+  },
+  targetedAds: {
+    id: "targetedAds",
+    name: "Targeted Ads",
+    description: "Review the quoted local campaign-fund cost, then spend 1–50 actions on voter exposure in an eligible region. Ads decay over 24 turns and cap at 25%.",
     baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
     cooldown: 0,
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,

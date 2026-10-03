@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
+import type { Party } from "../types.js";
 import { executeAction } from "../actions/execute.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { advanceTurn } from "../engine.js";
@@ -80,7 +81,7 @@ describe("Northern Ireland living-conflict continuation", () => {
     conflict.decision = { interaction: "peace_initiative", nodeId: "unionist_position", nodeIndex: 2, openedTurn: world.meta.turn, deadlineTurn: world.meta.turn + 6 };
     const sourceParty = Object.values(world.parties).find((candidate) => candidate.countryId === "UK");
     expect(sourceParty).toBeDefined();
-    const party = { ...sourceParty!, id: "UK_DUP", abbreviation: "DUP", chairId: null };
+    const party: Party = { ...sourceParty!, id: "UK_DUP", abbreviation: "DUP", chairId: null };
     world.parties.UK_DUP = party;
     const ukMember = world.politicians.find((politician) => politician.countryId === "UK");
     expect(ukMember).toBeDefined();

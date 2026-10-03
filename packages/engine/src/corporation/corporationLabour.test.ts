@@ -18,6 +18,7 @@ import {
 import { processLabourRelationsTurn } from "../unions/labourRelationsTurn.js";
 import { STRIKE_COOLDOWN_TURNS } from "../unions/bargaining.js";
 import type { WorldState } from "../types.js";
+import { rngFromSeed } from "../rng.js";
 
 const WORLD = { seed: "corporation-labour-322", playerName: "Tester", countryId: "US", era: "1953" } as const;
 const UNION = "US-manufacturing";
@@ -133,8 +134,8 @@ describe("#322 exactly-once economic damage", () => {
     idleAsset.strikeStartedAtTurn = null;
     idleAsset.workerExpectationIndex = null;
 
-    corporationTurnPhase.run(struck);
-    corporationTurnPhase.run(idle);
+    corporationTurnPhase.run(struck, rngFromSeed("strike-twin"));
+    corporationTurnPhase.run(idle, rngFromSeed("strike-twin"));
     const hit = struck.corporations[EMPLOYER]!.revenue;
     const base = idle.corporations[EMPLOYER]!.revenue;
     const struckAsset = Object.values(corporateSectorAssets(struck)).find((candidate) => candidate.corporationId === EMPLOYER)!;
@@ -158,7 +159,7 @@ describe("#322 exactly-once economic damage", () => {
     const clone = structuredClone(world.corporations[corpId]!);
     const labour = loadCorporationLabourState(world, 3);
     runCorporationTurn(clone, taxRate, labourFactorsForCorporation(world, corpId, labour));
-    corporationTurnPhase.run(world);
+    corporationTurnPhase.run(world, rngFromSeed("corporation-labour-direct"));
     // Compare physical production separately from realized receipts: the
     // source plant formula sells produced units at each output leg's clearing.
     const twin = strikeWorld().world;
@@ -166,7 +167,7 @@ describe("#322 exactly-once economic damage", () => {
     const twinAsset = Object.values(twinAssets).find((candidate) => candidate.corporationId === EMPLOYER)!;
     twinAsset.strikeStartedAtTurn = null;
     twinAsset.workerExpectationIndex = null;
-    corporationTurnPhase.run(twin);
+    corporationTurnPhase.run(twin, rngFromSeed("corporation-labour-direct"));
     const liveAsset = Object.values(corporateSectorAssets(world)).find((candidate) => candidate.corporationId === corpId)!;
     const directAsset = Object.values(corporateSectorAssets(twin)).find((candidate) => candidate.corporationId === corpId)!;
     expect(liveAsset.producedUnits).toBeCloseTo(directAsset.producedUnits! * 0.75, 6);
@@ -252,7 +253,7 @@ describe("#322 corporation-turn seams and old saves", () => {
   it("keeps pre-#322 worlds free of bargaining maps across the corporation turn", () => {
     const world = createWorld(WORLD);
     expect(world.bargainingCampaigns).toBeUndefined();
-    corporationTurnPhase.run(world);
+    corporationTurnPhase.run(world, rngFromSeed("corporation-labour-direct"));
     expect(world.bargainingCampaigns).toBeUndefined();
     expect(world.collectiveAgreements).toBeUndefined();
   });
@@ -261,15 +262,15 @@ describe("#322 corporation-turn seams and old saves", () => {
     const a = strikeWorld().world;
     const b = strikeWorld().world;
     for (let i = 0; i < 3; i++) {
-      corporationTurnPhase.run(a);
-      corporationTurnPhase.run(b);
+      corporationTurnPhase.run(a, rngFromSeed("corporation-labour-replay"));
+      corporationTurnPhase.run(b, rngFromSeed("corporation-labour-replay"));
     }
     expect(JSON.stringify(a.corporations)).toBe(JSON.stringify(b.corporations));
     const reloaded: WorldState = deserializeSave(serializeSave(a, "2026-09-17T00:00:00.000Z"));
     expect(JSON.stringify(reloaded.corporateSectors)).toBe(JSON.stringify(a.corporateSectors));
     expect(JSON.stringify(reloaded.bargainingCampaigns)).toBe(JSON.stringify(a.bargainingCampaigns));
-    corporationTurnPhase.run(a);
-    corporationTurnPhase.run(reloaded);
+    corporationTurnPhase.run(a, rngFromSeed("corporation-labour-replay"));
+    corporationTurnPhase.run(reloaded, rngFromSeed("corporation-labour-replay"));
     expect(JSON.stringify(reloaded.corporations)).toBe(JSON.stringify(a.corporations));
   });
 

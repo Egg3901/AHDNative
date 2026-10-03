@@ -58,7 +58,9 @@ function freshDir(): string {
 
 describe("export-save-v42 CLI", () => {
   it("refuses fresh TFP state without creating a historical export", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const fresh = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const world = deserializeSave(loadAuthenticV42());
+    world.regionalMetrics = fresh.regionalMetrics;
     const dir = freshDir();
     const input = join(dir, "in.save.json");
     const output = join(dir, "out.save.json");
@@ -238,7 +240,7 @@ describe("export-save-v42 CLI", () => {
   }, 60_000);
 
   it("refuses a schema-relabeled v43 envelope without creating output", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const world = deserializeSave(loadAuthenticV42());
     // Exercise the historical identity gate, independently of newer boards.
     delete world.regionalPoliticalMetrics;
     delete world.politicalCabinetContributions;

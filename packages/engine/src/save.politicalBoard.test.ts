@@ -10,6 +10,7 @@ describe("source political boards at the public save boundary", () => {
     const historical = recorded();
     expect(projectSaveToV42(serializeSave(historical, "2026-10-01T00:00:00.000Z")).ok).toBe(true);
     const fresh = createWorld({ era: "1953", countryId: "US", seed: "political-save", playerName: "Alex" });
+    if (fresh.regionalPoliticalMetrics === undefined) throw new Error("Fresh worlds must produce their political boards");
     historical.regionalPoliticalMetrics = fresh.regionalPoliticalMetrics;
     expect(projectSaveToV42(serializeSave(historical, "2026-10-01T00:00:00.000Z"))).toMatchObject({
       ok: false, error: expect.stringContaining("Political board"),

@@ -76,7 +76,7 @@ export function actionFundCost(input: FundCostInput): number {
   // Reference boundary (AHDGame src/lib/actions/commands/executeAction.ts):
   // All character campaign-fund costs convert from anchor at the frozen base
   // rate after the stat discount. The executor converts fundraiser yield too.
-  if (["campaign", "advertise", "poll", "pollLarge", "buildDonorBase", "canvass"].includes(input.actionId)) {
+  if (["campaign", "advertise", "poll", "pollLarge", "buildDonorBase", "canvass", "campaignTargetedAd", "targetedAds"].includes(input.actionId)) {
     cost = campaignAnchorToLocal(cost, input.countryId ?? "US");
   }
   return cost;

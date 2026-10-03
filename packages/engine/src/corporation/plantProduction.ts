@@ -426,7 +426,7 @@ export function runCorporatePlantProductionTurn(
       producedUnits: produced,
       involuntaryThrottle: outputFactor,
       effectiveMarginPct: totalEffectiveMargin,
-      marginBasisAnchor: asset.plantsUpkeepMarginBasisAnchor,
+      ...(asset.plantsUpkeepMarginBasisAnchor !== undefined ? { marginBasisAnchor: asset.plantsUpkeepMarginBasisAnchor } : {}),
       plantsStartTurn,
       turn: world.meta.turn,
       localPerAnchor,
@@ -454,9 +454,9 @@ export function runCorporatePlantProductionTurn(
     const legacyPolicyCharge = sourceLegacyAnchorPolicyCharge({
       revenue: realizedRevenue,
       neutralBasis: neutralMarginBasis,
-      anchorMarginBasis: Number.isFinite(asset.otherOpexPerUnitAnchor)
-        ? asset.otherOpexAnchorMarginBasis
-        : undefined,
+      ...(Number.isFinite(asset.otherOpexPerUnitAnchor) && asset.otherOpexAnchorMarginBasis !== undefined
+        ? { anchorMarginBasis: asset.otherOpexAnchorMarginBasis }
+        : {}),
     });
     const rawOtherOpex = (Number.isFinite(asset.otherOpexPerUnitAnchor)
       ? asset.otherOpexPerUnitAnchor! * produced

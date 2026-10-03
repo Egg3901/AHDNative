@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { GameSession } from "./session";
 import { projectTradeRoutes } from "./tradeRoutes";
-import { deserializeSave, recordCorporateTradeSnapshot } from "@ahdclient/engine";
+import { createWorld, deserializeSave, recordCorporateTradeSnapshot, serializeSave } from "@ahdclient/engine";
 
 const stamp = "2026-10-01T21:00:00.000Z";
 
+/** CN is retained as a raw source fixture, not offered for new characters. */
+function cnSession(seed: string, mode: "career" | "hos" = "career"): GameSession {
+  const session = new GameSession();
+  session.load(serializeSave(createWorld({ era: "2019", countryId: "CN", seed, playerName: "Player", mode }), stamp));
+  return session;
+}
+
 describe("signed customs tariff trade effect (#77)", () => {
-  it("authors and decrees a source trade-category tariff, changes real trade flows, and preserves the Markets receipt on reload", () => {
-    const session = new GameSession();
-    session.create({ era: "2019", countryId: "CN", seed: "cn-tariff-public-flow", playerName: "Player", mode: "hos" });
+  it("internal CN fixture authors and decrees a source trade-category tariff, changes trade flows, and preserves the Markets receipt on reload", () => {
+    const session = cnSession("cn-tariff-fixture", "hos");
     const actionsBefore = (JSON.parse(session.serialize(stamp)) as { world: { player: { actions: number; nationalInfluence?: number } } }).world.player;
     const proposal = session.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 10 });
     expect(proposal.ok).toBe(true);
@@ -60,16 +66,14 @@ describe("signed customs tariff trade effect (#77)", () => {
   });
 
   it("refuses customs tariff sponsorship without a legislative or sovereign authority", () => {
-    const session = new GameSession();
-    session.create({ era: "2019", countryId: "CN", seed: "cn-tariff-authority-gate", playerName: "Player" });
+    const session = cnSession("cn-tariff-authority-gate");
     const result = session.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 10 });
     expect(result.ok).toBe(false);
     expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Must hold a legislative seat") });
   });
 
   it("does not treat HoS mode alone as the source sovereign-decree authority", () => {
-    const session = new GameSession();
-    session.create({ era: "2019", countryId: "CN", seed: "cn-tariff-decree-flag", playerName: "Player", mode: "hos" });
+    const session = cnSession("cn-tariff-decree-flag", "hos");
     const save = JSON.parse(session.serialize(stamp)) as { world: { player: { permanentHeadOfState: boolean } } };
     save.world.player.permanentHeadOfState = false;
     const altered = new GameSession();
@@ -81,8 +85,7 @@ describe("signed customs tariff trade effect (#77)", () => {
   });
 
   it("blocks another tariff at the same scope while the first bill is nonterminal", () => {
-    const career = new GameSession();
-    career.create({ era: "2019", countryId: "CN", seed: "cn-tariff-duplicate-scope", playerName: "Player" });
+    const career = cnSession("cn-tariff-duplicate-scope");
     const electedChamber = career.view().legislature.chambers?.find((chamber) => chamber.elected);
     expect(electedChamber).toBeDefined();
     const save = JSON.parse(career.serialize(stamp)) as {
@@ -111,8 +114,7 @@ describe("signed customs tariff trade effect (#77)", () => {
   });
 
   it("leaves the CN customs tax law on the ordinary one-point fiscal phase-in path", () => {
-    const session = new GameSession();
-    session.create({ era: "2019", countryId: "CN", seed: "cn-customs-tax-remains-tax", playerName: "Player", mode: "hos" });
+    const session = cnSession("cn-customs-tax-remains-tax", "hos");
     const result = session.act("sponsorBill", { catalogId: "cn_customs_tariff", taxRate: 10 });
     expect(result.ok).toBe(true);
     for (let turn = 0; turn < 10; turn += 1) {

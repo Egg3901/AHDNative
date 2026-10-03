@@ -5,6 +5,7 @@ import type { RegionsQuery } from "./regions";
 import type { LegislationSelection } from "./legislationDetails";
 import type { SearchFilter } from "./search";
 import type { NewGameOptions } from "./types";
+import type { SetJPRegionalAllocationInput } from "./cabinetOffice";
 import type { WorldFeatureFlags } from "@ahdclient/engine";
 
 export type GameCommand =
@@ -29,6 +30,7 @@ export type GameCommand =
   | { type: "regions"; query?: RegionsQuery }
   | { type: "cabinetOffice" }
   | { type: "issueCabinetOrder"; positionId: string; orderId: string; targetRegionId?: string }
+  | { type: "setJPRegionalAllocation"; input: SetJPRegionalAllocationInput }
   | { type: "caucusManagement" }
   | { type: "partyManagement" }
   | { type: "bondMarket" }
@@ -50,6 +52,8 @@ export type GameCommand =
   | { type: "unionCommand"; op: "move"; campaignId: string; action: "accept" | "counter" | "withdraw" | "escalate"; terms?: import("@ahdclient/engine").BargainingTerms }
   | { type: "unionCommand"; op: "ratify"; campaignId: string; vote: "ratify" | "reject" }
   | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
+  | { type: "serializeWithMetadata"; savedAt: string; includeSaveNotice?: boolean }
+  | { type: "serializeForStorage"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "load"; contents: string }
   | { type: "notificationsRead"; id: string }
   | { type: "notificationsDelete"; id: string }

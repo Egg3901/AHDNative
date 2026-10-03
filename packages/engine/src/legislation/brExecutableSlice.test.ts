@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { executeAction } from "../actions/execute.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
+import { rngFromState } from "../rng.js";
 import { processBillLifecycle } from "./billLifecycle.js";
 import type { Bill } from "./types.js";
 
@@ -18,19 +19,19 @@ describe("Brazil executable legislation slice", () => {
   }
 
   function passBill(world: ReturnType<typeof createWorld>, bill: Bill): void {
-    processBillLifecycle(world, world.meta.rng);
+    processBillLifecycle(world, rngFromState(world.meta.rng));
     world.player.legislativeSeat = { countryId: "BR", chamberKey: bill.currentChamber };
     expect(executeAction(world, "player", "voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(true);
     world.meta.turn = bill.votingEndsOnTurn!;
-    processBillLifecycle(world, world.meta.rng);
+    processBillLifecycle(world, rngFromState(world.meta.rng));
     if (bill.status === "active_other") {
       world.player.legislativeSeat = { countryId: "BR", chamberKey: bill.currentChamber };
       expect(executeAction(world, "player", "voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(true);
       world.meta.turn = bill.otherChamberVotingEndsOnTurn!;
-      processBillLifecycle(world, world.meta.rng);
+    processBillLifecycle(world, rngFromState(world.meta.rng));
     }
     world.meta.turn = bill.presidentActionDeadlineOnTurn!;
-    processBillLifecycle(world, world.meta.rng);
+      processBillLifecycle(world, rngFromState(world.meta.rng));
     expect(bill.status).toBe("signed");
   }
 
@@ -86,7 +87,7 @@ describe("Brazil executable legislation slice", () => {
     expect(world.budgets.BR!.taxRates.incomeTax).toBe(startingRate - 1);
     expect(world.budgets.BR!.taxRatePhaseIn?.incomeTax).toBe(18);
 
-    const restored = deserializeSave(serializeSave(world));
+    const restored = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
     expect(restored.bills.at(-1)?.status).toBe("signed");
     expect(restored.policyLedger[first.id]?.repealedAtTurn).toBeDefined();
     expect(restored.enactedLaws.some((law) => law.id === LAW_ID && law.repealedAtTurn === undefined)).toBe(false);

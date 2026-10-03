@@ -51,9 +51,10 @@ export function getDecadeById(decadeId: string): TechDecade | undefined {
  */
 export function getDecadeForYear(year: number): TechDecade {
   for (let i = TECH_DECADES.length - 1; i >= 0; i--) {
-    if (year >= TECH_DECADES[i].startYear) return TECH_DECADES[i];
+    const decade = TECH_DECADES[i];
+    if (decade && year >= decade.startYear) return decade;
   }
-  return TECH_DECADES[0];
+  return TECH_DECADES[0]!;
 }
 
 /**

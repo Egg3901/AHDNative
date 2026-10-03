@@ -150,7 +150,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadStateOwnership, loadUnionManagement, loadLegislation, loadPolitics, loadPoliticalMetrics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, quoteForexTrade, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, onSetJPRegionalAllocation, loadBondMarket, loadPartyManagement, loadMarkets, loadStateOwnership, loadUnionManagement, loadLegislation, loadPolitics, loadPoliticalMetrics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, quoteForexTrade, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // #510 bounded return stack: detail routes remember the chain of browse
@@ -884,7 +884,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               </div>
             </div>
           ) : loadCabinetOffice && onIssueCabinetOrder ? (
-            <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} selectedPositionId={cabinetPositionId} onSelectPosition={setCabinetPositionId} />}</DetailQuery>
+            <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} onSetJPRegionalAllocation={onSetJPRegionalAllocation} selectedPositionId={cabinetPositionId} onSelectPosition={setCabinetPositionId} />}</DetailQuery>
           ) : (
             // #510 honest unavailable state: the shell must say the cabinet
             // service is not connected and offer a way out, never a blank region.

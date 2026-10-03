@@ -58,6 +58,7 @@ function makeQuery(): LegislationDetailsQuery {
         description: "Federal wage floors, hours rules, and workplace protections.",
         kind: "primary", category: "economy", allowedScope: "both",
         baselineLevel: 1,
+        regions: [{ id: "US-CA", name: "California" }, { id: "US-NY", name: "New York" }],
         levels: [
           { index: 0, name: "No Federal Standards", description: "No standards." },
           { index: 1, name: "Basic Standards", description: "Minimum wage and hours.", gdpCostFraction: 0.00025 },
@@ -82,9 +83,9 @@ function makeQuery(): LegislationDetailsQuery {
     ],
     selectedBill: null,
     selectedProposal: null,
-    sponsorSupportsLevelChoice: false,
+    sponsorSupportsLevelChoice: true,
     sponsorSupportsTaxRateChoice: true,
-    levelChoiceNote: "Legal options are shown as reference. Level selection is unavailable in this single-player version.",
+    levelChoiceNote: "Choose an authored level when sponsoring a law.",
   };
 }
 
@@ -122,14 +123,14 @@ describe("LegislationDetailsPanel", () => {
     expect(screen.getByRole("button", { name: "Show Senate bills" })).toBeInTheDocument();
   });
 
-  it("opens real bill details on selection, with read-only levels and no level action", async () => {
+  it("opens real bill details on selection and keeps the enacted level distinct from the new proposal control", async () => {
     const LegislationDetailsPanel = await renderPanel();
     const query = makeQuery();
     query.selectedBill = { ...wageBillDetails() };
     render(<LegislationDetailsPanel query={query} busy={false} onAction={vi.fn()} />);
     expect(screen.getByText("Workplace rules.")).toBeInTheDocument();
     expect(screen.getByText("Bill details: Wage Bill")).toBeInTheDocument();
-    expect(screen.getAllByText("Basic Standards")).toHaveLength(2);
+    expect(screen.getAllByText("Basic Standards")).toHaveLength(3);
     expect(screen.queryByRole("button", { name: /sponsor at this level/i })).not.toBeInTheDocument();
   });
 
@@ -149,7 +150,7 @@ describe("LegislationDetailsPanel", () => {
     expect(screen.getByText(/Unemployment rate -0\.2%/)).toBeInTheDocument();
     expect(screen.getByText(/Support \+1/)).toBeInTheDocument();
     expect(screen.getByText(/Starting option: Basic Standards/)).toBeInTheDocument();
-    expect(screen.getByText(/Legal options are shown as reference/)).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Policy level" })).toBeInTheDocument();
   });
 
   it("reports bill selection and shows fetched detail only while its card stays expanded", async () => {
@@ -223,7 +224,7 @@ describe("LegislationDetailsPanel", () => {
     );
   });
 
-  it("sponsors the selected catalog proposal at the default engine level", async () => {
+  it("sponsors the selected catalog proposal at its authored baseline level", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     const LegislationDetailsPanel = await renderPanel();
@@ -231,7 +232,29 @@ describe("LegislationDetailsPanel", () => {
     query.selectedProposal = query.proposals[0];
     render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
     await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
-    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "us.economy.workerSecurity.primary", originChamber: "house" });
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", {
+      catalogId: "us.economy.workerSecurity.primary",
+      originChamber: "house",
+      policyOptionId: "l1",
+    });
+  });
+
+  it("lets the player select an authored law level and regional scope under the existing sponsor gate", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    query.selectedProposal = query.proposals[0];
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Policy level" }), "l3");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Legislation scope" }), "region:US-CA");
+    await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", {
+      catalogId: "us.economy.workerSecurity.primary",
+      policyOptionId: "l3",
+      regionId: "US-CA",
+      originChamber: "house",
+    });
   });
 
   it("sponsors a tax proposal with the supported rate param", async () => {

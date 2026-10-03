@@ -56,7 +56,7 @@ describe("source presidential stagger voter", () => {
 
   it("applies the source NPP home-state bonus to its recorded candidate homeState", () => {
     function run(homeState: string | undefined) {
-      const world = createWorld({ seed: "source-primary-npp-home", playerName: "Observer", countryId: "US", era: "1953", homeRegionId: null });
+      const world = createWorld({ seed: "source-primary-npp-home", playerName: "Observer", countryId: "US", era: "1953" });
       world.meta.turn = 1;
       const party = world.parties.US_DEM!;
       const statePopulation = world.regions.IA!.population!;
@@ -133,7 +133,6 @@ describe("source presidential stagger voter", () => {
       opponent.ideology = { economic: party.economicPosition, social: party.socialPosition };
       opponent.favorability = 50;
       opponent.politicalInfluence = 50;
-      opponent.nationalInfluence = 50;
       const race: ElectionRecord = {
         id: "president:US:-:c-primary-presence-consumer",
         electionType: "president",

@@ -209,8 +209,8 @@ export function App() {
     if (!client.current || !slot.current) throw new Error('Start or load a game first.');
     // Prepare the prospective notice without mutating the session. Only
     // acknowledge it after storage succeeds; failed writes never claim success.
-    const contents = await client.current.serialize(new Date().toISOString(), includeSaveNotice);
-    await saveRepository.save(slot.current, contents);
+    const serialized = await saveRepository.prepare(client.current, new Date().toISOString(), includeSaveNotice);
+    await saveRepository.save(slot.current, serialized);
     if (includeSaveNotice) setWorld(await client.current.recordSaved());
     setMessage('Game saved.');
   }
@@ -298,7 +298,10 @@ export function App() {
     setWorld(await client.current!.updateWorldFeatureFlags(flags));
     await save();
     setMessage("World settings saved.");
-  })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} loadPoliticalMetrics={loadPoliticalMetrics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadCabinetOffice={loadCabinetOffice} onIssueCabinetOrder={(input) => void run(async () => {
+  })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} loadPoliticalMetrics={loadPoliticalMetrics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadCabinetOffice={loadCabinetOffice} onSetJPRegionalAllocation={(input) => void run(async () => {
+      const response = await client.current!.setJPRegionalAllocation(input); setWorld(response.view);
+      if (response.result.ok) { await save(); setMessage("Regional allocations saved."); } else setError(response.result.error);
+    })} onIssueCabinetOrder={(input) => void run(async () => {
       const response = await client.current!.issueCabinetOrder(input); setWorld(response.view);
       if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
     })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadStateOwnership={loadStateOwnership} loadUnionManagement={loadUnionManagement} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} loadHallOfFame={loadHallOfFame} world={world} busy={busy} error={error} message={message}

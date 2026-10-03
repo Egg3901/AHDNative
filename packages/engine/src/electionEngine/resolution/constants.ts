@@ -24,7 +24,7 @@ export const SEED_PRESET_IDS = [
 ] as const;
 
 /**
- * Map a AHDClient content-pack era id ("1953"/"1979"/"1991"/"2019", the bare
+ * Map an AHDClient content-pack era id ("1953"/"1979"/"1991"/"1999"/"2007"/"2019"/"2023", the bare
  * year strings `packages/content/src/packs` ships) to the mainline preset id
  * this resolution layer keys everything on ("1953-default" etc). The two
  * naming conventions coexist in this codebase: content packs use bare years
@@ -39,7 +39,10 @@ export function eraToPreset(era: string): string {
   if (era === "1953") return "1953-default";
   if (era === "1979") return "1979-default";
   if (era === "1991") return "1991-default";
+  if (era === "1999") return "1999-default";
+  if (era === "2007") return "2007-default";
   if (era === "2019") return "2019-default";
+  if (era === "2023") return "2023-default";
   return DEFAULT_SEED_PRESET;
 }
 

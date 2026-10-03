@@ -159,7 +159,7 @@ export function resolveNominationForParty(
       return a < b ? -1 : a > b ? 1 : 0;
     };
 
-  const firstBallotLeaderId = [...candidateIds].sort(cmpBest(partyDelegates))[0];
+  const firstBallotLeaderId = [...candidateIds].sort(cmpBest(partyDelegates))[0]!;
   const leaderDelegates = partyDelegates[firstBallotLeaderId] ?? 0;
 
   // First-ballot majority — nominated outright.
@@ -188,31 +188,31 @@ export function resolveNominationForParty(
   // Bounded by the field size (one elimination per ballot).
   while (true) {
     const tallies: Record<string, number> = {};
-    for (const id of remaining) tallies[id] = current[id];
+    for (const id of remaining) tallies[id] = current[id] ?? 0;
 
-    const total = remaining.reduce((s, id) => s + current[id], 0);
+    const total = remaining.reduce((s, id) => s + (current[id] ?? 0), 0);
     const majorityOfRemaining = Math.floor(total / 2) + 1;
     const sorted = [...remaining].sort(cmpBest(current));
-    const leader = sorted[0];
+    const leader = sorted[0]!;
 
-    if (remaining.length === 1 || current[leader] >= majorityOfRemaining) {
+    if (remaining.length === 1 || (current[leader] ?? 0) >= majorityOfRemaining) {
       ballots.push({ ballot: ballotNumber, tallies });
       winnerCandidateId = leader;
       break;
     }
 
-    const eliminated = sorted[sorted.length - 1];
+    const eliminated = sorted[sorted.length - 1]!;
     ballots.push({ ballot: ballotNumber, tallies, eliminatedCandidateId: eliminated });
 
     const survivors = remaining.filter((id) => id !== eliminated);
     releaseDelegates({
-      total: current[eliminated],
+      total: current[eliminated] ?? 0,
       eliminated,
       survivors,
       current,
       positionById,
-      endorsements,
-      partyGroupFavorabilityByKey,
+      ...(endorsements ? { endorsements } : {}),
+      ...(partyGroupFavorabilityByKey ? { partyGroupFavorabilityByKey } : {}),
     });
     current[eliminated] = 0;
     remaining = survivors;
@@ -265,7 +265,7 @@ function releaseDelegates(params: {
         ? computeCandidateAffinity({
             a: eliminatedPos,
             b: survivorPos,
-            partyGroupFavorabilityByKey,
+            ...(partyGroupFavorabilityByKey ? { partyGroupFavorabilityByKey } : {}),
           })
         : 0;
     if (endorsedSurvivor === s) w += ENDORSEMENT_RELEASE_WEIGHT;
@@ -299,7 +299,10 @@ function releaseDelegates(params: {
 
   // Assign the leftover to the largest fractional parts, id-ascending on ties.
   const byFrac = [...exact].sort((a, b) => b.frac - a.frac || (a.id < b.id ? -1 : 1));
-  for (let i = 0; i < remainder; i++) byFrac[i].base += 1;
+  for (let i = 0; i < remainder; i++) {
+    const row = byFrac[i];
+    if (row) row.base += 1;
+  }
 
   for (const e of exact) current[e.id] = (current[e.id] ?? 0) + e.base;
 }

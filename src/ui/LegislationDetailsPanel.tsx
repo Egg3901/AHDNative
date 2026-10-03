@@ -4,9 +4,8 @@
  * Detached companion to LegislaturePanel. Receives only the bounded
  * LegislationDetailsQuery DTO, busy, and onAction(id, params). Every control
  * either fires a real engine-supported action (sponsor with the supported
- * tax rate for tax entries; vote with billId/vote) or navigates details
- * already in the DTO. Legal options are reference only: no option control
- * is offered. Bill detail fetching is caller-driven through onSelectBill:
+ * tax rate for tax entries or authored level for discrete laws; vote with
+ * billId/vote) or navigates details already in the DTO. Bill detail fetching is caller-driven through onSelectBill:
  * expanding a card reports its id, collapsing reports null, and the fetched
  * selectedBill detail renders only while its card stays expanded, so a stale
  * selection can never display the wrong bill. No App imports and no engine
@@ -89,12 +88,25 @@ export function sponsorParamsForProposal(
   rate?: number,
   originChamber?: string,
   corporationId?: string,
-): { catalogId: string; taxRate?: number; originChamber?: string; corporationId?: string } {
+  policyOptionId?: string,
+  regionId?: string,
+): { catalogId: string; taxRate?: number; originChamber?: string; corporationId?: string; policyOptionId?: string; regionId?: string } {
   const chamber = originChamber ? { originChamber } : {};
   if (proposal.taxPolicy) {
-    return { catalogId: proposal.id, taxRate: snapTaxRate(proposal.taxPolicy, rate), ...chamber };
+    return {
+      catalogId: proposal.id,
+      taxRate: snapTaxRate(proposal.taxPolicy, rate),
+      ...chamber,
+      ...(regionId && proposal.allowedScope !== "national" ? { regionId } : {}),
+    };
   }
-  return { catalogId: proposal.id, ...chamber, ...(proposal.nationalizationTargets && corporationId ? { corporationId } : {}) };
+  return {
+    catalogId: proposal.id,
+    ...chamber,
+    ...(proposal.nationalizationTargets && corporationId ? { corporationId } : {}),
+    ...(proposal.levels?.length && policyOptionId ? { policyOptionId } : {}),
+    ...(regionId ? { regionId } : {}),
+  };
 }
 
 export interface LegislationDetailsPanelProps {
@@ -187,6 +199,8 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
     query.selectedProposal?.id ?? query.proposals[0]?.id ?? "",
   );
   const [taxRate, setTaxRate] = useState<string>("");
+  const [policyOptionId, setPolicyOptionId] = useState<string>("");
+  const [regionId, setRegionId] = useState<string>("");
   const [corporationId, setCorporationId] = useState("");
 
   const lastSelectedBillId = useRef<string | null>(query.selectedBill?.id ?? null);
@@ -238,12 +252,19 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
   const schedule = query.schedule.filter((entry) => !chamber || entry.chamberKey === chamber.chamberKey);
   const proposal = query.proposals.find((p) => p.id === catalogId) ?? query.selectedProposal ?? null;
   const nationalizationTarget = proposal?.nationalizationTargets?.find(target => target.corporationId === corporationId);
-  const sponsorDisabled = busy || !proposal || !proposal.sponsorAvailable || (!!proposal.nationalizationTargets && !nationalizationTarget);
+  const sponsorDisabled = busy || !proposal || !proposal.sponsorAvailable || (!!proposal.nationalizationTargets && !nationalizationTarget) || (proposal.allowedScope === "regional" && !regionId);
   const selected = query.selectedBill && expandedBillId === query.selectedBill.id ? query.selectedBill : null;
   const baselineName =
     proposal && proposal.baselineLevel !== undefined
       ? (proposal.levels?.find((l) => l.index === proposal.baselineLevel)?.name ?? String(proposal.baselineLevel))
       : null;
+
+  useEffect(() => {
+    setPolicyOptionId(proposal?.levels?.length
+      ? `l${proposal.baselineLevel ?? 0}`
+      : "");
+    setRegionId("");
+  }, [proposal?.id]);
 
   return (
     <div className="ahd-stack">
@@ -445,7 +466,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
               className="ahd-select"
               aria-label="Available legislation"
               value={proposal?.id ?? ""}
-              onChange={(e) => { setCatalogId(e.target.value); setTaxRate(""); setCorporationId(""); }}
+              onChange={(e) => { setCatalogId(e.target.value); setTaxRate(""); setCorporationId(""); setRegionId(""); }}
               disabled={busy}
             >
               {query.proposals.map((p) => (
@@ -491,11 +512,42 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
                 <div><dt>Notice after enactment</dt><dd>{nationalizationTarget.noticeTurns > 0 ? `${nationalizationTarget.noticeTurns} turns` : "Immediate"}</dd></div>
               </dl> : null}
             </> : null}
+            {proposal.allowedScope !== "national" ? (
+              <label className="ahd-field" style={{ maxWidth: "22rem" }}>
+                <span className="ahd-label">{proposal.allowedScope === "both" ? "Scope" : "Regional scope"}</span>
+                <select
+                  className="ahd-select"
+                  aria-label={proposal.allowedScope === "both" ? "Legislation scope" : "Regional scope"}
+                  value={regionId ? `region:${regionId}` : proposal.allowedScope === "both" ? "national" : ""}
+                  onChange={(event) => setRegionId(event.target.value === "national" ? "" : event.target.value.slice("region:".length))}
+                  disabled={busy}
+                >
+                  {proposal.allowedScope === "both" ? <option value="national">National</option> : <option value="">Choose a region</option>}
+                  {(proposal.regions ?? []).map((region) => <option key={region.id} value={`region:${region.id}`}>{region.name}</option>)}
+                </select>
+              </label>
+            ) : null}
             {proposal.levels && proposal.levels.length > 0 ? (
               <div>
                 <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.3rem" }}>
-                  Legal options (reference only)
+                  Legal options
                 </h4>
+                {query.sponsorSupportsLevelChoice && proposal.sponsorAvailable ? (
+                  <label className="ahd-field" style={{ maxWidth: "24rem", margin: "0.35rem 0" }}>
+                    <span className="ahd-label">Selected law level</span>
+                    <select
+                      className="ahd-select"
+                      aria-label="Policy level"
+                      value={policyOptionId || `l${proposal.baselineLevel ?? 0}`}
+                      onChange={(event) => setPolicyOptionId(event.target.value)}
+                      disabled={busy}
+                    >
+                      {proposal.levels.map((level) => (
+                        <option key={level.index} value={`l${level.index}`}>{level.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <ul style={{ fontSize: "0.78rem", margin: 0, paddingLeft: "1.1rem", display: "grid", gap: "0.25rem" }}>
                   {proposal.levels.map((level) => (
                     <li key={level.index}>
@@ -504,7 +556,9 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
                     </li>
                   ))}
                 </ul>
-                <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.3rem" }}>{query.levelChoiceNote}</p>
+                {!query.sponsorSupportsLevelChoice ? (
+                  <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.3rem" }}>{query.levelChoiceNote}</p>
+                ) : null}
               </div>
             ) : null}
             {proposal.taxPolicy ? (
@@ -556,6 +610,8 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
                       rate === undefined || Number.isNaN(rate) ? undefined : rate,
                       proposal.nationalizationTargets ? query.playerChamberKey ?? chamber?.chamberKey : chamber?.chamberKey,
                       nationalizationTarget?.corporationId,
+                      policyOptionId || undefined,
+                      regionId || undefined,
                     ),
                   );
                 }}

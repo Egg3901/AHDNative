@@ -31,6 +31,7 @@ import {
   type NominationVote,
 } from "../nominations/currentSeatTally.js";
 import type { SupremeCourtSeat, DocketCase, ScotusNomination } from "./types.js";
+import { sourceElectionClockForWorld, SOURCE_TURNS_PER_YEAR } from "../elections/sourceElectionClock.js";
 
 export const DIVERGENT_TENURE_FLOOR_TURNS = 156; // ~3 years at 52 turns/year, mirrors mainline src/lib/scotus/tenure.ts
 export const DIVERGENT_DEPARTURE_PROBABILITY_PER_TURN = 0.001; // flat hazard after floor, PORT-STUB tuned
@@ -44,12 +45,16 @@ export interface ScotusTurnResult {
   nominations: { nominationsVoted: number; confirmed: number; rejected: number };
 }
 
-function yearToTurn(year: number, startYear: number): number {
-  return (year - startYear) * 52 + 1;
+function yearToTurn(year: number, startYear: number, turnsPerYear = 52): number {
+  return (year - startYear) * turnsPerYear + 1;
 }
 
-function turnToYear(turn: number, startYear: number): number {
-  return startYear + Math.floor((turn - 1) / 52);
+function turnToYear(turn: number, startYear: number, turnsPerYear = 52): number {
+  return startYear + Math.floor((turn - 1) / turnsPerYear);
+}
+
+function startYearForWorld(world: WorldState): number {
+  return sourceElectionClockForWorld(world)?.startingYear ?? (Number(world.meta.date.slice(0, 4)) || 1953);
 }
 
 function rollDivergentDeparture(draw: number): boolean {
@@ -91,7 +96,8 @@ function seedDefaultOccupants(seed: string, seatNumber: number): SupremeCourtSea
 
 export function ensureScotusSeats(world: WorldState): void {
   if (world.supremeCourtSeats && world.supremeCourtSeats.length > 0) return;
-  const startYear = Number(world.meta.date.slice(0, 4)) || 1953;
+  const sourceClock = sourceElectionClockForWorld(world);
+  const startYear = startYearForWorld(world);
   if (!world.supremeCourtSeats) world.supremeCourtSeats = [];
   for (let i = 1; i <= SUPREME_COURT_SEATS; i++) {
     world.supremeCourtSeats.push({
@@ -115,7 +121,8 @@ export function ensureScotusSeats(world: WorldState): void {
 function processTenureTurn(world: WorldState, rng: ReturnType<typeof rngFromState>): ScotusTurnResult["tenure"] {
   ensureScotusSeats(world);
   const turn = world.meta.turn;
-  const startYear = Number(world.meta.date.slice(0, 4)) || 1953;
+  const sourceClock = sourceElectionClockForWorld(world);
+  const startYear = startYearForWorld(world);
   let seatsAdvanced = 0;
   let seatsVacatedByHistory = 0;
   let seatsVacatedByHazard = 0;
@@ -126,8 +133,9 @@ function processTenureTurn(world: WorldState, rng: ReturnType<typeof rngFromStat
       if (seat.justiceMode === "character" && seat.justiceId != null) continue;
       const occupant = seat.historicalOccupants[seat.historicalOccupantIndex];
       if (!occupant || occupant.departureYear == null) continue;
-      const departureTurn = yearToTurn(occupant.departureYear, startYear);
-      if (turn < departureTurn) continue;
+      const departureTurn = yearToTurn(occupant.departureYear, startYear, sourceClock ? SOURCE_TURNS_PER_YEAR : 52);
+      const currentClockTurn = sourceClock?.calendarTurn ?? turn;
+      if (currentClockTurn < departureTurn) continue;
       const next = seat.historicalOccupants[seat.historicalOccupantIndex + 1];
       if (next) {
         seat.historicalOccupantIndex++;
@@ -195,7 +203,8 @@ function processTenureTurn(world: WorldState, rng: ReturnType<typeof rngFromStat
 function processDocketTurn(world: WorldState): ScotusTurnResult["docket"] {
   ensureScotusSeats(world);
   const turn = world.meta.turn;
-  const startYear = Number(world.meta.date.slice(0, 4)) || 1953;
+  const sourceClock = sourceElectionClockForWorld(world);
+  const startYear = startYearForWorld(world);
 
   const pending = (world.docketCases ?? []).filter((c) => c.status === "pending");
   if (pending.length === 0) return { casesFired: 0, casesAffirmed: 0, casesDiverged: 0 };
@@ -209,8 +218,8 @@ function processDocketTurn(world: WorldState): ScotusTurnResult["docket"] {
   let casesDiverged = 0;
 
   for (const docketCase of pending) {
-    const dueTurn = yearToTurn(docketCase.decisionYear, startYear);
-    if (turn < dueTurn) continue;
+    const dueTurn = yearToTurn(docketCase.decisionYear, startYear, sourceClock ? SOURCE_TURNS_PER_YEAR : 52);
+    if ((sourceClock?.calendarTurn ?? turn) < dueTurn) continue;
 
     const decision = decideCaseOutcome(leans, docketCase.axis, docketCase.historicalMajorityDirection, {
       historicalOutcomeLocked: docketCase.historicalOutcomeLocked === true,
@@ -306,7 +315,11 @@ function processSurpriseCaseTurn(world: WorldState, rng: ReturnType<typeof rngFr
     title: template.title,
     axis: template.axis,
     historicalMajorityDirection: 1,
-    decisionYear: turnToYear(world.meta.turn, Number(world.meta.date.slice(0, 4)) || 1953),
+    decisionYear: sourceElectionClockForWorld(world)?.currentYear ?? turnToYear(
+      world.meta.turn,
+      startYearForWorld(world),
+      sourceElectionClockForWorld(world) ? SOURCE_TURNS_PER_YEAR : 52,
+    ),
     ...(chosenEffect ? { effect: chosenEffect } : {}),
     status: "decided",
     outcome: "diverged",

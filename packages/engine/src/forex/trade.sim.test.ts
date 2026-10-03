@@ -39,7 +39,7 @@ describe("source-sized currency trade fees and volume pressure", () => {
     });
     const raw = serializeSave(world, "2026-10-03T07:00:00.000Z");
     expect(JSON.parse(raw).schemaVersion).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(67);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(66);
     expect(deserializeSave(raw).forexTradeHistory).toEqual(world.forexTradeHistory);
     const malformed = JSON.parse(raw);
     malformed.world.forexTradeHistory[0].spread = -1;

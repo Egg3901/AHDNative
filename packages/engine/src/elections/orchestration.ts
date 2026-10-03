@@ -178,7 +178,7 @@ function reconcileUKDevolutionForTurn(world: WorldState): void {
     state,
     currentUKDevolutionPolicy(world),
     completedCycles,
-    24 + DEFAULT_DURATIONS.governor.generalDurationHours,
+    24 + DEFAULT_DURATIONS.governor!.generalDurationHours,
   );
   if (next !== state) world.ukDevolution = next;
   const effective = world.ukDevolution ?? state;
@@ -243,7 +243,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
       senateClasses?: [number, number];
       senateSeats?: number;
     };
-    if (r.countryId !== "US") continue;
+    if (r.countryId !== "US" || r.id === "DC") continue;
     if (typeof r.houseSeats === "number" && r.houseSeats > 0) {
       specs.push({
         electionType: "house",
@@ -269,6 +269,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   for (const region of Object.values(regions)) {
     const r = region as unknown as { id: string; countryId: string };
     if (!GOVERNOR_COUNTRIES.has(r.countryId)) continue;
+    if (r.countryId === "US" && r.id === "DC") continue;
     if (
       (r.countryId === "RU" || r.countryId === "DD") &&
       !sourceNppCountryLive(r.countryId)
@@ -278,6 +279,9 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
       if (!UK_DEVOLVED_GOVERNOR_REGIONS.has(r.id)) continue;
       const institution = ukInstitutionState.regions[r.id as UKExecutiveRegion];
       if (!institution?.active) continue;
+      const customEndTurn = institution.firstElectionEndTurn !== undefined
+        ? executiveCycleAnchor(institution, DEFAULT_DURATIONS.governor!.durationHours)
+        : undefined;
       specs.push({
         electionType: "governor",
         countryId: "UK",
@@ -285,14 +289,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
         state: r.id,
         totalSeats: 1,
         firstCycle: institution.firstCycle,
-        ...(institution.firstElectionEndTurn !== undefined
-          ? {
-              customCycle1EndTurn: executiveCycleAnchor(
-                institution,
-                DEFAULT_DURATIONS.governor.durationHours,
-              ),
-            }
-          : {}),
+        ...(customEndTurn !== undefined ? { customCycle1EndTurn: customEndTurn } : {}),
       });
       continue;
     }
@@ -523,7 +520,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
             // five-year cycles while avoiding a single nationwide wipe.
             customCycle1EndTurn:
               cycleAnchors.ukCommons +
-              UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id] * 48,
+              UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id]! * 48,
           }
         : {}),
     });
@@ -1240,7 +1237,7 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
       : `${label} election resolved${topWinner ? `: ${topWinner.name} (${topWinner.partyId}) leads the winners` : ""}`,
     category: "Election",
     countryId: rec.countryId,
-    partyId: topWinner?.partyId,
+    ...(topWinner?.partyId ? { partyId: topWinner.partyId } : {}),
     electionId: rec.id,
   });
 }

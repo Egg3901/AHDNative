@@ -30,7 +30,7 @@ describe("central-bank pricing rollout", () => {
     world.meta.turn = 4;
     const adjustment = ensureCentralBankPricingPhaseIn(world);
     expect(adjustment).toMatchObject({ startedTurn: 3, spreadHikePercentPoints: 0.25, depositBonusPercentPoints: 0.03125 });
-    const loaded = deserializeSave(serializeSave(world));
+    const loaded = deserializeSave(serializeSave(world, "2026-10-03T00:00:00.000Z"));
     expect(loaded.centralBankPricingPhaseIn).toEqual({ startedTurn: 3 });
   });
 });

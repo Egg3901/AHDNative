@@ -169,7 +169,7 @@ function sourcePoolHeadroom(world: WorldState, pool: { countryId: string; sector
   const prices = corporateSectorBasePrices(world) as Record<string, number>;
   for (const [commodity, rate] of Object.entries(rates)) {
     const price = prices[commodity];
-    if ((rate ?? 0) > 0 && Number.isFinite(price) && price > 0) unitYield += rate / price;
+    if ((rate ?? 0) > 0 && price !== undefined && Number.isFinite(price) && price > 0) unitYield += rate / price;
   }
   return Number.isFinite(revenueAnchor * unitYield) ? revenueAnchor * unitYield : 0;
 }

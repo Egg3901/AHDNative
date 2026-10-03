@@ -9,6 +9,7 @@ import type { WorldState } from "../types.js";
 import { allocateElectoralVotes } from "./presidentialElectoralCollege.js";
 import { executeAction } from "../actions/execute.js";
 import { governorEndorsementsPhase } from "../governor/phases.js";
+import { rngFromState } from "../rng.js";
 import { appliesExplicitPresidentialLean, presidentialRulesetVersionFor } from "./presidentialRuleset.js";
 
 const RACE_ID = "president:US:-:source-units";
@@ -238,7 +239,7 @@ describe("presidential per-unit accumulation", () => {
       endorsedById: "player", createdAtTurn: world.meta.turn, isActive: true,
     }];
     world.governors.CA!.governorId = "replacement";
-    governorEndorsementsPhase.run(world);
+    governorEndorsementsPhase.run(world, rngFromState(world.meta.rng));
     expect(race.governorEndorsements[0]).toMatchObject({
       isActive: false, withdrawnAtTurn: world.meta.turn, withdrawnReason: "governor_left_office",
     });

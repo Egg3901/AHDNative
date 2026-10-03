@@ -1,7 +1,8 @@
 import type { BudgetSeed } from "../types.js";
 /**
- * Authored national budgets for 1979-default (US/UK/RU/DD). Generated from mainline AHDGame — DO NOT HAND-EDIT.
- * Generated: 2026-09-02 by packages/content/scripts/generateBudgets.ts (see its header for sources and the tax-rate derivation).
+ * Authored national budgets for 1979-default (US/UK/RU/DD/JP). Generated from mainline AHDGame — DO NOT HAND-EDIT.
+ * Source revision: c35bcd86cbdbb877e73a0e9a45b0726605bdbc7a.
+ * Generator: packages/content/scripts/generateBudgets.ts (see its header for sources and the tax-rate derivation).
  * Units: gdp / otherRevenue / debt / spending in absolute local currency; economicFactors and taxRates in percent (same as the 1953 pack).
  */
 export const BUDGETS_1979: BudgetSeed[] = [
@@ -9,6 +10,7 @@ export const BUDGETS_1979: BudgetSeed[] = [
     // taxRates: incomeTax: us_federal_income_tax_rate option[6] = 30; domesticCorporateTax: us_federal_domestic_corporate_tax_rate option[9] = 36; foreignCorporateTax: us_federal_foreign_corporate_tax_rate option[7] = 42; payrollTax: us_federal_payroll_tax_rate option[4] = 12; tariffs: us_federal_tariff_rate option[0] = 0; salesTax: us_federal_sales_tax_rate option[0] = 0
     countryId: "US",
     fiscalYear: 1979,
+    sourceFiscalYear: 1979,
     population: 225_000_000,
     gdp: 2_632_000_000_000,
     currencyCode: "USD",
@@ -25,6 +27,7 @@ export const BUDGETS_1979: BudgetSeed[] = [
     // taxRates: incomeTax: uk_income_tax_rate option[5] = 20; domesticCorporateTax: uk_domestic_corporation_tax option[4] = 20; foreignCorporateTax: uk_foreign_corporation_tax option[3] = 19; payrollTax: uk_national_insurance option[5] = 12; tariffs: uk_excise_customs option[0] = 0; salesTax: uk_vat option[5] = 20
     countryId: "UK",
     fiscalYear: 1979,
+    sourceFiscalYear: 1979,
     population: 56_200_000,
     gdp: 245_000_000_000,
     currencyCode: "GBP",
@@ -41,6 +44,7 @@ export const BUDGETS_1979: BudgetSeed[] = [
     // taxRates: incomeTax: su_individual_income_tax option[1] = 8; domesticCorporateTax: su_enterprise_levy option[4] = 55; payrollTax: su_social_insurance option[1] = 14; tariffs: su_customs_tariff option[2] = 25; salesTax: su_turnover_tax option[2] = 25; foreignCorporateTax mirrors domestic (no foreign law)
     countryId: "RU",
     fiscalYear: 1979,
+    sourceFiscalYear: 1979,
     population: 182_300_000,
     gdp: 439_500_000_000,
     currencyCode: "SUR",
@@ -57,6 +61,7 @@ export const BUDGETS_1979: BudgetSeed[] = [
     // taxRates: incomeTax: dd_income_tax option[1] = 12; domesticCorporateTax: dd_enterprise_levy option[3] = 55; payrollTax: dd_social_insurance option[1] = 20; tariffs: dd_foreign_trade option[2] = 25; salesTax: dd_product_tax option[2] = 16; foreignCorporateTax mirrors domestic (no foreign law)
     countryId: "DD",
     fiscalYear: 1979,
+    sourceFiscalYear: 1979,
     population: 16_700_000,
     gdp: 180_000_000_000,
     currencyCode: "DDM",
@@ -68,5 +73,22 @@ export const BUDGETS_1979: BudgetSeed[] = [
     baselineSpendingByCategory: {"socialSecurity":21600000000,"healthcare":9000000000,"education":10800000000,"defense":9000000000,"infrastructure":32400000000,"other":14400000000},
     baselineStateGrants: 10_800_000_000,
     economicFactors: { gdpGrowth: 2.5, wageGrowth: 3.5, inflationRate: 0.5, tradeGrowth: 3 },
+  },
+  {
+    // taxRates: incomeTax: jp_income_tax_rate option[5] = 25; domesticCorporateTax: jp_domestic_corporation_tax option[5] = 23; foreignCorporateTax: jp_foreign_corporation_tax option[3] = 19; payrollTax: jp_social_insurance option[5] = 15; tariffs: jp_customs_tariff option[0] = 0; salesTax: jp_consumption_tax option[5] = 10
+    countryId: "JP",
+    fiscalYear: 1979,
+    sourceFiscalYear: 1979,
+    population: 115_900_000,
+    gdp: 230_000_000_000_000,
+    currencyCode: "JPY",
+    taxBaseRatios: {"taxableIncome":0.28,"corporateProfits":0.09,"wagesAndSalaries":0.4,"importValue":0.12,"taxableSales":0.38},
+    taxRates: {"incomeTax":25,"domesticCorporateTax":23,"foreignCorporateTax":19,"payrollTax":15,"tariffs":0,"salesTax":10},
+    otherRevenue: 4_000_000_000_000,
+    debt: { principal: 70_000_000_000_000, interestRate: 0.08, ceiling: 85_000_000_000_000 },
+    creditRating: "AA",
+    baselineSpendingByCategory: {"socialSecurity":14000000000000,"healthcare":6000000000000,"education":5000000000000,"defense":2100000000000,"publicWorks":11000000000000,"other":8000000000000},
+    baselineStateGrants: 10_000_000_000_000,
+    economicFactors: { gdpGrowth: 5.3, wageGrowth: 4.5, inflationRate: 3.6, tradeGrowth: 6 },
   },
 ];
