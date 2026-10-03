@@ -33,6 +33,8 @@ export interface CatalogEntry {
   category: string;
   allowedScope: "national" | "regional" | "both";
   baselineLevel?: 0 | 1 | 2 | 3 | 4;
+  /** Source display title used when a catalog law explicitly reforms its title. */
+  reformTitle?: string;
   /** Exact per-option political directions where the source law's ladder is not the shared five-step shape. */
   optionEffectDirections?: readonly (-1 | 0 | 1)[];
   levels?: CatalogLawLevel[];
@@ -319,6 +321,18 @@ const AVAILABLE: CatalogEntry[] = [
     effect: { economy: { growthRate: -0.0008 } },
   },
   {
+    id: "us.tax.tariffs",
+    countryId: "US",
+    kind: "tax",
+    title: "Tariff and Customs Act",
+    description: "Additional duties beyond the standing customs schedule (already in the treasury's receipts); zero keeps trade policy as it stands.",
+    category: "economy",
+    allowedScope: "national",
+    targets: [],
+    status: "available",
+    taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 15, step: 0.5, baselineRate: 0 },
+  },
+  {
     id: "us.infrastructure.highways.primary",
     countryId: "US",
     kind: "primary",
@@ -432,17 +446,116 @@ const AVAILABLE: CatalogEntry[] = [
 const STUBBED_IDS: Array<{ id: string; countryId: string; title: string; blockingSystem: string; category: string }> = [
   // Infrastructure/embargo/tariff etc. that need unported systems
   { id: "us.economy.mobility.primary", countryId: "US", title: "Economic Opportunity and Rural Assistance Act", blockingSystem: "budget/grants", category: "economy" },
-  { id: "us.defense.diplomacy.primary", countryId: "US", title: "Diplomatic Posture and Alliance Act", blockingSystem: "military/alliance", category: "defense" },
-  { id: "us.defense.armedForces.primary", countryId: "US", title: "Armed Forces Structure Act", blockingSystem: "military/conflict", category: "defense" },
-  { id: "us.environment.conservation.primary", countryId: "US", title: "Conservation and Public Lands Act", blockingSystem: "politicalMetrics/environment", category: "environment" },
-  { id: "uk.defense.security.primary", countryId: "UK", title: "Defence Readiness Act (UK)", blockingSystem: "military", category: "defense" },
-  { id: "ru.economy.stability.primary", countryId: "RU", title: "Central Planning Stability Act", blockingSystem: "plannedEconomy", category: "economy" },
-  { id: "dd.economy.workerSecurity.primary", countryId: "DD", title: "Labor Code (GDR)", blockingSystem: "politicalMetrics", category: "economy" },
   { id: "us.tariff.primary", countryId: "US", title: "Tariff and Customs Act (non-economy)", blockingSystem: "tariff/customs", category: "economy" },
   { id: "us.subsidy.industry.primary", countryId: "US", title: "Industrial Subsidy Act", blockingSystem: "subsidy/corporation", category: "economy" },
   { id: "us.union.law.primary", countryId: "US", title: "Union Law Act", blockingSystem: "labour/union", category: "order" },
   { id: "us.electoral.law.primary", countryId: "US", title: "Electoral Law Act", blockingSystem: "elections/electoralLaw", category: "governance" },
   { id: "us.centralBank.independence.primary", countryId: "US", title: "Central Bank Independence Act", blockingSystem: "centralBank/governance", category: "economy" },
+];
+
+// Exact current AHDGame country-law rows. Both use only the generic political
+// metric policy target and level cost channels already consumed by billLifecycle
+// and policyEffects. Their source-typed metrics exist for both player countries.
+const RU_DD_ECONOMY: CatalogEntry[] = [
+  {
+    id: "ru.economy.stability.primary",
+    countryId: "RU",
+    kind: "primary",
+    title: "State Plan Discipline Act",
+    description: "The planning commission (*Gosplan*) and the discipline that makes targets law.",
+    category: "economy",
+    allowedScope: "national",
+    baselineLevel: 3,
+    targets: [{ metricId: "economy.stability", weight: 1 }],
+    status: "available",
+    levels: [
+      { name: "No Plan Authority", description: "No planning authority: enterprises produce what they can and barter for what they cannot." },
+      { name: "Planning Commission", description: "The planning commission drafts control figures and monitors fulfillment, but its targets remain advice.", gdpCostFraction: 0.00043 },
+      { name: "Binding Plan Targets", description: "Plan targets carry the force of law; failure to fulfill is answered before the ministry and the procurator.", gdpCostFraction: 0.0009 },
+      { name: "Full Plan Command", description: "The plan commands every balance — steel, grain, labor — and the commission arbitrates all claims between ministries.", gdpCostFraction: 0.0014 },
+      { name: "Total Economic Command", description: "Total command: every input, output, and price in the Union is set centrally, and the market exists only in memory.", gdpCostFraction: 0.0021 },
+    ],
+  },
+  {
+    id: "dd.economy.workerSecurity.primary",
+    countryId: "DD",
+    kind: "primary",
+    title: "Labour Code and Works Agreements Act",
+    description: "The labour book, the works collective agreement, and the union's seat at every plant.",
+    category: "economy",
+    allowedScope: "both",
+    baselineLevel: 3,
+    reformTitle: "Labour Code Liberalization Act",
+    targets: [{ metricId: "economy.workerSecurity", weight: 1 }],
+    status: "available",
+    levels: [
+      { name: "No Labour Code", description: "No labour code binds the enterprise: hours, wages, and dismissal are the works director's ledger entries." },
+      { name: "Basic Labour Code", description: "A basic code fixes the working day and safety minimums, enforced where an inspector happens to call.", gdpCostFraction: 0.0007 },
+      { name: "Employment Protections", description: "Dismissal requires cause and the works council's signature; the union countersigns what the directorate decides.", gdpCostFraction: 0.0014 },
+      { name: "Guaranteed Employment", description: "Every citizen is guaranteed a workplace — and bound to it, for the labour book travels with the worker.", gdpCostFraction: 0.0021 },
+      { name: "Total Labour Charter", description: "The full charter: guaranteed employment, codified norms, paid rest, and a grievance path through the union for every works in the Republic.", gdpCostFraction: 0.0032 },
+    ],
+  },
+];
+
+// These source laws only project their authored policy levels onto the
+// political metric families below, with GDP-fraction budget costs. Native's
+// persisted policy ledger, defense/environment metric rows, and policy-budget
+// delta consumer implement those exact channels; no combat or alliance state
+// is implied by these rows.
+const SOURCE_METRIC_LAWS: CatalogEntry[] = [
+  {
+    id: "us.defense.diplomacy.primary", countryId: "US", kind: "primary",
+    title: "Foreign Service and Negotiations Act", description: "The diplomatic corps and the negotiations it can sustain.",
+    category: "defense", allowedScope: "national", baselineLevel: 2,
+    targets: [{ metricId: "defense.diplomacy", weight: 1 }], status: "available",
+    levels: [
+      { name: "Skeleton Service", description: "A skeleton service: minimal missions, and cables that go unanswered." },
+      { name: "Professional Service", description: "A professional service: staffed embassies and a treaty corps that closes agreements.", gdpCostFraction: 0.0015 },
+      { name: "Global Diplomacy", description: "Global diplomacy: worldwide presence and a seat at every arms table.", gdpCostFraction: 0.003 },
+      { name: "Diplomatic Offensive", description: "The diplomatic offensive: conferences convened and standing envoys everywhere that matters.", gdpCostFraction: 0.0048 },
+      { name: "Pax Americana Diplomacy", description: "Pax Americana diplomacy: maximal reach, the world's agenda drafted in Washington.", gdpCostFraction: 0.0072 },
+    ],
+  },
+  {
+    id: "us.defense.armedForces.primary", countryId: "US", kind: "primary",
+    title: "Armed Forces Establishment Act", description: "The size, training, and readiness of the armed forces themselves.",
+    category: "defense", allowedScope: "national", baselineLevel: 4,
+    targets: [{ metricId: "defense.armedForces", weight: 1 }], status: "available",
+    levels: [
+      { name: "Skeleton Force", description: "A skeleton force: a constabulary-scale military for a continental nation." },
+      { name: "Peacetime Cadre", description: "A peacetime cadre: a small professional force with a large doctrine.", gdpCostFraction: 0.02 },
+      { name: "Standing Forces", description: "Standing forces: substantial ready divisions and fleets in commission.", gdpCostFraction: 0.0378 },
+      { name: "Large Standing Forces", description: "Large standing forces: a major peacetime establishment across every theater.", gdpCostFraction: 0.0554 },
+      { name: "Mobilized Establishment", description: "The mobilized establishment: war-footing manpower and readiness held in peacetime.", gdpCostFraction: 0.0756 },
+    ],
+  },
+  {
+    id: "us.environment.conservation.primary", countryId: "US", kind: "primary",
+    title: "Pollution Control Act", description: "Limits on what industry may put into air, water, and soil.",
+    category: "environment", allowedScope: "both", baselineLevel: 1,
+    targets: [{ metricId: "environment.conservation", weight: 1 }], status: "available",
+    levels: [
+      { name: "No Controls", description: "Discharge is unrestrained; the river carries whatever the outfall pipe delivers." },
+      { name: "Nuisance Abatement", description: "Nuisance abatement takes the worst single sources to court.", gdpCostFraction: 0.00038 },
+      { name: "Discharge Permits", description: "A discharge-permit regime: outflows licensed, measured, and capped.", gdpCostFraction: 0.0008 },
+      { name: "Strict Limits", description: "Strict limits: binding emission ceilings with penalties that outrun the savings of cheating.", gdpCostFraction: 0.0014 },
+      { name: "Total Stewardship", description: "Total stewardship: a sweeping conservation regime over air, water, and soil alike.", gdpCostFraction: 0.0022 },
+    ],
+  },
+  {
+    id: "uk.defense.security.primary", countryId: "UK", kind: "primary",
+    title: "Security Services and Signals Act", description: "The quiet services and the listening stations.",
+    category: "defense", allowedScope: "national", baselineLevel: 2,
+    targets: [{ metricId: "defense.security", weight: 1 }], status: "available",
+    levels: [
+      { name: "No Apparatus", description: "Espionage goes unopposed; the secrets leave by the front door." },
+      { name: "Security Foundations", description: "The quiet services are funded and staffed.", gdpCostFraction: 0.0023 },
+      { name: "Security Establishment", description: "The establishment at strength: the services and the signals stations together.", gdpCostFraction: 0.0045 },
+      { name: "Deep Security State", description: "A deep security state: expansive collection and vetting across government and industry.", gdpCostFraction: 0.0073 },
+      { name: "Total Vigilance", description: "Total vigilance: the maximal apparatus, and the positive vetting file as a rite of passage.", gdpCostFraction: 0.0109 },
+    ],
+  },
 ];
 
 const STUBBED: CatalogEntry[] = STUBBED_IDS.map((s) => ({
@@ -460,7 +573,7 @@ const STUBBED: CatalogEntry[] = STUBBED_IDS.map((s) => ({
 
 // W61 M2: generated per-country catalogs (see catalogPorted*.ts headers).
 const PORTED: CatalogEntry[] = [...CATALOG_JP, ...CATALOG_DE, ...CATALOG_IE, ...CATALOG_CN, ...CATALOG_BR];
-const AVAILABLE_ALL: CatalogEntry[] = [...AVAILABLE, ...PORTED.filter((e) => e.status === "available")];
+const AVAILABLE_ALL: CatalogEntry[] = [...AVAILABLE, ...RU_DD_ECONOMY, ...SOURCE_METRIC_LAWS, ...PORTED.filter((e) => e.status === "available")];
 const STUBBED_ALL: CatalogEntry[] = [...STUBBED, ...PORTED.filter((e) => e.status !== "available")];
 
 const ALL: CatalogEntry[] = [...AVAILABLE_ALL, ...STUBBED_ALL];
