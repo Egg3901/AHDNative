@@ -54,6 +54,9 @@ describe("source NPP company bootstrap", () => {
         expect(world.regions[actor.homeRegionId]).toMatchObject({ countryId: "NG", population: expect.any(Number), governorNppId: actor.id, sourceGdp: { amount: expect.any(Number), currencyCode: era === "1953" ? "USD" : "NGN", unit: "millions" } });
         expect(world.parties[actor.partyId]?.countryId === "NG" || actor.partyId === "independent").toBe(true);
       }
+      const ngUnownedPools = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "NG");
+      expect(ngUnownedPools).toHaveLength(6 * 17);
+      expect(ngUnownedPools.every((pool) => typeof pool.regionId === "string")).toBe(true);
       const ngCorporations = Object.values(world.corporations).filter((corporation) => corporation.countryId === "NG" && corporation.ceoType === "npp");
       // Game's seedNppCorporations preset allowlist explicitly excludes
       // 2023-default; source governor identities still exist in that era.
