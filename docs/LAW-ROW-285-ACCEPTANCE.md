@@ -16,6 +16,7 @@ source bill-enactment delta in this range only adds analytics capture.
 | `us.environment.conservation.primary` | `US_LAWS`: `environment.conservation`, both scope, L1 baseline and GDP-cost ladder | Native policy ledger, environmental metric destination, and budget delta path consume the authored target and costs. |
 | `uk.defense.security.primary` | `UK_LAWS`: `defense.security`, L2 baseline and GDP-cost ladder | Source row only targets the scalar metric; Native budget and metric policy consumers handle it. |
 | `us.tax.tariffs` | `US_LAWS`: federal `tariffs`, 0–15%, 0.5-point rate step, zero baseline | Existing sponsor, import-value tariff revenue, budget surplus reconciliation, rate phase-in and save/reload continuation. The current turn books receipts at its in-force rate before advancing the next rate step. This is distinct from unmatched synthetic `us.tariff.primary`. |
+| `ie_corporate_tax_rate` | IE's statutory domestic-corporate tax: 11 authored rates (0–33%), source effect targets map through `ADAPTER_TIER1`, and the baseline rate is 12.5%. | Public IE HoS sponsor moves 12.5%→13.5% in the source one-point enactment step; the source/native domestic profit base is the same 75% of the authored 22%-of-GDP total corporate base, receipts are recomputed at the in-force rate, replacement at 15% replaces the first posture, and save/reload/ordinary turns preserve the rate and metric effect. This qualifies only this receipt line, not full IE budget parity. |
 | `de_government_ethics` | DE ethics seed: governance transparency, trust, and turnout targets; seven source policy options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
 | `ie_electoral_reform` | IE ethics/electoral seed: turnout, civic participation, public trust, and transparency targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
 | `ie_gender_equality` | IE equality seed: equality, mobility, civic participation, and cohesion targets; seven source options, no budget-cost model | Source-authored 7-option national law, public HOS sponsor, policy ledger, national metric-decay consumer, save/reload and ordinary-turn continuation. |
@@ -43,10 +44,11 @@ The remaining Native hand-authored stubs are:
 | `us.electoral.law.primary` | No exact law ID exists in the pinned Game catalog. | Keep blocked as `elections/electoralLaw`; election-law actions are not a source bill row. |
 | `us.centralBank.independence.primary` | No exact law ID exists in the pinned Game catalog. | Keep blocked as `centralBank/governance`; central-bank appointment/governance is not a source bill row. |
 
-The unavailable inventory retains 239 matched rows plus 5 source-unmatched IDs (244 total): 26 tax rows, 209 rows with at
-least one named unsupported political-metric target, 3 JP rows whose metrics are
-mapped but whose per-capita fiscal-cost consumer is not ported, one matched income-cost
-law (`us.economy.mobility.primary`), and 5 source-unmatched IDs. Each matched
+The unavailable inventory retains 238 matched rows plus 5 source-unmatched IDs (243 total): 25 tax rows, 209 rows with at
+least one named unsupported political-metric target, 3 JP rows whose authored
+metrics and per-capita prices are now retained but cannot be reached by a player
+because Native marks JP economy-only/nonplayable and does not seed JP regions into
+player worlds, one matched income-cost law (`us.economy.mobility.primary`), and 5 source-unmatched IDs. Each matched
 row records its exact source path, scope, prerequisites, authored targets and blocker in
 `catalogUnavailableInventory.ts`. Tax rows with regional scope stay blocked
 when their revenue base or option-specific metric effect is absent (for
@@ -54,6 +56,52 @@ example DE `tradeTax` has no Native state-tax revenue factor; JP
 `fixedAssetTax`/`residentTax` are not Native state-tax rate keys; CN
 `cn_provincial_resource_tax` additionally has source metric effects beyond its
 sales-tax budget leg).
+
+### Tax-row source and consumer audit
+
+The exact 26-row starting inventory is reconciled here; `ie_corporate_tax_rate`
+is the one released row above. In every remaining row, the named metric or tax
+base gap is why the source ladder stays unavailable. `calculateBudgetRevenue`
+only consumes Native's current federal keys (`incomeTax`, `domesticCorporateTax`,
+`foreignCorporateTax`, `payrollTax`, `tariffs`, `salesTax`); `applyStateTaxToRegionalRevenue`
+is limited to its existing state keys. A matching rate name alone is not a
+complete source tax implementation.
+
+| Remaining source row | Required source behavior still absent |
+| --- | --- |
+| `br_corporate_tax` | Domestic-corporate receipt key exists; source `economic.economicFreedom` and `economic.smallBusinessFormation` targets are not produced. |
+| `br_ivc` | Sales-tax receipt key exists; source `economic.costOfLiving` target is not produced. |
+| `br_iap_contribution` | Payroll receipt key exists; source `economic.economicFreedom` target is not produced. |
+| `br_customs_tariff` | Tariff receipt key exists; source `economic.tradeBalance` and `economic.costOfLiving` targets are not produced. |
+| `cn_land_value_added_tax` | Source LVAT base/rate is absent from Native federal revenue; targets `social.housingAffordability`, `social.incomeInequality`, and `social.wohnungsBauRate` are not produced. |
+| `cn_urban_maintenance_construction_tax` | Source surcharge-on-VAT receipt is absent; targets `infrastructure.transportEfficiency`, `economic.costOfLiving`, and `economic.ruralRevitalization` are not produced. |
+| `cn_stamp_duty` | Source transactions-proxy base/receipt is absent; targets `economic.smallBusinessFormation` and `social.incomeInequality` are not produced. |
+| `cn_provincial_resource_tax` | Source is a regional natural-resource tax, not Native's generic regional sales-tax base; `environment.carbonEmissions`, `economic.ruralRevitalization`, and `economic.manufacturingCompetitiveness` are not produced. |
+| `de_trade_tax` | Source is municipal trade/assessment tax; Native has no regional trade-tax receipt factor, and `economic.mittelstandHealth`/`economic.smallBusinessFormation` are not produced. |
+| `ie_foreign_corporate_tax_rate` | Foreign-corporate receipt key exists; `economic.tradeBalance`, `fdiPipelineStrength`, and `mncDependency` targets are not produced. |
+| `ie_income_tax_rate` | Income receipt key exists; `economic.medianIncome` and `economic.povertyRate` targets are not produced (income inequality maps to Native social mobility). |
+| `ie_usc` | Source universal-social-charge receipt key is absent; `economic.medianIncome` and `economic.povertyRate` targets are not produced. |
+| `ie_prsi` | Payroll receipt key exists; `economic.medianIncome` target is not produced (other targets have consumers). |
+| `ie_customs_tariff_rate` | Tariff receipt key exists; `tradeBalance`, cost-of-living, manufacturing-competitiveness, FDI, and MNC targets are not produced. |
+| `ie_local_property_tax` | Source is national/federal scope; Native property tax is regional only, and housing-affordability, vacant-property, and homelessness targets are not produced. |
+| `ie_stamp_duty` | Source stamp-duty receipt key is absent; small-business, housing-affordability, vacant-property, and rental-pressure targets are not produced. |
+| `ie_capital_gains_tax` | Source capital-gains base/receipt key is absent; source small-business and FDI targets are not produced. |
+| `ie_excise_duty` | Source excise base/receipt key is absent; carbon/agri-emissions and cost-of-living targets are not produced. |
+| `jp_income_tax_rate` | Income receipt key exists; source median-income, poverty, and GDP-growth targets are not produced for JP in Native player worlds. |
+| `jp_domestic_corporation_tax` | Domestic receipt key exists; source small-business-formation and unemployment targets are not produced for JP in Native player worlds. |
+| `jp_foreign_corporation_tax` | Foreign receipt key exists; source small-business-formation and cost-of-living targets are not produced for JP in Native player worlds. |
+| `jp_social_insurance` | Payroll receipt key exists; source elder-care and mental-health targets are not produced for JP in Native player worlds. |
+| `jp_customs_tariff` | Tariff receipt key exists; source food-security and small-business-formation targets are not produced for JP in Native player worlds. |
+| `jp_resident_tax` | Source regional resident-income-tax basis is not a Native regional tax key; source education/public-safety targets and JP player eligibility are absent. |
+| `jp_fixed_asset_tax` | Source regional property-value basis is not a Native regional tax key; source cost-of-living/business-formation targets and JP player eligibility are absent. |
+
+For IE corporate tax, the narrower domestic-receipt vector is independently
+checked against the source's authored 75/25 corporate-base split, one-point
+`advanceTaxRatePhaseIn`, and `calculateFederalRevenue` at identical budget inputs
+(private source oracle under `/root/misc/archive/2026-10-03-ahdnative-law285-tax-oracle`).
+The unrelated IE extra receipt lines remain missing: Native's baseline total
+revenue is not claimed to match the source total, and issue #101's wider fiscal
+substrate work remains separate.
 
 ## Focused evidence
 
