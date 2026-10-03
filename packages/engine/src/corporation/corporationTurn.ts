@@ -76,6 +76,7 @@ import { unlockNppCorporationTech } from "./techTree/nppUnlock.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { assembleSourcePlantPnl, sourcePlantPolicyCredit } from "./physicalPlantCosts.js";
 import { resolveDueCorporateRelocationVotes } from "./relocationVotes.js";
+import { settleIndexFundDividend } from "../indexFunds/dividends.js";
 import {
   RD_EXTRACTION_BOOST_MAX,
   RD_EXTRACTION_BOOST_MIN,
@@ -102,7 +103,14 @@ export function runCorporationTurn(
   corp: Corporation,
   taxRatePct: number,
   labourFactors: CorporationLabourFactors = { outputFactor: 1, marginModifierPP: 0, strikeActive: false },
-  settlement?: { player: PlayerCharacter; currencyCode: string },
+  settlement?: {
+    player: PlayerCharacter;
+    currencyCode: string;
+    indexFundBook?: import("../indexFunds/types.js").IndexFundBook;
+    playerCurrencyCode?: string;
+    foreignExchangeEnabled?: boolean;
+    turn?: number;
+  },
   plantsTier: boolean = false,
   rdContext: { localPerAnchor?: number; avgWageLevel?: number } = {},
   growthContext: { softBudget: boolean; plannedTargetRate?: number } = { softBudget: false },
@@ -179,6 +187,18 @@ export function runCorporationTurn(
   const playerDividendPaid = playerHolding && corp.totalShares > 0
     ? dividendPoolPaid * Math.max(0, Math.min(1, playerHolding.shares / corp.totalShares))
     : 0;
+  const fundDividendReceived = settlement
+    ? settleIndexFundDividend({
+        book: settlement.indexFundBook,
+        corporation: corp,
+        corporationCurrencyCode: settlement.currencyCode,
+        dividendPoolAnchor: dividendPoolPaid,
+        player: settlement.player,
+        playerCurrencyCode: settlement.playerCurrencyCode ?? settlement.currencyCode,
+        foreignExchangeEnabled: settlement.foreignExchangeEnabled === true,
+        turn: settlement.turn ?? 0,
+      })
+    : 0;
 
   corp.targetGrowthRate = clamp(brakedTargetRate, MIN_GROWTH_RATE, MAX_GROWTH_RATE);
   corp.currentGrowthRate = newCurrentGrowthRate;
@@ -189,7 +209,7 @@ export function runCorporationTurn(
   corp.lastRdSpendPerTurn = rdSpend;
   corp.lastDividendPoolPaid = dividendPoolPaid;
   corp.lastPlayerDividendPaid = playerDividendPaid;
-  corp.lastUnpostedDividendPaid = Math.max(0, dividendPoolPaid - playerDividendPaid);
+  corp.lastUnpostedDividendPaid = Math.max(0, dividendPoolPaid - playerDividendPaid - fundDividendReceived);
   corp.liquidCapital += netIncomeBeforeDividends - dividendPoolPaid;
   const localPerAnchor = Number.isFinite(rdContext.localPerAnchor) && (rdContext.localPerAnchor ?? 0) > 0
     ? rdContext.localPerAnchor!
@@ -392,7 +412,14 @@ export const corporationTurnPhase: TurnPhase = {
         // Physical asset P&L owns the additive modifier credit once available.
         marginModifierPP: marginWeight > 0 ? 0 : (marginModifierByCorp.get(corp.id) ?? 0),
       };
-      runCorporationTurn(corp, taxRatePct, labourAndSubsidy, { player: world.player, currencyCode }, true, {
+      runCorporationTurn(corp, taxRatePct, labourAndSubsidy, {
+        player: world.player,
+        currencyCode,
+        indexFundBook: world.indexFundBook,
+        playerCurrencyCode: world.budgets?.[world.player.countryId]?.currencyCode ?? world.exchangeRates?.[world.player.countryId]?.currencyCode ?? "XXX",
+        foreignExchangeEnabled: world.featureFlags.foreignExchange !== false,
+        turn: world.meta.turn,
+      }, true, {
         localPerAnchor: fx,
         avgWageLevel: asset?.wageLevel ?? 1,
       }, {

@@ -1053,10 +1053,10 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
     if (!isRecord(item) || Object.keys(item).some((key) => !["id", "turn", "fundSlug", "kind", "corporationId", "units", "cashAnchor"].includes(key)) ||
         typeof item["id"] !== "string" || item["id"].length === 0 || txIds.has(item["id"]) || !Number.isSafeInteger(item["turn"]) ||
         (item["turn"] as number) < 0 || (item["turn"] as number) > turn || item["fundSlug"] !== "us_top_25" ||
-        !["subscription", "redemption", "redemptionPayout", "floatPurchase", "floatSale"].includes(String(item["kind"])) || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
+        !["subscription", "redemption", "redemptionPayout", "floatPurchase", "floatSale", "dividendReceipt", "dividendPayout"].includes(String(item["kind"])) || !Number.isSafeInteger(item["units"]) || (item["units"] as number) < 1 ||
         !Number.isFinite(item["cashAnchor"]) || (item["cashAnchor"] as number) < 0 ||
-        (["floatPurchase", "floatSale"].includes(String(item["kind"])) && (typeof item["corporationId"] !== "string" || item["corporationId"].length === 0)) ||
-        (!(["floatPurchase", "floatSale"].includes(String(item["kind"]))) && item["corporationId"] !== undefined)) fail();
+        (["floatPurchase", "floatSale", "dividendReceipt", "dividendPayout"].includes(String(item["kind"])) && (typeof item["corporationId"] !== "string" || item["corporationId"].length === 0)) ||
+        (!(["floatPurchase", "floatSale", "dividendReceipt", "dividendPayout"].includes(String(item["kind"]))) && item["corporationId"] !== undefined)) fail();
     txIds.add(item["id"] as string);
   }
   const txRows = transactions as Array<Record<string, unknown>>;
@@ -1069,9 +1069,11 @@ function validateIndexFundBook(raw: unknown, turn: number): void {
   const redeemedCash = sumField("redemption", "cashAnchor") + sumField("redemptionPayout", "cashAnchor");
   const floatPurchases = sumField("floatPurchase", "cashAnchor");
   const floatSales = sumField("floatSale", "cashAnchor");
+  const dividendReceipts = sumField("dividendReceipt", "cashAnchor");
+  const dividendPayouts = sumField("dividendPayout", "cashAnchor");
   const queuedUnitsTotal = redemptions.reduce((sum, item) => sum + (item as Record<string, number>)["queuedUnits"], 0);
   if (fund["unitSupply"] !== INDEX_FUND_SEED_RESERVE_UNITS + subscribedUnits - redeemedUnits ||
-      Math.abs((fund["cashAnchor"] as number) - (INDEX_FUND_SEED_CASH_ANCHOR + subscribedCash - redeemedCash - floatPurchases + floatSales)) > 1e-8 ||
+      Math.abs((fund["cashAnchor"] as number) - (INDEX_FUND_SEED_CASH_ANCHOR + subscribedCash - redeemedCash - floatPurchases + floatSales + dividendReceipts - dividendPayouts)) > 1e-8 ||
       Math.abs((fund["quotedNav"] as number) - ((fund["cashAnchor"] as number) + holdingValue) / ((fund["unitSupply"] as number) + queuedUnitsTotal)) > 1e-6) fail();
 }
 

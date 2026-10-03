@@ -41,7 +41,7 @@ export interface IndexFundTransaction {
   id: string;
   turn: number;
   fundSlug: string;
-  kind: "subscription" | "redemption" | "redemptionPayout" | "floatPurchase" | "floatSale";
+  kind: "subscription" | "redemption" | "redemptionPayout" | "floatPurchase" | "floatSale" | "dividendReceipt" | "dividendPayout";
   corporationId?: string;
   units: number;
   cashAnchor: number;
