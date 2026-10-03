@@ -251,6 +251,10 @@ test("Irish PM replaces VAT through a source bill and resumes its saved fiscal p
   await gameReady(page);
   await openLegislation(page);
   const vatTitle = "Statutory Value-Added Tax Act";
+  // Legislation details are driven by the selected catalog entry. The page
+  // defaults to the first available bill, so choose VAT before looking for its
+  // authored rate selector.
+  await page.getByLabel("Available legislation", { exact: true }).selectOption("ie_vat_rate");
   const priorBillCount = await page.getByRole("article", { name: vatTitle, exact: true }).count();
   const rateSelector = page.getByLabel("Tax rate", { exact: true });
   await rateSelector.selectOption("25");
